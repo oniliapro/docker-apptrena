@@ -1,0 +1,98 @@
+FROM php:8.2-fpm
+MAINTAINER Cicero Almeida <cicero.almeida@gmail.com>
+LABEL maintainer="Cicero Almeida <cicero.almeida@gmail.com>" \
+        php="8.0"
+
+# Set timezone
+RUN ln -fs /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
+    dpkg-reconfigure --frontend noninteractive tzdata
+
+# Criando diretrios para armazenar cdigos fontes e extenses do PHP compiladas.
+RUN mkdir /usr/src/php/ && mkdir /usr/src/php/ext
+
+# Install required libraries
+RUN apt-get update && \
+    apt-get install -y \
+    	libonig-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libfreetype6-dev \
+        git \
+        mariadb-client \
+	libmcrypt-dev \
+	libxml2 \
+	curl \
+	libxslt-dev \
+	openssl \
+	libssl-dev \
+	libcurl4-openssl-dev \
+	pkg-config \
+	zlib1g-dev \
+	zip \
+	unzip \
+	libzip-dev \
+	libgmp-dev \
+	re2c \
+	libmhash-dev \
+	file \
+    && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype=/usr/include/ --with-jpeg=/usr/include/ && \
+    docker-php-ext-install -j $(nproc) \
+        pdo_mysql \
+        gd \
+        zip \
+	mysqli \
+	mbstring \
+	gmp \
+	xsl \
+	soap
+	
+# Install PHP extensions for PostgreSQL
+#RUN apt-get update && apt-get install -y libpq-dev \
+#    && docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
+#    && docker-php-ext-install pgsql pdo_pgsql
+
+# PERGUNTAR SOBRE ESSAS BIBLIOTECAS
+#RUN pear install net_socket auth_sasl net_idna2 mail_mime net_smtp crypt_gpg
+#RUN pear install net_idna2-beta kolab/Net_LDAP3
+
+# Instalando e habilitando a extenso Imagick p/ manipular imagens em ormatos, como JPEG, PNG, GIF e BMP, atravs do PHP.
+# RUN apt-get update && \
+#    apt-get install -y libmagickwand-dev --no-install-recommends && pecl install imagick && docker-php-ext-enable imagick
+
+##Instalando o NODEJS e o NPM
+RUN apt-get update && \
+    apt-get install -y nodejs npm
+
+# Instalando a extenso igbinary (serializador de dados mais eficiente que o do PHP - verificar verso compatvel com a verso do php)
+RUN cd /usr/src/php/ext \
+    #&& curl -fsSL https://github.com/igbinary/igbinary7/archive/master.tar.gz -o igbinary.tar.gz \
+    && curl -fsSL https://github.com/igbinary/igbinary/archive/master.tar.gz -o igbinary.tar.gz \
+    && mkdir -p igbinary \
+    && tar -xf igbinary.tar.gz -C igbinary --strip-components=1 \
+    && rm igbinary.tar.gz \
+    && docker-php-ext-install igbinary \
+    && \
+       docker-php-source delete
+
+# Install Xdebug
+RUN set -xe && \
+	pecl install xdebug && \
+	docker-php-ext-enable xdebug && \
+	php -v && \
+	php -m
+	
+#Download composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Backup das configuraes padro do PHP
+RUN \
+    mkdir -p ${HOME}/php-default-conf && \
+    cp -R /usr/local/etc/* ${HOME}/php-default-conf
+
+# Limites maiores de upload (fotos do Diário de Obra, nota fiscal por IA, etc.)
+COPY php-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini

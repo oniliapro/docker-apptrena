@@ -1,0 +1,73 @@
+services:
+  nginx:
+    container_name: controleobra-nginx
+    build:
+      context: .
+      dockerfile: Dockerfile_nginx
+    ports:
+      # Só localhost: o nginx do sistema repassa /api pra cá (ver 9.6 do guia).
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./controleobra:/usr/share/nginx/controleobra
+      - ./nginx/logs:/var/log/nginx/
+
+  phpfpm:
+    container_name: controleobra-phpfpm
+    build:
+      context: .
+      dockerfile: Dockerfile_php
+    volumes:
+      - ./controleobra:/usr/share/nginx/controleobra
+    ports:
+      - "9000:9000"
+    working_dir: /usr/share/nginx/controleobra
+
+  mysql:
+    image: "mysql:5.7.28"
+    container_name: controleobra-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    ports:
+      # Só acessível de dentro da própria máquina (127.0.0.1), nunca da
+      # internet — mesmo se essa máquina/VPS tiver IP público. Pra acessar
+      # de fora, use um túnel SSH (ssh -L 3306:localhost:3306 usuario@host).
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - banco_mysql_data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+
+  myadmin:
+    image: phpmyadmin/phpmyadmin:4.7.0-1
+    container_name: controleobra-myadmin
+    environment:
+      PMA_HOST: "mysql"
+    ports:
+      # Mesma lógica: phpMyAdmin nunca deve ficar acessível publicmente na
+      # internet (é uma porta de entrada e essa versão é bem antiga).
+      - "127.0.0.1:8084:80"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  # Serve o frontend estático (html/js/css do app do Lucas). Em produção
+  # (VPS Linux) o caminho é relativo — "./frontend-app" precisa existir
+  # junto deste docker-compose.yml (é uma cópia da pasta "Aplicativo Lucas",
+  # feita só para o deploy). Localmente no Windows, use o compose antigo
+  # com o caminho absoluto "C:/Users/.../Aplicativo Lucas:/app" se preferir
+  # testar sem essa cópia.
+  frontend:
+    image: php:8.2-cli
+    container_name: controleobra-frontend
+    volumes:
+      - "./frontend-app:/app"
+    working_dir: /app
+    command: php -S 0.0.0.0:8000
+    ports:
+      # Só localhost: o nginx do sistema (fora do Docker) é quem fica nas
+      # portas 80/443 públicas e repassa pra cá — ver seção 9.6 do guia.
+      - "127.0.0.1:8080:8000"
+
+volumes:
+  banco_mysql_data:

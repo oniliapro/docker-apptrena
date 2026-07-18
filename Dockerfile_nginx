@@ -1,0 +1,22 @@
+FROM nginx:latest
+MAINTAINER Cicero Almeida <cicero.almeida@gmail.com>
+LABEL maintainer="Cicero Almeida <cicero.almeida@gmail.com>"
+
+RUN rm /etc/nginx/conf.d/default.conf
+COPY ./default.conf /etc/nginx/conf.d/
+
+# Copia o arquivo hosts para um local temporario
+COPY ./hosts /tmp/
+
+# Substitui o arquivo hosts quando o container iniciar
+#CMD cp /tmp/hosts /etc/hosts && nginx -g 'daemon off;'
+
+# Script para capturar o IP do container e atualizar o arquivo hosts
+RUN echo '#!/bin/sh' > /usr/local/bin/update-hosts.sh && \
+    echo 'IP=$(hostname -i)' >> /usr/local/bin/update-hosts.sh && \
+    echo 'echo "$IP    mycontainer" >> /tmp/hosts' >> /usr/local/bin/update-hosts.sh && \
+    echo 'cp /tmp/hosts /etc/hosts' >> /usr/local/bin/update-hosts.sh && \
+    chmod +x /usr/local/bin/update-hosts.sh
+
+# Executa o script ao iniciar o container e inicia o NGINX
+CMD /usr/local/bin/update-hosts.sh && nginx -g 'daemon off;'

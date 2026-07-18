@@ -1,0 +1,25 @@
+# Segredos — nunca versionar
+.env
+.env.*
+!.env.example
+root@187.77.59.52
+
+# Dados do banco (volume Docker, binário e pesado)
+banco-mysql/
+
+# Logs
+nginx/logs/
+*.log
+
+# Pastas de referência/lixo, não fazem parte do sistema em produção
+_lixo_backend/
+_lixo_banco/
+_lixo_laravel_ref/
+
+# Backups e pacotes temporários
+*.tar.gz
+*.zip
+
+# Sistema
+.DS_Store
+Thumbs.db

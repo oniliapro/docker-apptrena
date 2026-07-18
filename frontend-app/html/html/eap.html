@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cadastro de EAP (Orçado)</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body data-page="eap">
+
+<aside class="barra-lateral">
+  <div class="barra-lateral-cabecalho">
+    <button class="botao-icone" id="alternarBarraLateral" title="Ocultar/mostrar menu">☰</button>
+    <div class="barra-lateral-marca">TrenaApp</div>
+  </div>
+  <nav class="barra-lateral-nav">
+    <a href="./index.html"><span class="nav-icone">🏠</span><span class="nav-texto">Início</span></a>
+    <a href="./eap.html"><span class="nav-icone">🧱</span><span class="nav-texto">Cadastro de EAP</span></a>
+    <a href="./empreita.html"><span class="nav-icone">👷</span><span class="nav-texto">Empreita</span></a>
+    <a href="./pagamentos.html"><span class="nav-icone">💳</span><span class="nav-texto">Pagamentos</span></a>
+    <a href="./mapa.html"><span class="nav-icone">🗺️</span><span class="nav-texto">Mapa</span></a>
+    <a href="./mapas.html"><span class="nav-icone">🧾</span><span class="nav-texto">Lista de Mapas</span></a>
+    <a href="./empreitas.html"><span class="nav-icone">📋</span><span class="nav-texto">Lista de Empreitas</span></a>
+    <a href="./diario-obra.html"><span class="nav-icone">📔</span><span class="nav-texto">Diário de Obra</span></a>
+  </nav>
+</aside>
+
+<header class="barra-topo">
+  <h1 class="titulo-pagina">Cadastro de EAP (Orçado)</h1>
+  <div class="barra-topo-direita">
+    <div class="menu-area">
+      <button class="botao-icone" id="botaoMenuUsuario" title="Configuracoes">⚙</button>
+      <div class="menu-suspenso oculto" id="menuUsuario">
+        <button onclick="abrirConfiguracoes()">Configurações</button>
+        <button onclick="sairAplicativo()">Sair</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo">
+
+<div class="numero-mapa" style="margin-bottom: 6px;">
+  <label>Nº Obra</label><input id="numeroMapa" type="text" placeholder="Ex.: OB-2026-001" />
+</div>
+
+<table class="cabecalho-tabela">
+  <tr>
+    <td>Obra</td><td><input id="nomeObra" placeholder="Nome da obra"></td>
+    <td>Cliente</td><td><input id="cliente" placeholder="Cliente"></td>
+    <td>Data base</td><td><input id="dataBase" type="date"></td>
+  </tr>
+  <tr>
+    <td>Responsável</td><td><input id="responsavel" placeholder="Eng. / Técnico"></td>
+    <td>Local</td><td><input id="local" placeholder="Cidade/UF"></td>
+    <td>Período</td><td><input id="periodo" placeholder="Ex.: Jan/2026"></td>
+  </tr>
+  <tr>
+    <td>Observações</td><td colspan="5"><input id="observacoes" placeholder="Anotações gerais"></td>
+  </tr>
+</table>
+
+<br>
+
+<div class="acoes">
+  <button id="btnAdicionarItemEap" onclick="adicionarItemEap()">➕ Adicionar item EAP</button>
+  <button id="btnLimparEap" onclick="limparObra()">🧹 Limpar (reiniciar)</button>
+  <button id="btnConfirmarEap" class="primario" onclick="alternarConfirmacaoEap()">✅ Confirmar EAP</button>
+</div>
+
+<div class="barra-ferramentas">
+  <div class="barra-ferramentas-linha">
+    <div class="barra-ferramentas-grupo">
+      <span class="barra-ferramentas-rotulo">Colunas</span>
+      <label class="checagem-inline"><input id="alternarUnitario" type="checkbox" checked> Unitário</label>
+      <label class="checagem-inline"><input id="alternarTotal" type="checkbox" checked> Totais</label>
+      <label class="checagem-inline"><input id="alternarBdi" type="checkbox" checked> BDI</label>
+    </div>
+    <div class="barra-ferramentas-grupo">
+      <span class="barra-ferramentas-rotulo">Tipos</span>
+      <label class="checagem-inline"><input id="alternarTipos" type="checkbox" checked> Detalhar</label>
+      <div id="alternanciasTipos" class="alternancias-tipo"></div>
+    </div>
+  </div>
+</div>
+
+<div class="envoltoria">
+  <table id="tabelaEap">
+    <colgroup id="grupoColunas"></colgroup>
+    <thead id="cabecalhoTabela"></thead>
+    <tbody id="corpoTabela"></tbody>
+    <tfoot id="rodapeTabela"></tfoot>
+  </table>
+</div>
+
+<div class="abaixo-grade abaixo-grade-eap">
+  <div class="painel painel-testes-eap">
+    <div id="painelTestes"></div>
+  </div>
+
+  <div class="painel painel-resumo-categoria">
+    <div class="painel-titulo">RESUMO POR CATEGORIA</div>
+    <div id="resumoCategoria" class="painel-corpo"></div>
+  </div>
+</div>
+
+<div id="modalGastos" class="modal oculto" aria-hidden="true">
+  <div class="modal-fundo" onclick="fecharModalGastos()"></div>
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <div id="tituloGastos" class="modal-titulo"></div>
+      <button class="botao-icone" type="button" onclick="fecharModalGastos()">✖</button>
+    </div>
+    <div id="corpoGastos" class="modal-corpo"></div>
+  </div>
+</div>
+
+<script src="../js/shared/backend-storage.js"></script>
+<script src="../js/shared/shell.js"></script>
+<script src="../js/shared/pagamentos-utils.js"></script>
+
+<!-- SCRIPTS (ORDEM IMPORTA) -->
+<script src="../js/eap/00-dom.js"></script>
+<script src="../js/eap/01-data.js"></script>
+<script src="../js/eap/02-state-utils.js"></script>
+<script src="../js/eap/03-engine.js"></script>
+<script src="../js/eap/04-tests.js"></script>
+<script src="../js/eap/04b-summaries.js"></script>
+<script src="../js/eap/05-render.js"></script>
+<script src="../js/eap/06-nav.js"></script>
+<script src="../js/eap/07-app.js"></script>
+
+</main>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lista de Mapas</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body data-page="mapas">
+
+<aside class="barra-lateral">
+  <div class="barra-lateral-cabecalho">
+    <button class="botao-icone" id="alternarBarraLateral" title="Ocultar/mostrar menu">☰</button>
+    <div class="barra-lateral-marca">TrenaApp</div>
+  </div>
+  <nav class="barra-lateral-nav">
+    <a href="./index.html"><span class="nav-icone">🏠</span><span class="nav-texto">Início</span></a>
+    <a href="./obras.html"><span class="nav-icone">🏗️</span><span class="nav-texto">Lista de Obras</span></a>
+    <a href="./eap.html"><span class="nav-icone">🧱</span><span class="nav-texto">Cadastro de EAP</span></a>
+    <a href="./empreita.html"><span class="nav-icone">👷</span><span class="nav-texto">Empreita</span></a>
+    <a href="./pagamentos.html"><span class="nav-icone">💳</span><span class="nav-texto">Pagamentos</span></a>
+    <a href="./mapa.html"><span class="nav-icone">🗺️</span><span class="nav-texto">Mapa</span></a>
+    <a href="./mapas.html"><span class="nav-icone">🧾</span><span class="nav-texto">Lista de Mapas</span></a>
+    <a href="./empreitas.html"><span class="nav-icone">📋</span><span class="nav-texto">Lista de Empreitas</span></a>
+    <a href="./diario-obra.html"><span class="nav-icone">📔</span><span class="nav-texto">Diário de Obra</span></a>
+  </nav>
+</aside>
+
+<header class="barra-topo">
+  <h1 class="titulo-pagina">Lista de Mapas</h1>
+  <div class="barra-topo-direita">
+    <div class="menu-area">
+      <button class="botao-icone" id="botaoMenuUsuario" title="Configuracoes">⚙</button>
+      <div class="menu-suspenso oculto" id="menuUsuario">
+        <button onclick="abrirConfiguracoes()">Configurações</button>
+        <button onclick="sairAplicativo()">Sair</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo">
+
+<div class="painel">
+  <div class="painel-titulo">MAPAS FINALIZADOS</div>
+  <div class="envoltoria">
+    <table class="tabela-resumo">
+      <thead>
+        <tr>
+          <th style="width:120px;">Nº Mapa</th>
+          <th>Descrição</th>
+          <th style="width:180px;">Cliente</th>
+          <th style="width:120px;">Finalização</th>
+          <th style="width:140px;">Total</th>
+          <th style="width:110px;">Pagamentos</th>
+          <th style="width:80px;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoMapas"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="../js/shared/backend-storage.js"></script>
+<script src="../js/shared/shell.js"></script>
+<script src="../js/shared/pagamentos-utils.js"></script>
+<script src="../js/shared/obras-api.js"></script>
+<script src="../js/mapas/01-lista.js"></script>
+
+</main>
+
+</body>
+</html>
