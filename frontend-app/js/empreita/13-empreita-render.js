@@ -255,8 +255,8 @@ function renderizarCorpoEmpreita() {
         <td class="acoes-linha centro">
           <button title="Mover para cima" onclick="moverItemEmpreitaParaCima(${i})">▲</button>
           <button title="Mover para baixo" onclick="moverItemEmpreitaParaBaixo(${i})">▼</button>
-          <button title="Inserir linha abaixo" onclick="inserirItemEmpreitaAbaixo(${i})">＋</button>
-          <button title="Excluir" onclick="removerItemEmpreita(${i})">✖</button>
+          <button title="Inserir linha abaixo" class="sucesso" onclick="inserirItemEmpreitaAbaixo(${i})">＋</button>
+          <button title="Excluir" class="perigo" onclick="removerItemEmpreita(${i})">✖</button>
         </td>
       </tr>
     `;

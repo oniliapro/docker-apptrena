@@ -58,7 +58,7 @@ function renderizarListaMapas() {
       <td class="valor"><b>${formatarMoeda(m.totalMapa || 0)}</b></td>
       <td class="centro">${Array.isArray(m.pagamentosIds) ? m.pagamentosIds.length : 0}</td>
       <td class="centro">
-        <button title="Excluir" onclick="removerMapa('${m.id}')">✖</button>
+        <button title="Excluir" class="perigo" onclick="removerMapa('${m.id}')">✖</button>
       </td>
     </tr>
   `).join("");

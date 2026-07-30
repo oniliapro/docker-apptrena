@@ -409,8 +409,8 @@ function renderizarCorpoTabela() {
       <td class="acoes-linha centro">
         <button title="Mover para cima" ${bloqueado ? "disabled" : ""} onclick="moverItemEapParaCima(${i})">▲</button>
         <button title="Mover para baixo" ${bloqueado ? "disabled" : ""} onclick="moverItemEapParaBaixo(${i})">▼</button>
-        <button title="Inserir linha abaixo" ${bloqueado ? "disabled" : ""} onclick="inserirItemEapAbaixo(${i})">＋</button>
-        <button title="Excluir" ${bloqueado ? "disabled" : ""} onclick="removerItemEap(${i})">✖</button>
+        <button title="Inserir linha abaixo" class="sucesso" ${bloqueado ? "disabled" : ""} onclick="inserirItemEapAbaixo(${i})">＋</button>
+        <button title="Excluir" class="perigo" ${bloqueado ? "disabled" : ""} onclick="removerItemEap(${i})">✖</button>
       </td>
     `;
 

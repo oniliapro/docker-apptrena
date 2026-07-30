@@ -87,7 +87,7 @@
           <td class="centro">${ativa ? "<b>✔ Ativa</b>" : `<button type="button" onclick="selecionarObraAtiva('${o.id}')">Selecionar</button>`}</td>
           <td class="acoes-linha centro">
             <button title="Editar" onclick="editarObra('${o.id}')">✎</button>
-            <button title="Excluir" onclick="excluirObra('${o.id}')">✖</button>
+            <button title="Excluir" class="perigo" onclick="excluirObra('${o.id}')">✖</button>
           </td>
         </tr>
       `;

@@ -138,7 +138,7 @@
         <div class="diario-cartao-corpo">
           <div class="diario-cartao-cabecalho">
             <span class="diario-data">${escaparTexto(formatarData(r.data))}${r.clima ? " · " + escaparTexto(r.clima) : ""}</span>
-            <button type="button" onclick="removerRegistroDiario('${r.id}')">✖</button>
+            <button type="button" class="perigo" onclick="removerRegistroDiario('${r.id}')">✖</button>
           </div>
           ${r.titulo ? `<div><strong>${escaparTexto(r.titulo)}</strong></div>` : ""}
           ${r.descricao ? `<div>${escaparTexto(r.descricao)}</div>` : ""}

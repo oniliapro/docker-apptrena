@@ -289,7 +289,7 @@ function renderizarCabecalho() {
               `).join("")}
             </select>
           </div>
-          <button onclick="removerFornecedor(${i}, 0)">🗑️</button>
+          <button class="perigo" onclick="removerFornecedor(${i}, 0)">🗑️</button>
         </th>
       `).join("")}
 
@@ -394,7 +394,7 @@ function renderizarCorpo() {
         `;
       }).join("")}
 
-      <td><button onclick="removerItem(${i})">🗑</button></td>
+      <td><button class="perigo" onclick="removerItem(${i})">🗑</button></td>
     `;
     corpoTabela.appendChild(row);
   });

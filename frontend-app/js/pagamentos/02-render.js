@@ -127,7 +127,7 @@ function renderizarPagamentos() {
         <td class="centro">${escaparHtml(pagamento)}</td>
         <td class="centro">
           <button title="Editar" onclick="abrirModalPagamento('${p.id}')">✎</button>
-          <button title="Excluir" onclick="removerPagamento('${p.id}')">✖</button>
+          <button title="Excluir" class="perigo" onclick="removerPagamento('${p.id}')">✖</button>
         </td>
       </tr>
     `;

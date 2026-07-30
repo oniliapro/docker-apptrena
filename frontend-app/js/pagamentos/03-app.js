@@ -158,7 +158,7 @@ function renderizarItensModalPagamento() {
           <button type="button" onclick="alternarModoValorItem('${it.id}')">${botaoModo}</button>
         </td>
         <td class="centro">
-          <button type="button" onclick="removerItemPagamento('${it.id}')">✖</button>
+          <button type="button" class="perigo" onclick="removerItemPagamento('${it.id}')">✖</button>
         </td>
       </tr>
     `;

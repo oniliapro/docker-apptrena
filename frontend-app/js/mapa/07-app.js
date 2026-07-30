@@ -141,7 +141,7 @@ function renderizarModalEtapas() {
             onblur="atualizarLinhaEtapa(${idx}, 'valor', this.value)">
         </td>
         <td class="centro">
-          <button type="button" onclick="removerLinhaEtapa(${idx})">✖</button>
+          <button type="button" class="perigo" onclick="removerLinhaEtapa(${idx})">✖</button>
         </td>
       </tr>
     `;
