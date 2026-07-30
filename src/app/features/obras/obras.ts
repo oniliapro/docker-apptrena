@@ -128,18 +128,25 @@ export class Obras implements OnInit {
     const obs = [`Status: ${v.status}`, v.obs.trim()].filter(Boolean).join(' — ');
 
     const payload: ObraPayload = {
+      // map_number e data_base são as únicas colunas realmente NULLable no
+      // banco (obras.map_number, obras.data_base) — as demais colunas de
+      // texto/BDI são NOT NULL com default (ver migration
+      // 2024_01_01_000000_create_controle_obra_schema.php), então mandar
+      // null nelas quebra a constraint. String vazia e os defaults do
+      // schema (bdi_scope=global, bdi_mode=pct, bdi_percent/value=0) são o
+      // equivalente correto de "não preenchido" aqui.
       map_number: v.mapNumber.trim() || null,
       obra_nome: v.obraNome.trim(),
       cliente: v.cliente.trim(),
       data_base: v.dataBase || null,
-      responsavel: v.responsavel.trim() || null,
-      local_obra: null,
-      periodo: v.periodo.trim() || null,
+      responsavel: v.responsavel.trim(),
+      local_obra: '',
+      periodo: v.periodo.trim(),
       obs,
-      bdi_scope: null,
-      bdi_mode: null,
-      bdi_percent: null,
-      bdi_value: null,
+      bdi_scope: 'global',
+      bdi_mode: 'pct',
+      bdi_percent: 0,
+      bdi_value: 0,
       is_confirmed: false,
       confirmed_at: null,
     };
