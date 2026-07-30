@@ -75,7 +75,7 @@ export class AppShell {
         let atual = this.rota.firstChild;
         let titulo = '';
         while (atual) {
-          titulo = String(atual.snapshot.data['titulo'] ?? titulo);
+          titulo = String(atual.snapshot?.data?.['titulo'] ?? titulo);
           atual = atual.firstChild;
         }
         return titulo || 'Principal';
