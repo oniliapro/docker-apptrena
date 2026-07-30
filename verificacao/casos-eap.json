@@ -1,0 +1,100 @@
+[
+  {
+    "nome": "BDI global percentual",
+    "header": { "bdiScope": "global", "bdiMode": "pct", "bdiPercent": 22.5 },
+    "itens": [
+      { "isGroup": true, "desc": "SERVICOS PRELIMINARES" },
+      { "desc": "Mobilizacao", "qtde": 1, "unit": { "material": 0, "maoDeObra": 1500, "equipamento": 800, "outros": 200, "administracao": 100 } },
+      { "desc": "Limpeza", "qtde": 50, "unit": { "material": 5, "maoDeObra": 28, "equipamento": 12, "outros": 2, "administracao": 3 } },
+      { "isGroup": true, "desc": "ESTRUTURA" },
+      { "desc": "Fundacoes", "qtde": 10, "unit": { "material": 420, "maoDeObra": 220, "equipamento": 80, "outros": 25, "administracao": 40 } }
+    ]
+  },
+  {
+    "nome": "BDI global valor fechado (rateio proporcional)",
+    "header": { "bdiScope": "global", "bdiMode": "value", "bdiValue": 50000 },
+    "itens": [
+      { "isGroup": true, "desc": "GRUPO" },
+      { "desc": "Item caro", "qtde": 10, "unit": { "material": 1000, "maoDeObra": 500, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "desc": "Item barato", "qtde": 3, "unit": { "material": 100, "maoDeObra": 50, "equipamento": 25, "outros": 0, "administracao": 0 } }
+    ]
+  },
+  {
+    "nome": "BDI global valor com item em override (fica fora do rateio)",
+    "header": { "bdiScope": "global", "bdiMode": "value", "bdiValue": 30000 },
+    "itens": [
+      { "desc": "Sem override", "qtde": 10, "unit": { "material": 800, "maoDeObra": 400, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "desc": "Com override pct", "qtde": 5, "unit": { "material": 600, "maoDeObra": 300, "equipamento": 0, "outros": 0, "administracao": 0 }, "bdiMode": "pct", "bdiPercent": 15 },
+      { "desc": "Com override valor", "qtde": 2, "unit": { "material": 1000, "maoDeObra": 0, "equipamento": 500, "outros": 0, "administracao": 0 }, "bdiMode": "value", "bdiValue": 777.77 }
+    ]
+  },
+  {
+    "nome": "BDI por categoria, modos misturados",
+    "header": {
+      "bdiScope": "category",
+      "bdiByType": {
+        "material": { "mode": "pct", "percent": 18 },
+        "maoDeObra": { "mode": "value", "value": 12000 },
+        "equipamento": { "mode": "pct", "percent": 0 },
+        "outros": { "mode": "value", "value": 0 },
+        "administracao": { "mode": "pct", "percent": 33.33 }
+      }
+    },
+    "itens": [
+      { "isGroup": true, "desc": "GRUPO A" },
+      { "desc": "A1", "qtde": 12, "unit": { "material": 520, "maoDeObra": 260, "equipamento": 90, "outros": 30, "administracao": 45 } },
+      { "desc": "A2", "qtde": 7, "unit": { "material": 210, "maoDeObra": 480, "equipamento": 0, "outros": 15, "administracao": 20 } },
+      { "desc": "A3 com override", "qtde": 4, "unit": { "material": 100, "maoDeObra": 200, "equipamento": 50, "outros": 0, "administracao": 10 }, "bdiMode": "pct", "bdiPercent": 25 }
+    ]
+  },
+  {
+    "nome": "BDI por item apenas (escopo item ignora global)",
+    "header": { "bdiScope": "item", "bdiMode": "pct", "bdiPercent": 99 },
+    "itens": [
+      { "desc": "Com override", "qtde": 3, "unit": { "material": 300, "maoDeObra": 150, "equipamento": 0, "outros": 0, "administracao": 0 }, "bdiMode": "pct", "bdiPercent": 10 },
+      { "desc": "Sem override", "qtde": 3, "unit": { "material": 300, "maoDeObra": 150, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ]
+  },
+  {
+    "nome": "sem BDI configurado",
+    "header": { "bdiScope": "global", "bdiMode": "pct", "bdiPercent": 0 },
+    "itens": [
+      { "desc": "Item", "qtde": 2, "unit": { "material": 100, "maoDeObra": 100, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ]
+  },
+  {
+    "nome": "grupos aninhados e item de custo zero",
+    "header": { "bdiScope": "global", "bdiMode": "pct", "bdiPercent": 20 },
+    "itens": [
+      { "isGroup": true, "desc": "G1" },
+      { "desc": "G1-A", "qtde": 5, "unit": { "material": 100, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "desc": "G1-B zero", "qtde": 0, "unit": { "material": 999, "maoDeObra": 999, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "isGroup": true, "desc": "G2" },
+      { "desc": "G2-A", "qtde": 1, "unit": { "material": 0, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ]
+  },
+  {
+    "nome": "formato legado (costs.orcado, sem qtde)",
+    "header": { "bdiScope": "global", "bdiMode": "pct", "bdiPercent": 10 },
+    "itens": [
+      { "desc": "Legado", "costs": { "orcado": { "material": 500, "maoDeObra": 250, "equipamento": 0, "outros": 0, "administracao": 0 } } }
+    ]
+  },
+  {
+    "nome": "itens antes de qualquer grupo (numeracao de topo)",
+    "header": { "bdiScope": "global", "bdiMode": "pct", "bdiPercent": 15 },
+    "itens": [
+      { "desc": "Solto 1", "qtde": 1, "unit": { "material": 100, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "desc": "Solto 2", "qtde": 1, "unit": { "material": 200, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "isGroup": true, "desc": "AGORA UM GRUPO" },
+      { "desc": "Dentro", "qtde": 1, "unit": { "material": 300, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ]
+  },
+  {
+    "nome": "modo BDI deduzido (sem bdiMode explicito)",
+    "header": { "bdiScope": "global", "bdiValue": 1000 },
+    "itens": [
+      { "desc": "Item", "qtde": 1, "unit": { "material": 5000, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ]
+  }
+]

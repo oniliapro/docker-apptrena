@@ -1,0 +1,72 @@
+<div class="cabecalho">
+  <div>
+    <h1>Obras</h1>
+    <div class="atenuado">Obras às quais você tem acesso</div>
+  </div>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltro($event)">
+    <option value="todos">Status: todos</option>
+    <option value="aberta">EAP em aberto</option>
+    <option value="confirmada">EAP confirmada</option>
+  </select>
+
+  <span class="espacador"></span>
+
+  <input
+    class="busca"
+    type="search"
+    placeholder="Buscar obra, cliente, responsável…"
+    (input)="mudarBusca($event)" />
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Nº</th>
+            <th>Obra</th>
+            <th>Cliente</th>
+            <th>Responsável</th>
+            <th class="centro">Data base</th>
+            <th class="centro">EAP</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (obra of listaFiltrada(); track obra.id) {
+            <tr>
+              <td class="centro">{{ obra.map_number || '—' }}</td>
+              <td>{{ obra.obra_nome || '(sem nome)' }}</td>
+              <td>{{ obra.cliente || '—' }}</td>
+              <td>{{ obra.responsavel || '—' }}</td>
+              <td class="centro">{{ formatarData(obra.data_base) || '—' }}</td>
+              <td class="centro">
+                @if (obra.is_confirmed) {
+                  <span class="etiqueta confirmada">Confirmada</span>
+                } @else {
+                  <span class="etiqueta aberta">Em aberto</span>
+                }
+              </td>
+              <td class="centro acoes-linha">
+                <button type="button" (click)="acessar(obra)">Acessar obra</button>
+                <button type="button" title="Excluir" (click)="remover(obra)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="centro atenuado">Nenhuma obra encontrada.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

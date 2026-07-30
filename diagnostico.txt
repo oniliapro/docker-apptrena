@@ -1,0 +1,42 @@
+=== DIAGNOSTICO AppTrena Angular === 
+Data: 25/07/2026 22:20:11,19 
+ 
+--- node --version --- 
+v24.18.0
+ 
+--- npm --version --- 
+11.16.0
+ 
+--- where node --- 
+C:\Program Files\nodejs\node.exe
+ 
+--- pasta atual --- 
+C:\Users\Onilia\Desktop\Claude\Projetos\AppTrena-Angular
+ 
+--- node_modules existe? --- 
+SIM 
+ 
+--- npm install --- 
+
+up to date, audited 459 packages in 2s
+
+111 packages are looking for funding
+  run `npm fund` for details
+
+3 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+npm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @parcel/watcher@2.6.0 (install: node-gyp rebuild)
+npm warn allow-scripts   esbuild@0.28.1 (install: (install scripts present))
+npm warn allow-scripts   lmdb@3.5.4 (install: node-gyp rebuild)
+npm warn allow-scripts   msgpackr-extract@3.0.4 (install: node-gyp rebuild)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+ 
+Codigo de saida do npm install: 0 
+ 
+=== FIM === 

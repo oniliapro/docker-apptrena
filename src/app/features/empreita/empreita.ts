@@ -1,0 +1,163 @@
+import { Component, OnInit, computed, inject, input } from '@angular/core';
+
+import { formatarMoeda } from '../../core/utils/formato';
+import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { ChaveTipo, ItemEap } from '../eap/eap.models';
+import { parsearBR } from '../pagamentos/pagamentos-calc';
+import { EmpreitaStore } from './empreita.store';
+import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreita } from './empreita.models';
+
+/**
+ * Empreita — serviços contratados e suas medições.
+ *
+ * Cada serviço aponta para um item da EAP (usado só como referência de
+ * orçado, para comparação). O contrato — empreita e reserva — é lançado
+ * pelo usuário categoria a categoria (task #45, 28/07/2026): o sistema
+ * não distribui esse valor automaticamente. A medição é em percentual
+ * por categoria, e o que se paga é o avanço em relação ao acumulado.
+ *
+ * As colunas **Contrato** e **Reserva** de cada categoria são o
+ * diferencial do produto: valores lançados à mão por serviço e por
+ * categoria, em vez de uma retenção percentual fixa calculada.
+ */
+@Component({
+  selector: 'app-empreita',
+  imports: [NavegacaoTabela],
+  providers: [EmpreitaStore],
+  templateUrl: './empreita.html',
+  styleUrl: './empreita.scss',
+})
+export class Empreita implements OnInit {
+  protected readonly store = inject(EmpreitaStore);
+  protected readonly formatarMoeda = formatarMoeda;
+
+  /**
+   * Id da obra — vem do param `:id` da rota pai (/obras/:id), herdado
+   * via `withRouterConfig({ paramsInheritanceStrategy: 'always' })` em
+   * app.config.ts. Mesmo mecanismo usado pela EAP.
+   */
+  readonly obraId = input.required<string>({ alias: 'id' });
+
+  protected readonly totalColunas = computed(() => 5 + this.store.tipos().length * 5 + 1);
+
+  ngOnInit(): void {
+    this.store.carregar(this.obraId());
+  }
+
+  // ------------------------------------------------------------------
+  protected editarCabecalho(campo: keyof CabecalhoEmpreita, evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.store.atualizarCabecalho(campo, valor as never);
+  }
+
+  protected editarTexto(item: ItemEmpreita, evento: Event): void {
+    this.store.atualizarItem(item.id, { desc: (evento.target as HTMLInputElement).value });
+  }
+
+  protected editarEap(item: ItemEmpreita, evento: Event): void {
+    this.store.atualizarItem(item.id, { eapId: (evento.target as HTMLSelectElement).value });
+  }
+
+  /** Lança o contrato (empreita ou reserva) de uma categoria, digitado pelo usuário. */
+  protected editarContrato(
+    item: ItemEmpreita,
+    campo: 'contratoEmpPorTipo' | 'contratoReservaPorTipo',
+    tipo: ChaveTipo,
+    evento: Event,
+  ): void {
+    const bruto = (evento.target as HTMLInputElement).value.trim();
+    this.store.atualizarContrato(item.id, campo, tipo, bruto === '' ? null : parsearBR(bruto));
+  }
+
+  protected editarMedicao(
+    item: ItemEmpreita,
+    campo: 'medicaoAcumByType' | 'medicaoAtualByType',
+    tipo: ChaveTipo,
+    evento: Event,
+  ): void {
+    const bruto = (evento.target as HTMLInputElement).value.trim();
+    // Campo vazio guarda null: "sem medição neste período" é diferente
+    // de "medi zero por cento".
+    this.store.atualizarMedicao(item.id, campo, tipo, bruto === '' ? null : parsearBR(bruto));
+  }
+
+  /** Shift + `+`: novo serviço ao final da lista. */
+  protected inserirLinha(): void {
+    this.store.adicionarItem();
+  }
+
+  /** Shift + `-`: remove a linha atual, sem confirmar. */
+  protected removerPorIndice(indiceLinha: number): void {
+    const item = this.store.itens()[indiceLinha];
+    if (item) this.store.removerItem(item.id);
+  }
+
+  protected remover(item: ItemEmpreita): void {
+    if (!window.confirm('Remover este serviço da empreita?')) return;
+    this.store.removerItem(item.id);
+  }
+
+  protected fecharPeriodo(): void {
+    const totais = this.store.totais();
+
+    if (this.store.temMedicaoInvalida()) {
+      window.alert('Há medições menores que o acumulado. Corrija antes de fechar o período.');
+      return;
+    }
+    if (totais.totalPeriodo <= 0) {
+      window.alert('Nenhum avanço medido neste período.');
+      return;
+    }
+
+    const mensagem =
+      `Fechar o período?\n\n` +
+      `A pagar: ${formatarMoeda(totais.pagarEmp)}\n` +
+      `Reserva: ${formatarMoeda(totais.reservarPgto)}\n` +
+      `Total: ${formatarMoeda(totais.totalPeriodo)}\n\n` +
+      `As medições atuais passam a ser o acumulado.`;
+
+    if (!window.confirm(mensagem)) return;
+    this.store.fecharPeriodo();
+  }
+
+  // ------------------------------------------------------------------
+  protected rotuloEap(itemEap: ItemEap): string {
+    const eap = String(itemEap.eap ?? '').trim();
+    const desc = String(itemEap.desc ?? '').trim();
+    if (eap && desc) return `${eap} - ${desc}`;
+    return eap || desc || '—';
+  }
+
+  protected linha(indice: number): LinhaEmpreita {
+    return this.store.linhas()[indice];
+  }
+
+  protected rotuloTipo(chave: ChaveTipo): string {
+    return this.store.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? chave;
+  }
+
+  protected percentualOuVazio(valor: number | null | undefined): string {
+    if (valor === null || valor === undefined) return '';
+    return valor ? String(valor).replace('.', ',') : '';
+  }
+
+  protected moedaOuVazio(valor: number): string {
+    return valor ? formatarMoeda(valor) : '';
+  }
+
+  protected valorMedicaoAtual(item: ItemEmpreita, tipo: ChaveTipo): string {
+    return this.percentualOuVazio(item.medicaoAtualByType?.[tipo]);
+  }
+
+  protected valorMedicaoAcumulada(item: ItemEmpreita, tipo: ChaveTipo): string {
+    return this.percentualOuVazio(item.medicaoAcumByType?.[tipo]);
+  }
+
+  protected valorContrato(
+    item: ItemEmpreita,
+    campo: 'contratoEmpPorTipo' | 'contratoReservaPorTipo',
+    tipo: ChaveTipo,
+  ): string {
+    return this.moedaOuVazio(Number(item[campo]?.[tipo]) || 0);
+  }
+}

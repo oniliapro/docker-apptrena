@@ -1,0 +1,40 @@
+<div class="painel cabecalho-obra">
+  @if (carregando()) {
+    <div class="atenuado">Carregando obra…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else if (obra(); as o) {
+    <div class="obra-nome">{{ o.obra_nome || '(sem nome)' }}</div>
+
+    <div class="obra-meta">
+      <div>
+        <div class="chave">Cliente</div>
+        <div class="valor-meta">{{ o.cliente || '—' }}</div>
+      </div>
+      <div>
+        <div class="chave">Local da obra</div>
+        <div class="valor-meta">{{ o.local_obra || '—' }}</div>
+      </div>
+      <div>
+        <div class="chave">Responsável</div>
+        <div class="valor-meta">{{ o.responsavel || '—' }}</div>
+      </div>
+      <div>
+        <div class="chave">Nº</div>
+        <div class="valor-meta">{{ o.map_number || '—' }}</div>
+      </div>
+      <div>
+        <div class="chave">EAP</div>
+        <div class="valor-meta">{{ o.is_confirmed ? 'Confirmada' : 'Em aberto' }}</div>
+      </div>
+    </div>
+  }
+</div>
+
+<nav class="abas">
+  @for (aba of abas; track aba.caminho) {
+    <a [routerLink]="aba.caminho" routerLinkActive="ativa">{{ aba.rotulo }}</a>
+  }
+</nav>
+
+<router-outlet />

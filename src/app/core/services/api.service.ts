@@ -1,0 +1,183 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+
+import { environment } from '../../../environments/environment';
+import {
+  EapPayload,
+  Empreita,
+  Mapa,
+  Obra,
+  ObraPayload,
+  Pagamento,
+  RegistroDiario,
+  RespostaLeituraNota,
+  RespostaMe,
+} from '../models/api.models';
+
+/**
+ * Camada única de acesso à API Laravel (laravel-backend).
+ * O token Sanctum é anexado pelo authInterceptor — este serviço não
+ * conhece autenticação, só as rotas.
+ *
+ * Rotas espelhadas de laravel-backend/routes/api.php.
+ */
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  private readonly http = inject(HttpClient);
+  private readonly base = environment.apiUrl;
+
+  // ---------------- Sessão ----------------
+  /** GET /me — traz o usuário e a empresa (com dados de assinatura). */
+  obterUsuarioAtual(): Observable<RespostaMe> {
+    return this.http.get<RespostaMe>(`${this.base}/me`);
+  }
+
+  // ---------------- Obras ----------------
+  listarObras(): Observable<Obra[]> {
+    return this.http.get<Obra[]>(`${this.base}/obras`);
+  }
+
+  obterObra(id: string): Observable<Obra> {
+    return this.http.get<Obra>(`${this.base}/obras/${id}`);
+  }
+
+  criarObra(dados: ObraPayload): Observable<Obra> {
+    return this.http.post<Obra>(`${this.base}/obras`, dados);
+  }
+
+  atualizarObra(id: string, dados: Partial<ObraPayload>): Observable<Obra> {
+    return this.http.put<Obra>(`${this.base}/obras/${id}`, dados);
+  }
+
+  excluirObra(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/obras/${id}`);
+  }
+
+  // ---------------- EAP ----------------
+  /** Mesmo formato que o app vanilla lia de controleObra.eap.v2. */
+  obterEap(obraId: string): Observable<EapPayload> {
+    return this.http.get<EapPayload>(`${this.base}/obras/${obraId}/eap`);
+  }
+
+  salvarEap(obraId: string, payload: EapPayload): Observable<EapPayload> {
+    return this.http.put<EapPayload>(`${this.base}/obras/${obraId}/eap`, payload);
+  }
+
+  // ---------------- Mapas ----------------
+  listarMapas(): Observable<Mapa[]> {
+    return this.http.get<Mapa[]>(`${this.base}/mapas`);
+  }
+
+  obterMapa(id: string): Observable<Mapa> {
+    return this.http.get<Mapa>(`${this.base}/mapas/${id}`);
+  }
+
+  criarMapa(dados: Partial<Mapa>): Observable<Mapa> {
+    return this.http.post<Mapa>(`${this.base}/mapas`, dados);
+  }
+
+  atualizarMapa(id: string, dados: Partial<Mapa>): Observable<Mapa> {
+    return this.http.put<Mapa>(`${this.base}/mapas/${id}`, dados);
+  }
+
+  excluirMapa(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/mapas/${id}`);
+  }
+
+  // ---------------- Empreitas ----------------
+  listarEmpreitas(): Observable<Empreita[]> {
+    return this.http.get<Empreita[]>(`${this.base}/empreitas`);
+  }
+
+  obterEmpreita(id: string): Observable<Empreita> {
+    return this.http.get<Empreita>(`${this.base}/empreitas/${id}`);
+  }
+
+  criarEmpreita(dados: Partial<Empreita>): Observable<Empreita> {
+    return this.http.post<Empreita>(`${this.base}/empreitas`, dados);
+  }
+
+  atualizarEmpreita(id: string, dados: Partial<Empreita>): Observable<Empreita> {
+    return this.http.put<Empreita>(`${this.base}/empreitas/${id}`, dados);
+  }
+
+  excluirEmpreita(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/empreitas/${id}`);
+  }
+
+  /** POST /empreitas/{id}/registros — registra uma medição. */
+  registrarMedicao(empreitaId: string, dados: unknown): Observable<unknown> {
+    return this.http.post(`${this.base}/empreitas/${empreitaId}/registros`, dados);
+  }
+
+  // ---------------- Pagamentos ----------------
+  listarPagamentos(): Observable<Pagamento[]> {
+    return this.http.get<Pagamento[]>(`${this.base}/pagamentos`);
+  }
+
+  criarPagamento(dados: Partial<Pagamento>): Observable<Pagamento> {
+    return this.http.post<Pagamento>(`${this.base}/pagamentos`, dados);
+  }
+
+  atualizarPagamento(id: string, dados: Partial<Pagamento>): Observable<Pagamento> {
+    return this.http.put<Pagamento>(`${this.base}/pagamentos/${id}`, dados);
+  }
+
+  excluirPagamento(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/pagamentos/${id}`);
+  }
+
+  /**
+   * POST /pagamentos/ler-nota — extrai os dados de uma foto de nota
+   * fiscal ou recibo. Recebe FormData porque envia a imagem.
+   */
+  lerNotaFiscal(imagem: File): Observable<RespostaLeituraNota> {
+    const dados = new FormData();
+    dados.append('imagem', imagem);
+    return this.http.post<RespostaLeituraNota>(`${this.base}/pagamentos/ler-nota`, dados);
+  }
+
+  // ---------------- Diário de obra ----------------
+  /**
+   * GET /diario — aceita `obra_id` para filtrar por obra e `limite` para
+   * os "registros recentes" do dashboard.
+   */
+  listarDiario(filtros?: { obraId?: string; limite?: number }): Observable<RegistroDiario[]> {
+    let params = new HttpParams();
+    if (filtros?.obraId) params = params.set('obra_id', filtros.obraId);
+    if (filtros?.limite) params = params.set('limite', String(filtros.limite));
+    return this.http.get<RegistroDiario[]>(`${this.base}/diario`, { params });
+  }
+
+  /**
+   * POST /diario — recebe FormData porque o registro pode vir com fotos
+   * anexadas (campo `fotos[]`), igual ao formulário do app vanilla.
+   */
+  criarRegistroDiario(dados: FormData): Observable<RegistroDiario> {
+    return this.http.post<RegistroDiario>(`${this.base}/diario`, dados);
+  }
+
+  excluirRegistroDiario(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/diario/${id}`);
+  }
+
+  // ---------------- Storage genérico (ponte com o formato antigo) ----------------
+  /**
+   * Espelha o storage.php do app vanilla: chave -> valor. Útil durante a
+   * transição, para telas ainda não migradas para o modelo relacional.
+   */
+  lerChave(chave: string): Observable<{ ok: boolean; value: string | null }> {
+    const params = new HttpParams().set('key', chave);
+    return this.http.get<{ ok: boolean; value: string | null }>(`${this.base}/storage`, { params });
+  }
+
+  gravarChave(chave: string, valor: string): Observable<unknown> {
+    return this.http.post(`${this.base}/storage`, { key: chave, value: valor });
+  }
+
+  removerChave(chave: string): Observable<unknown> {
+    const params = new HttpParams().set('key', chave);
+    return this.http.delete(`${this.base}/storage`, { params });
+  }
+}

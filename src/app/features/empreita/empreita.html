@@ -1,0 +1,265 @@
+@if (store.carregando()) {
+  <div class="painel atenuado">Carregando a empreita…</div>
+} @else {
+
+  @if (store.erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <!-- ============ Cabeçalho ============ -->
+  <div class="painel">
+    <div class="grade-cabecalho">
+      <label class="campo">
+        <span>Nº da empreita</span>
+        <input type="text" [value]="store.cabecalho().numeroEmpreita"
+               (change)="editarCabecalho('numeroEmpreita', $event)" />
+      </label>
+      <label class="campo campo-largo">
+        <span>Descrição</span>
+        <input type="text" placeholder="Ex.: Alvenaria e revestimentos"
+               [value]="store.cabecalho().descricaoEmpreita"
+               (change)="editarCabecalho('descricaoEmpreita', $event)" />
+      </label>
+      <label class="campo">
+        <span>Nº da obra</span>
+        <input type="text" [value]="store.cabecalho().obraNumber"
+               (change)="editarCabecalho('obraNumber', $event)" />
+      </label>
+      <label class="campo">
+        <span>Empreiteiro</span>
+        <input type="text" [value]="store.cabecalho().empreiteiro"
+               (change)="editarCabecalho('empreiteiro', $event)" />
+      </label>
+      <label class="campo">
+        <span>Data</span>
+        <input type="date" [value]="store.cabecalho().data"
+               (change)="editarCabecalho('data', $event)" />
+      </label>
+    </div>
+  </div>
+
+  <!-- ============ Ações e categorias ============ -->
+  <div class="painel barra-ferramentas">
+    <div class="linha-ferramentas">
+      <button type="button" (click)="store.adicionarItem()">➕ Adicionar serviço</button>
+
+      <span class="espacador"></span>
+
+      @if (store.salvando()) {
+        <span class="atenuado pequeno">salvando…</span>
+      }
+
+      <button type="button" class="primario"
+              [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0"
+              (click)="fecharPeriodo()">
+        ✅ Fechar período
+      </button>
+    </div>
+
+    <div class="linha-ferramentas">
+      <span class="rotulo-grupo">Categorias medidas</span>
+      @for (tipo of store.tiposCusto; track tipo.chave) {
+        <label class="checagem-inline">
+          <input type="checkbox" [checked]="store.cabecalho().typesIncluded[tipo.chave]"
+                 (change)="store.alternarTipo(tipo.chave)" />
+          {{ tipo.rotulo }}
+        </label>
+      }
+      <span class="atenuado pequeno">nenhuma marcada = todas</span>
+
+      <span class="espacador"></span>
+      <span class="dica atenuado pequeno" title="Atalhos disponíveis nas células da tabela">
+        ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove
+      </span>
+    </div>
+  </div>
+
+  @if (store.temMedicaoInvalida()) {
+    <div class="aviso-erro">
+      Há medições menores que o acumulado. Medição não pode retroceder —
+      corrija os valores destacados antes de fechar o período.
+    </div>
+  }
+
+  <!-- ============ Tabela ============ -->
+  <div class="envoltoria painel sem-preenchimento">
+    <table class="tabela-empreita"
+           trenaNavegacaoTabela
+           (inserirLinha)="inserirLinha()"
+           (removerLinha)="removerPorIndice($event)">
+      <thead>
+        <tr>
+          <th rowspan="2" class="col-num">#</th>
+          <th rowspan="2" class="col-desc">Serviço</th>
+          <th rowspan="2" class="col-eap">Item da EAP</th>
+          <th rowspan="2" class="col-valor" title="Soma do contrato lançado nas categorias abaixo">Total empreita</th>
+          <th rowspan="2" class="col-valor reserva" title="Soma da reserva lançada nas categorias abaixo">Total reserva</th>
+
+          @for (tipo of store.tipos(); track tipo) {
+            <th colspan="5" class="grupo-tipo">{{ rotuloTipo(tipo) }}</th>
+          }
+
+          <th rowspan="2" class="col-acoes"></th>
+        </tr>
+        <tr>
+          @for (tipo of store.tipos(); track tipo) {
+            <th class="grupo-tipo">Contrato</th>
+            <th class="grupo-tipo reserva">Reserva</th>
+            <th class="grupo-tipo">Acum. %</th>
+            <th class="grupo-tipo">Atual %</th>
+            <th class="grupo-tipo">A pagar</th>
+          }
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (item of store.itens(); track item.id; let i = $index) {
+          <tr [class.zebra]="i % 2 === 1" [class.invalida]="linha(i).reducaoInvalida">
+            <td class="centro indice">{{ i + 1 }}</td>
+            <td>
+              <input type="text" [value]="item.desc" (change)="editarTexto(item, $event)" />
+            </td>
+            <td>
+              @if (store.opcoesEap().length) {
+                <select [value]="item.eapId" (change)="editarEap(item, $event)">
+                  <option value="">(sem vínculo)</option>
+                  @for (opcao of store.opcoesEap(); track opcao.id) {
+                    <option [value]="opcao.id">{{ rotuloEap(opcao) }}</option>
+                  }
+                </select>
+              } @else {
+                <span class="atenuado pequeno">Cadastre a EAP primeiro</span>
+              }
+            </td>
+            <td class="valor atenuado">
+              {{ moedaOuVazio(linha(i).valorEmp) }}
+            </td>
+            <td class="reserva valor atenuado">
+              {{ moedaOuVazio(linha(i).valorReserva) }}
+            </td>
+
+            @for (tipo of store.tipos(); track tipo) {
+              <td>
+                <input type="text" class="valor" placeholder="R$ 0,00"
+                       [value]="valorContrato(item, 'contratoEmpPorTipo', tipo)"
+                       (change)="editarContrato(item, 'contratoEmpPorTipo', tipo, $event)" />
+              </td>
+              <td class="reserva">
+                <input type="text" class="valor" placeholder="R$ 0,00"
+                       [value]="valorContrato(item, 'contratoReservaPorTipo', tipo)"
+                       (change)="editarContrato(item, 'contratoReservaPorTipo', tipo, $event)" />
+              </td>
+              <td>
+                <input type="text" class="valor" placeholder="0"
+                       [value]="valorMedicaoAcumulada(item, tipo)"
+                       (change)="editarMedicao(item, 'medicaoAcumByType', tipo, $event)" />
+              </td>
+              <td [class.celula-invalida]="linha(i).tiposInvalidos.includes(tipo)">
+                <input type="text" class="valor" placeholder="—"
+                       [value]="valorMedicaoAtual(item, tipo)"
+                       (change)="editarMedicao(item, 'medicaoAtualByType', tipo, $event)" />
+              </td>
+              <td class="valor">
+                {{ moedaOuVazio((linha(i).pagarPorTipo[tipo] ?? 0) + (linha(i).reservarPorTipo[tipo] ?? 0)) }}
+              </td>
+            }
+
+            <td class="centro">
+              <button type="button" title="Remover" (click)="remover(item)">✖</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="totalColunas()" class="centro atenuado vazio">
+              Nenhum serviço ainda. Adicione os serviços contratados e vincule cada um
+              a um item da EAP.
+            </td>
+          </tr>
+        }
+      </tbody>
+
+      @if (store.itens().length) {
+        <tfoot>
+          <tr>
+            <th colspan="3" class="rotulo-rodape">TOTAIS</th>
+            <th class="valor">{{ formatarMoeda(store.totais().valorEmp) }}</th>
+            <th class="valor reserva">{{ formatarMoeda(store.totais().valorReserva) }}</th>
+            @for (tipo of store.tipos(); track tipo) {
+              <th colspan="5" class="valor">—</th>
+            }
+            <th></th>
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+
+  <!-- ============ Resumo do período ============ -->
+  @if (store.itens().length) {
+    <div class="grade-inferior">
+      <div class="painel">
+        <div class="painel-titulo">Medição deste período</div>
+
+        <div class="linha-resumo">
+          <span>A pagar ao empreiteiro</span>
+          <b>{{ formatarMoeda(store.totais().pagarEmp) }}</b>
+        </div>
+        <div class="linha-resumo">
+          <span>Reserva discricionária</span>
+          <b class="cor-reserva">{{ formatarMoeda(store.totais().reservarPgto) }}</b>
+        </div>
+        <div class="linha-resumo destaque">
+          <span>Total do período</span>
+          <b>{{ formatarMoeda(store.totais().totalPeriodo) }}</b>
+        </div>
+
+        <p class="nota">
+          A reserva acompanha o avanço medido, mas o valor é definido serviço a
+          serviço — não é percentual fixo. Isso permite dimensionar a retenção
+          caso a caso e usar a reserva de uma obra para cobrir outra.
+        </p>
+      </div>
+
+      <div class="painel">
+        <div class="painel-titulo">Contrato x orçado</div>
+        <table class="tabela-resumo">
+          <thead>
+            <tr>
+              <th>Serviço</th>
+              <th class="valor">Orçado (EAP)</th>
+              <th class="valor">Contratado</th>
+              <th class="valor">Diferença</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of store.itens(); track item.id; let i = $index) {
+              <tr>
+                <td>{{ item.desc || '(sem descrição)' }}</td>
+                <td class="valor">{{ formatarMoeda(linha(i).orcadoTotal) }}</td>
+                <td class="valor">{{ formatarMoeda(linha(i).valorTotal) }}</td>
+                <td class="valor"
+                    [class.acima]="linha(i).orcadoTotal > 0 && linha(i).valorTotal > linha(i).orcadoTotal">
+                  @if (linha(i).orcadoTotal > 0) {
+                    {{ formatarMoeda(linha(i).valorTotal - linha(i).orcadoTotal) }}
+                  } @else {
+                    <span class="atenuado pequeno">sem orçado</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              <th class="valor">{{ formatarMoeda(store.totais().orcadoTotal) }}</th>
+              <th class="valor">{{ formatarMoeda(store.totais().valorTotal) }}</th>
+              <th class="valor">
+                {{ formatarMoeda(store.totais().valorTotal - store.totais().orcadoTotal) }}
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  }
+}

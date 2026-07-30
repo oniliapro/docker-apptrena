@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AppTrena — andamento do desenvolvimento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#1B3A4B; --navy-dark:#12262F; --ambar:#E8A33D; --aco:#4A7A94;
+    --papel:#F5F6F3; --papel-alt:#ECEEE8; --branco:#fff;
+    --tinta:#1F2724; --tinta-suave:#5B6560;
+    --borda:#DADCD5; --verde:#4C7A54; --verde-bg:#E4EEE3;
+    --alerta:#C6822A; --alerta-bg:#EFE7D6;
+    --fonte:'Inter',system-ui,sans-serif;
+    --titulo:'Space Grotesk','Inter',sans-serif;
+    --mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--fonte);background:var(--papel);color:var(--tinta);font-size:14px;line-height:1.6}
+
+  header{background:var(--navy-dark);color:#fff;padding:34px 24px}
+  .container{max-width:920px;margin:0 auto}
+  .marca{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .quadrado{width:22px;height:22px;border:2px solid var(--ambar);position:relative;flex-shrink:0}
+  .quadrado::after{content:"";position:absolute;inset:4px;background:var(--ambar)}
+  .marca span{font-family:var(--titulo);font-weight:700;font-size:17px;letter-spacing:.02em}
+  header h1{font-family:var(--titulo);font-size:28px;font-weight:600;line-height:1.2}
+  header p{color:#B7C4C2;margin-top:10px;max-width:620px}
+  .acoes{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+  .botao{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:3px;
+    font-size:13px;font-weight:600;text-decoration:none;transition:filter .12s}
+  .botao:hover{filter:brightness(1.08)}
+  .botao-primario{background:var(--ambar);color:var(--navy-dark)}
+  .botao-secundario{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25)}
+
+  main{padding:34px 24px 60px}
+  section{margin-bottom:38px}
+  h2{font-family:var(--titulo);font-size:19px;font-weight:600;margin-bottom:6px}
+  .sub{color:var(--tinta-suave);font-size:13px;margin-bottom:18px;max-width:640px}
+
+  .barra-geral{background:var(--branco);border:1px solid var(--borda);border-radius:3px;padding:18px 20px;margin-bottom:28px}
+  .barra-topo{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .barra-topo b{font-family:var(--titulo);font-size:22px}
+  .barra-topo span{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tinta-suave)}
+  .trilho{height:10px;background:var(--papel-alt);border-radius:20px;overflow:hidden}
+  .preenche{height:100%;background:var(--verde);border-radius:20px}
+
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+  .cartao{background:var(--branco);border:1px solid var(--borda);border-radius:3px;padding:14px 16px}
+  .cartao h3{font-family:var(--titulo);font-size:14px;font-weight:600;margin-bottom:3px}
+  .cartao p{font-size:12px;color:var(--tinta-suave);line-height:1.5}
+  .selo{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+  .pronto{background:var(--verde-bg);color:var(--verde)}
+  .andamento{background:var(--alerta-bg);color:var(--alerta)}
+  .previsto{background:var(--papel-alt);color:var(--tinta-suave)}
+
+  .lista{background:var(--branco);border:1px solid var(--borda);border-radius:3px;overflow:hidden}
+  .linha{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--papel-alt);align-items:flex-start}
+  .linha:last-child{border-bottom:none}
+  .num{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--aco);
+    background:var(--papel-alt);width:22px;height:22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  .linha b{display:block;font-size:13.5px;margin-bottom:2px}
+  .linha p{font-size:12px;color:var(--tinta-suave);line-height:1.5}
+
+  table{width:100%;border-collapse:collapse;background:var(--branco);
+    border:1px solid var(--borda);border-radius:3px;overflow:hidden}
+  th{text-align:left;font-family:var(--mono);font-size:10px;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--tinta-suave);background:var(--papel-alt);
+    padding:10px 14px;border-bottom:1px solid var(--borda)}
+  td{padding:11px 14px;border-bottom:1px solid var(--papel-alt);font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  td code{font-family:var(--mono);font-size:11px;background:var(--papel-alt);padding:1px 5px;border-radius:3px}
+
+  .destaque{background:var(--alerta-bg);border-left:3px solid var(--alerta);
+    padding:14px 18px;border-radius:3px;font-size:13px;line-height:1.6}
+  .destaque b{color:var(--alerta)}
+
+  footer{border-top:1px solid var(--borda);padding:22px 24px;color:var(--tinta-suave);font-size:12px}
+
+  @media(max-width:640px){
+    header{padding:26px 18px} header h1{font-size:22px}
+    main{padding:26px 18px 44px} .grade{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="marca"><div class="quadrado"></div><span>TRENAAPP</span></div>
+    <h1>Andamento do desenvolvimento</h1>
+    <p>
+      O sistema está sendo reescrito em Angular, mantendo os mesmos cálculos do
+      app atual — verificados número a número. Esta página mostra o que já está
+      pronto e o que vem pela frente.
+    </p>
+    <div class="acoes">
+      <a class="botao botao-primario" href="./">Abrir o sistema</a>
+      <a class="botao botao-secundario" href="http://localhost:8080/html/index.html">Ver a versão atual</a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="barra-geral">
+    <div class="barra-topo">
+      <b>Frontend convertido</b>
+      <span>as 11 telas do app antigo</span>
+    </div>
+    <div class="trilho"><div class="preenche" style="width:100%"></div></div>
+  </div>
+
+  <section>
+    <h2>O que já funciona</h2>
+    <p class="sub">
+      Todas as telas do app atual foram reescritas, mais quatro cadastros novos
+      que vieram do protótipo.
+    </p>
+
+    <div class="grade">
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>EAP</h3>
+        <p>Tabela hierárquica, custos por categoria e BDI nos três escopos —
+           global, por categoria e por item.</p>
+      </div>
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>Mapa de Fornecedores</h3>
+        <p>Comparação de propostas com imposto e frete, cenários de compra
+           fracionada e integral, e rateio por etapa da obra.</p>
+      </div>
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>Empreita</h3>
+        <p>Medição por categoria e a reserva discricionária, com bloqueio quando
+           a medição retrocede.</p>
+      </div>
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>Pagamentos</h3>
+        <p>Rateio de itens em reais ou percentual, com leitura de nota fiscal
+           por foto.</p>
+      </div>
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>Diário de Obra</h3>
+        <p>Registro do dia a dia com fotos, por obra.</p>
+      </div>
+      <div class="cartao">
+        <span class="selo pronto">Pronto</span>
+        <h3>Cadastros</h3>
+        <p>Clientes, Responsáveis e Empreiteiros — com CPF e CNPJ validados
+           pelos dígitos verificadores.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Os cálculos foram conferidos</h2>
+    <p class="sub">
+      O código antigo e o novo rodam lado a lado sobre as mesmas entradas, e os
+      números são comparados. Hoje são 6 suítes e 80 casos, cobrindo os cantos
+      que costumam quebrar numa migração.
+    </p>
+
+    <div class="destaque">
+      <b>Isso não é formalidade.</b> Ao converter a Empreita, os testes pegaram
+      um erro real: a versão nova ignorava o BDI global da obra. O código rodava
+      sem erro e produzia números plausíveis — só menores que os corretos. Sem a
+      comparação, isso apareceria meses depois, numa medição paga a menos.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que vem agora</h2>
+    <p class="sub">
+      As telas gravam os dados como texto, do mesmo jeito que o app atual. O
+      próximo passo é passarem a usar as tabelas do banco, o que abre consulta e
+      relatórios de verdade.
+    </p>
+
+    <div class="lista">
+      <div class="linha">
+        <span class="num">1</span>
+        <div>
+          <b>Obra como contexto</b>
+          <p>Hoje existe uma EAP só no sistema inteiro. Cada módulo passa a
+             pertencer a uma obra — a estrutura de abas já está pronta, falta
+             carregarem os dados daquela obra.</p>
+        </div>
+      </div>
+      <div class="linha">
+        <span class="num">2</span>
+        <div>
+          <b>EAP para as tabelas</b>
+          <p>O endpoint já devolve exatamente o formato que a tela usa. A troca
+             é de origem de dados, não de estrutura.</p>
+        </div>
+      </div>
+      <div class="linha">
+        <span class="num">3</span>
+        <div>
+          <b>Pagamentos para as tabelas</b>
+          <p>Com os pagamentos em tabela, volta a coluna de orçado x realizado
+             na EAP, que existia no app antigo.</p>
+        </div>
+      </div>
+      <div class="linha">
+        <span class="num">4</span>
+        <div>
+          <b>Mapa e Empreita para as tabelas</b>
+          <p>Os maiores, com relações aninhadas — fornecedores, itens, preços e
+             medições.</p>
+        </div>
+      </div>
+      <div class="linha">
+        <span class="num">5</span>
+        <div>
+          <b>Relatórios</b>
+          <p>Com os dados em tabelas, dá para comparar obras entre si e ver
+             evolução no tempo — impossível com o formato atual.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Onde cada tela busca os dados hoje</h2>
+    <table>
+      <thead>
+        <tr><th>Tela</th><th>Hoje</th><th>Vai usar</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Login e sessão</td><td>API</td><td>—</td></tr>
+        <tr><td>Lista e página da obra</td><td>API</td><td>—</td></tr>
+        <tr><td>Diário de Obra</td><td>API</td><td>—</td></tr>
+        <tr><td>EAP</td><td>texto</td><td><code>/obras/{id}/eap</code></td></tr>
+        <tr><td>Mapa</td><td>texto</td><td><code>/mapas</code></td></tr>
+        <tr><td>Empreita</td><td>texto</td><td><code>/empreitas</code></td></tr>
+        <tr><td>Pagamentos</td><td>texto</td><td><code>/pagamentos</code></td></tr>
+        <tr><td>Cadastros</td><td>texto</td><td>falta criar no backend</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Feito: EAP conectada na API de verdade</h2>
+    <div class="destaque">
+      A EAP deixou de usar a "ponte" genérica de texto e passou a falar
+      direto com o endpoint relacional (<code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">GET/PUT /obras/{id}/eap</code>),
+      que já existia pronto no backend. Mapa, Empreita e Pagamentos
+      continuam na ponte por enquanto — só migram quando os endpoints
+      deles estiverem confirmados prontos pro formato que essas telas
+      usam.
+      <br><br>
+      <b>Ainda não testei isso contra o banco de dados de verdade</b> —
+      esse ambiente aqui não tem Docker. Recomendo abrir o
+      <code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">INICIAR-COM-BACKEND.bat</code>,
+      editar uma EAP, recarregar a página e confirmar que os dados vieram
+      do banco antes de usar pra valer.
+    </div>
+  </section>
+
+  <section>
+    <h2>Feito: Relatórios movido pra dentro da obra</h2>
+    <div class="destaque">
+      O relatório de Orçado x Realizado nunca fez sentido como página
+      "geral" — ele sempre compara a EAP com os Pagamentos de <b>uma</b>
+      obra. Agora mora em <code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">/obras/{id}/relatorios</code>,
+      igual as outras abas, e não em uma rota solta que lia dados de uma
+      chave antiga (órfã, sempre vazia).
+      <br><br>
+      Como consequência dessa limpeza, alguns links que apontavam pras
+      telas de Mapa/Empreita/Pagamentos antigas (removidas na mudança
+      anterior) também foram corrigidos — agora levam para a lista de
+      obras, já que criar qualquer um desses sempre exige escolher a
+      obra primeiro.
+    </div>
+  </section>
+
+  <section>
+    <h2>Feito: Orçado x Realizado na EAP</h2>
+    <div class="destaque">
+      Baseado num protótipo mais amplo que você mandou (<code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">obracontrol.html</code>):
+      quando a EAP está confirmada, cada item ganha colunas de <b>Orçado</b> e
+      <b>Realizado</b>. O Realizado soma os pagamentos já vinculados àquele
+      item (usando o mesmo campo que já existia no formulário de Pagamentos)
+      e é clicável — abre a lista de pagamentos que compõem aquele total.
+      <br><br>
+      <b>Pontos em aberto pra decidirmos juntos:</b> se o Orçado deveria
+      "congelar" no momento da confirmação em vez de recalcular sempre que
+      algo muda depois; se o nível da EAP deveria ser escolhido direto (1 a
+      4) como no seu protótipo, em vez de inferido a partir do agrupamento;
+      e uma ação de apagar só os valores unitários, separada de apagar tudo.
+    </div>
+  </section>
+
+  <section>
+    <h2>Feito: obra como contexto</h2>
+    <div class="destaque">
+      Até 27/07/2026, EAP, Mapa, Empreita e Pagamentos eram <b>globais</b>:
+      existia uma EAP só no sistema inteiro, não importava qual obra estivesse
+      aberta.
+      <br><br>
+      <b>Implementado (28/07/2026):</b> cada aba da obra agora carrega e grava
+      só os dados daquela obra. As rotas de editor único sem obra
+      (<code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">/mapa</code>,
+      <code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">/empreita</code>,
+      <code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">/pagamentos</code>
+      na raiz) foram removidas — só existem dentro da obra agora
+      (<code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">/obras/{id}/mapas</code> etc.).
+      Ainda é a mesma ponte de texto (não os endpoints relacionais — ver
+      tabela acima), só que separada por obra em vez de um registro único.
+    </div>
+  </section>
+
+  <section>
+    <h2>Feito: lançamento do contrato por categoria (task #45)</h2>
+    <div class="destaque">
+      O <b>EmpreitaController</b> já aceitava contrato separado por categoria de custo
+      (<code style="background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">contratoEmpPorTipo</code>).
+      Até 27/07/2026 a tela trabalhava com um valor único de empreita e um de reserva,
+      distribuídos automaticamente pela proporção do orçado.
+      <br><br>
+      <b>Decisão e implementação (28/07/2026):</b> o lançamento por categoria
+      agora é digitado pelo usuário — a tela da Empreita tem um campo de
+      Contrato e um de Reserva por categoria de custo (mesma lista da EAP),
+      no lugar do campo único de antes. O sistema não distribui mais esse
+      valor automaticamente. O orçado da EAP continua aparecendo como
+      referência, no painel "Contrato x orçado".
+    </div>
+  </section>
+
+</main>
+
+<footer class="container">
+  Atualizado em 28 de julho de 2026 · AppTrena — sistema de gestão de obras
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "rateios": [
+    { "nome": "etapa unica (formato antigo)", "item": { "etapa": "1 - PINTURA" } },
+    { "nome": "sem etapa nenhuma", "item": {} },
+    { "nome": "duas etapas em percentual", "item": { "etapas": [{ "eapId": "A", "valor": 60 }, { "eapId": "B", "valor": 40 }] } },
+    { "nome": "percentuais que nao somam 100", "item": { "etapas": [{ "eapId": "A", "valor": 30 }, { "eapId": "B", "valor": 30 }] } },
+    { "nome": "modo quantidade", "item": { "modoEtapa": "quantidade", "etapas": [{ "eapId": "A", "valor": 12 }, { "eapId": "B", "valor": 4 }] } },
+    { "nome": "etapas com valor zero", "item": { "etapas": [{ "eapId": "A", "valor": 0 }, { "eapId": "B", "valor": 0 }] } },
+    { "nome": "tres etapas com dizima", "item": { "etapas": [{ "eapId": "A", "valor": 1 }, { "eapId": "B", "valor": 1 }, { "eapId": "C", "valor": 1 }] } }
+  ],
+  "redistribuicoes": [
+    {
+      "nome": "nenhuma travada, proporcional a base",
+      "etapas": ["A", "B", "C"],
+      "base": { "A": 1000, "B": 3000, "C": 1000 },
+      "atuais": {},
+      "travadas": {}
+    },
+    {
+      "nome": "uma travada em 50, resto proporcional",
+      "etapas": ["A", "B", "C"],
+      "base": { "A": 1000, "B": 1000, "C": 2000 },
+      "atuais": { "A": 50 },
+      "travadas": { "A": true }
+    },
+    {
+      "nome": "travadas estouram 100 (normaliza e zera o resto)",
+      "etapas": ["A", "B", "C"],
+      "base": { "A": 100, "B": 100, "C": 100 },
+      "atuais": { "A": 80, "B": 60 },
+      "travadas": { "A": true, "B": true }
+    },
+    {
+      "nome": "todas travadas",
+      "etapas": ["A", "B"],
+      "base": { "A": 500, "B": 500 },
+      "atuais": { "A": 30, "B": 20 },
+      "travadas": { "A": true, "B": true }
+    },
+    {
+      "nome": "etapa com base zero fica de fora",
+      "etapas": ["A", "B", "C"],
+      "base": { "A": 1000, "B": 0, "C": 1000 },
+      "atuais": {},
+      "travadas": {}
+    },
+    {
+      "nome": "todas as bases zeradas",
+      "etapas": ["A", "B"],
+      "base": { "A": 0, "B": 0 },
+      "atuais": {},
+      "travadas": {}
+    },
+    {
+      "nome": "travada soma exatamente 100",
+      "etapas": ["A", "B"],
+      "base": { "A": 700, "B": 300 },
+      "atuais": { "A": 100 },
+      "travadas": { "A": true }
+    }
+  ],
+  "freteParticular": [
+    { "nome": "proporcional a base", "usados": [0, 1, 2], "base": { "0": 2000, "1": 6000, "2": 2000 } },
+    { "nome": "um fornecedor com base zero sai", "usados": [0, 1], "base": { "0": 5000, "1": 0 } },
+    { "nome": "todas as bases zeradas", "usados": [0, 1], "base": { "0": 0, "1": 0 } },
+    { "nome": "um so fornecedor", "usados": [3], "base": { "3": 1234.56 } }
+  ]
+}

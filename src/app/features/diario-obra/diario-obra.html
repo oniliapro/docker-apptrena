@@ -1,0 +1,139 @@
+<h1>Diário de Obra</h1>
+
+<div class="painel barra-obra">
+  <label class="campo-obra">
+    <span>Obra</span>
+    @if (obras().length) {
+      <select [value]="obraAtiva()" (change)="trocarObra($event)">
+        @for (obra of obras(); track obra.id) {
+          <option [value]="obra.id">{{ obra.obra_nome || '(sem nome)' }}</option>
+        }
+      </select>
+    } @else {
+      <select disabled>
+        <option>Nenhuma obra cadastrada</option>
+      </select>
+    }
+  </label>
+
+  <button type="button" (click)="abrirModalNovaObra()">+ Nova obra</button>
+</div>
+
+<div class="colunas">
+  <form class="painel" [formGroup]="formulario" (ngSubmit)="salvar()">
+    <div class="painel-titulo">Novo registro</div>
+
+    <div class="linha-campos">
+      <label class="campo">
+        <span>Data</span>
+        <input type="date" formControlName="data" />
+      </label>
+      <label class="campo">
+        <span>Clima</span>
+        <input type="text" formControlName="clima" placeholder="Ensolarado, chuva…" />
+      </label>
+    </div>
+
+    <label class="campo">
+      <span>Registrado por</span>
+      <input type="text" formControlName="autor" />
+    </label>
+
+    <label class="campo">
+      <span>Título</span>
+      <input type="text" formControlName="titulo" />
+    </label>
+
+    <label class="campo">
+      <span>Descrição</span>
+      <textarea formControlName="descricao" rows="5"></textarea>
+    </label>
+
+    <label class="campo">
+      <span>Fotos</span>
+      <input type="file" multiple accept="image/*" (change)="selecionarFotos($event)" />
+    </label>
+
+    <div class="acoes">
+      <button class="primario" type="submit" [disabled]="formulario.invalid || salvando()">
+        {{ salvando() ? 'Salvando…' : 'Salvar registro' }}
+      </button>
+      @if (status(); as texto) {
+        <span class="atenuado">{{ texto }}</span>
+      }
+    </div>
+  </form>
+
+  <div class="painel">
+    <div class="painel-titulo">Registros da obra</div>
+
+    @if (carregando()) {
+      <div class="atenuado">Carregando…</div>
+    } @else if (erro(); as mensagem) {
+      <div class="atenuado">{{ mensagem }}</div>
+    } @else if (!obraAtiva()) {
+      <div class="atenuado">Escolha ou crie uma obra acima.</div>
+    } @else if (registros().length === 0) {
+      <div class="atenuado">Nenhum registro ainda para esta obra.</div>
+    } @else {
+      @for (registro of registros(); track registro.id) {
+        <div class="cartao-registro">
+          <div class="cartao-cabecalho">
+            <span class="atenuado">
+              {{ formatarData(registro.data) }}@if (registro.clima) { · {{ registro.clima }} }
+            </span>
+            <button type="button" title="Excluir" (click)="remover(registro)">✖</button>
+          </div>
+
+          @if (registro.titulo) {
+            <div><strong>{{ registro.titulo }}</strong></div>
+          }
+          @if (registro.descricao) {
+            <div class="descricao">{{ registro.descricao }}</div>
+          }
+          @if (registro.autor) {
+            <div class="atenuado pequeno">Registrado por {{ registro.autor }}</div>
+          }
+
+          @if (registro.fotos?.length) {
+            <div class="fotos">
+              @for (foto of registro.fotos; track foto.url) {
+                <img [src]="foto.url" alt="Foto do registro" (click)="abrirFoto(foto.url)" />
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>
+
+@if (modalAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharModalNovaObra()"></div>
+    <form class="modal-cartao" [formGroup]="formNovaObra" (ngSubmit)="criarObra()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Nova obra</span>
+        <button type="button" (click)="fecharModalNovaObra()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <label class="campo">
+          <span>Nome da obra</span>
+          <input type="text" formControlName="nome" />
+        </label>
+        <label class="campo">
+          <span>Cliente</span>
+          <input type="text" formControlName="cliente" />
+        </label>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharModalNovaObra()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="formNovaObra.invalid || criandoObra()">
+          {{ criandoObra() ? 'Criando…' : 'Criar obra' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

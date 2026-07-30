@@ -1,0 +1,390 @@
+:host { display: block; }
+
+.painel { margin-bottom: 14px; }
+.painel.sem-preenchimento { padding: 0; overflow-x: auto; }
+
+.aviso-erro {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+}
+
+// ---- Cabeçalho da obra ----
+.grade-cabecalho {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 12px;
+}
+
+.campo-largo { grid-column: span 2; }
+
+@media (max-width: 900px) {
+  .grade-cabecalho { grid-template-columns: repeat(2, 1fr); }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  input { height: 26px; }
+}
+
+// ---- Barra de ferramentas ----
+.linha-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  & + & {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cor-fundo-alt);
+  }
+}
+
+.espacador { flex: 1; }
+
+.rotulo-grupo {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  user-select: none;
+  cursor: pointer;
+
+  input { width: auto; height: auto; }
+}
+
+.etiqueta {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+
+  &.confirmada {
+    background: var(--cor-sucesso-bg);
+    color: var(--cor-sucesso);
+  }
+}
+
+// ---- Tabela ----
+.tabela-eap {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+
+  th {
+    text-align: center;
+    padding: 8px 6px;
+    border-right: 1px solid var(--cor-superficie);
+  }
+
+  td {
+    padding: 3px 5px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 12px;
+  }
+
+  input {
+    border: 1px solid transparent;
+    background: transparent;
+    height: 22px;
+    text-align: center;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+
+  input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
+  input.descricao { text-align: left; }
+}
+
+// Faixas de cabeçalho por grupo de colunas
+.grupo-unit { background: #eff3ed; }
+.grupo-total { background: #eaf1f4; }
+.grupo-bdi { background: #fbf1e2; }
+.grupo-orc-real { background: #e4eee3; }
+
+// Botão "Realizado" — abre o modal com os pagamentos vinculados ao item.
+.link-realizado {
+  width: 100%;
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  color: var(--cor-aco);
+  font-family: var(--fonte-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-align: right;
+
+  &:hover { color: var(--cor-primaria); }
+}
+
+.col-grupo { width: 46px; }
+.col-eap { width: 54px; }
+.col-descricao { min-width: 220px; }
+.col-qtde { width: 70px; }
+.col-unid { width: 56px; }
+.col-acoes { width: 84px; }
+
+.indice {
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  color: var(--cor-aco);
+}
+
+.zebra td { background: #fafaf8; }
+
+// Linhas de grupo: destaque forte, já que somam os descendentes
+.linha-grupo {
+  td {
+    background: var(--cor-primaria-escura) !important;
+    color: #fff;
+    font-weight: 700;
+    border-top: 2px solid #0a1a20;
+    border-bottom: 2px solid #0a1a20;
+  }
+
+  input {
+    color: #fff;
+    text-transform: uppercase;
+    font-weight: 700;
+
+    &:hover { border-color: rgba(255, 255, 255, 0.3); }
+    &:focus {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  .indice { color: var(--cor-destaque); }
+  .pequeno { color: rgba(255, 255, 255, 0.75); }
+}
+
+.celula-bdi {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+
+  input { flex: 1; min-width: 0; }
+}
+
+.alternar-bdi {
+  flex-shrink: 0;
+  width: 30px;
+  padding: 2px 0;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.acoes-linha {
+  white-space: nowrap;
+
+  button {
+    width: 22px;
+    padding: 2px 0;
+    font-size: 10px;
+    line-height: 1;
+    border-radius: 3px;
+  }
+}
+
+.vazio { padding: 30px 16px; }
+
+.rotulo-rodape {
+  text-align: right;
+  font-weight: 700;
+}
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+  font-family: var(--fonte);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+}
+
+// ---- Painéis inferiores ----
+.grade-inferior {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grade-inferior { grid-template-columns: 1fr; }
+}
+
+.escolha-escopo {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  button {
+    flex: 1;
+    padding: 7px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+
+    &.ativo {
+      background: var(--cor-primaria);
+      border-color: var(--cor-primaria-escura);
+      color: #fff;
+    }
+  }
+}
+
+.linha-config {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.entrada {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  input {
+    width: 90px;
+    height: 24px;
+    text-align: right;
+    font-family: var(--fonte-mono);
+  }
+}
+
+.nota {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--cor-borda);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.tabela-resumo {
+  width: 100%;
+
+  th, td { padding: 5px 8px; font-size: 11.5px; }
+  tfoot th { border-top: 2px solid var(--cor-borda-forte); }
+}
+
+// ---- Modal: pagamentos vinculados a um item ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; font-size: 13px; }
+
+.modal-corpo {
+  padding: 10px 14px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.linha-pagamento-vinculado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+  font-size: 12.5px;
+
+  &:last-child { border-bottom: none; }
+}
+
+.descricao-pagamento { font-weight: 600; }
+
+// Dica de atalhos: presente mas discreta — quem já sabe não precisa ver.
+.dica {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+
+  kbd {
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    padding: 1px 4px;
+    border: 1px solid var(--cor-borda);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    background: var(--cor-fundo-alt);
+  }
+}

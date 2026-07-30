@@ -1,0 +1,164 @@
+[
+  {
+    "nome": "medicao simples, contrato lancado por categoria (= antiga distribuicao por orcado)",
+    "cabecalho": { "typesIncluded": {} },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "Alvenaria", "qtde": 100,
+        "unit": { "material": 70, "maoDeObra": 30, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Alvenaria", "eapId": "e1", "valorEmp": 10000, "valorReserva": 0,
+        "contratoEmpPorTipo": { "material": 7000, "maoDeObra": 3000 },
+        "contratoReservaPorTipo": {},
+        "medicaoAcumByType": { "material": 0, "maoDeObra": 0 },
+        "medicaoAtualByType": { "material": 50, "maoDeObra": 50 } }
+    ]
+  },
+  {
+    "nome": "reserva discricionaria acompanha o avanco",
+    "cabecalho": { "typesIncluded": { "material": true, "maoDeObra": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "Servico", "qtde": 1,
+        "unit": { "material": 6000, "maoDeObra": 4000, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Com reserva", "eapId": "e1", "valorEmp": 20000, "valorReserva": 5000,
+        "contratoEmpPorTipo": { "material": 12000, "maoDeObra": 8000 },
+        "contratoReservaPorTipo": { "material": 3000, "maoDeObra": 2000 },
+        "medicaoAcumByType": { "material": 20, "maoDeObra": 10 },
+        "medicaoAtualByType": { "material": 60, "maoDeObra": 40 } }
+    ]
+  },
+  {
+    "nome": "sem orcado, contrato lancado igualmente entre as categorias",
+    "cabecalho": { "typesIncluded": {} },
+    "eap": [],
+    "itens": [
+      { "id": "i1", "desc": "Sem EAP", "eapId": "", "valorEmp": 5000, "valorReserva": 0,
+        "contratoEmpPorTipo": { "material": 1000, "maoDeObra": 1000, "equipamento": 1000, "outros": 1000, "administracao": 1000 },
+        "contratoReservaPorTipo": {},
+        "medicaoAcumByType": {},
+        "medicaoAtualByType": { "material": 100, "maoDeObra": 100, "equipamento": 100, "outros": 100, "administracao": 100 } }
+    ]
+  },
+  {
+    "nome": "retrocesso marca medicao invalida",
+    "cabecalho": { "typesIncluded": { "material": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "S", "qtde": 1,
+        "unit": { "material": 1000, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Voltou atras", "eapId": "e1", "valorEmp": 1000, "valorReserva": 100,
+        "contratoEmpPorTipo": { "material": 1000 },
+        "contratoReservaPorTipo": { "material": 100 },
+        "medicaoAcumByType": { "material": 80 },
+        "medicaoAtualByType": { "material": 30 } }
+    ]
+  },
+  {
+    "nome": "atual em branco herda o acumulado (sem avanco)",
+    "cabecalho": { "typesIncluded": { "material": true, "maoDeObra": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "S", "qtde": 1,
+        "unit": { "material": 500, "maoDeObra": 500, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Sem medicao nova", "eapId": "e1", "valorEmp": 8000, "valorReserva": 2000,
+        "contratoEmpPorTipo": { "material": 4000, "maoDeObra": 4000 },
+        "contratoReservaPorTipo": { "material": 1000, "maoDeObra": 1000 },
+        "medicaoAcumByType": { "material": 40, "maoDeObra": 25 },
+        "medicaoAtualByType": {} }
+    ]
+  },
+  {
+    "nome": "percentual acima de 100 e limitado",
+    "cabecalho": { "typesIncluded": { "material": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "S", "qtde": 1,
+        "unit": { "material": 1000, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Exagerou", "eapId": "e1", "valorEmp": 1000, "valorReserva": 0,
+        "contratoEmpPorTipo": { "material": 1000 },
+        "contratoReservaPorTipo": {},
+        "medicaoAcumByType": { "material": 0 },
+        "medicaoAtualByType": { "material": 250 } }
+    ]
+  },
+  {
+    "nome": "item com BDI proprio entra no orcado (mas nao no contrato, que e' digitado)",
+    "cabecalho": { "typesIncluded": {} },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "Com BDI", "qtde": 10,
+        "unit": { "material": 100, "maoDeObra": 50, "equipamento": 0, "outros": 0, "administracao": 0 },
+        "bdiMode": "pct", "bdiPercent": 20 }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Servico", "eapId": "e1", "valorEmp": 2000, "valorReserva": 0,
+        "contratoEmpPorTipo": { "material": 1333.333333, "maoDeObra": 666.666667 },
+        "contratoReservaPorTipo": {},
+        "medicaoAcumByType": {}, "medicaoAtualByType": { "material": 100, "maoDeObra": 100 } }
+    ]
+  },
+  {
+    "nome": "empreita apontando para grupo (soma descendentes no orcado de referencia)",
+    "cabecalho": { "typesIncluded": {} },
+    "eap": [
+      { "id": "g1", "isGroup": true, "eap": "1", "desc": "GRUPO" },
+      { "id": "e1", "eap": "1.1", "desc": "A", "qtde": 5,
+        "unit": { "material": 100, "maoDeObra": 0, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "id": "e2", "eap": "1.2", "desc": "B", "qtde": 5,
+        "unit": { "material": 0, "maoDeObra": 200, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Aponta pro grupo", "eapId": "g1", "valorEmp": 3000, "valorReserva": 500,
+        "contratoEmpPorTipo": { "material": 1000, "maoDeObra": 2000 },
+        "contratoReservaPorTipo": { "material": 166.666667, "maoDeObra": 333.333333 },
+        "medicaoAcumByType": {}, "medicaoAtualByType": { "material": 50, "maoDeObra": 50 } }
+    ]
+  },
+  {
+    "nome": "varios itens, totais consolidados",
+    "cabecalho": { "typesIncluded": { "material": true, "maoDeObra": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "A", "qtde": 1,
+        "unit": { "material": 1000, "maoDeObra": 1000, "equipamento": 0, "outros": 0, "administracao": 0 } },
+      { "id": "e2", "eap": "1.2", "desc": "B", "qtde": 1,
+        "unit": { "material": 3000, "maoDeObra": 1000, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "S1", "eapId": "e1", "valorEmp": 5000, "valorReserva": 1000,
+        "contratoEmpPorTipo": { "material": 2500, "maoDeObra": 2500 },
+        "contratoReservaPorTipo": { "material": 500, "maoDeObra": 500 },
+        "medicaoAcumByType": { "material": 10, "maoDeObra": 10 },
+        "medicaoAtualByType": { "material": 35, "maoDeObra": 60 } },
+      { "id": "i2", "desc": "S2", "eapId": "e2", "valorEmp": 8000, "valorReserva": 0,
+        "contratoEmpPorTipo": { "material": 6000, "maoDeObra": 2000 },
+        "contratoReservaPorTipo": {},
+        "medicaoAcumByType": { "material": 0, "maoDeObra": 0 },
+        "medicaoAtualByType": { "material": 100, "maoDeObra": 25 } }
+    ]
+  },
+  {
+    "nome": "empreita vazia",
+    "cabecalho": { "typesIncluded": {} },
+    "eap": [],
+    "itens": []
+  },
+  {
+    "nome": "task #45: contrato digitado nao precisa seguir a proporcao do orcado",
+    "cabecalho": { "typesIncluded": { "material": true, "maoDeObra": true } },
+    "eap": [
+      { "id": "e1", "eap": "1.1", "desc": "Servico com orcado 90/10", "qtde": 1,
+        "unit": { "material": 9000, "maoDeObra": 1000, "equipamento": 0, "outros": 0, "administracao": 0 } }
+    ],
+    "itens": [
+      { "id": "i1", "desc": "Contrato digitado ao contrario do orcado", "eapId": "e1",
+        "contratoEmpPorTipo": { "material": 1000, "maoDeObra": 9000 },
+        "contratoReservaPorTipo": { "material": 0, "maoDeObra": 500 },
+        "medicaoAcumByType": { "material": 0, "maoDeObra": 0 },
+        "medicaoAtualByType": { "material": 100, "maoDeObra": 100 } }
+    ]
+  }
+]

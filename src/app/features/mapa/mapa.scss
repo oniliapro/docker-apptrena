@@ -1,0 +1,386 @@
+:host { display: block; }
+
+.painel { margin-bottom: 14px; }
+.painel.sem-preenchimento { padding: 0; overflow-x: auto; }
+
+.aviso-erro {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+}
+
+// ---- Cabeçalho ----
+.grade-cabecalho {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 12px;
+}
+
+.campo-largo { grid-column: span 2; }
+
+@media (max-width: 900px) {
+  .grade-cabecalho { grid-template-columns: repeat(2, 1fr); }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  input, select { height: 26px; }
+}
+
+// ---- Barra de ações ----
+.barra-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.espacador { flex: 1; }
+
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  user-select: none;
+  cursor: pointer;
+
+  input { width: auto; height: auto; }
+}
+
+// ---- Tabela ----
+.tabela-mapa {
+  width: 100%;
+  border-collapse: collapse;
+
+  th { padding: 6px 5px; text-align: center; }
+
+  td {
+    padding: 3px 5px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 12px;
+  }
+
+  input:not([type='checkbox']) {
+    border: 1px solid transparent;
+    background: transparent;
+    height: 22px;
+    text-align: center;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+
+  input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
+}
+
+.col-num { width: 36px; }
+.col-desc { min-width: 200px; }
+.col-tipo { width: 120px; }
+.col-qtde { width: 78px; }
+.col-unid { width: 52px; }
+.col-etapa { min-width: 140px; }
+.col-acoes { width: 44px; }
+
+.indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
+.zebra td { background: #fafaf8; }
+.vazio { padding: 34px 16px; }
+
+// ---- Bloco de cabeçalho de cada fornecedor ----
+.cabecalho-fornecedor {
+  background: var(--cor-primaria-clara);
+  min-width: 260px;
+  padding: 8px !important;
+
+  &.inativo { opacity: 0.55; }
+}
+
+.bloco-fornecedor {
+  display: flex;
+  gap: 5px;
+
+  select { height: 24px; font-size: 11.5px; }
+}
+
+.bloco-numeros {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--cor-texto-suave);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  input {
+    width: 62px;
+    height: 21px;
+    background: #fff !important;
+    border-color: var(--cor-borda) !important;
+  }
+}
+
+.bloco-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+
+  button {
+    width: 26px;
+    padding: 1px 0;
+    font-size: 11px;
+    line-height: 1;
+  }
+}
+
+// ---- Agrupamento visual das três colunas de cada fornecedor ----
+// A borda escura à esquerda e à direita delimita cada fornecedor; as
+// internas são tracejadas, para o olho ler o bloco como uma unidade.
+.borda-esquerda {
+  border-left: 2px solid var(--cor-primaria-escura) !important;
+  border-right: 1px dashed var(--cor-borda-forte) !important;
+}
+
+.borda-meio {
+  border-left: 1px dashed var(--cor-borda-forte) !important;
+  border-right: 1px dashed var(--cor-borda-forte) !important;
+  width: 62px;
+}
+
+.borda-direita {
+  border-left: 1px dashed var(--cor-borda-forte) !important;
+  border-right: 2px solid var(--cor-primaria-escura) !important;
+  min-width: 110px;
+}
+
+// Vencedor: fundo verde sem apagar as bordas do bloco
+.vencedor {
+  background: var(--cor-sucesso-bg) !important;
+  font-weight: 700;
+
+  input { font-weight: 700; }
+}
+
+// ---- Rodapé ----
+.rotulo-rodape {
+  text-align: right;
+  font-weight: 700;
+}
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  font-family: var(--fonte);
+  font-size: 11.5px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+  border-top: 1px solid var(--cor-borda);
+}
+
+tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
+
+.linha-integral th {
+  background: var(--cor-primaria-clara);
+  font-weight: 700;
+}
+
+// ---- Painéis de comparação ----
+.grade-inferior {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grade-inferior { grid-template-columns: 1fr; }
+}
+
+.linha-cenario {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+  font-size: 12.5px;
+
+  &:last-of-type { border-bottom: none; }
+
+  b { font-family: var(--fonte-mono); font-size: 13px; }
+
+  &.destaque {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cor-borda-forte);
+    border-bottom: none;
+
+    b { color: var(--cor-sucesso); font-size: 15px; }
+  }
+
+  &.destaque.negativa b { color: var(--cor-perigo); }
+}
+
+.nota {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--cor-borda);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.tabela-resumo {
+  width: 100%;
+
+  th, td { padding: 5px 8px; font-size: 11.5px; }
+  tfoot th { border-top: 2px solid var(--cor-borda-forte); }
+}
+
+// Dica de atalhos: presente mas discreta — quem já sabe não precisa ver.
+.dica {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+
+  kbd {
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    padding: 1px 4px;
+    border: 1px solid var(--cor-borda);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    background: var(--cor-fundo-alt);
+  }
+}
+
+// ---- Painel de rateio por etapa ----
+.painel-etapas {
+  .cabecalho-painel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+
+    .painel-titulo { margin-bottom: 0; }
+
+    button { font-size: 11px; padding: 3px 9px; }
+  }
+
+  .explicacao {
+    margin: 0 0 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    max-width: 720px;
+  }
+}
+
+.tabela-etapas {
+  width: 100%;
+  border-collapse: collapse;
+
+  th { padding: 6px 5px; text-align: center; }
+
+  td {
+    padding: 3px 5px;
+    text-align: center;
+    font-size: 11.5px;
+    border-bottom: 1px solid var(--cor-fundo-alt);
+  }
+
+  input {
+    border: 1px solid transparent;
+    background: transparent;
+    height: 21px;
+    width: 54px;
+    text-align: right;
+    font-family: var(--fonte-mono);
+    font-size: 11px;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+}
+
+.col-etapa-nome { min-width: 150px; text-align: left !important; }
+.nome-etapa { text-align: left; font-weight: 600; }
+
+.cabecalho-forn {
+  background: var(--cor-primaria-clara);
+  border-left: 2px solid var(--cor-primaria-escura);
+}
+
+.celula-pct {
+  white-space: nowrap;
+
+  // Travada: fundo âmbar suave, para o olho achar de imediato o que foi
+  // fixado à mão em meio ao que o sistema calculou.
+  &.travada {
+    background: var(--cor-alerta-bg);
+
+    input { font-weight: 700; color: var(--cor-alerta); }
+  }
+}
+
+.trava {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { background: transparent; filter: brightness(1.2); }
+}
+
+.frete-particular {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.linhas-frete {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+}
+
+.linha-frete {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+  font-size: 12px;
+
+  &:last-child { border-bottom: none; }
+
+  .pct { font-family: var(--fonte-mono); font-size: 10.5px; }
+  b { font-family: var(--fonte-mono); text-align: right; }
+}

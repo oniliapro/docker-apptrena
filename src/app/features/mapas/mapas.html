@@ -1,0 +1,50 @@
+<div class="cabecalho">
+  <div>
+    <h1>Mapas</h1>
+    <div class="atenuado">Cotações de fornecedores já criadas</div>
+  </div>
+  <a class="botao-novo" routerLink="/obras" title="Escolha a obra para criar o mapa">+ Novo mapa</a>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Nº</th>
+            <th>Descrição</th>
+            <th>Cliente</th>
+            <th class="centro">Finalização</th>
+            <th class="valor">Total</th>
+            <th class="centro">Pagtos.</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (mapa of mapas(); track mapa.id) {
+            <tr>
+              <td class="centro">{{ numero(mapa) }}</td>
+              <td>{{ descricao(mapa) }}</td>
+              <td>{{ cliente(mapa) }}</td>
+              <td class="centro">{{ dataFinalizacao(mapa) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
+              <td class="centro">{{ quantidadePagamentos(mapa) }}</td>
+              <td class="centro">
+                <button type="button" title="Excluir" (click)="remover(mapa)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="centro atenuado">Nenhum mapa cadastrado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

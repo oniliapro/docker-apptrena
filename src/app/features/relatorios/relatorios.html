@@ -1,0 +1,99 @@
+<div class="cabecalho">
+  <h1>Relatórios</h1>
+  <div class="atenuado">Orçado x realizado, cruzando a EAP com os pagamentos</div>
+</div>
+
+@if (carregando()) {
+  <div class="painel atenuado">Carregando…</div>
+} @else if (erro(); as mensagem) {
+  <div class="painel atenuado">{{ mensagem }}</div>
+} @else if (!temDados()) {
+  <div class="painel vazio">
+    <p>Ainda não há o que comparar.</p>
+    <p class="atenuado">
+      Este relatório cruza o orçamento da <a routerLink="../eap">EAP</a> com o que já foi
+      lançado em <a routerLink="../pagamentos">Pagamentos</a> (desta obra). Assim que houver
+      dados nos dois, os números aparecem aqui.
+    </p>
+  </div>
+} @else {
+
+  <!-- Resumo geral -->
+  <div class="grade-resumo">
+    <div class="cartao">
+      <div class="rotulo">Orçado</div>
+      <div class="numero">{{ formatarMoeda(orcadoTotal()) }}</div>
+      <div class="nota">com BDI</div>
+    </div>
+
+    <div class="cartao">
+      <div class="rotulo">Realizado</div>
+      <div class="numero">{{ formatarMoeda(realizadoTotal()) }}</div>
+      <div class="nota">{{ consumoTotal() | number: '1.1-1' }}% do orçado</div>
+    </div>
+
+    <div class="cartao" [class.estourado]="saldoTotal() < 0">
+      <div class="rotulo">{{ saldoTotal() < 0 ? 'Estouro' : 'Saldo' }}</div>
+      <div class="numero">
+        {{ formatarMoeda(saldoTotal() < 0 ? -saldoTotal() : saldoTotal()) }}
+      </div>
+      <div class="nota">
+        {{ saldoTotal() < 0 ? 'acima do orçamento' : 'ainda disponível' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Por categoria -->
+  <div class="painel">
+    <div class="painel-titulo">Por categoria de custo</div>
+
+    <p class="explicacao atenuado">
+      O total pode fechar escondendo um estouro numa categoria compensado por
+      economia em outra — por isso a comparação também aparece separada.
+    </p>
+
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th>Categoria</th>
+            <th class="valor">Orçado</th>
+            <th class="valor">Realizado</th>
+            <th class="valor">Saldo</th>
+            <th class="col-consumo">Consumo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (tipo of tipos; track tipo.chave) {
+            <tr>
+              <td class="nome-categoria">{{ tipo.rotulo }}</td>
+              <td class="valor">{{ formatarMoeda(orcado()[tipo.chave] || 0) }}</td>
+              <td class="valor">{{ formatarMoeda(realizado()[tipo.chave] || 0) }}</td>
+              <td class="valor" [class.negativo]="estourou(tipo.chave)">
+                <b>{{ formatarMoeda(saldoDe(tipo.chave)) }}</b>
+              </td>
+              <td>
+                <div class="barra" [title]="(consumoDe(tipo.chave) | number: '1.1-1') + '%'">
+                  <div class="preenchimento" [class.estourado]="estourou(tipo.chave)"
+                       [style.width.%]="larguraBarra(consumoDe(tipo.chave))"></div>
+                  <span class="percentual">{{ consumoDe(tipo.chave) | number: '1.0-0' }}%</span>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <th class="valor">{{ formatarMoeda(orcadoTotal()) }}</th>
+            <th class="valor">{{ formatarMoeda(realizadoTotal()) }}</th>
+            <th class="valor" [class.negativo]="saldoTotal() < 0">
+              {{ formatarMoeda(saldoTotal()) }}
+            </th>
+            <th class="valor">{{ consumoTotal() | number: '1.0-0' }}%</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+}
