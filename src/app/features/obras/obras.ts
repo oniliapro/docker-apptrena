@@ -1,7 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { Obra } from '../../core/models/api.models';
+import { Obra, ObraPayload } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData } from '../../core/utils/formato';
 
@@ -16,12 +17,14 @@ type FiltroStatus = 'todos' | 'confirmada' | 'aberta';
  */
 @Component({
   selector: 'app-obras',
+  imports: [ReactiveFormsModule],
   templateUrl: './obras.html',
   styleUrl: './obras.scss',
 })
 export class Obras implements OnInit {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly obras = signal<Obra[]>([]);
   protected readonly carregando = signal(true);
@@ -31,6 +34,20 @@ export class Obras implements OnInit {
   protected readonly busca = signal('');
 
   protected readonly formatarData = formatarData;
+
+  protected readonly formularioAberto = signal(false);
+  protected readonly salvando = signal(false);
+
+  protected readonly formulario = this.fb.nonNullable.group({
+    mapNumber: [''],
+    obraNome: ['', [Validators.required]],
+    cliente: ['', [Validators.required]],
+    responsavel: [''],
+    dataBase: [''],
+    periodo: [''],
+    status: ['Em andamento'],
+    obs: [''],
+  });
 
   protected readonly listaFiltrada = computed(() => {
     const filtro = this.filtro();
@@ -87,5 +104,62 @@ export class Obras implements OnInit {
       next: () => this.obras.update((lista) => lista.filter((o) => o.id !== obra.id)),
       error: () => window.alert('Não foi possível excluir a obra.'),
     });
+  }
+
+  // ------------------------------------------------------------------
+  // Formulário — Nova obra
+  // ------------------------------------------------------------------
+  protected novo(): void {
+    this.formulario.reset({ status: 'Em andamento' });
+    this.formularioAberto.set(true);
+  }
+
+  protected fechar(): void {
+    this.formularioAberto.set(false);
+  }
+
+  protected salvar(): void {
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    const v = this.formulario.getRawValue();
+    const obs = [`Status: ${v.status}`, v.obs.trim()].filter(Boolean).join(' — ');
+
+    const payload: ObraPayload = {
+      map_number: v.mapNumber.trim() || null,
+      obra_nome: v.obraNome.trim(),
+      cliente: v.cliente.trim(),
+      data_base: v.dataBase || null,
+      responsavel: v.responsavel.trim() || null,
+      local_obra: null,
+      periodo: v.periodo.trim() || null,
+      obs,
+      bdi_scope: null,
+      bdi_mode: null,
+      bdi_percent: null,
+      bdi_value: null,
+      is_confirmed: false,
+      confirmed_at: null,
+    };
+
+    this.salvando.set(true);
+    this.api.criarObra(payload).subscribe({
+      next: (obra) => {
+        this.obras.update((lista) => [...lista, obra]);
+        this.salvando.set(false);
+        this.fechar();
+      },
+      error: () => {
+        this.salvando.set(false);
+        window.alert('Não foi possível criar a obra.');
+      },
+    });
+  }
+
+  protected temErro(campo: string): boolean {
+    const controle = this.formulario.get(campo);
+    return Boolean(controle?.invalid && (controle.dirty || controle.touched));
   }
 }

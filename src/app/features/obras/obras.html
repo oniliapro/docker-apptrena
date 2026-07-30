@@ -3,6 +3,7 @@
     <h1>Obras</h1>
     <div class="atenuado">Obras às quais você tem acesso</div>
   </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Nova obra</button>
 </div>
 
 <div class="painel barra-ferramentas">
@@ -70,3 +71,78 @@
     </div>
   }
 </div>
+
+<!-- ============ Formulário ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fechar()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Nova obra</span>
+        <button type="button" (click)="fechar()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo">
+            <span>Código / nº do mapa</span>
+            <input type="text" formControlName="mapNumber" placeholder="Ex.: OBR-001" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Nome da obra</span>
+            <input type="text" formControlName="obraNome" />
+            @if (temErro('obraNome')) {
+              <small class="erro-campo">Informe o nome da obra.</small>
+            }
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Cliente</span>
+            <input type="text" formControlName="cliente" placeholder="Nome do cliente já cadastrado" />
+            @if (temErro('cliente')) {
+              <small class="erro-campo">Informe o cliente.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Responsável</span>
+            <input type="text" formControlName="responsavel" placeholder="Ex.: Eng. Paulo Reis" />
+          </label>
+
+          <label class="campo">
+            <span>Data base (início)</span>
+            <input type="date" formControlName="dataBase" />
+          </label>
+
+          <label class="campo">
+            <span>Prazo / período</span>
+            <input type="text" formControlName="periodo" placeholder="Ex.: até 30/11/2026" />
+          </label>
+
+          <label class="campo">
+            <span>Status</span>
+            <select formControlName="status">
+              <option value="Iniciar">Iniciar</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Finalizada">Finalizada</option>
+            </select>
+          </label>
+
+          <label class="campo campo-total">
+            <span>Observações</span>
+            <input type="text" formControlName="obs" />
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Cadastrar obra' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
