@@ -91,24 +91,26 @@
         <tr>
           <th rowspan="2" class="col-num">#</th>
           <th rowspan="2" class="col-desc">Serviço</th>
-          <th rowspan="2" class="col-eap">Item da EAP</th>
-          <th rowspan="2" class="col-valor" title="Soma do contrato lançado nas categorias abaixo">Total empreita</th>
-          <th rowspan="2" class="col-valor reserva" title="Soma da reserva lançada nas categorias abaixo">Total reserva</th>
-
-          @for (tipo of store.tipos(); track tipo) {
-            <th colspan="5" class="grupo-tipo">{{ rotuloTipo(tipo) }}</th>
-          }
-
+          <th rowspan="2" class="col-eap">Etapa (EAP)</th>
+          <th colspan="2" class="grupo-orcado">Orçado (R$)</th>
+          <th colspan="3" class="grupo-contrato">Contrato (R$)</th>
+          <th colspan="3" class="grupo-medicao">Medição (%)</th>
+          <th colspan="3" class="grupo-pagamento">Pagamento do período (R$)</th>
+          <th rowspan="2" class="col-valor">Saldo (R$)</th>
           <th rowspan="2" class="col-acoes"></th>
         </tr>
         <tr>
-          @for (tipo of store.tipos(); track tipo) {
-            <th class="grupo-tipo">Contrato</th>
-            <th class="grupo-tipo reserva">Reserva</th>
-            <th class="grupo-tipo">Acum. %</th>
-            <th class="grupo-tipo">Atual %</th>
-            <th class="grupo-tipo">A pagar</th>
-          }
+          <th class="grupo-orcado">Por tipo</th>
+          <th class="grupo-orcado">Total</th>
+          <th class="grupo-contrato">Empreiteiro</th>
+          <th class="grupo-contrato reserva">Reserva</th>
+          <th class="grupo-contrato">Total</th>
+          <th class="grupo-medicao">Acum.</th>
+          <th class="grupo-medicao">Atual</th>
+          <th class="grupo-medicao">Avanço</th>
+          <th class="grupo-pagamento">Pagar</th>
+          <th class="grupo-pagamento reserva">Reservar</th>
+          <th class="grupo-pagamento">Total</th>
         </tr>
       </thead>
 
@@ -131,38 +133,113 @@
                 <span class="atenuado pequeno">Cadastre a EAP primeiro</span>
               }
             </td>
-            <td class="valor atenuado">
-              {{ moedaOuVazio(linha(i).valorEmp) }}
+
+            <!-- Orçado: Por tipo (empilhado, referência) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo atenuado">{{ valorOrcadoPorTipo(i, tipo) }}</span>
+                </div>
+              }
             </td>
-            <td class="reserva valor atenuado">
-              {{ moedaOuVazio(linha(i).valorReserva) }}
+            <!-- Orçado: Total -->
+            <td class="valor atenuado">{{ moedaOuVazio(linha(i).orcadoTotal) }}</td>
+
+            <!-- Contrato: Empreiteiro (empilhado, editável) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00"
+                         [value]="valorContrato(item, 'contratoEmpPorTipo', tipo)"
+                         (change)="editarContrato(item, 'contratoEmpPorTipo', tipo, $event)" />
+                </div>
+              }
+            </td>
+            <!-- Contrato: Reserva (empilhado, editável) -->
+            <td class="celula-tipos reserva">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00"
+                         [value]="valorContrato(item, 'contratoReservaPorTipo', tipo)"
+                         (change)="editarContrato(item, 'contratoReservaPorTipo', tipo, $event)" />
+                </div>
+              }
+            </td>
+            <!-- Contrato: Total (empilhado, calculado) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo">{{ valorContratoTotalPorTipo(i, tipo) }}</span>
+                </div>
+              }
             </td>
 
-            @for (tipo of store.tipos(); track tipo) {
-              <td>
-                <input type="text" class="valor" placeholder="R$ 0,00"
-                       [value]="valorContrato(item, 'contratoEmpPorTipo', tipo)"
-                       (change)="editarContrato(item, 'contratoEmpPorTipo', tipo, $event)" />
-              </td>
-              <td class="reserva">
-                <input type="text" class="valor" placeholder="R$ 0,00"
-                       [value]="valorContrato(item, 'contratoReservaPorTipo', tipo)"
-                       (change)="editarContrato(item, 'contratoReservaPorTipo', tipo, $event)" />
-              </td>
-              <td>
-                <input type="text" class="valor" placeholder="0"
-                       [value]="valorMedicaoAcumulada(item, tipo)"
-                       (change)="editarMedicao(item, 'medicaoAcumByType', tipo, $event)" />
-              </td>
-              <td [class.celula-invalida]="linha(i).tiposInvalidos.includes(tipo)">
-                <input type="text" class="valor" placeholder="—"
-                       [value]="valorMedicaoAtual(item, tipo)"
-                       (change)="editarMedicao(item, 'medicaoAtualByType', tipo, $event)" />
-              </td>
-              <td class="valor">
-                {{ moedaOuVazio((linha(i).pagarPorTipo[tipo] ?? 0) + (linha(i).reservarPorTipo[tipo] ?? 0)) }}
-              </td>
-            }
+            <!-- Medição: Acum. (empilhado, editável) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <input type="text" class="valor" placeholder="0"
+                         [value]="valorMedicaoAcumulada(item, tipo)"
+                         (change)="editarMedicao(item, 'medicaoAcumByType', tipo, $event)" />
+                </div>
+              }
+            </td>
+            <!-- Medição: Atual (empilhado, editável) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo" [class.invalida]="linha(i).tiposInvalidos.includes(tipo)">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <input type="text" class="valor" placeholder="—"
+                         [value]="valorMedicaoAtual(item, tipo)"
+                         (change)="editarMedicao(item, 'medicaoAtualByType', tipo, $event)" />
+                </div>
+              }
+            </td>
+            <!-- Medição: Avanço (empilhado, calculado) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo">{{ valorAvancoPorTipo(i, tipo) }}</span>
+                </div>
+              }
+            </td>
+
+            <!-- Pagamento do período: Pagar (empilhado, calculado) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo">{{ valorPagarPorTipo(i, tipo) }}</span>
+                </div>
+              }
+            </td>
+            <!-- Pagamento do período: Reservar (empilhado, calculado) -->
+            <td class="celula-tipos reserva">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo">{{ valorReservarPorTipo(i, tipo) }}</span>
+                </div>
+              }
+            </td>
+            <!-- Pagamento do período: Total (empilhado, calculado) -->
+            <td class="celula-tipos">
+              @for (tipo of store.tipos(); track tipo) {
+                <div class="linha-tipo">
+                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+                  <span class="valor-tipo">{{ valorPagamentoTotalPorTipo(i, tipo) }}</span>
+                </div>
+              }
+            </td>
+
+            <!-- Saldo: orçado − contratado, referência única (não por tipo) -->
+            <td class="valor">{{ moedaOuVazio(saldo(i)) }}</td>
 
             <td class="centro">
               <button type="button" title="Remover" (click)="remover(item)">✖</button>
@@ -182,11 +259,20 @@
         <tfoot>
           <tr>
             <th colspan="3" class="rotulo-rodape">TOTAIS</th>
+            <th class="valor">—</th>
+            <th class="valor">{{ formatarMoeda(store.totais().orcadoTotal) }}</th>
             <th class="valor">{{ formatarMoeda(store.totais().valorEmp) }}</th>
             <th class="valor reserva">{{ formatarMoeda(store.totais().valorReserva) }}</th>
-            @for (tipo of store.tipos(); track tipo) {
-              <th colspan="5" class="valor">—</th>
-            }
+            <th class="valor">{{ formatarMoeda(store.totais().valorTotal) }}</th>
+            <th>—</th>
+            <th>—</th>
+            <th>—</th>
+            <th class="valor">{{ formatarMoeda(store.totais().pagarEmp) }}</th>
+            <th class="valor reserva">{{ formatarMoeda(store.totais().reservarPgto) }}</th>
+            <th class="valor">{{ formatarMoeda(store.totais().totalPeriodo) }}</th>
+            <th class="valor">
+              {{ formatarMoeda(store.totais().orcadoTotal - store.totais().valorTotal) }}
+            </th>
             <th></th>
           </tr>
         </tfoot>

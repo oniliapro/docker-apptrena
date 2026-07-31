@@ -43,7 +43,14 @@ export class Empreita implements OnInit {
   /** Id da empreita — vem do param `:empreitaId` da própria rota. */
   readonly empreitaId = input.required<string>({ alias: 'empreitaId' });
 
-  protected readonly totalColunas = computed(() => 5 + this.store.tipos().length * 5 + 1);
+  /**
+   * Colunas fixas da tabela: #, Serviço, Etapa (EAP), Orçado (2), Contrato
+   * (3), Medição (3), Pagamento do período (3), Saldo, Ações — 16 no
+   * total. Não depende mais de `store.tipos().length`: a discriminação
+   * por categoria agora fica em linhas dentro de cada célula, não em
+   * colunas repetidas (revisão 31/07/2026, modelo do sistema antigo).
+   */
+  protected readonly totalColunas = computed(() => 16);
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
@@ -139,6 +146,54 @@ export class Empreita implements OnInit {
 
   protected rotuloTipo(chave: ChaveTipo): string {
     return this.store.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? chave;
+  }
+
+  /** Rótulo curto de cada categoria, para caber na linha empilhada da célula. */
+  private static readonly ABREVIACOES: Record<ChaveTipo, string> = {
+    material: 'Mat.',
+    maoDeObra: 'M.O.',
+    equipamento: 'Equip.',
+    outros: 'Out.',
+    administracao: 'Adm.',
+  };
+
+  protected rotuloAbrev(chave: ChaveTipo): string {
+    return Empreita.ABREVIACOES[chave] ?? chave;
+  }
+
+  /** Orçado da EAP, por categoria — só referência, não editável. */
+  protected valorOrcadoPorTipo(indice: number, tipo: ChaveTipo): string {
+    return this.moedaOuVazio(Number(this.linha(indice).orcadoPorTipo[tipo]) || 0);
+  }
+
+  /** Contrato total (empreiteiro + reserva) da categoria, calculado. */
+  protected valorContratoTotalPorTipo(indice: number, tipo: ChaveTipo): string {
+    return this.moedaOuVazio(Number(this.linha(indice).contratoPorTipo[tipo]) || 0);
+  }
+
+  protected valorAvancoPorTipo(indice: number, tipo: ChaveTipo): string {
+    const valor = this.linha(indice).avancoPorTipo[tipo];
+    return this.percentualOuVazio(valor ?? 0);
+  }
+
+  protected valorPagarPorTipo(indice: number, tipo: ChaveTipo): string {
+    return this.moedaOuVazio(Number(this.linha(indice).pagarPorTipo[tipo]) || 0);
+  }
+
+  protected valorReservarPorTipo(indice: number, tipo: ChaveTipo): string {
+    return this.moedaOuVazio(Number(this.linha(indice).reservarPorTipo[tipo]) || 0);
+  }
+
+  protected valorPagamentoTotalPorTipo(indice: number, tipo: ChaveTipo): string {
+    const linha = this.linha(indice);
+    const valor = (Number(linha.pagarPorTipo[tipo]) || 0) + (Number(linha.reservarPorTipo[tipo]) || 0);
+    return this.moedaOuVazio(valor);
+  }
+
+  /** Quanto ainda falta contratar em relação ao orçado da EAP. */
+  protected saldo(indice: number): number {
+    const linha = this.linha(indice);
+    return linha.orcadoTotal - linha.valorTotal;
   }
 
   protected percentualOuVazio(valor: number | null | undefined): string {

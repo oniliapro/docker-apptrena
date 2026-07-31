@@ -109,11 +109,63 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .col-num { width: 36px; }
 .col-desc { min-width: 190px; }
-.col-eap { min-width: 180px; }
-.col-valor { width: 110px; }
+.col-eap { min-width: 170px; }
+.col-valor { width: 100px; }
 .col-acoes { width: 40px; }
 
-.grupo-tipo { background: var(--cor-primaria-clara); min-width: 78px; }
+// Cabeçalhos dos quatro grupos — cada um mantém colunas fixas
+// (Por tipo/Total, Empreiteiro/Reserva/Total, etc.); a discriminação por
+// categoria de custo fica em linhas dentro da célula, não em colunas
+// repetidas por categoria (revisão 31/07/2026, modelo do sistema antigo).
+.grupo-orcado, .grupo-contrato, .grupo-medicao, .grupo-pagamento {
+  background: var(--cor-primaria-clara);
+  min-width: 92px;
+}
+
+// ---- Célula com a discriminação por categoria empilhada ----
+.celula-tipos {
+  min-width: 92px;
+  padding: 4px 6px !important;
+  vertical-align: top;
+}
+
+.linha-tipo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 0;
+
+  & + .linha-tipo { border-top: 1px dashed var(--cor-fundo-alt); }
+
+  &.invalida {
+    background: var(--cor-perigo-bg);
+
+    input { color: var(--cor-perigo); font-weight: 700; }
+  }
+}
+
+.rotulo-tipo {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.valor-tipo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.celula-tipos input {
+  width: 100%;
+  height: 19px;
+  text-align: right;
+  font-size: 11px;
+}
 
 .indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
 .zebra td { background: #fafaf8; }
