@@ -21,9 +21,14 @@ use Illuminate\Support\Str;
  */
 class MapaController extends Controller
 {
-    public function index()
+    /** GET /api/mapas — aceita `obra_id` para listar só os mapas de uma obra. */
+    public function index(Request $request)
     {
-        return Mapa::orderBy('numero_mapa')->get();
+        $query = Mapa::orderBy('numero_mapa');
+        if ($request->filled('obra_id')) {
+            $query->where('obra_id', $request->query('obra_id'));
+        }
+        return $query->get();
     }
 
     public function show(Mapa $mapa)
@@ -121,6 +126,7 @@ class MapaController extends Controller
                     'tipo_custo_id' => $raw['tipoCustoId'] ?? null,
                     'quantidade' => $raw['quantidade'] ?? 0,
                     'unidade' => $raw['unidade'] ?? '',
+                    'etapa' => $raw['etapa'] ?? '',
                     'eap_item_id' => $raw['eapItemId'] ?? null,
                     'modo_etapa' => $raw['modoEtapa'] ?? 'percentual',
                     'escolha_fornecedor_id' => $escolhaFornecedorId,

@@ -17,9 +17,14 @@ use Illuminate\Support\Str;
  */
 class EmpreitaController extends Controller
 {
-    public function index()
+    /** GET /api/empreitas — aceita `obra_id` para listar só as empreitas de uma obra. */
+    public function index(Request $request)
     {
-        return Empreita::orderBy('numero_empreita')->get();
+        $query = Empreita::orderBy('numero_empreita');
+        if ($request->filled('obra_id')) {
+            $query->where('obra_id', $request->query('obra_id'));
+        }
+        return $query->get();
     }
 
     public function show(Empreita $empreita)
@@ -49,6 +54,7 @@ class EmpreitaController extends Controller
             'obra_id' => 'nullable|string|exists:obras,id',
             'obra_number' => 'nullable|string|max:50',
             'numero_empreita' => 'nullable|string|max:50',
+            'empreiteiro' => 'nullable|string|max:120',
             'descricao_empreita' => 'nullable|string',
             'medicao_date' => 'nullable|date',
             'competencia' => 'nullable|string|max:30',
@@ -62,6 +68,7 @@ class EmpreitaController extends Controller
                 'obra_id' => $data['obra_id'] ?? $empreita->obra_id,
                 'obra_number' => $data['obra_number'] ?? '',
                 'numero_empreita' => $data['numero_empreita'] ?? '',
+                'empreiteiro' => $data['empreiteiro'] ?? '',
                 'descricao_empreita' => $data['descricao_empreita'] ?? '',
                 'medicao_date' => $data['medicao_date'] ?? null,
                 'competencia' => $data['competencia'] ?? '',

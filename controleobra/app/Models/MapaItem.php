@@ -20,7 +20,7 @@ class MapaItem extends Model
 
     protected $fillable = [
         'id', 'mapa_id', 'ordem', 'descricao', 'tipo_custo_id', 'quantidade',
-        'unidade', 'eap_item_id', 'modo_etapa', 'escolha_fornecedor_id',
+        'unidade', 'etapa', 'eap_item_id', 'modo_etapa', 'escolha_fornecedor_id',
     ];
 
     protected $casts = ['quantidade' => 'float'];

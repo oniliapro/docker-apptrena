@@ -16,8 +16,9 @@ class Empreita extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'empresa_id', 'obra_id', 'obra_number', 'numero_empreita', 'descricao_empreita',
-        'medicao_date', 'competencia', 'obs', 'total_empreita', 'total_pago', 'atualizado_em',
+        'id', 'empresa_id', 'obra_id', 'obra_number', 'numero_empreita', 'empreiteiro',
+        'descricao_empreita', 'medicao_date', 'competencia', 'obs', 'total_empreita',
+        'total_pago', 'atualizado_em',
     ];
 
     protected $casts = [
