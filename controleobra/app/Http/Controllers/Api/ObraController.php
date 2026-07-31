@@ -51,14 +51,24 @@ class ObraController extends Controller
 
     private function validated(Request $request): array
     {
+        // Atenção: 'nullable' no Laravel não é só "aceita null" — o
+        // validador também CONVERTE string vazia em null antes de devolver
+        // os dados validados. As colunas abaixo marcadas sem 'nullable'
+        // são NOT NULL no banco com default '' (ver migration
+        // 2024_01_01_000000_create_controle_obra_schema.php); se ficassem
+        // 'nullable', um campo deixado em branco no formulário vira "" no
+        // front, o validate() troca por null, e o insert quebra com
+        // "Column '...' cannot be null" (foi exatamente o que aconteceu
+        // com 'responsavel' ao criar uma obra sem preencher esse campo).
+        // 'string' sozinho já aceita "" numa validação sem 'required'.
         return $request->validate([
             'map_number' => 'nullable|string|max:50',
-            'obra_nome' => 'nullable|string|max:180',
-            'cliente' => 'nullable|string|max:120',
+            'obra_nome' => 'string|max:180',
+            'cliente' => 'string|max:120',
             'data_base' => 'nullable|date',
-            'responsavel' => 'nullable|string|max:120',
-            'local_obra' => 'nullable|string|max:180',
-            'periodo' => 'nullable|string|max:80',
+            'responsavel' => 'string|max:120',
+            'local_obra' => 'string|max:180',
+            'periodo' => 'string|max:80',
             'obs' => 'nullable|string',
             'bdi_scope' => 'nullable|in:global,category,item',
             'bdi_mode' => 'nullable|in:pct,value',
