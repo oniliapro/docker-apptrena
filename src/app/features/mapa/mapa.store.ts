@@ -211,11 +211,12 @@ export class MapaStore {
 
     this.api.obterEap(obraId).subscribe({
       next: (payload) => {
-        const grupos = Array.isArray(payload.eapItems)
-          ? payload.eapItems.filter((i) => i.isGroup)
-          : [];
+        // Grupos E itens da EAP, ambos viram opção de etapa — o usuário
+        // pode querer ratear tanto para um grupo (ex.: "2 - ELÉTRICA")
+        // quanto para um item específico dentro dele (revisão 31/07/2026).
+        const linhas = Array.isArray(payload.eapItems) ? payload.eapItems : [];
         this.etapasDisponiveis.set(
-          grupos.map((g) => `${g.eap} - ${g.desc}`.trim()).filter((rotulo) => rotulo !== '-'),
+          linhas.map((i) => `${i.eap} - ${i.desc}`.trim()).filter((rotulo) => rotulo !== '-'),
         );
       },
       error: () => this.etapasDisponiveis.set([]),
