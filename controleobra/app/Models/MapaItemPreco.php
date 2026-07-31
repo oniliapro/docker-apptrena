@@ -27,4 +27,17 @@ class MapaItemPreco extends Model
     {
         return $this->belongsTo(MapaFornecedor::class, 'fornecedor_id');
     }
+
+    /** Mesmo bug do EapItemCusto (corrigido 31/07/2026) — ver aquele model. */
+    protected function setKeysForSaveQuery($query)
+    {
+        return $query
+            ->where('mapa_item_id', '=', $this->getAttribute('mapa_item_id'))
+            ->where('fornecedor_id', '=', $this->getAttribute('fornecedor_id'));
+    }
+
+    protected function setKeysForSelectQuery($query)
+    {
+        return $this->setKeysForSaveQuery($query);
+    }
 }

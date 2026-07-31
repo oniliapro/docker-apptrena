@@ -22,4 +22,17 @@ class EmpreitaRegistroLinhaTipo extends Model
         'pagar_valor' => 'float',
         'reservar_valor' => 'float',
     ];
+
+    /** Mesmo bug do EapItemCusto (corrigido 31/07/2026) — ver aquele model. */
+    protected function setKeysForSaveQuery($query)
+    {
+        return $query
+            ->where('empreita_registro_linha_id', '=', $this->getAttribute('empreita_registro_linha_id'))
+            ->where('tipo_custo_id', '=', $this->getAttribute('tipo_custo_id'));
+    }
+
+    protected function setKeysForSelectQuery($query)
+    {
+        return $this->setKeysForSaveQuery($query);
+    }
 }
