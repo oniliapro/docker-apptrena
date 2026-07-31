@@ -18,7 +18,7 @@ class Mapa extends Model
     protected $fillable = [
         'id', 'empresa_id', 'obra_id', 'numero_mapa', 'descricao', 'cliente', 'responsavel_mapa',
         'responsavel_obra', 'data_finalizacao', 'data_necessidade', 'frete_particular',
-        'modo_manual', 'total_mapa',
+        'modo_manual', 'is_confirmed', 'confirmed_at', 'total_mapa',
     ];
 
     protected $casts = [
@@ -26,6 +26,8 @@ class Mapa extends Model
         'data_necessidade' => 'date',
         'frete_particular' => 'float',
         'modo_manual' => 'boolean',
+        'is_confirmed' => 'boolean',
+        'confirmed_at' => 'date',
         'total_mapa' => 'float',
     ];
 

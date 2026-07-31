@@ -65,6 +65,8 @@ class MapaController extends Controller
             'data_necessidade' => 'nullable|date',
             'frete_particular' => 'nullable|numeric',
             'modo_manual' => 'nullable|boolean',
+            'is_confirmed' => 'nullable|boolean',
+            'confirmed_at' => 'nullable|date',
             'total_mapa' => 'nullable|numeric',
             'fornecedores' => 'nullable|array',
             'itens' => 'nullable|array',
@@ -82,6 +84,8 @@ class MapaController extends Controller
                 'data_necessidade' => $data['data_necessidade'] ?? null,
                 'frete_particular' => $data['frete_particular'] ?? 0,
                 'modo_manual' => $data['modo_manual'] ?? false,
+                'is_confirmed' => $data['is_confirmed'] ?? $mapa->is_confirmed ?? false,
+                'confirmed_at' => $data['confirmed_at'] ?? $mapa->confirmed_at ?? null,
                 'total_mapa' => $data['total_mapa'] ?? 0,
             ]);
             $mapa->save();
