@@ -28,15 +28,29 @@ const abasDaObra: Routes = [
   reservada('cronograma', 'Cronograma'),
   reservada('desembolso', 'Cronograma de desembolso'),
   reservada('medicoes', 'Medições de Obra'),
-  reservada('empreitas', 'Empreitas da obra'),
   {
-    path: 'medicao-empreitas',
-    data: { titulo: 'Medição de Empreitas' },
+    // Lista de empreitas desta obra (uma obra pode ter várias — task
+    // "várias por obra", 31/07/2026). O editor de uma empreita
+    // específica vive em 'empreitas/:empreitaId', logo abaixo.
+    path: 'empreitas',
+    data: { titulo: 'Empreitas da obra' },
+    loadComponent: () =>
+      import('./features/empreita/empreitas-obra').then((m) => m.EmpreitasObra),
+  },
+  {
+    path: 'empreitas/:empreitaId',
+    data: { titulo: 'Empreita' },
     loadComponent: () => import('./features/empreita/empreita').then((m) => m.Empreita),
   },
   {
+    // Lista de mapas desta obra (mesma ideia: várias por obra).
     path: 'mapas',
     data: { titulo: 'Mapas da obra' },
+    loadComponent: () => import('./features/mapa/mapas-obra').then((m) => m.MapasObra),
+  },
+  {
+    path: 'mapas/:mapaId',
+    data: { titulo: 'Mapa' },
     loadComponent: () => import('./features/mapa/mapa').then((m) => m.Mapa),
   },
   reservada('compras', 'Compras'),
@@ -140,10 +154,14 @@ export const routes: Routes = [
       // sem :id lia uma chave global que ficou órfã e sempre mostrava
       // vazio. Removida.
 
-      // Os editores únicos de Mapa e Empreita mudaram para dentro das
-      // abas da obra (/obras/:id/mapas e /obras/:id/medicao-empreitas) —
-      // mesma task. As rotas gerais "mapa" e "empreita" (sem :id) foram
-      // removidas porque os componentes agora exigem o id da obra.
+      // Mapa e Empreita mudaram para dentro das abas da obra (mesma
+      // task, 28/07/2026) e depois viraram "vários por obra" em vez de
+      // "um editor único" (31/07/2026): /obras/:id/mapas e
+      // /obras/:id/empreitas agora são listas (MapasObra/EmpreitasObra),
+      // com criação de registros de verdade, e o editor de cada um vive
+      // em /obras/:id/mapas/:mapaId e /obras/:id/empreitas/:empreitaId.
+      // As rotas gerais "mapa" e "empreita" (sem :id) continuam
+      // removidas porque os componentes exigem o id da obra.
     ],
   },
   { path: '**', redirectTo: '' },

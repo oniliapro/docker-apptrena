@@ -39,11 +39,16 @@ export class Mapa implements OnInit {
   protected readonly store = inject(MapaStore);
 
   /**
-   * Id da obra — vem do param `:id` da rota pai (/obras/:id), herdado
+   * Id da obra — vem do param `:id` da rota avó (/obras/:id), herdado
    * via `withRouterConfig({ paramsInheritanceStrategy: 'always' })` em
-   * app.config.ts. Mesmo mecanismo usado pela EAP.
+   * app.config.ts. Mesmo mecanismo usado pela EAP. Não é usado pra
+   * carregar o mapa (isso é feito por `mapaId`), só fica disponível
+   * caso a tela precise voltar pra obra.
    */
   readonly obraId = input.required<string>({ alias: 'id' });
+
+  /** Id do mapa — vem do param `:mapaId` da própria rota (/obras/:id/mapas/:mapaId). */
+  readonly mapaId = input.required<string>({ alias: 'mapaId' });
 
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly listaFornecedores = FORNECEDORES;
@@ -84,7 +89,7 @@ export class Mapa implements OnInit {
   );
 
   ngOnInit(): void {
-    this.store.carregar(this.obraId());
+    this.store.carregar(this.mapaId());
   }
 
   // ------------------------------------------------------------------

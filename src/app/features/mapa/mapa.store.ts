@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
-import { ArmazenamentoService } from '../../core/services/armazenamento.service';
-import { TIPOS_CUSTO } from '../eap/eap.models';
+import { ApiService } from '../../core/services/api.service';
+import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { gerarId } from '../eap/eap-normalize';
 import {
   calcularFracionado,
@@ -13,29 +13,44 @@ import {
 import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
 
 /**
- * Chave por obra — task "obra como contexto" (28/07/2026), mesmo padrão
- * do `chaveEap` em `eap.store.ts`.
+ * Ids de tipos_custo (tabela seed, ver TiposCustoSeeder.php) — fixos,
+ * usados só para falar com o MapaController, que guarda um único
+ * tipo_custo_id por item (diferente da EAP/Empreita, que guardam um mapa
+ * inteiro por categoria).
  */
-const chaveMapa = (obraId: string) => `controleObra.mapa.v1.obra-${obraId}`;
+const ID_POR_CHAVE: Record<ChaveTipo, number> = {
+  material: 1,
+  maoDeObra: 2,
+  equipamento: 3,
+  outros: 4,
+  administracao: 5,
+};
+const CHAVE_POR_ID: Record<number, ChaveTipo> = {
+  1: 'material',
+  2: 'maoDeObra',
+  3: 'equipamento',
+  4: 'outros',
+  5: 'administracao',
+};
 
 /**
  * Estado do Mapa de Fornecedores.
  *
- * Persiste pela ponte chave-valor do backend, namespaced por obra (ver
- * `chaveMapa`).
+ * Até 31/07/2026 este store persistia na ponte chave-valor, um mapa por
+ * obra. Migrado para o endpoint relacional `/mapas/{id}` (que já existia
+ * pronto no backend, ver MapaController) porque uma obra pode ter VÁRIOS
+ * mapas nomeados (ex.: "Mapa de Aço #07"), não só um — cada mapa agora é
+ * seu próprio registro, criado pela lista `MapasObra`.
  *
  * Os cálculos ficam em `mapa-engine.ts`, verificado contra o original em
  * `verificacao/`.
  */
 @Injectable()
 export class MapaStore {
-  private readonly armazenamento = inject(ArmazenamentoService);
+  private readonly api = inject(ApiService);
 
-  /** Verdadeiro quando os dados estão indo só para o navegador. */
-  readonly modoLocal = this.armazenamento.modoLocal;
-
-  /** Obra atual — definida por `carregar(obraId)`, usada em toda gravação. */
-  private obraId = '';
+  /** Id do mapa atual — definido por `carregar(mapaId)`, usado em toda gravação. */
+  private mapaId = '';
 
   readonly cabecalho = signal<CabecalhoMapa>({
     numeroMapa: '',
@@ -97,16 +112,15 @@ export class MapaStore {
   );
 
   // ------------------------------------------------------------------
-  /** `obraId` define de qual obra é o mapa — obrigatório desde a task "obra como contexto". */
-  carregar(obraId: string): void {
-    this.obraId = obraId;
+  /** `mapaId` é o id do registro em `/mapas` — obrigatório desde a migração pro relacional. */
+  carregar(mapaId: string): void {
+    this.mapaId = mapaId;
     this.carregando.set(true);
     this.erro.set(null);
 
-    this.armazenamento.ler(chaveMapa(obraId)).subscribe({
-      next: (value) => {
-        const dados = this.interpretar(value);
-        if (dados) this.aplicar(dados);
+    this.api.obterMapa(mapaId).subscribe({
+      next: (mapa) => {
+        this.aplicar(mapa as Record<string, unknown>);
         this.carregando.set(false);
       },
       error: () => {
@@ -116,69 +130,121 @@ export class MapaStore {
     });
   }
 
-  private aplicar(dados: Record<string, unknown>): void {
-    const cabecalho = (dados['header'] ?? {}) as Record<string, unknown>;
+  private aplicar(mapa: Record<string, unknown>): void {
     this.cabecalho.set({
-      numeroMapa: String(cabecalho['numeroMapa'] ?? ''),
-      descricao: String(cabecalho['descricao'] ?? ''),
-      cliente: String(cabecalho['cliente'] ?? ''),
-      responsavelObra: String(cabecalho['responsavelObra'] ?? ''),
-      responsavelMapa: String(cabecalho['responsavelMapa'] ?? ''),
-      data: String(cabecalho['data'] ?? ''),
-      freteParticular: Number(cabecalho['freteParticular']) || 0,
-      modoManual: Boolean(cabecalho['modoManual']),
+      numeroMapa: String(mapa['numero_mapa'] ?? ''),
+      descricao: String(mapa['descricao'] ?? ''),
+      cliente: String(mapa['cliente'] ?? ''),
+      responsavelObra: String(mapa['responsavel_obra'] ?? ''),
+      responsavelMapa: String(mapa['responsavel_mapa'] ?? ''),
+      // O backend devolve data ISO completa (ex.: 2026-02-12T00:00:00.000000Z);
+      // o <input type="date"> só aceita AAAA-MM-DD.
+      data: String(mapa['data_finalizacao'] ?? '').slice(0, 10),
+      freteParticular: Number(mapa['frete_particular']) || 0,
+      modoManual: Boolean(mapa['modo_manual']),
     });
 
-    const fornecedores = dados['fornecedores'];
+    const fornecedoresBrutos = Array.isArray(mapa['fornecedores'])
+      ? (mapa['fornecedores'] as Record<string, unknown>[])
+      : [];
+
     this.fornecedores.set(
-      Array.isArray(fornecedores) ? fornecedores.map((f) => this.normalizarFornecedor(f)) : [],
+      fornecedoresBrutos.map((f) => ({
+        nome: String(f['fornecedor'] ?? ''),
+        contato: String(f['contato'] ?? ''),
+        ativo: f['ativo'] !== false,
+        imposto: Number(f['imposto_percent']) || 0,
+        frete: Number(f['frete']) || 0,
+        desconto: Number(f['desconto']) || 0,
+      })),
     );
 
-    const itens = dados['itens'];
-    this.itens.set(Array.isArray(itens) ? itens.map((i) => this.normalizarItem(i)) : []);
-  }
+    // fornecedor_id (relacional) -> posição no array (frontend trabalha por índice).
+    const indicePorId = new Map<string, number>(
+      fornecedoresBrutos.map((f, i) => [String(f['id']), i]),
+    );
 
-  private normalizarFornecedor(bruto: unknown): Fornecedor {
-    const f = (bruto ?? {}) as Record<string, unknown>;
-    return {
-      // `fornecedor` é o nome do campo no formato antigo.
-      nome: String(f['nome'] ?? f['fornecedor'] ?? ''),
-      contato: String(f['contato'] ?? ''),
-      ativo: f['ativo'] !== false,
-      imposto: Number(f['imposto']) || 0,
-      frete: Number(f['frete']) || 0,
-      desconto: Number(f['desconto']) || 0,
-    };
-  }
+    const itensBrutos = Array.isArray(mapa['itens'])
+      ? (mapa['itens'] as Record<string, unknown>[])
+      : [];
 
-  private normalizarItem(bruto: unknown): ItemMapa {
-    const i = (bruto ?? {}) as Record<string, unknown>;
-    const escolha = i['choice'];
+    this.itens.set(
+      itensBrutos.map((i) => {
+        const unit = fornecedoresBrutos.map(() => 0);
+        const precos = Array.isArray(i['precos']) ? (i['precos'] as Record<string, unknown>[]) : [];
+        for (const preco of precos) {
+          const indice = indicePorId.get(String(preco['fornecedor_id']));
+          if (indice !== undefined) unit[indice] = Number(preco['valor_unitario']) || 0;
+        }
 
-    return {
-      id: i['id'] ? String(i['id']) : gerarId(),
-      desc: String(i['desc'] ?? ''),
-      qtde: Number(i['qtde']) || 0,
-      unid: String(i['unid'] ?? ''),
-      unit: Array.isArray(i['unit']) ? (i['unit'] as unknown[]).map((v) => Number(v) || 0) : [],
-      tipo: (String(i['tipo'] ?? '') || '') as ItemMapa['tipo'],
-      eapId: String(i['eapId'] ?? ''),
-      etapa: String(i['etapa'] ?? ''),
-      choice: Number.isFinite(Number(escolha)) && escolha !== null ? Number(escolha) : null,
-    };
+        const escolhaId = i['escolha_fornecedor_id'];
+        const choice = escolhaId ? indicePorId.get(String(escolhaId)) ?? null : null;
+
+        return {
+          id: i['id'] ? String(i['id']) : gerarId(),
+          desc: String(i['descricao'] ?? ''),
+          qtde: Number(i['quantidade']) || 0,
+          unid: String(i['unidade'] ?? ''),
+          unit,
+          tipo: (CHAVE_POR_ID[Number(i['tipo_custo_id'])] ?? '') as ChaveTipo | '',
+          eapId: i['eap_item_id'] ? String(i['eap_item_id']) : '',
+          etapa: String(i['etapa'] ?? ''),
+          choice,
+        };
+      }),
+    );
   }
 
   salvar(): void {
+    if (!this.mapaId) return;
     this.salvando.set(true);
 
+    const fornecedores = this.fornecedores();
+    const cabecalho = this.cabecalho();
+
     const payload = {
-      header: this.cabecalho(),
-      fornecedores: this.fornecedores(),
-      itens: this.itens(),
+      numero_mapa: cabecalho.numeroMapa,
+      descricao: cabecalho.descricao,
+      cliente: cabecalho.cliente,
+      responsavel_obra: cabecalho.responsavelObra,
+      responsavel_mapa: cabecalho.responsavelMapa,
+      data_finalizacao: cabecalho.data || null,
+      frete_particular: cabecalho.freteParticular,
+      modo_manual: cabecalho.modoManual,
+      fornecedores: fornecedores.map((f) => ({
+        fornecedor: f.nome,
+        contato: f.contato,
+        ativo: f.ativo,
+        impostoPercent: f.imposto,
+        frete: f.frete,
+        desconto: f.desconto,
+      })),
+      itens: this.itens().map((item) => ({
+        id: item.id,
+        descricao: item.desc,
+        tipoCustoId: item.tipo ? ID_POR_CHAVE[item.tipo] : null,
+        quantidade: item.qtde,
+        unidade: item.unid,
+        etapa: item.etapa,
+        eapItemId: item.eapId || null,
+        fornecedorEscolhidoIndex: item.choice,
+        precos: item.unit.map((valorUnitario, fornecedorIndex) => ({
+          fornecedorIndex,
+          valorUnitario,
+          comprar: false,
+        })),
+      })),
     };
 
-    this.armazenamento.gravar(chaveMapa(this.obraId), JSON.stringify(payload)).subscribe({
-      next: () => this.salvando.set(false),
+    this.api.atualizarMapa(this.mapaId, payload).subscribe({
+      next: (mapa) => {
+        // Fornecedores/itens recém-criados só ganham id de verdade na
+        // resposta — reaplica pra manter os índices corretos na próxima
+        // gravação (ex.: fornecedorEscolhidoIndex depende de ordem estável,
+        // não de id, então isso é só higiene, não corrige um bug).
+        this.aplicar(mapa as Record<string, unknown>);
+        this.salvando.set(false);
+      },
       error: () => this.salvando.set(false),
     });
   }
@@ -288,14 +354,4 @@ export class MapaStore {
   }
 
   readonly tiposCusto = TIPOS_CUSTO;
-
-  private interpretar(bruto: string | null): Record<string, unknown> | null {
-    if (!bruto) return null;
-    try {
-      const dados = JSON.parse(bruto);
-      return typeof dados === 'object' && dados !== null ? (dados as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
-  }
 }

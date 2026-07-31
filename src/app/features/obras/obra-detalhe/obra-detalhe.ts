@@ -11,7 +11,6 @@ const ABAS = [
   { caminho: 'desembolso', rotulo: 'Cronograma de desembolso' },
   { caminho: 'medicoes', rotulo: 'Medições de Obra' },
   { caminho: 'empreitas', rotulo: 'Empreitas' },
-  { caminho: 'medicao-empreitas', rotulo: 'Medição de Empreitas' },
   { caminho: 'mapas', rotulo: 'Mapas' },
   { caminho: 'compras', rotulo: 'Compras' },
   { caminho: 'pagamentos', rotulo: 'Pagamentos' },

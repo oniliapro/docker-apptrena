@@ -65,8 +65,11 @@ export class ApiService {
   }
 
   // ---------------- Mapas ----------------
-  listarMapas(): Observable<Mapa[]> {
-    return this.http.get<Mapa[]>(`${this.base}/mapas`);
+  /** GET /mapas — aceita `obraId` para trazer só os mapas de uma obra. */
+  listarMapas(obraId?: string): Observable<Mapa[]> {
+    let params = new HttpParams();
+    if (obraId) params = params.set('obra_id', obraId);
+    return this.http.get<Mapa[]>(`${this.base}/mapas`, { params });
   }
 
   obterMapa(id: string): Observable<Mapa> {
@@ -86,8 +89,11 @@ export class ApiService {
   }
 
   // ---------------- Empreitas ----------------
-  listarEmpreitas(): Observable<Empreita[]> {
-    return this.http.get<Empreita[]>(`${this.base}/empreitas`);
+  /** GET /empreitas — aceita `obraId` para trazer só as empreitas de uma obra. */
+  listarEmpreitas(obraId?: string): Observable<Empreita[]> {
+    let params = new HttpParams();
+    if (obraId) params = params.set('obra_id', obraId);
+    return this.http.get<Empreita[]>(`${this.base}/empreitas`, { params });
   }
 
   obterEmpreita(id: string): Observable<Empreita> {

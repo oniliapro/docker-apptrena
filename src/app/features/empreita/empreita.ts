@@ -32,16 +32,21 @@ export class Empreita implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
 
   /**
-   * Id da obra — vem do param `:id` da rota pai (/obras/:id), herdado
+   * Id da obra — vem do param `:id` da rota avó (/obras/:id), herdado
    * via `withRouterConfig({ paramsInheritanceStrategy: 'always' })` em
-   * app.config.ts. Mesmo mecanismo usado pela EAP.
+   * app.config.ts. Mesmo mecanismo usado pela EAP. Usado aqui só para
+   * buscar a EAP de referência — a própria empreita é identificada por
+   * `empreitaId`.
    */
   readonly obraId = input.required<string>({ alias: 'id' });
+
+  /** Id da empreita — vem do param `:empreitaId` da própria rota. */
+  readonly empreitaId = input.required<string>({ alias: 'empreitaId' });
 
   protected readonly totalColunas = computed(() => 5 + this.store.tipos().length * 5 + 1);
 
   ngOnInit(): void {
-    this.store.carregar(this.obraId());
+    this.store.carregar(this.empreitaId(), this.obraId());
   }
 
   // ------------------------------------------------------------------

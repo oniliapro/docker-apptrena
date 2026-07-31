@@ -1,7 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
-import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { gerarId, normalizarItemEap } from '../eap/eap-normalize';
 import {
@@ -13,20 +12,28 @@ import {
 import { CabecalhoEapSnapshot, CabecalhoEmpreita, ItemEmpreita } from './empreita.models';
 
 /**
- * Chave por obra da própria empreita — task "obra como contexto"
- * (28/07/2026). A Empreita continua na ponte chave-valor por enquanto
- * (o endpoint relacional `/empreitas` ainda não foi confirmado como
- * pronto pro formato que esta tela usa — ver `INTEGRACAO.md`).
- *
- * A leitura de referência da EAP, por outro lado, já migrou (28/07/2026)
- * pro endpoint relacional `GET /obras/{id}/eap` — ver `carregarEap` —
- * porque é de lá que a EAP de verdade vem desde que `EapStore` também
- * migrou. Continuar lendo a chave antiga aqui mostraria dado órfão.
+ * Ids de tipos_custo (tabela seed, ver TiposCustoSeeder.php) — fixos,
+ * usados só para traduzir os relacionamentos medicoesPorTipo/
+ * contratoPorTipo do EmpreitaController (que guardam um `tipo_custo_id`
+ * por linha) de volta para o formato `Record<chave, valor>` que a tela
+ * usa.
  */
-const chaveEmpreita = (obraId: string) => `controleObra.empreita.v1.obra-${obraId}`;
+const CHAVE_POR_ID: Record<number, ChaveTipo> = {
+  1: 'material',
+  2: 'maoDeObra',
+  3: 'equipamento',
+  4: 'outros',
+  5: 'administracao',
+};
 
 /**
  * Estado da Empreita.
+ *
+ * Até 31/07/2026 persistia na ponte chave-valor, uma empreita por obra.
+ * Migrado para o endpoint relacional `/empreitas/{id}` porque uma obra
+ * pode ter VÁRIAS empreitas (contratos com empreiteiros diferentes), não
+ * só uma — cada empreita agora é seu próprio registro, criado pela lista
+ * `EmpreitasObra`.
  *
  * Depende da EAP: é o orçado de cada item que entra como referência de
  * comparação (o contrato em si é lançado à mão, categoria a categoria —
@@ -35,14 +42,10 @@ const chaveEmpreita = (obraId: string) => `controleObra.empreita.v1.obra-${obraI
  */
 @Injectable()
 export class EmpreitaStore {
-  private readonly armazenamento = inject(ArmazenamentoService);
   private readonly api = inject(ApiService);
 
-  /** Verdadeiro quando os dados estão indo só para o navegador. */
-  readonly modoLocal = this.armazenamento.modoLocal;
-
-  /** Obra atual — definida por `carregar(obraId)`, usada em toda gravação. */
-  private obraId = '';
+  /** Id da empreita atual — definido por `carregar()`, usado em toda gravação. */
+  private empreitaId = '';
 
   readonly cabecalho = signal<CabecalhoEmpreita>({
     numeroEmpreita: '',
@@ -86,16 +89,20 @@ export class EmpreitaStore {
   );
 
   // ------------------------------------------------------------------
-  /** `obraId` define de qual obra é a empreita — obrigatório desde a task "obra como contexto". */
-  carregar(obraId: string): void {
-    this.obraId = obraId;
+  /**
+   * `empreitaId` é o id do registro em `/empreitas`; `obraId` continua
+   * sendo necessário só para buscar a EAP de referência (a empreita já
+   * carrega o seu próprio `obra_id`, mas o parâmetro de rota é mais
+   * direto e sempre disponível).
+   */
+  carregar(empreitaId: string, obraId: string): void {
+    this.empreitaId = empreitaId;
     this.carregando.set(true);
     this.erro.set(null);
 
-    this.armazenamento.ler(chaveEmpreita(obraId)).subscribe({
-      next: (value) => {
-        const dados = this.interpretar(value);
-        if (dados) this.aplicar(dados);
+    this.api.obterEmpreita(empreitaId).subscribe({
+      next: (empreita) => {
+        this.aplicar(empreita as Record<string, unknown>);
         this.carregando.set(false);
       },
       error: () => {
@@ -132,61 +139,101 @@ export class EmpreitaStore {
     });
   }
 
-  private aplicar(dados: Record<string, unknown>): void {
-    const cabecalho = (dados['header'] ?? {}) as Record<string, unknown>;
-    const incluidos = (cabecalho['typesIncluded'] ?? {}) as Record<string, unknown>;
+  private aplicar(empreita: Record<string, unknown>): void {
+    const tiposIncluidosBrutos = Array.isArray(empreita['tiposIncluidos'])
+      ? (empreita['tiposIncluidos'] as Record<string, unknown>[])
+      : [];
+    const typesIncluded = TIPOS_CUSTO.reduce<Partial<Record<ChaveTipo, boolean>>>((acc, t) => {
+      acc[t.chave] = false;
+      return acc;
+    }, {});
+    for (const linha of tiposIncluidosBrutos) {
+      const chave = CHAVE_POR_ID[Number(linha['tipo_custo_id'])];
+      if (chave) typesIncluded[chave] = linha['ativo'] !== false;
+    }
 
     this.cabecalho.set({
-      numeroEmpreita: String(cabecalho['numeroEmpreita'] ?? ''),
-      descricaoEmpreita: String(cabecalho['descricaoEmpreita'] ?? ''),
-      obraNumber: String(cabecalho['obraNumber'] ?? ''),
-      empreiteiro: String(cabecalho['empreiteiro'] ?? ''),
-      data: String(cabecalho['data'] ?? ''),
-      typesIncluded: TIPOS_CUSTO.reduce<Partial<Record<ChaveTipo, boolean>>>((acc, t) => {
-        acc[t.chave] = Boolean(incluidos[t.chave]);
-        return acc;
-      }, {}),
+      numeroEmpreita: String(empreita['numero_empreita'] ?? ''),
+      descricaoEmpreita: String(empreita['descricao_empreita'] ?? ''),
+      obraNumber: String(empreita['obra_number'] ?? ''),
+      empreiteiro: String(empreita['empreiteiro'] ?? ''),
+      data: String(empreita['medicao_date'] ?? '').slice(0, 10),
+      typesIncluded,
     });
 
-    const itens = dados['itens'];
-    this.itens.set(Array.isArray(itens) ? itens.map((i) => this.normalizarItem(i)) : []);
+    const itensBrutos = Array.isArray(empreita['itens'])
+      ? (empreita['itens'] as Record<string, unknown>[])
+      : [];
+    this.itens.set(itensBrutos.map((i) => this.normalizarItem(i)));
   }
 
-  private normalizarItem(bruto: unknown): ItemEmpreita {
-    const i = (bruto ?? {}) as Record<string, unknown>;
-    const lerMedicao = (chave: string) => {
-      const origem = (i[chave] ?? {}) as Record<string, unknown>;
-      return TIPOS_CUSTO.reduce<Record<string, number | null>>((acc, t) => {
-        const valor = origem[t.chave];
-        acc[t.chave] = valor === null || valor === undefined ? null : Number(valor) || 0;
-        return acc;
-      }, {});
-    };
+  private normalizarItem(bruto: Record<string, unknown>): ItemEmpreita {
+    const medicoesPorTipo = Array.isArray(bruto['medicoesPorTipo'])
+      ? (bruto['medicoesPorTipo'] as Record<string, unknown>[])
+      : [];
+    const contratoPorTipo = Array.isArray(bruto['contratoPorTipo'])
+      ? (bruto['contratoPorTipo'] as Record<string, unknown>[])
+      : [];
 
-    // Compatibilidade: itens salvos antes da task #45 tinham valorEmp/
-    // valorReserva únicos, sem categoria. Não distribuímos isso — fica
-    // como contrato 0 por categoria, e o usuário lança de novo à mão.
-    // (Se um dia quisermos preservar o valor antigo, dá pra somar ele
-    // numa categoria "outros", mas isso também seria uma decisão do
-    // usuário, não do sistema — por ora fica em branco.)
+    const medicaoAcumByType: Record<string, number | null> = {};
+    const medicaoAtualByType: Record<string, number | null> = {};
+    for (const linha of medicoesPorTipo) {
+      const chave = CHAVE_POR_ID[Number(linha['tipo_custo_id'])];
+      if (!chave) continue;
+      medicaoAcumByType[chave] = Number(linha['medicao_acum']) || 0;
+      const atual = linha['medicao_atual'];
+      medicaoAtualByType[chave] = atual === null || atual === undefined ? null : Number(atual) || 0;
+    }
+
+    const contratoEmpPorTipo: Record<string, number | null> = {};
+    const contratoReservaPorTipo: Record<string, number | null> = {};
+    for (const linha of contratoPorTipo) {
+      const chave = CHAVE_POR_ID[Number(linha['tipo_custo_id'])];
+      if (!chave) continue;
+      contratoEmpPorTipo[chave] = Number(linha['contrato_emp']) || 0;
+      contratoReservaPorTipo[chave] = Number(linha['contrato_reserva']) || 0;
+    }
+
     return {
-      id: i['id'] ? String(i['id']) : gerarId(),
-      desc: String(i['desc'] ?? ''),
-      eapId: String(i['eapId'] ?? ''),
-      contratoEmpPorTipo: lerMedicao('contratoEmpPorTipo'),
-      contratoReservaPorTipo: lerMedicao('contratoReservaPorTipo'),
-      medicaoAcumByType: lerMedicao('medicaoAcumByType'),
-      medicaoAtualByType: lerMedicao('medicaoAtualByType'),
+      id: bruto['id'] ? String(bruto['id']) : gerarId(),
+      desc: String(bruto['descricao'] ?? ''),
+      eapId: bruto['eap_item_id'] ? String(bruto['eap_item_id']) : '',
+      contratoEmpPorTipo,
+      contratoReservaPorTipo,
+      medicaoAcumByType,
+      medicaoAtualByType,
     };
   }
 
   salvar(): void {
+    if (!this.empreitaId) return;
     this.salvando.set(true);
 
-    const payload = { header: this.cabecalho(), itens: this.itens() };
+    const cabecalho = this.cabecalho();
 
-    this.armazenamento.gravar(chaveEmpreita(this.obraId), JSON.stringify(payload)).subscribe({
-      next: () => this.salvando.set(false),
+    const payload = {
+      numero_empreita: cabecalho.numeroEmpreita,
+      descricao_empreita: cabecalho.descricaoEmpreita,
+      obra_number: cabecalho.obraNumber,
+      empreiteiro: cabecalho.empreiteiro,
+      medicao_date: cabecalho.data || null,
+      tipos_incluidos: cabecalho.typesIncluded,
+      itens: this.itens().map((item) => ({
+        id: item.id,
+        desc: item.desc,
+        eapId: item.eapId || null,
+        contratoEmpPorTipo: item.contratoEmpPorTipo,
+        contratoReservaPorTipo: item.contratoReservaPorTipo,
+        medicaoAcumByType: item.medicaoAcumByType,
+        medicaoAtualByType: item.medicaoAtualByType,
+      })),
+    };
+
+    this.api.atualizarEmpreita(this.empreitaId, payload).subscribe({
+      next: (empreita) => {
+        this.aplicar(empreita as Record<string, unknown>);
+        this.salvando.set(false);
+      },
       error: () => this.salvando.set(false),
     });
   }
@@ -279,15 +326,5 @@ export class EmpreitaStore {
       }),
     );
     this.salvar();
-  }
-
-  private interpretar(bruto: string | null): Record<string, unknown> | null {
-    if (!bruto) return null;
-    try {
-      const dados = JSON.parse(bruto);
-      return typeof dados === 'object' && dados !== null ? (dados as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
   }
 }
