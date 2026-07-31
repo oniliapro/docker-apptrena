@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
+import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
+import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { gerarId } from '../eap/eap-normalize';
 import {
@@ -11,6 +13,9 @@ import {
   obterAlocacoesAutomaticas,
 } from './mapa-engine';
 import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
+
+/** Chave da ponte chave-valor onde o cadastro de Responsáveis é gravado. */
+const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
 
 /**
  * Ids de tipos_custo (tabela seed, ver TiposCustoSeeder.php) — fixos,
@@ -48,9 +53,30 @@ const CHAVE_POR_ID: Record<number, ChaveTipo> = {
 @Injectable()
 export class MapaStore {
   private readonly api = inject(ApiService);
+  private readonly armazenamento = inject(ArmazenamentoService);
 
   /** Id do mapa atual — definido por `carregar(mapaId)`, usado em toda gravação. */
   private mapaId = '';
+
+  /** Id da obra da rota — fallback da EAP de etapas quando não há cliente escolhido. */
+  private obraIdDaRota = '';
+
+  /** Todas as obras cadastradas — fonte do select de Cliente e da EAP por cliente. */
+  private readonly obras = signal<Obra[]>([]);
+
+  /** Nomes de cliente distintos, das obras cadastradas (revisão 31/07/2026). */
+  readonly clientesDisponiveis = computed(() => {
+    const nomes = this.obras()
+      .map((o) => (o.cliente ?? '').trim())
+      .filter((nome) => nome.length > 0);
+    return Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  });
+
+  /** Nomes do cadastro de Responsáveis que estão ativos. */
+  readonly responsaveisAtivos = signal<string[]>([]);
+
+  /** Etapas (grupos da EAP) da obra do cliente selecionado no cabeçalho. */
+  readonly etapasDisponiveis = signal<string[]>([]);
 
   readonly cabecalho = signal<CabecalhoMapa>({
     numeroMapa: '',
@@ -112,9 +138,16 @@ export class MapaStore {
   );
 
   // ------------------------------------------------------------------
-  /** `mapaId` é o id do registro em `/mapas` — obrigatório desde a migração pro relacional. */
-  carregar(mapaId: string): void {
+  /**
+   * `mapaId` é o id do registro em `/mapas` — obrigatório desde a migração pro
+   * relacional. `obraId` (rota /obras/:id/mapas/:mapaId) só serve aqui para
+   * ter uma EAP de referência antes mesmo de o cabeçalho carregar (revisão
+   * 31/07/2026: dropdowns de Cliente/Responsável/Etapa passaram a vir de
+   * dados reais, em vez das listas fixas de mapa.dados.ts).
+   */
+  carregar(mapaId: string, obraId: string): void {
     this.mapaId = mapaId;
+    this.obraIdDaRota = obraId;
     this.carregando.set(true);
     this.erro.set(null);
 
@@ -122,11 +155,70 @@ export class MapaStore {
       next: (mapa) => {
         this.aplicar(mapa as Record<string, unknown>);
         this.carregando.set(false);
+        // A EAP de etapas segue o cliente já salvo no mapa; se não houver
+        // nenhum ainda (mapa novo), cai para a EAP da própria obra.
+        this.carregarEapDoCliente(this.cabecalho().cliente || null, obraId);
       },
       error: () => {
         this.erro.set('Não foi possível carregar o mapa.');
         this.carregando.set(false);
       },
+    });
+
+    this.api.listarObras().subscribe({
+      next: (obras) => {
+        this.obras.set(obras);
+        // A lista de obras pode chegar depois do mapa (ou antes) — refaz a
+        // busca da EAP agora que dá pra achar a obra do cliente certo.
+        this.carregarEapDoCliente(this.cabecalho().cliente || null, obraId);
+      },
+      error: () => undefined,
+    });
+
+    this.armazenamento.ler(CHAVE_RESPONSAVEIS).subscribe({
+      next: (bruto) => this.responsaveisAtivos.set(this.extrairResponsaveisAtivos(bruto)),
+      error: () => undefined,
+    });
+  }
+
+  private extrairResponsaveisAtivos(bruto: string | null): string[] {
+    if (!bruto) return [];
+    try {
+      const lista = JSON.parse(bruto);
+      if (!Array.isArray(lista)) return [];
+      return lista
+        .filter((r: Record<string, unknown>) => r?.['ativo'] !== false)
+        .map((r: Record<string, unknown>) => String(r?.['nome'] ?? '').trim())
+        .filter((nome) => nome.length > 0)
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Busca a EAP da obra do cliente escolhido, para alimentar o select de
+   * Etapa dos itens. Sem cliente escolhido (ou sem obra encontrada para
+   * ele), cai para a EAP da própria obra do mapa — melhor do que ficar sem
+   * opção nenhuma.
+   */
+  private carregarEapDoCliente(clienteNome: string | null, obraIdDaRota: string): void {
+    const obraDoCliente = clienteNome
+      ? this.obras().find((o) => (o.cliente ?? '').trim() === clienteNome.trim())
+      : undefined;
+    const obraId = obraDoCliente?.id || obraIdDaRota;
+    if (!obraId) return;
+
+    this.api.obterEap(obraId).subscribe({
+      next: (payload) => {
+        const grupos = Array.isArray(payload.eapItems)
+          ? payload.eapItems.filter((i) => i.isGroup)
+          : [];
+        this.etapasDisponiveis.set(
+          grupos.map((g) => `${g.eap} - ${g.desc}`.trim()).filter((rotulo) => rotulo !== '-'),
+        );
+      },
+      error: () => this.etapasDisponiveis.set([]),
     });
   }
 
@@ -255,6 +347,11 @@ export class MapaStore {
   atualizarCabecalho<K extends keyof CabecalhoMapa>(campo: K, valor: CabecalhoMapa[K]): void {
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
+
+    // Trocar o cliente muda de qual obra vem a EAP usada nas etapas dos itens.
+    if (campo === 'cliente') {
+      this.carregarEapDoCliente(String(valor) || null, this.obraIdDaRota);
+    }
   }
 
   // ------------------------------------------------------------------

@@ -9,7 +9,7 @@ import {
   obterVencedorAutomatico,
   obterVencedorEfetivo,
 } from './mapa-engine';
-import { CLIENTES, CONTATOS, FORNECEDORES, RESPONSAVEIS_MAPA, RESPONSAVEIS_OBRA } from './mapa.dados';
+import { CONTATOS, FORNECEDORES } from './mapa.dados';
 import { ResumoEtapas } from './mapa-resumo-etapas';
 import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
 import { MapaStore } from './mapa.store';
@@ -52,9 +52,6 @@ export class Mapa implements OnInit {
 
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly listaFornecedores = FORNECEDORES;
-  protected readonly clientes = CLIENTES;
-  protected readonly responsaveisObra = RESPONSAVEIS_OBRA;
-  protected readonly responsaveisMapa = RESPONSAVEIS_MAPA;
 
   /**
    * Rateio por etapa. Fica como instância própria do componente porque
@@ -89,7 +86,7 @@ export class Mapa implements OnInit {
   );
 
   ngOnInit(): void {
-    this.store.carregar(this.mapaId());
+    this.store.carregar(this.mapaId(), this.obraId());
   }
 
   // ------------------------------------------------------------------

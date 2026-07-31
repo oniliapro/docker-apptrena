@@ -30,7 +30,7 @@
         <span>Cliente</span>
         <select [value]="store.cabecalho().cliente" (change)="editarCabecalho('cliente', $event)">
           <option value=""></option>
-          @for (cliente of clientes; track cliente) {
+          @for (cliente of store.clientesDisponiveis(); track cliente) {
             <option [value]="cliente">{{ cliente }}</option>
           }
         </select>
@@ -40,20 +40,16 @@
         <select [value]="store.cabecalho().responsavelObra"
                 (change)="editarCabecalho('responsavelObra', $event)">
           <option value=""></option>
-          @for (nome of responsaveisObra; track nome) {
+          @for (nome of store.responsaveisAtivos(); track nome) {
             <option [value]="nome">{{ nome }}</option>
           }
         </select>
       </label>
       <label class="campo">
         <span>Responsável da cotação</span>
-        <select [value]="store.cabecalho().responsavelMapa"
-                (change)="editarCabecalho('responsavelMapa', $event)">
-          <option value=""></option>
-          @for (nome of responsaveisMapa; track nome) {
-            <option [value]="nome">{{ nome }}</option>
-          }
-        </select>
+        <input type="text" placeholder="Nome de quem cotou"
+               [value]="store.cabecalho().responsavelMapa"
+               (change)="editarCabecalho('responsavelMapa', $event)" />
       </label>
       <label class="campo">
         <span>Frete particular</span>
@@ -104,40 +100,24 @@
           @for (fornecedor of store.fornecedores(); track $index) {
             <th colspan="3" class="cabecalho-fornecedor" [class.inativo]="!fornecedor.ativo">
               <div class="bloco-fornecedor">
-                <select [value]="fornecedor.nome" (change)="editarNomeFornecedor($index, $event)">
-                  <option value=""></option>
-                  @for (nome of listaFornecedores; track nome) {
-                    <option [value]="nome">{{ nome }}</option>
-                  }
-                </select>
-
-                <select [value]="fornecedor.contato" (change)="editarContato($index, $event)">
-                  <option value=""></option>
-                  @for (contato of contatosDe(fornecedor); track contato) {
-                    <option [value]="contato">{{ contato }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="bloco-numeros">
-                <label>
-                  Imp.
-                  <input type="text" class="valor" placeholder="0"
-                         [value]="numeroOuVazio(fornecedor.imposto)"
-                         (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
-                  %
+                <label class="campo-rotulado">
+                  <span>Nome</span>
+                  <select [value]="fornecedor.nome" (change)="editarNomeFornecedor($index, $event)">
+                    <option value=""></option>
+                    @for (nome of listaFornecedores; track nome) {
+                      <option [value]="nome">{{ nome }}</option>
+                    }
+                  </select>
                 </label>
-                <label>
-                  Frete
-                  <input type="text" class="valor" placeholder="0,00"
-                         [value]="numeroOuVazio(fornecedor.frete)"
-                         (change)="editarNumeroFornecedor($index, 'frete', $event)" />
-                </label>
-                <label>
-                  Desc.
-                  <input type="text" class="valor" placeholder="0,00"
-                         [value]="numeroOuVazio(fornecedor.desconto)"
-                         (change)="editarNumeroFornecedor($index, 'desconto', $event)" />
+
+                <label class="campo-rotulado">
+                  <span>Contato</span>
+                  <select [value]="fornecedor.contato" (change)="editarContato($index, $event)">
+                    <option value=""></option>
+                    @for (contato of contatosDe(fornecedor); track contato) {
+                      <option [value]="contato">{{ contato }}</option>
+                    }
+                  </select>
                 </label>
               </div>
 
@@ -190,7 +170,12 @@
                      (change)="editarTexto(item, 'unid', $event)" />
             </td>
             <td>
-              <input type="text" [value]="item.etapa" (change)="editarTexto(item, 'etapa', $event)" />
+              <select [value]="item.etapa" (change)="editarTexto(item, 'etapa', $event)">
+                <option value=""></option>
+                @for (etapa of store.etapasDisponiveis(); track etapa) {
+                  <option [value]="etapa">{{ etapa }}</option>
+                }
+              </select>
             </td>
 
             @for (fornecedor of store.fornecedores(); track $index) {
@@ -229,7 +214,42 @@
 
       @if (store.itens().length) {
         <tfoot>
-          <!-- Fracionado: só itens -->
+          <!-- Imposto/Frete/Desconto de cada fornecedor, antes do subtotal -->
+          <tr class="linha-rodape-editavel">
+            <th [attr.colspan]="6" class="rotulo-rodape">Imposto (%)</th>
+            @for (fornecedor of store.fornecedores(); track $index) {
+              <th colspan="3">
+                <input type="text" class="valor" placeholder="0"
+                       [value]="numeroOuVazio(fornecedor.imposto)"
+                       (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
+              </th>
+            }
+            <th></th>
+          </tr>
+          <tr class="linha-rodape-editavel">
+            <th [attr.colspan]="6" class="rotulo-rodape">Frete</th>
+            @for (fornecedor of store.fornecedores(); track $index) {
+              <th colspan="3">
+                <input type="text" class="valor" placeholder="0,00"
+                       [value]="numeroOuVazio(fornecedor.frete)"
+                       (change)="editarNumeroFornecedor($index, 'frete', $event)" />
+              </th>
+            }
+            <th></th>
+          </tr>
+          <tr class="linha-rodape-editavel">
+            <th [attr.colspan]="6" class="rotulo-rodape">Desconto</th>
+            @for (fornecedor of store.fornecedores(); track $index) {
+              <th colspan="3">
+                <input type="text" class="valor" placeholder="0,00"
+                       [value]="numeroOuVazio(fornecedor.desconto)"
+                       (change)="editarNumeroFornecedor($index, 'desconto', $event)" />
+              </th>
+            }
+            <th></th>
+          </tr>
+
+          <!-- Fracionado: só itens (subtotal) -->
           <tr>
             <th [attr.colspan]="6" class="rotulo-rodape">Itens mais baratos</th>
             @for (nota of store.notas().bySupplier; track $index) {
