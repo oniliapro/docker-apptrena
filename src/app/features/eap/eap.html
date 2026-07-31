@@ -437,6 +437,7 @@
                     {{ p.numeroPagamento }}
                     @if (p.fornecedor) { · {{ p.fornecedor }} }
                     @if (p.dataPagamento) { · {{ p.dataPagamento }} }
+                    @if (p.pendente) { · <span class="marca-pendente">pendente de confirmação</span> }
                   </div>
                 </div>
                 <span class="valor"><b>{{ formatarMoeda(p.valor) }}</b></span>

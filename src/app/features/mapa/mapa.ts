@@ -90,6 +90,37 @@ export class Mapa implements OnInit {
   }
 
   // ------------------------------------------------------------------
+  // Finalizar / Gerar PDF / Gerar Pagamento
+  // ------------------------------------------------------------------
+  /** Finaliza o mapa (trava edição, libera PDF/Pagamento) ou reabre para editar. */
+  protected alternarFinalizacao(): void {
+    const cabecalho = this.store.cabecalho();
+    if (!cabecalho.isConfirmed) {
+      if (!window.confirm('Finalizar este mapa? A edição fica travada até reabrir.')) return;
+    } else if (!window.confirm('Reabrir este mapa para edição?')) {
+      return;
+    }
+    this.store.alternarConfirmacao();
+  }
+
+  /** Impressão simples — o navegador oferece "Salvar como PDF" na janela de impressão. */
+  protected gerarPdf(): void {
+    window.print();
+  }
+
+  protected gerarPagamento(): void {
+    if (!this.store.cabecalho().isConfirmed) return;
+    if (
+      !window.confirm(
+        'Gerar pagamento(s) a partir deste mapa? Cria um pagamento pendente por fornecedor vencedor, para confirmar depois na aba Pagamentos.',
+      )
+    ) {
+      return;
+    }
+    this.store.gerarPagamentos();
+  }
+
+  // ------------------------------------------------------------------
   // Cabeçalho
   // ------------------------------------------------------------------
   protected editarCabecalho(campo: keyof CabecalhoMapa, evento: Event): void {

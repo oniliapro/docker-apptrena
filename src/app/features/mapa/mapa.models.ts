@@ -114,4 +114,7 @@ export interface CabecalhoMapa {
   freteParticular: number;
   /** Quando ligado, o usuário escolhe o fornecedor de cada item. */
   modoManual: boolean;
+  /** Mapa finalizado: trava edição e libera Gerar PDF / Gerar Pagamento. */
+  isConfirmed: boolean;
+  confirmedAt: string;
 }

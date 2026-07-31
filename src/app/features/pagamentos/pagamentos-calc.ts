@@ -108,6 +108,11 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
     valorTotal,
     itens,
     origem: p['origem'] ? { ...(p['origem'] as object) } : null,
+    // Bug corrigido em 31/07/2026: pagamentos gravados antes de existir esse
+    // campo (todo lançamento manual até aqui) não podem virar "pendente" do
+    // nada — só entra como pendente o que for explicitamente marcado assim
+    // (hoje, só o que a aba Mapas gera). Qualquer outra coisa é confirmado.
+    status: p['status'] === 'pendente' ? 'pendente' : 'confirmado',
   };
 }
 

@@ -1,5 +1,10 @@
 :host { display: block; }
 
+.marca-pendente {
+  color: #8a5a00;
+  font-weight: 600;
+}
+
 .painel { margin-bottom: 14px; }
 .painel.sem-preenchimento { padding: 0; overflow-x: auto; }
 

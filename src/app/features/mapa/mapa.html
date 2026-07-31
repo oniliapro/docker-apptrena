@@ -79,7 +79,27 @@
     <span class="dica atenuado pequeno" title="Atalhos disponíveis nas células da tabela">
       ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove
     </span>
+
+    <span class="etiqueta" [class.confirmada]="store.cabecalho().isConfirmed">
+      {{ store.cabecalho().isConfirmed ? 'Finalizado' : 'Em edição' }}
+    </span>
+    <button type="button" class="primario" (click)="alternarFinalizacao()">
+      {{ store.cabecalho().isConfirmed ? 'Reabrir mapa' : 'Finalizar mapa' }}
+    </button>
+    <button type="button" [disabled]="!store.cabecalho().isConfirmed" (click)="gerarPdf()"
+            title="Abre a impressão do navegador — salve como PDF por lá">
+      🖨 Gerar PDF
+    </button>
+    <button type="button" [disabled]="!store.cabecalho().isConfirmed || store.gerandoPagamento()"
+            (click)="gerarPagamento()"
+            title="Cria um pagamento pendente por fornecedor vencedor, pra confirmar depois na aba Pagamentos">
+      {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
+    </button>
   </div>
+
+  @if (store.resultadoGerarPagamento(); as mensagem) {
+    <div class="aviso-info">{{ mensagem }}</div>
+  }
 
   <!-- ============ Tabela ============ -->
   <div class="envoltoria painel sem-preenchimento">

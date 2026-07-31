@@ -40,6 +40,7 @@
             <th class="valor">Total</th>
             <th>Fornecedor</th>
             <th class="centro">Pagamento</th>
+            <th class="centro">Status</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
@@ -79,14 +80,23 @@
               <td class="valor"><b>{{ formatarMoeda(pagamento.valorTotal) }}</b></td>
               <td>{{ pagamento.fornecedor || '—' }}</td>
               <td class="centro">{{ formatarDataPtBr(pagamento.dataPagamento) }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                  {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </td>
               <td class="centro acoes-linha">
+                @if (pagamento.status === 'pendente') {
+                  <button type="button" title="Confirmar — passa a contar no Realizado da EAP"
+                          (click)="confirmar(pagamento)">✔</button>
+                }
                 <button type="button" title="Editar" (click)="editar(pagamento)">✎</button>
                 <button type="button" title="Excluir" (click)="remover(pagamento)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td [attr.colspan]="mostrarEtapas() ? 10 : 9" class="centro atenuado">
+              <td [attr.colspan]="mostrarEtapas() ? 11 : 10" class="centro atenuado">
                 Nenhum pagamento lançado.
               </td>
             </tr>
@@ -97,7 +107,7 @@
           <tr class="bloco-topo bloco-base">
             <th [attr.colspan]="mostrarEtapas() ? 6 : 5" class="rotulo-rodape">TOTAL</th>
             <th class="valor"><b>{{ formatarMoeda(store.total()) }}</b></th>
-            <th colspan="3"></th>
+            <th colspan="4"></th>
           </tr>
         </tfoot>
       </table>

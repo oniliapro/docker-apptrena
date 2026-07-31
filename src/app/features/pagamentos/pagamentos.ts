@@ -239,6 +239,9 @@ export class Pagamentos implements OnInit {
       valorTotal: 0,
       itens: [],
       origem: null,
+      // Lançado à mão pelo usuário: já nasce confirmado, sem etapa de
+      // aprovação — essa etapa existe só para o que o Mapa gera sozinho.
+      status: 'confirmado',
     });
   }
 
@@ -346,5 +349,13 @@ export class Pagamentos implements OnInit {
   protected remover(pagamento: Pagamento): void {
     if (!window.confirm('Excluir este pagamento?')) return;
     this.store.remover(pagamento.id);
+  }
+
+  /**
+   * Confirma um pagamento pendente (hoje, só os gerados pela aba Mapas) —
+   * a partir daqui ele passa a contar no "Realizado" da EAP.
+   */
+  protected confirmar(pagamento: Pagamento): void {
+    this.store.inserirOuAtualizar({ ...pagamento, status: 'confirmado' }, pagamento.id);
   }
 }

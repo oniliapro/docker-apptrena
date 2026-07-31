@@ -70,6 +70,10 @@ export class Eap implements OnInit {
   protected readonly realizadoPorItem = computed(() => {
     const mapa = new Map<string, number>();
     for (const pagamento of this.pagamentosStore.pagamentos()) {
+      // Pagamento "pendente" (gerado pela aba Mapas e ainda não conferido)
+      // não conta como realizado — só depois de confirmado na aba
+      // Pagamentos (31/07/2026, task "Gerar Pagamento" do Mapa).
+      if (pagamento.status === 'pendente') continue;
       for (const item of expandirItensPagamento(pagamento)) {
         if (!item.eapId) continue;
         mapa.set(item.eapId, (mapa.get(item.eapId) ?? 0) + item.valorCalculado);
@@ -302,6 +306,7 @@ export class Eap implements OnInit {
     descricao: string;
     dataPagamento: string;
     valor: number;
+    pendente: boolean;
   }> {
     const lista: Array<{
       numeroPagamento: string;
@@ -309,6 +314,7 @@ export class Eap implements OnInit {
       descricao: string;
       dataPagamento: string;
       valor: number;
+      pendente: boolean;
     }> = [];
 
     for (const pagamento of this.pagamentosStore.pagamentos()) {
@@ -320,6 +326,9 @@ export class Eap implements OnInit {
           descricao: itemPag.descricao || pagamento.descricao,
           dataPagamento: pagamento.dataPagamento,
           valor: itemPag.valorCalculado,
+          // Listado para transparência, mas não entra na soma do
+          // "Realizado" enquanto não for confirmado na aba Pagamentos.
+          pendente: pagamento.status === 'pendente',
         });
       }
     }

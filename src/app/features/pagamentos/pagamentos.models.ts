@@ -31,6 +31,14 @@ export interface OrigemPagamento {
   refId?: string;
 }
 
+/**
+ * `pendente`: gerado automaticamente (hoje só a partir de um Mapa
+ * finalizado) e ainda não conferido — não entra no "Realizado" da EAP.
+ * `confirmado`: conferido pelo usuário na aba Pagamentos (ou lançado à
+ * mão, que já nasce confirmado) — esse sim conta como realizado.
+ */
+export type StatusPagamento = 'pendente' | 'confirmado';
+
 export interface Pagamento {
   id: string;
   numeroPagamento: string;
@@ -42,6 +50,7 @@ export interface Pagamento {
   valorTotal: number;
   itens: ItemPagamento[];
   origem: OrigemPagamento | null;
+  status: StatusPagamento;
 }
 
 export interface CabecalhoPagamentos {
