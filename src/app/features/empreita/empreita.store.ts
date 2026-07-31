@@ -140,8 +140,14 @@ export class EmpreitaStore {
   }
 
   private aplicar(empreita: Record<string, unknown>): void {
-    const tiposIncluidosBrutos = Array.isArray(empreita['tiposIncluidos'])
-      ? (empreita['tiposIncluidos'] as Record<string, unknown>[])
+    // Bug corrigido em 31/07/2026: o Laravel serializa relations carregadas
+    // em snake_case (Model::relationsToArray() aplica Str::snake() no nome
+    // do metodo), entao a resposta real traz `tipos_incluidos`, nao
+    // `tiposIncluidos`. Lendo a chave errada, o array vinha sempre vazio e
+    // a tela caia no fallback "nenhuma marcada = todas", escondendo que o
+    // valor de fato salvo no banco nunca voltava pra tela.
+    const tiposIncluidosBrutos = Array.isArray(empreita['tipos_incluidos'])
+      ? (empreita['tipos_incluidos'] as Record<string, unknown>[])
       : [];
     const typesIncluded = TIPOS_CUSTO.reduce<Partial<Record<ChaveTipo, boolean>>>((acc, t) => {
       acc[t.chave] = false;
@@ -168,11 +174,14 @@ export class EmpreitaStore {
   }
 
   private normalizarItem(bruto: Record<string, unknown>): ItemEmpreita {
-    const medicoesPorTipo = Array.isArray(bruto['medicoesPorTipo'])
-      ? (bruto['medicoesPorTipo'] as Record<string, unknown>[])
+    // Mesmo bug de casing do metodo aplicar() acima: a resposta real usa
+    // `medicoes_por_tipo` / `contrato_por_tipo` (snake_case), nao as chaves
+    // camelCase dos nomes dos metodos de relation no model PHP.
+    const medicoesPorTipo = Array.isArray(bruto['medicoes_por_tipo'])
+      ? (bruto['medicoes_por_tipo'] as Record<string, unknown>[])
       : [];
-    const contratoPorTipo = Array.isArray(bruto['contratoPorTipo'])
-      ? (bruto['contratoPorTipo'] as Record<string, unknown>[])
+    const contratoPorTipo = Array.isArray(bruto['contrato_por_tipo'])
+      ? (bruto['contrato_por_tipo'] as Record<string, unknown>[])
       : [];
 
     const medicaoAcumByType: Record<string, number | null> = {};
