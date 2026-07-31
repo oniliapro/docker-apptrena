@@ -1,10 +1,118 @@
 .tela-login {
   min-height: 100vh;
   display: flex;
+  background: var(--cor-primaria-escura);
+
+  @media (max-width: 860px) {
+    flex-direction: column;
+  }
+}
+
+// Lado com a mensagem de apresentação — texto e números vieram direto da
+// primeira página do protótipo do Lucas (view-login / .pitch).
+.login-lado {
+  flex: 1.1;
+  background:
+    linear-gradient(180deg, rgba(18, 38, 47, 0.2), rgba(18, 38, 47, 0.75)),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255, 255, 255, 0.045) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255, 255, 255, 0.045) 40px),
+    var(--cor-primaria);
+  color: #edefea;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px;
+
+  @media (max-width: 860px) {
+    padding: 32px 24px;
+  }
+}
+
+.marca-lado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .quadrado {
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--cor-destaque);
+    position: relative;
+    flex-shrink: 0;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      background: var(--cor-destaque);
+    }
+  }
+
+  span:last-child {
+    font-family: var(--fonte-titulo);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: 0.02em;
+  }
+}
+
+.discurso {
+  max-width: 420px;
+
+  .rotulo {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cor-destaque);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: 34px;
+    line-height: 1.18;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  p {
+    margin-top: 14px;
+    color: #b7c4c2;
+    font-size: 15px;
+    max-width: 380px;
+  }
+}
+
+.selo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  color: #7f9a98;
+  display: flex;
+  gap: 28px;
+
+  span {
+    display: block;
+    color: #edefea;
+    font-size: 17px;
+    font-family: var(--fonte-titulo);
+    font-weight: 600;
+  }
+
+  @media (max-width: 860px) {
+    display: none;
+  }
+}
+
+.login-form-lado {
+  flex: 0.9;
+  min-width: 360px;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--cor-primaria-escura);
+  background: var(--cor-fundo);
 }
 
 .cartao-login {
