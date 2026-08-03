@@ -187,6 +187,18 @@ export class Mapa implements OnInit {
     this.store.atualizarItem(item.id, { [campo]: (evento.target as HTMLInputElement).value });
   }
 
+  /**
+   * A Etapa passa a guardar o id da linha da EAP (`eapId`), e não só o
+   * rótulo. O rótulo (`etapa`) continua sendo gravado porque o painel
+   * "Rateio por etapa da obra" agrupa por ele — e porque é o que aparece
+   * impresso no PDF do mapa.
+   */
+  protected editarEtapa(item: ItemMapa, evento: Event): void {
+    const eapId = (evento.target as HTMLSelectElement).value;
+    const etapa = this.store.etapasDisponiveis().find((e) => e.id === eapId)?.rotulo ?? '';
+    this.store.atualizarItem(item.id, { eapId, etapa });
+  }
+
   protected editarTipo(item: ItemMapa, evento: Event): void {
     this.store.atualizarItem(item.id, {
       tipo: (evento.target as HTMLSelectElement).value as ItemMapa['tipo'],

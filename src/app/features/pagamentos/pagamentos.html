@@ -205,7 +205,7 @@
                       <select [value]="item.eapId" (change)="atualizarItem(item.id, 'eapId', $event)">
                         <option value=""></option>
                         @for (eap of store.snapshotEap(); track eap.id) {
-                          <option [value]="eap.id">{{ recuoEap(eap) }}{{ rotuloEapItem(eap) }}</option>
+                          <option [value]="eap.id" [selected]="eap.id === item.eapId">{{ recuoEap(eap) }}{{ rotuloEapItem(eap) }}</option>
                         }
                       </select>
                     } @else {
@@ -218,7 +218,7 @@
                     <select [value]="item.tipo" (change)="atualizarItem(item.id, 'tipo', $event)">
                       <option value=""></option>
                       @for (tipo of tipos; track tipo.chave) {
-                        <option [value]="tipo.chave">{{ tipo.rotulo }}</option>
+                        <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
                       }
                     </select>
                   </td>

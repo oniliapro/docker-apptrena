@@ -126,7 +126,7 @@
                 <select [value]="item.eapId" (change)="editarEap(item, $event)">
                   <option value="">(sem vínculo)</option>
                   @for (opcao of store.opcoesEap(); track opcao.id) {
-                    <option [value]="opcao.id">{{ rotuloEap(opcao) }}</option>
+                    <option [value]="opcao.id" [selected]="opcao.id === item.eapId">{{ rotuloEap(opcao) }}</option>
                   }
                 </select>
               } @else {

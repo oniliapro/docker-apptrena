@@ -6,7 +6,7 @@
     @if (obras().length) {
       <select [value]="obraAtiva()" (change)="trocarObra($event)">
         @for (obra of obras(); track obra.id) {
-          <option [value]="obra.id">{{ obra.obra_nome || '(sem nome)' }}</option>
+          <option [value]="obra.id" [selected]="obra.id === obraAtiva()">{{ obra.obra_nome || '(sem nome)' }}</option>
         }
       </select>
     } @else {

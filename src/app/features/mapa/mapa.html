@@ -31,7 +31,7 @@
         <select [value]="store.cabecalho().cliente" (change)="editarCabecalho('cliente', $event)">
           <option value=""></option>
           @for (cliente of store.clientesDisponiveis(); track cliente) {
-            <option [value]="cliente">{{ cliente }}</option>
+            <option [value]="cliente" [selected]="cliente === store.cabecalho().cliente">{{ cliente }}</option>
           }
         </select>
       </label>
@@ -41,7 +41,7 @@
                 (change)="editarCabecalho('responsavelObra', $event)">
           <option value=""></option>
           @for (nome of store.responsaveisAtivos(); track nome) {
-            <option [value]="nome">{{ nome }}</option>
+            <option [value]="nome" [selected]="nome === store.cabecalho().responsavelObra">{{ nome }}</option>
           }
         </select>
       </label>
@@ -125,7 +125,7 @@
                   <select [value]="fornecedor.nome" (change)="editarNomeFornecedor($index, $event)">
                     <option value=""></option>
                     @for (nome of listaFornecedores; track nome) {
-                      <option [value]="nome">{{ nome }}</option>
+                      <option [value]="nome" [selected]="nome === fornecedor.nome">{{ nome }}</option>
                     }
                   </select>
                 </label>
@@ -135,7 +135,7 @@
                   <select [value]="fornecedor.contato" (change)="editarContato($index, $event)">
                     <option value=""></option>
                     @for (contato of contatosDe(fornecedor); track contato) {
-                      <option [value]="contato">{{ contato }}</option>
+                      <option [value]="contato" [selected]="contato === fornecedor.contato">{{ contato }}</option>
                     }
                   </select>
                 </label>
@@ -177,7 +177,7 @@
               <select [value]="item.tipo" (change)="editarTipo(item, $event)">
                 <option value=""></option>
                 @for (tipo of store.tiposCusto; track tipo.chave) {
-                  <option [value]="tipo.chave">{{ tipo.rotulo }}</option>
+                  <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
                 }
               </select>
             </td>
@@ -190,10 +190,10 @@
                      (change)="editarTexto(item, 'unid', $event)" />
             </td>
             <td>
-              <select [value]="item.etapa" (change)="editarTexto(item, 'etapa', $event)">
+              <select [value]="item.eapId" (change)="editarEtapa(item, $event)">
                 <option value=""></option>
-                @for (etapa of store.etapasDisponiveis(); track etapa) {
-                  <option [value]="etapa">{{ etapa }}</option>
+                @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+                  <option [value]="etapa.id" [selected]="etapa.id === item.eapId">{{ etapa.rotulo }}</option>
                 }
               </select>
             </td>

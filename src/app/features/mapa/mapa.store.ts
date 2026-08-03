@@ -82,8 +82,15 @@ export class MapaStore {
   /** Nomes do cadastro de Responsáveis que estão ativos. */
   readonly responsaveisAtivos = signal<string[]>([]);
 
-  /** Etapas (grupos da EAP) da obra do cliente selecionado no cabeçalho. */
-  readonly etapasDisponiveis = signal<string[]>([]);
+  /**
+   * Etapas (linhas da EAP) da obra do cliente selecionado no cabeçalho.
+   *
+   * Guarda o `id` da linha da EAP junto do rótulo: até 03/08/2026 só o
+   * rótulo era guardado, e o item do mapa ficava sem `eapId` — por isso os
+   * pagamentos gerados nasciam sem etapa e não entravam no "Realizado" da
+   * EAP.
+   */
+  readonly etapasDisponiveis = signal<{ id: string; rotulo: string }[]>([]);
 
   readonly cabecalho = signal<CabecalhoMapa>({
     numeroMapa: '',
@@ -229,11 +236,37 @@ export class MapaStore {
         // quanto para um item específico dentro dele (revisão 31/07/2026).
         const linhas = Array.isArray(payload.eapItems) ? payload.eapItems : [];
         this.etapasDisponiveis.set(
-          linhas.map((i) => `${i.eap} - ${i.desc}`.trim()).filter((rotulo) => rotulo !== '-'),
+          linhas
+            .map((i) => ({ id: String(i.id ?? ''), rotulo: `${i.eap} - ${i.desc}`.trim() }))
+            .filter((e) => e.id && e.rotulo !== '-'),
         );
+        this.casarEtapasAntigas();
       },
       error: () => this.etapasDisponiveis.set([]),
     });
+  }
+
+  /**
+   * Mapas salvos antes de 03/08/2026 guardaram só o rótulo da etapa, sem o
+   * `eapId`. Assim que a lista de etapas chega, reencontra o id pelo rótulo
+   * e completa os itens — sem isso, um mapa antigo continuaria gerando
+   * pagamento sem etapa. Só grava se algo mudou de fato.
+   */
+  private casarEtapasAntigas(): void {
+    const porRotulo = new Map(this.etapasDisponiveis().map((e) => [e.rotulo, e.id]));
+    let mudou = false;
+
+    const atualizados = this.itens().map((item) => {
+      if (item.eapId || !item.etapa) return item;
+      const id = porRotulo.get(item.etapa);
+      if (!id) return item;
+      mudou = true;
+      return { ...item, eapId: id };
+    });
+
+    if (!mudou) return;
+    this.itens.set(atualizados);
+    this.salvar();
   }
 
   private aplicar(mapa: Record<string, unknown>): void {
