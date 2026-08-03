@@ -1,20 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 
 import { Mapa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
-import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
-import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
-
-/**
- * Chave por obra dos Pagamentos — mesma convenção usada em
- * `mapa.store.ts` e `relatorios.ts` (ver comentário lá): Pagamentos
- * continua na ponte chave-valor por enquanto.
- */
-const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${obraId}`;
 
 /**
  * Lista de Mapas — portado de js/mapas/01-lista.js.
@@ -33,7 +24,6 @@ const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${o
 })
 export class Mapas implements OnInit {
   private readonly api = inject(ApiService);
-  private readonly armazenamento = inject(ArmazenamentoService);
 
   protected readonly mapas = signal<Mapa[]>([]);
   protected readonly carregando = signal(true);
@@ -47,9 +37,12 @@ export class Mapas implements OnInit {
    * 'mapa', refId }` quando nasce de "Gerar Pagamento" (ver
    * `mapa.store.ts#montarPagamentosPorFornecedor`); antes desta correção
    * (03/08/2026) essa coluna lia um campo `pagamentos_ids` que o backend
-   * nunca envia, então sempre mostrava 0. Como os pagamentos ficam numa
-   * chave por obra, é preciso ler a chave de cada obra representada
-   * nesta lista e contar por `origem.refId`.
+   * nunca envia, então sempre mostrava 0.
+   *
+   * Migrado em 03/08/2026 pro endpoint relacional `/api/pagamentos`: ler
+   * uma chave-valor por obra e procurar `origem.refId` na marra não é
+   * mais necessário — dá pra pedir `listarPagamentos({obraId})` por obra
+   * representada nesta lista, que já vem filtrado pelo backend.
    */
   protected readonly contagemPagamentos = signal<Map<string, number>>(new Map());
 
@@ -81,28 +74,18 @@ export class Mapas implements OnInit {
     if (!obraIds.length) return;
 
     const leituras = obraIds.map((obraId) =>
-      this.armazenamento.ler(chavePagamentos(obraId)).pipe(
-        map((bruto) => ({ obraId, bruto })),
-        catchError(() => of({ obraId, bruto: null as string | null })),
-      ),
+      this.api.listarPagamentos({ obraId }).pipe(catchError(() => of([]))),
     );
 
     forkJoin(leituras).subscribe((resultados) => {
       const contagem = new Map<string, number>();
 
-      for (const { bruto } of resultados) {
-        if (!bruto) continue;
-        try {
-          const dados = JSON.parse(bruto);
-          const lista = Array.isArray(dados?.pagamentos) ? dados.pagamentos : [];
-          for (const bruto2 of lista) {
-            const pagamento = normalizarPagamento(bruto2 as Record<string, unknown>);
-            if (pagamento.origem?.tipo !== 'mapa' || !pagamento.origem.refId) continue;
-            const refId = pagamento.origem.refId;
-            contagem.set(refId, (contagem.get(refId) ?? 0) + 1);
-          }
-        } catch {
-          // Chave com JSON inválido — ignora essa obra, mantém as demais.
+      for (const lista of resultados) {
+        for (const pagamento of lista) {
+          const origem = pagamento['origem'] as { tipo?: string; refId?: string } | null;
+          if (origem?.tipo !== 'mapa' || !origem.refId) continue;
+          const refId = origem.refId;
+          contagem.set(refId, (contagem.get(refId) ?? 0) + 1);
         }
       }
 

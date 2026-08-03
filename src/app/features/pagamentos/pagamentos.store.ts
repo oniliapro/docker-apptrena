@@ -1,45 +1,29 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
-import { ArmazenamentoService } from '../../core/services/armazenamento.service';
-import { normalizarPagamento } from './pagamentos-calc';
+import { normalizarPagamento, paraPayloadApi } from './pagamentos-calc';
 import {
   CabecalhoPagamentos,
   ItemEapSnapshot,
   Pagamento,
-  PayloadPagamentos,
 } from './pagamentos.models';
-
-/**
- * Chave por obra dos próprios pagamentos — task "obra como contexto"
- * (28/07/2026). Pagamentos continua na ponte chave-valor por enquanto
- * (o endpoint relacional `/pagamentos` ainda não foi confirmado como
- * pronto pro formato que esta tela usa — ver `INTEGRACAO.md`).
- *
- * A leitura do snapshot da EAP (só como rótulo de etapa) já migrou
- * (28/07/2026) pro endpoint relacional `GET /obras/{id}/eap` — ver
- * `carregarSnapshotEap` — porque é de lá que a EAP de verdade vem desde
- * que `EapStore` também migrou.
- */
-const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${obraId}`;
 
 /**
  * Persistência de Pagamentos.
  *
- * Usa a ponte chave-valor do backend (GET/POST /api/storage), que fala o
- * mesmo formato do storage.php de hoje. É uma escolha deliberada: os
- * pagamentos ainda não têm modelo relacional equivalente no
- * laravel-backend, e migrar o formato ao mesmo tempo que o framework
- * dobraria o risco. Quando o backend relacional cobrir pagamentos, só
- * este arquivo muda.
+ * Migrado em 03/08/2026 da ponte chave-valor (`controleObra.pagamentos.
+ * v1.obra-{obraId}`) pro endpoint relacional `/api/pagamentos`, que já
+ * existia pronto no backend (tabelas `pagamentos`/`pagamento_itens`) mas
+ * nunca tinha sido conectado — faltava só o campo `status` (pendente/
+ * confirmado), adicionado nesta mesma leva. Isso é o que permite listas
+ * gerais confiáveis (todos os pagamentos de todas as obras) e vínculos
+ * de verdade com Mapa/Empreita (`origem_tipo`/`origem_ref_id`,
+ * `mapa_id`, `empreita_id`), sem precisar ler a chave-valor de cada
+ * obra uma por uma.
  */
 @Injectable()
 export class PagamentosStore {
-  private readonly armazenamento = inject(ArmazenamentoService);
   private readonly api = inject(ApiService);
-
-  /** Verdadeiro quando os dados estão indo só para o navegador. */
-  readonly modoLocal = this.armazenamento.modoLocal;
 
   /** Obra atual — definida por `carregar(obraId)`, usada em toda gravação. */
   private obraId = '';
@@ -60,9 +44,9 @@ export class PagamentosStore {
     this.carregando.set(true);
     this.erro.set(null);
 
-    this.armazenamento.ler(chavePagamentos(obraId)).subscribe({
-      next: (value) => {
-        this.aplicarPayload(this.interpretar(value));
+    this.api.listarPagamentos({ obraId }).subscribe({
+      next: (lista) => {
+        this.pagamentos.set(lista.map((p) => normalizarPagamento(p as Record<string, unknown>)));
         this.carregando.set(false);
       },
       error: () => {
@@ -71,47 +55,55 @@ export class PagamentosStore {
       },
     });
 
+    this.carregarObraNumber(obraId);
     this.carregarSnapshotEap(obraId);
   }
 
-  salvar(): void {
-    const payload: PayloadPagamentos = {
-      header: this.cabecalho(),
-      pagamentos: this.pagamentos(),
-    };
-
-    this.armazenamento.gravar(chavePagamentos(this.obraId), JSON.stringify(payload)).subscribe();
+  /**
+   * "Nº da obra" mostrado/editável no cabeçalho da tela — não existe mais
+   * um registro único por obra pra guardar isso (cada pagamento carrega
+   * o seu `obraNumber` na hora de salvar), então só inicializa a partir
+   * do `map_number` cadastrado na obra. `definirObra()` troca só o valor
+   * em tela; o que for salvo a partir daí (novo pagamento ou edição) leva
+   * o valor trocado.
+   */
+  private carregarObraNumber(obraId: string): void {
+    this.api.obterObra(obraId).subscribe({
+      next: (obra) => this.cabecalho.set({ obraNumber: String(obra.map_number ?? '') }),
+      error: () => undefined,
+    });
   }
 
   definirObra(obraNumber: string): void {
     this.cabecalho.set({ obraNumber });
-    this.salvar();
   }
 
   inserirOuAtualizar(pagamento: Pagamento, idEditando: string | null): void {
-    this.pagamentos.update((lista) => {
-      if (!idEditando) return [...lista, pagamento];
-      return lista.map((p) => (p.id === idEditando ? pagamento : p));
+    const payload = paraPayloadApi(pagamento, this.obraId);
+    const requisicao = idEditando
+      ? this.api.atualizarPagamento(idEditando, payload)
+      : this.api.criarPagamento(payload);
+
+    requisicao.subscribe({
+      next: (salvo) => {
+        const normalizado = normalizarPagamento(salvo as Record<string, unknown>);
+        this.pagamentos.update((lista) => {
+          if (!idEditando) return [...lista, normalizado];
+          return lista.map((p) => (p.id === idEditando ? normalizado : p));
+        });
+      },
+      error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
     });
-    this.salvar();
   }
 
   remover(id: string): void {
-    this.pagamentos.update((lista) => lista.filter((p) => p.id !== id));
-    this.salvar();
+    this.api.excluirPagamento(id).subscribe({
+      next: () => this.pagamentos.update((lista) => lista.filter((p) => p.id !== id)),
+      error: () => window.alert('Não foi possível excluir o pagamento.'),
+    });
   }
 
   // ------------------------------------------------------------------
-  private aplicarPayload(payload: Record<string, unknown> | null): void {
-    const header = (payload?.['header'] ?? {}) as Record<string, unknown>;
-    this.cabecalho.set({ obraNumber: String(header['obraNumber'] ?? '') });
-
-    const lista = payload?.['pagamentos'];
-    this.pagamentos.set(
-      Array.isArray(lista) ? lista.map((p) => normalizarPagamento(p as Record<string, unknown>)) : [],
-    );
-  }
-
   /**
    * A EAP entra aqui só como rótulo (para dizer a que etapa cada item se
    * refere), então uma falha ao carregá-la não deve derrubar a tela —
@@ -138,16 +130,5 @@ export class PagamentosStore {
         };
       })
       .filter((item) => item.id);
-  }
-
-  /** O storage guarda JSON como string; JSON inválido vira null, não exceção. */
-  private interpretar(bruto: string | null): Record<string, unknown> | null {
-    if (!bruto) return null;
-    try {
-      const dados = JSON.parse(bruto);
-      return typeof dados === 'object' && dados !== null ? (dados as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
   }
 }

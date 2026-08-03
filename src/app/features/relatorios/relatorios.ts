@@ -3,7 +3,6 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
-import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { calcularCacheOrcado } from '../eap/eap-engine';
 import {
@@ -15,15 +14,6 @@ import {
 import { CabecalhoObra, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { calcularSomaItens, normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
-
-/**
- * Chave por obra dos Pagamentos — task "obra como contexto" (28/07/2026).
- * Pagamentos continua na ponte chave-valor por enquanto. Já a EAP é lida
- * pelo endpoint relacional `GET /obras/{id}/eap` (ver `carregar`),
- * migrado no mesmo dia junto com `EapStore` — ler a chave antiga
- * mostraria dado órfão, já que a EAP não grava mais lá.
- */
-const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${obraId}`;
 
 /**
  * Relatórios — consolida o que já existe nos outros módulos.
@@ -44,7 +34,6 @@ const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${o
   styleUrl: './relatorios.scss',
 })
 export class Relatorios implements OnInit {
-  private readonly armazenamento = inject(ArmazenamentoService);
   private readonly api = inject(ApiService);
 
   /**
@@ -150,16 +139,11 @@ export class Relatorios implements OnInit {
     });
   }
 
+  /** Migrado em 03/08/2026 pro endpoint relacional — ver PagamentosStore. */
   private carregarPagamentos(obraId: string): void {
-    this.armazenamento.ler(chavePagamentos(obraId)).subscribe({
-      next: (value) => {
-        const dados = this.interpretar(value);
-        const lista = dados?.['pagamentos'];
-        if (Array.isArray(lista)) {
-          this.pagamentos.set(
-            lista.map((p) => normalizarPagamento(p as Record<string, unknown>)),
-          );
-        }
+    this.api.listarPagamentos({ obraId }).subscribe({
+      next: (lista) => {
+        this.pagamentos.set(lista.map((p) => normalizarPagamento(p as Record<string, unknown>)));
         this.carregando.set(false);
       },
       error: () => this.carregando.set(false),
@@ -191,15 +175,5 @@ export class Relatorios implements OnInit {
 
   protected estourou(chave: string): boolean {
     return this.saldoDe(chave) < 0;
-  }
-
-  private interpretar(bruto: string | null): Record<string, unknown> | null {
-    if (!bruto) return null;
-    try {
-      const dados = JSON.parse(bruto);
-      return typeof dados === 'object' && dados !== null ? (dados as Record<string, unknown>) : null;
-    } catch {
-      return null;
-    }
   }
 }

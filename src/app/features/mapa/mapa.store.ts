@@ -1,4 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 
 import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
@@ -6,7 +8,11 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { hojeIso } from '../../core/utils/formato';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { gerarId } from '../eap/eap-normalize';
-import { gerarNumeroPagamento, normalizarPagamento } from '../pagamentos/pagamentos-calc';
+import {
+  gerarNumeroPagamento,
+  normalizarPagamento,
+  paraPayloadApi,
+} from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import {
   calcularBaseItem,
@@ -17,9 +23,6 @@ import {
   obterAlocacoesAutomaticas,
 } from './mapa-engine';
 import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
-
-/** Mesma chave de storage usada por `PagamentosStore` — ver pagamentos.store.ts. */
-const chavePagamentos = (obraId: string) => `controleObra.pagamentos.v1.obra-${obraId}`;
 
 /** Chave da ponte chave-valor onde o cadastro de Responsáveis é gravado. */
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
@@ -452,15 +455,15 @@ export class MapaStore {
    * que cada um ganhou, considerando modo manual/escolha por item — a
    * mesma lógica de `alocacoes`). Só chamado com o mapa finalizado.
    *
-   * Pagamentos vivem na ponte chave-valor (`PagamentosStore` ainda não
-   * migrou pro relacional — ver o comentário lá), então esta função lê e
-   * grava direto na mesma chave, sem depender de injetar aquele store
-   * (cada aba tem o seu, isolado por obra).
+   * Migrado em 03/08/2026 da ponte chave-valor pro endpoint relacional
+   * `/api/pagamentos` — ver `PagamentosStore` pro mesmo motivo.
    *
    * Idempotente: rodar de novo substitui os pagamentos "pendente" já
-   * gerados por este mapa (reflete preços/escolhas atuais), mas nunca
-   * mexe num que o usuário já confirmou na aba Pagamentos — pra esse
-   * fornecedor, simplesmente não gera de novo.
+   * gerados por este mapa (reflete preços/escolhas atuais, via delete +
+   * recriação — a API relacional não tem "regravar tudo de uma vez" como
+   * a chave-valor tinha), mas nunca mexe num que o usuário já confirmou
+   * na aba Pagamentos — pra esse fornecedor, simplesmente não gera de
+   * novo.
    */
   gerarPagamentos(): void {
     if (!this.obraIdDaRota || !this.mapaId) return;
@@ -469,22 +472,23 @@ export class MapaStore {
     this.resultadoGerarPagamento.set(null);
 
     const obraId = this.obraIdDaRota;
-    const chave = chavePagamentos(obraId);
+    const mapaId = this.mapaId;
 
-    this.armazenamento.ler(chave).subscribe({
-      next: (bruto) => {
-        const { header, pagamentos } = this.interpretarPagamentos(bruto);
+    forkJoin({
+      pagamentos: this.api.listarPagamentos({ obraId }),
+      obra: this.api.obterObra(obraId).pipe(catchError(() => of(null))),
+    }).subscribe({
+      next: ({ pagamentos: brutos, obra }) => {
+        const pagamentos = brutos.map((p) => normalizarPagamento(p as Record<string, unknown>));
+        const header = { obraNumber: String(obra?.map_number ?? '') };
 
-        const doMapa = (p: Pagamento) =>
-          p.origem?.tipo === 'mapa' && p.origem?.refId === this.mapaId;
+        const doMapa = (p: Pagamento) => p.origem?.tipo === 'mapa' && p.origem?.refId === mapaId;
 
         const fornecedoresConfirmados = new Set(
           pagamentos.filter((p) => doMapa(p) && p.status === 'confirmado').map((p) => p.fornecedor),
         );
-        // Mantém tudo que não é um "pendente" deste mapa — os confirmados
-        // deste mapa ficam, os pendentes antigos deste mapa são
-        // substituídos pelos recém-calculados.
-        const listaBase = pagamentos.filter((p) => !doMapa(p) || p.status === 'confirmado');
+        // Pendentes antigos deste mapa serão substituídos pelos recém-calculados.
+        const pendentesDesteMapa = pagamentos.filter((p) => doMapa(p) && p.status === 'pendente');
 
         const numerosEmUso = [...pagamentos];
         const novos = this.montarPagamentosPorFornecedor(fornecedoresConfirmados, numerosEmUso, header);
@@ -499,45 +503,33 @@ export class MapaStore {
           return;
         }
 
-        const listaFinal = [...listaBase, ...novos];
-        const payload = { header, pagamentos: listaFinal };
+        const exclusoes: Observable<unknown> = pendentesDesteMapa.length
+          ? forkJoin(pendentesDesteMapa.map((p) => this.api.excluirPagamento(p.id)))
+          : of(null);
 
-        this.armazenamento.gravar(chave, JSON.stringify(payload)).subscribe({
-          next: () => {
-            this.gerandoPagamento.set(false);
-            this.resultadoGerarPagamento.set(
-              `${novos.length} pagamento(s) gerado(s) — confira na aba Pagamentos da obra.`,
-            );
-          },
-          error: () => {
-            this.gerandoPagamento.set(false);
-            this.resultadoGerarPagamento.set('Não foi possível gravar os pagamentos.');
-          },
-        });
+        exclusoes
+          .pipe(
+            catchError(() => of(null)),
+            switchMap(() => forkJoin(novos.map((p) => this.api.criarPagamento(paraPayloadApi(p, obraId))))),
+          )
+          .subscribe({
+            next: () => {
+              this.gerandoPagamento.set(false);
+              this.resultadoGerarPagamento.set(
+                `${novos.length} pagamento(s) gerado(s) — confira na aba Pagamentos da obra.`,
+              );
+            },
+            error: () => {
+              this.gerandoPagamento.set(false);
+              this.resultadoGerarPagamento.set('Não foi possível gravar os pagamentos.');
+            },
+          });
       },
       error: () => {
         this.gerandoPagamento.set(false);
         this.resultadoGerarPagamento.set('Não foi possível ler os pagamentos existentes desta obra.');
       },
     });
-  }
-
-  private interpretarPagamentos(bruto: string | null): {
-    header: Record<string, unknown>;
-    pagamentos: Pagamento[];
-  } {
-    if (!bruto) return { header: {}, pagamentos: [] };
-    try {
-      const dados = JSON.parse(bruto);
-      const header = (dados?.header ?? {}) as Record<string, unknown>;
-      const lista = Array.isArray(dados?.pagamentos) ? dados.pagamentos : [];
-      return {
-        header,
-        pagamentos: lista.map((p: Record<string, unknown>) => normalizarPagamento(p)),
-      };
-    } catch {
-      return { header: {}, pagamentos: [] };
-    }
   }
 
   /**

@@ -137,6 +137,42 @@ export function calcularSomaItens(pagamento: Pagamento): number {
   );
 }
 
+/**
+ * Payload no formato snake_case que `PagamentoController::syncCompleto`
+ * espera (POST/PUT /api/pagamentos) — espelha `paraFrontend()` no
+ * controller, na direção contrária. `mapa_id`/`empreita_id` saem de
+ * `origem`: são a mesma coisa que `origem.refId`, só que como coluna
+ * própria (é o que o backend usa pra JOIN com Mapa/Empreita).
+ */
+export function paraPayloadApi(pagamento: Pagamento, obraId: string): Record<string, unknown> {
+  const origemTipo = pagamento.origem?.tipo || 'manual';
+  const origemRefId = pagamento.origem?.refId || null;
+
+  return {
+    numero_pagamento: pagamento.numeroPagamento,
+    obra_id: obraId,
+    obra_number: pagamento.obraNumber,
+    data_solicitacao: pagamento.dataSolicitacao || null,
+    data_pagamento: pagamento.dataPagamento || null,
+    fornecedor: pagamento.fornecedor,
+    descricao: pagamento.descricao,
+    valor_total: pagamento.valorTotal,
+    origem_tipo: origemTipo,
+    origem_ref_id: origemRefId,
+    mapa_id: origemTipo === 'mapa' ? origemRefId : null,
+    empreita_id: origemTipo === 'empreita' ? origemRefId : null,
+    status: pagamento.status,
+    itens: pagamento.itens.map((item) => ({
+      id: item.id,
+      descricao: item.descricao,
+      tipo: item.tipo || null,
+      eapId: item.eapId || null,
+      valor: item.valor,
+      modoValor: item.modoValor,
+    })),
+  };
+}
+
 /** Próximo número no formato PG-0001, olhando o maior sufixo já usado. */
 export function gerarNumeroPagamento(lista: Pagamento[]): string {
   const maior = (lista ?? []).reduce((max, p) => {

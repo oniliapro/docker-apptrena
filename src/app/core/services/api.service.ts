@@ -118,8 +118,22 @@ export class ApiService {
   }
 
   // ---------------- Pagamentos ----------------
-  listarPagamentos(): Observable<Pagamento[]> {
-    return this.http.get<Pagamento[]>(`${this.base}/pagamentos`);
+  /**
+   * GET /pagamentos — aceita `obraId` (todos os pagamentos de uma obra),
+   * e opcionalmente `origemTipo`/`origemRefId` (ex.: só os gerados por
+   * um mapa específico). A resposta já vem no formato camelCase que o
+   * front usa — ver `PagamentoController::paraFrontend()`.
+   */
+  listarPagamentos(filtros?: {
+    obraId?: string;
+    origemTipo?: string;
+    origemRefId?: string;
+  }): Observable<Pagamento[]> {
+    let params = new HttpParams();
+    if (filtros?.obraId) params = params.set('obra_id', filtros.obraId);
+    if (filtros?.origemTipo) params = params.set('origem_tipo', filtros.origemTipo);
+    if (filtros?.origemRefId) params = params.set('origem_ref_id', filtros.origemRefId);
+    return this.http.get<Pagamento[]>(`${this.base}/pagamentos`, { params });
   }
 
   criarPagamento(dados: Partial<Pagamento>): Observable<Pagamento> {
