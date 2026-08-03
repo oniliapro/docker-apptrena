@@ -59,6 +59,10 @@ export class Dashboard implements OnInit {
   private carregarObras(): void {
     this.api.listarObras().subscribe({
       next: (obras) => {
+        // `is_confirmed` é sobre a EAP (orçamento travado), não sobre a
+        // obra estar concluída — não existe (ainda) um status de "obra
+        // finalizada" no backend. Os rótulos na tela refletem isso
+        // (03/08/2026, achado na varredura geral de bugs).
         const finalizadas = obras.filter((o) => o.is_confirmed).length;
         this.obras.set(obras.filter((o) => !o.is_confirmed).slice(0, this.LIMITE));
         this.obrasAtivas.set(obras.length - finalizadas);

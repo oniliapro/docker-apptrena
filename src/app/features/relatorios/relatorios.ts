@@ -84,6 +84,10 @@ export class Relatorios implements OnInit {
    * As categorias dos pagamentos usam as chaves do formato antigo
    * (`maoDeObra`, `equipamento`…), as mesmas da EAP — por isso o
    * cruzamento é direto.
+   *
+   * Só entram pagamentos confirmados — um pagamento `pendente` ainda
+   * pode ser editado ou cancelado no fluxo, então não é "realizado" de
+   * fato ainda. Mesma regra já aplicada no Realizado da EAP.
    */
   protected readonly realizado = computed(() => {
     const totais = TIPOS_CUSTO.reduce<Record<string, number>>((acc, t) => {
@@ -92,6 +96,7 @@ export class Relatorios implements OnInit {
     }, {});
 
     for (const pagamento of this.pagamentos()) {
+      if (pagamento.status === 'pendente') continue;
       for (const item of pagamento.itens) {
         const valor =
           item.modoValor === 'percentual'
@@ -106,7 +111,9 @@ export class Relatorios implements OnInit {
   });
 
   protected readonly realizadoTotal = computed(() =>
-    this.pagamentos().reduce((soma, p) => soma + calcularSomaItens(p), 0),
+    this.pagamentos()
+      .filter((p) => p.status !== 'pendente')
+      .reduce((soma, p) => soma + calcularSomaItens(p), 0),
   );
 
   /** Quanto ainda cabe no orçamento. Negativo = estourou. */

@@ -354,6 +354,7 @@ export class MapaStore {
       modo_manual: cabecalho.modoManual,
       is_confirmed: cabecalho.isConfirmed,
       confirmed_at: cabecalho.confirmedAt || null,
+      total_mapa: this.calcularTotalGeral(),
       fornecedores: fornecedores.map((f) => ({
         fornecedor: f.nome,
         contato: f.contato,
@@ -390,6 +391,30 @@ export class MapaStore {
       },
       error: () => this.salvando.set(false),
     });
+  }
+
+  /**
+   * Total do mapa (a nota fracionada, com o frete particular somado) —
+   * gravado em `total_mapa` só pra alimentar a coluna "Total" da lista de
+   * mapas da obra (`MapasObra`). Até 03/08/2026 esse campo nunca era
+   * enviado, então a coluna sempre mostrava R$ 0,00 mesmo em mapas com
+   * itens e preços preenchidos. Mesma conta de `montarPagamentosPorFornecedor`
+   * — desconto real de cada fornecedor, não o zero usado no computed
+   * `notas` (que é de propósito, para a tabela de comparação de cenários).
+   */
+  private calcularTotalGeral(): number {
+    const itens = this.itens();
+    const fornecedores = this.fornecedores();
+    const cabecalho = this.cabecalho();
+    const alocacoes = obterAlocacoes(itens, fornecedores, cabecalho.modoManual);
+    const notas = calcularNotasPorFornecedor(
+      alocacoes,
+      itens,
+      fornecedores,
+      true,
+      fornecedores.map((f) => f.desconto),
+    );
+    return notas.totals.totalNota + (Number(cabecalho.freteParticular) || 0);
   }
 
   // ------------------------------------------------------------------
