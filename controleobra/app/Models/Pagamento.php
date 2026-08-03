@@ -15,10 +15,13 @@ class Pagamento extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /** 'pendente' (gerado automático, ainda não conferido) | 'confirmado'. */
+    public const STATUS_OPCOES = ['pendente', 'confirmado'];
+
     protected $fillable = [
         'id', 'empresa_id', 'numero_pagamento', 'obra_id', 'obra_number', 'data_solicitacao',
         'data_pagamento', 'fornecedor', 'descricao', 'valor_total', 'origem_tipo',
-        'origem_ref_id', 'mapa_id', 'empreita_id',
+        'origem_ref_id', 'mapa_id', 'empreita_id', 'status',
     ];
 
     protected $casts = [

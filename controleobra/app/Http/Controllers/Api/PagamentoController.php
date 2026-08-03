@@ -16,7 +16,7 @@ class PagamentoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Pagamento::with('itens')->orderByDesc('data_solicitacao');
+        $query = Pagamento::with('itens.tipoCusto')->orderByDesc('data_solicitacao');
 
         if ($request->filled('origem_tipo')) {
             $query->where('origem_tipo', $request->string('origem_tipo'));
@@ -28,12 +28,12 @@ class PagamentoController extends Controller
             $query->where('obra_id', $request->string('obra_id'));
         }
 
-        return $query->get();
+        return $query->get()->map(fn (Pagamento $p) => $this->paraFrontend($p))->values();
     }
 
     public function show(Pagamento $pagamento)
     {
-        return $pagamento->load('itens');
+        return $this->paraFrontend($pagamento->load('itens.tipoCusto'));
     }
 
     public function store(Request $request)
@@ -67,6 +67,7 @@ class PagamentoController extends Controller
             'origem_ref_id' => 'nullable|string',
             'mapa_id' => 'nullable|string|exists:mapas,id',
             'empreita_id' => 'nullable|string|exists:empreitas,id',
+            'status' => 'nullable|in:' . implode(',', \App\Models\Pagamento::STATUS_OPCOES),
             'itens' => 'required|array|min:1',
         ]);
 
@@ -93,6 +94,7 @@ class PagamentoController extends Controller
                 'origem_ref_id' => $data['origem_ref_id'] ?? null,
                 'mapa_id' => $data['mapa_id'] ?? null,
                 'empreita_id' => $data['empreita_id'] ?? null,
+                'status' => $data['status'] ?? 'confirmado',
             ]);
             $pagamento->save();
 
@@ -117,6 +119,42 @@ class PagamentoController extends Controller
             $pagamento->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
         });
 
-        return $pagamento->load('itens');
+        return $this->paraFrontend($pagamento->load('itens.tipoCusto'));
+    }
+
+    /**
+     * Traduz o modelo relacional (snake_case, tipo_custo_id como FK) pro
+     * formato que o frontend usa (camelCase, `tipo` já resolvido pra
+     * chave — mesmo princípio de ObraController::showEap: o front nunca
+     * lida com o id interno de TipoCusto, só com a chave curta).
+     *
+     * `origem` fica null pra lançamento manual — mesma semântica que a
+     * ponte chave-valor tinha antes desta migração (03/08/2026).
+     */
+    private function paraFrontend(Pagamento $pagamento): array
+    {
+        return [
+            'id' => $pagamento->id,
+            'numeroPagamento' => $pagamento->numero_pagamento,
+            'obraId' => $pagamento->obra_id,
+            'obraNumber' => $pagamento->obra_number ?? '',
+            'dataSolicitacao' => optional($pagamento->data_solicitacao)->format('Y-m-d') ?? '',
+            'dataPagamento' => optional($pagamento->data_pagamento)->format('Y-m-d') ?? '',
+            'fornecedor' => $pagamento->fornecedor ?? '',
+            'descricao' => $pagamento->descricao ?? '',
+            'valorTotal' => (float) $pagamento->valor_total,
+            'itens' => $pagamento->itens->map(fn ($item) => [
+                'id' => $item->id,
+                'descricao' => $item->descricao ?? '',
+                'tipo' => optional($item->tipoCusto)->chave ?? '',
+                'eapId' => $item->eap_item_id ?? '',
+                'valor' => (float) $item->valor,
+                'modoValor' => $item->modo_valor ?? 'valor',
+            ])->values(),
+            'origem' => ($pagamento->origem_tipo && $pagamento->origem_tipo !== 'manual')
+                ? ['tipo' => $pagamento->origem_tipo, 'refId' => $pagamento->origem_ref_id]
+                : null,
+            'status' => $pagamento->status ?? 'confirmado',
+        ];
     }
 }
