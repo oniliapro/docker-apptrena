@@ -172,14 +172,40 @@ export class Obras implements OnInit {
     return Boolean(controle?.invalid && (controle.dirty || controle.touched));
   }
 
-  /** Troca de status direto na lista — sem precisar reabrir a obra. */
+  /**
+   * Troca de status direto na lista — sem precisar reabrir a obra.
+   *
+   * Manda o payload COMPLETO da obra (não só `{status}`) por segurança:
+   * o backend tem um efeito colateral em PUTs parciais (ver comentário em
+   * ObraController::validated(), já corrigido em 03/08/2026, mas vale
+   * manter essa defesa aqui também) — um PUT que só envia `status` podia
+   * apagar nome/cliente/etc. de uma obra existente.
+   */
   protected mudarStatusInline(obra: Obra, evento: Event): void {
     const status = (evento.target as HTMLSelectElement).value as ChaveStatusObra;
     const anterior = obra.status;
 
     this.obras.update((lista) => lista.map((o) => (o.id === obra.id ? { ...o, status } : o)));
 
-    this.api.atualizarObra(obra.id, { status }).subscribe({
+    const payload: Partial<ObraPayload> = {
+      map_number: obra.map_number ?? null,
+      obra_nome: obra.obra_nome ?? '',
+      cliente: obra.cliente ?? '',
+      data_base: obra.data_base ?? null,
+      responsavel: obra.responsavel ?? '',
+      local_obra: obra.local_obra ?? '',
+      periodo: obra.periodo ?? '',
+      obs: obra.obs ?? '',
+      bdi_scope: obra.bdi_scope ?? 'global',
+      bdi_mode: obra.bdi_mode ?? 'pct',
+      bdi_percent: obra.bdi_percent ?? 0,
+      bdi_value: obra.bdi_value ?? 0,
+      is_confirmed: obra.is_confirmed ?? false,
+      confirmed_at: obra.confirmed_at ?? null,
+      status,
+    };
+
+    this.api.atualizarObra(obra.id, payload).subscribe({
       error: () => {
         this.obras.update((lista) =>
           lista.map((o) => (o.id === obra.id ? { ...o, status: anterior } : o)),
