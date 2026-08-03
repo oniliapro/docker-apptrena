@@ -269,9 +269,17 @@ export function somarDescendentesDoGrupo(
 ): TotaisDoGrupo {
   const eapGrupo = String(itens[indiceGrupo]?.eap ?? '').trim();
   const directByType: PorTipo = criarVazioPorTipo();
+  const bdiByType: PorTipo = criarVazioPorTipo();
 
   if (!eapGrupo) {
-    return { directByType, directTotal: 0, bdiApplied: 0, totalWithBdi: 0, bdiPctApplied: 0 };
+    return {
+      directByType,
+      directTotal: 0,
+      bdiApplied: 0,
+      bdiByType,
+      totalWithBdi: 0,
+      bdiPctApplied: 0,
+    };
   }
 
   let directTotal = 0;
@@ -283,6 +291,7 @@ export function somarDescendentesDoGrupo(
     if (!ehDescendente(eapGrupo, filho.eap)) continue;
 
     somarEmPorTipo(directByType, cache.directByType[i]);
+    somarEmPorTipo(bdiByType, cache.bdiByType[i]);
     directTotal += cache.directTotal[i];
     bdiApplied += cache.bdiApplied[i];
   }
@@ -291,6 +300,7 @@ export function somarDescendentesDoGrupo(
     directByType,
     directTotal,
     bdiApplied,
+    bdiByType,
     totalWithBdi: directTotal + bdiApplied,
     bdiPctApplied: percentualSeguro(bdiApplied, directTotal),
   };

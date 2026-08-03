@@ -79,22 +79,28 @@
     </div>
 
     <div class="linha-ferramentas">
-      <span class="rotulo-grupo">Colunas</span>
-      <label class="checagem-inline">
-        <input type="checkbox" [checked]="store.ui().showUnit"
-               (change)="store.atualizarUi('showUnit', !store.ui().showUnit)" />
-        Unitário
-      </label>
-      <label class="checagem-inline">
-        <input type="checkbox" [checked]="store.ui().showTotal"
-               (change)="store.atualizarUi('showTotal', !store.ui().showTotal)" />
-        Totais
-      </label>
-      <label class="checagem-inline">
-        <input type="checkbox" [checked]="store.ui().showBDI"
-               (change)="store.atualizarUi('showBDI', !store.ui().showBDI)" />
-        BDI
-      </label>
+      @if (!store.cabecalho().isConfirmed) {
+        <span class="rotulo-grupo">Colunas</span>
+        <label class="checagem-inline">
+          <input type="checkbox" [checked]="store.ui().showUnit"
+                 (change)="store.atualizarUi('showUnit', !store.ui().showUnit)" />
+          Unitário
+        </label>
+        <label class="checagem-inline">
+          <input type="checkbox" [checked]="store.ui().showTotal"
+                 (change)="store.atualizarUi('showTotal', !store.ui().showTotal)" />
+          Totais
+        </label>
+        <label class="checagem-inline">
+          <input type="checkbox" [checked]="store.ui().showBDI"
+                 (change)="store.atualizarUi('showBDI', !store.ui().showBDI)" />
+          BDI
+        </label>
+      } @else {
+        <span class="pequeno atenuado">
+          EAP confirmada — mostrando Orçado x Realizado por categoria. Reabra para editar custos.
+        </span>
+      }
 
       <span class="rotulo-grupo">Categorias</span>
       <label class="checagem-inline">
@@ -126,53 +132,62 @@
           <th rowspan="2" class="col-qtde">Qtde</th>
           <th rowspan="2" class="col-unid">Un.</th>
 
-          @if (store.ui().showUnit) {
-            <th class="grupo-unit"
-                [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
-              Custo unitário
-            </th>
-          }
-          @if (store.ui().showTotal) {
-            <th class="grupo-total"
-                [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
-              Custo total
-            </th>
-          }
-          @if (store.ui().showBDI) {
-            <th class="grupo-bdi" colspan="3">BDI</th>
-          }
           @if (store.cabecalho().isConfirmed) {
-            <th class="grupo-orc-real" colspan="2">Orçado / Realizado</th>
+            <th class="grupo-orc-real"
+                [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
+              Totais (Orçado x Realizado)
+            </th>
+          } @else {
+            @if (store.ui().showUnit) {
+              <th class="grupo-unit"
+                  [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
+                Custo unitário
+              </th>
+            }
+            @if (store.ui().showTotal) {
+              <th class="grupo-total"
+                  [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
+                Custo total
+              </th>
+            }
+            @if (store.ui().showBDI) {
+              <th class="grupo-bdi" colspan="3">BDI</th>
+            }
           }
 
           <th rowspan="2" class="col-acoes">Ações</th>
         </tr>
 
         <tr>
-          @if (store.ui().showUnit) {
-            @if (store.mostrarColunasTipo()) {
-              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                <th class="grupo-unit">{{ tipo.rotulo }}</th>
-              }
-            }
-            <th class="grupo-unit">Total</th>
-          }
-          @if (store.ui().showTotal) {
-            @if (store.mostrarColunasTipo()) {
-              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                <th class="grupo-total">{{ tipo.rotulo }}</th>
-              }
-            }
-            <th class="grupo-total">Total</th>
-          }
-          @if (store.ui().showBDI) {
-            <th class="grupo-bdi">BDI do item</th>
-            <th class="grupo-bdi">BDI aplicado</th>
-            <th class="grupo-bdi">Total + BDI</th>
-          }
           @if (store.cabecalho().isConfirmed) {
-            <th class="grupo-orc-real">Orçado</th>
-            <th class="grupo-orc-real">Realizado</th>
+            @if (store.mostrarColunasTipo()) {
+              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                <th class="grupo-orc-real">{{ tipo.rotulo }}</th>
+              }
+            }
+            <th class="grupo-orc-real">Total</th>
+          } @else {
+            @if (store.ui().showUnit) {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                  <th class="grupo-unit">{{ tipo.rotulo }}</th>
+                }
+              }
+              <th class="grupo-unit">Total</th>
+            }
+            @if (store.ui().showTotal) {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                  <th class="grupo-total">{{ tipo.rotulo }}</th>
+                }
+              }
+              <th class="grupo-total">Total</th>
+            }
+            @if (store.ui().showBDI) {
+              <th class="grupo-bdi">BDI do item</th>
+              <th class="grupo-bdi">BDI aplicado</th>
+              <th class="grupo-bdi">Total + BDI</th>
+            }
           }
         </tr>
       </thead>
@@ -204,63 +219,93 @@
               }
             </td>
 
-            <!-- Custo unitário -->
-            @if (store.ui().showUnit) {
+            @if (store.cabecalho().isConfirmed) {
+              <!-- Totais (Orçado x Realizado), por categoria -->
               @if (store.mostrarColunasTipo()) {
                 @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                  <td>
-                    @if (!item.isGroup) {
-                      <input type="text" class="valor" [value]="moedaOuVazio(item.unit[tipo.chave])"
-                             (change)="editarCusto(item, tipo.chave, $event)" />
-                    }
+                  <td class="celula-orc-real">
+                    <div class="linha-real">
+                      <span class="rotulo-real">Real.</span>
+                      @if (item.isGroup) {
+                        <span class="valor-real">{{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}</span>
+                      } @else {
+                        <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
+                          {{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}
+                        </button>
+                      }
+                    </div>
+                    <div class="linha-orc">
+                      <span class="rotulo-orc">Orç.</span>
+                      <span class="valor-orc">{{ formatarMoeda(orcadoDoItemTipo(i, item, tipo.chave)) }}</span>
+                    </div>
                   </td>
                 }
               }
-              <td class="valor">
-                @if (!item.isGroup) {
-                  {{ moedaOuVazio(store.cache().unitTotal[i]) }}
-                }
+              <td class="celula-orc-real">
+                <div class="linha-real">
+                  <span class="rotulo-real">Real.</span>
+                  @if (item.isGroup) {
+                    <span class="valor-real">{{ formatarMoeda(realizadoDoItem(item)) }}</span>
+                  } @else {
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
+                      {{ formatarMoeda(realizadoDoItem(item)) }}
+                    </button>
+                  }
+                </div>
+                <div class="linha-orc">
+                  <span class="rotulo-orc">Orç.</span>
+                  <span class="valor-orc"><b>{{ formatarMoeda(orcadoDoItem(i, item)) }}</b></span>
+                </div>
               </td>
-            }
-
-            <!-- Custo total -->
-            @if (store.ui().showTotal) {
-              @if (store.mostrarColunasTipo()) {
-                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                  <td class="valor">{{ moedaOuVazio(custoDiretoTipo(i, item, tipo.chave)) }}</td>
+            } @else {
+              <!-- Custo unitário -->
+              @if (store.ui().showUnit) {
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <td>
+                      @if (!item.isGroup) {
+                        <input type="text" class="valor" [value]="moedaOuVazio(item.unit[tipo.chave])"
+                               (change)="editarCusto(item, tipo.chave, $event)" />
+                      }
+                    </td>
+                  }
                 }
+                <td class="valor">
+                  @if (!item.isGroup) {
+                    {{ moedaOuVazio(store.cache().unitTotal[i]) }}
+                  }
+                </td>
               }
-              <td class="valor"><b>{{ moedaOuVazio(custoDireto(i, item)) }}</b></td>
-            }
 
-            <!-- BDI -->
-            @if (store.ui().showBDI) {
-              <td class="celula-bdi">
-                @if (!item.isGroup) {
-                  <button type="button" class="alternar-bdi" (click)="alternarModoBdiItem(item)">
-                    {{ item.bdiMode === 'pct' ? '%' : 'R$' }}
-                  </button>
-                  <input type="text" class="valor" [value]="valorBdiItem(item)"
-                         (change)="editarBdiItem(item, $event)" />
+              <!-- Custo total -->
+              @if (store.ui().showTotal) {
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <td class="valor">{{ moedaOuVazio(custoDiretoTipo(i, item, tipo.chave)) }}</td>
+                  }
                 }
-              </td>
-              <td class="valor">
-                {{ moedaOuVazio(bdi(i, item)) }}
-                @if (bdi(i, item)) {
-                  <span class="pequeno atenuado">{{ bdiPercentual(i, item) | number: '1.2-2' }}%</span>
-                }
-              </td>
-              <td class="valor"><b>{{ moedaOuVazio(totalComBdi(i, item)) }}</b></td>
-            }
+                <td class="valor"><b>{{ moedaOuVazio(custoDireto(i, item)) }}</b></td>
+              }
 
-            <!-- Orçado x Realizado -->
-            @if (store.cabecalho().isConfirmed) {
-              <td class="valor">{{ moedaOuVazio(orcadoDoItem(i, item)) }}</td>
-              <td class="valor">
-                <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
-                  {{ moedaOuVazio(realizadoDoItem(item)) || 'R$ 0' }}
-                </button>
-              </td>
+              <!-- BDI -->
+              @if (store.ui().showBDI) {
+                <td class="celula-bdi">
+                  @if (!item.isGroup) {
+                    <button type="button" class="alternar-bdi" (click)="alternarModoBdiItem(item)">
+                      {{ item.bdiMode === 'pct' ? '%' : 'R$' }}
+                    </button>
+                    <input type="text" class="valor" [value]="valorBdiItem(item)"
+                           (change)="editarBdiItem(item, $event)" />
+                  }
+                </td>
+                <td class="valor">
+                  {{ moedaOuVazio(bdi(i, item)) }}
+                  @if (bdi(i, item)) {
+                    <span class="pequeno atenuado">{{ bdiPercentual(i, item) | number: '1.2-2' }}%</span>
+                  }
+                </td>
+                <td class="valor"><b>{{ moedaOuVazio(totalComBdi(i, item)) }}</b></td>
+              }
             }
 
             <td class="centro acoes-linha">
@@ -282,31 +327,55 @@
         <tr>
           <th colspan="5" class="rotulo-rodape">TOTAIS</th>
 
-          @if (store.ui().showUnit) {
-            @if (store.mostrarColunasTipo()) {
-              @for (tipo of store.tiposVisiveis(); track tipo.chave) { <th></th> }
-            }
-            <th></th>
-          }
-
-          @if (store.ui().showTotal) {
+          @if (store.cabecalho().isConfirmed) {
             @if (store.mostrarColunasTipo()) {
               @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                <th class="valor">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</th>
+                <th class="celula-orc-real">
+                  <div class="linha-real">
+                    <span class="rotulo-real">Real.</span>
+                    <span class="valor-real">{{ formatarMoeda(totalRealizadoPorTipo()[tipo.chave]) }}</span>
+                  </div>
+                  <div class="linha-orc">
+                    <span class="rotulo-orc">Orç.</span>
+                    <span class="valor-orc">
+                      {{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave] + store.cache().totalsBdiByType[tipo.chave]) }}
+                    </span>
+                  </div>
+                </th>
               }
             }
-            <th class="valor">{{ formatarMoeda(store.cache().totalsDirect) }}</th>
-          }
+            <th class="celula-orc-real">
+              <div class="linha-real">
+                <span class="rotulo-real">Real.</span>
+                <span class="valor-real">{{ formatarMoeda(totalRealizado()) }}</span>
+              </div>
+              <div class="linha-orc">
+                <span class="rotulo-orc">Orç.</span>
+                <span class="valor-orc"><b>{{ formatarMoeda(store.cache().totalsWithBdi) }}</b></span>
+              </div>
+            </th>
+          } @else {
+            @if (store.ui().showUnit) {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) { <th></th> }
+              }
+              <th></th>
+            }
 
-          @if (store.ui().showBDI) {
-            <th></th>
-            <th class="valor">{{ formatarMoeda(store.cache().totalsBdi) }}</th>
-            <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
-          }
+            @if (store.ui().showTotal) {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                  <th class="valor">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</th>
+                }
+              }
+              <th class="valor">{{ formatarMoeda(store.cache().totalsDirect) }}</th>
+            }
 
-          @if (store.cabecalho().isConfirmed) {
-            <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
-            <th class="valor">{{ formatarMoeda(totalRealizado()) }}</th>
+            @if (store.ui().showBDI) {
+              <th></th>
+              <th class="valor">{{ formatarMoeda(store.cache().totalsBdi) }}</th>
+              <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
+            }
           }
 
           <th></th>

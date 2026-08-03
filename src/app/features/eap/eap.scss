@@ -139,18 +139,65 @@
 
 // Botão "Realizado" — abre o modal com os pagamentos vinculados ao item.
 .link-realizado {
-  width: 100%;
-  padding: 2px 4px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--cor-aco);
   font-family: var(--fonte-mono);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   text-decoration: underline;
-  text-align: right;
 
   &:hover { color: var(--cor-primaria); }
+}
+
+// ---- Bloco "Totais (Orçado x Realizado)" por categoria (EAP confirmada) ----
+// Cada célula empilha as duas linhas (Real. em cima, Orç. embaixo) em vez
+// de abrir uma coluna nova pra cada uma — mesmo padrão visual pedido pelo
+// Lucas (03/08/2026), com Realizado como link pro modal de pagamentos.
+.celula-orc-real {
+  min-width: 92px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.linha-real, .linha-orc {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.linha-real { margin-bottom: 2px; }
+
+.rotulo-real, .rotulo-orc {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.valor-real {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cor-aco);
+}
+
+.valor-orc {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  color: var(--cor-texto);
+}
+
+// Linha de grupo: os textos brancos já cuidam do resto (regra `.linha-grupo`
+// mais abaixo), só o rótulo precisa de um pouco mais de contraste aqui.
+.linha-grupo {
+  .rotulo-real, .rotulo-orc { color: rgba(255, 255, 255, 0.7); }
+  .valor-real { color: var(--cor-destaque); }
+  .valor-orc { color: #fff; }
 }
 
 .col-grupo { width: 46px; }

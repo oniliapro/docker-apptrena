@@ -6,6 +6,8 @@ import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela'
 import { formatarMoeda } from '../../core/utils/formato';
 import { expandirItensPagamento, parsearBR } from '../pagamentos/pagamentos-calc';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
+import { ehDescendente } from './eap-engine';
+import { criarVazioPorTipo } from './eap-normalize';
 import { EapStore } from './eap.store';
 import {
   CabecalhoObra,
@@ -13,6 +15,7 @@ import {
   EscopoBdi,
   ItemEap,
   ModoBdi,
+  PorTipo,
   TIPOS_CUSTO,
 } from './eap.models';
 
@@ -83,6 +86,35 @@ export class Eap implements OnInit {
   });
 
   /**
+   * Mesma soma de `realizadoPorItem`, mas quebrada por categoria de custo
+   * (03/08/2026, task "Orçado x Realizado por categoria") — cada item de
+   * pagamento já carrega seu `tipo` (Material, Mão de obra…), então basta
+   * agrupar por ele. Itens sem tipo válido (ex.: a linha automática
+   * "Impostos, frete e desconto da nota", gerada pelo Mapa) ficam de fora
+   * da quebra por categoria, mas continuam entrando no total geral via
+   * `realizadoPorItem` acima — por isso a soma das categorias pode ficar
+   * um pouco abaixo do total nessas linhas, de propósito.
+   */
+  protected readonly realizadoPorItemPorTipo = computed(() => {
+    const mapa = new Map<string, PorTipo>();
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status === 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (!item.eapId) continue;
+        const tipo = item.tipo as ChaveTipo;
+        if (!chaves.has(tipo)) continue;
+
+        const atual = mapa.get(item.eapId) ?? criarVazioPorTipo();
+        atual[tipo] += item.valorCalculado;
+        mapa.set(item.eapId, atual);
+      }
+    }
+    return mapa;
+  });
+
+  /**
    * Soma do realizado só dos itens que ainda existem na EAP — um
    * pagamento vinculado a um item já excluído não entra no total do
    * rodapé (mas continua contando para a coluna daquele item, se ele
@@ -93,16 +125,34 @@ export class Eap implements OnInit {
     return this.store.itens().reduce((soma, item) => soma + (mapa.get(item.id) ?? 0), 0);
   });
 
+  /** Mesmo total do rodapé, por categoria — usado no rodapé do bloco por categoria. */
+  protected readonly totalRealizadoPorTipo = computed(() => {
+    const mapa = this.realizadoPorItemPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const item of this.store.itens()) {
+      const porTipo = mapa.get(item.id);
+      if (!porTipo) continue;
+      for (const tipo of TIPOS_CUSTO) totais[tipo.chave] += porTipo[tipo.chave] ?? 0;
+    }
+    return totais;
+  });
+
   /** Número de colunas da tabela, para o colspan das linhas vazias. */
   protected readonly totalColunas = computed(() => {
     const ui = this.store.ui();
     const porTipo = this.store.mostrarColunasTipo() ? this.store.tiposVisiveis().length : 0;
 
     let colunas = 5; // grupo, EAP, descrição, quantidade, unidade
-    if (ui.showUnit) colunas += porTipo + 1;
-    if (ui.showTotal) colunas += porTipo + 1;
-    if (ui.showBDI) colunas += 3;
-    if (this.store.cabecalho().isConfirmed) colunas += 2; // orçado + realizado
+
+    if (this.store.cabecalho().isConfirmed) {
+      // Bloco único "Totais (Orçado x Realizado)": uma coluna por
+      // categoria + Total (cada uma já com Real./Orç. empilhados dentro).
+      colunas += porTipo + 1;
+    } else {
+      if (ui.showUnit) colunas += porTipo + 1;
+      if (ui.showTotal) colunas += porTipo + 1;
+      if (ui.showBDI) colunas += 3;
+    }
     return colunas + 1; // ações
   });
 
@@ -287,8 +337,52 @@ export class Eap implements OnInit {
     return this.totalComBdi(indice, item);
   }
 
+  /**
+   * Total do Realizado. Linha de grupo soma os descendentes — antes
+   * (28/07/2026) lia direto o mapa pelo id do próprio grupo, que nunca
+   * bate com o `eapId` de um pagamento (pagamentos só apontam para itens
+   * de base), então todo grupo aparecia com Realizado zerado. Corrigido
+   * junto com a quebra por categoria (03/08/2026).
+   */
   protected realizadoDoItem(item: ItemEap): number {
-    return this.realizadoPorItem().get(item.id) ?? 0;
+    if (!item.isGroup) return this.realizadoPorItem().get(item.id) ?? 0;
+
+    const eapGrupo = String(item.eap ?? '').trim();
+    if (!eapGrupo) return 0;
+
+    const mapa = this.realizadoPorItem();
+    let soma = 0;
+    for (const filho of this.store.itens()) {
+      if (filho.isGroup || !ehDescendente(eapGrupo, filho.eap)) continue;
+      soma += mapa.get(filho.id) ?? 0;
+    }
+    return soma;
+  }
+
+  /** Orçado (custo direto + BDI) de uma categoria — item ou soma do grupo. */
+  protected orcadoDoItemTipo(indice: number, item: ItemEap, tipo: ChaveTipo): number {
+    if (item.isGroup) {
+      const totais = this.store.totaisDoGrupo(indice);
+      return (totais.directByType[tipo] ?? 0) + (totais.bdiByType[tipo] ?? 0);
+    }
+    const cache = this.store.cache();
+    return (cache.directByType[indice]?.[tipo] ?? 0) + (cache.bdiByType[indice]?.[tipo] ?? 0);
+  }
+
+  /** Realizado de uma categoria — item ou soma do grupo (mesma ideia de `realizadoDoItem`). */
+  protected realizadoDoItemTipo(item: ItemEap, tipo: ChaveTipo): number {
+    if (!item.isGroup) return this.realizadoPorItemPorTipo().get(item.id)?.[tipo] ?? 0;
+
+    const eapGrupo = String(item.eap ?? '').trim();
+    if (!eapGrupo) return 0;
+
+    const mapa = this.realizadoPorItemPorTipo();
+    let soma = 0;
+    for (const filho of this.store.itens()) {
+      if (filho.isGroup || !ehDescendente(eapGrupo, filho.eap)) continue;
+      soma += mapa.get(filho.id)?.[tipo] ?? 0;
+    }
+    return soma;
   }
 
   protected abrirPagamentosDoItem(item: ItemEap): void {

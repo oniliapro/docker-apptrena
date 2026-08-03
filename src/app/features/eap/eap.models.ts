@@ -119,6 +119,8 @@ export interface TotaisDoGrupo {
   directByType: PorTipo;
   directTotal: number;
   bdiApplied: number;
+  /** BDI somado dos descendentes, por categoria — usado no Orçado por categoria (linha de grupo). */
+  bdiByType: PorTipo;
   totalWithBdi: number;
   bdiPctApplied: number;
 }
