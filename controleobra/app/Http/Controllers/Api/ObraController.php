@@ -78,6 +78,7 @@ class ObraController extends Controller
             'bdi_value' => 'nullable|numeric',
             'is_confirmed' => 'nullable|boolean',
             'confirmed_at' => 'nullable|date',
+            'status' => 'nullable|in:' . implode(',', Obra::STATUS_OPCOES),
         ]);
 
         foreach (['obra_nome', 'cliente', 'responsavel', 'local_obra', 'periodo'] as $campo) {

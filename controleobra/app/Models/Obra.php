@@ -15,10 +15,23 @@ class Obra extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * Status comercial/operacional da obra (03/08/2026) — independente de
+     * `is_confirmed` (que é só sobre a EAP/orçamento estar travado).
+     */
+    public const STATUS_OPCOES = [
+        'orcamento',
+        'proposta_enviada',
+        'cancelada',
+        'a_iniciar',
+        'em_andamento',
+        'finalizada',
+    ];
+
     protected $fillable = [
         'id', 'empresa_id', 'map_number', 'obra_nome', 'cliente', 'data_base', 'responsavel',
         'local_obra', 'periodo', 'obs', 'bdi_scope', 'bdi_mode', 'bdi_percent',
-        'bdi_value', 'is_confirmed', 'confirmed_at',
+        'bdi_value', 'is_confirmed', 'confirmed_at', 'status',
     ];
 
     protected $casts = [
