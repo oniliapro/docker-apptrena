@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { Obra, ObraPayload } from '../../core/models/api.models';
+import { ChaveStatusObra, Obra, ObraPayload, STATUS_OBRA } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData } from '../../core/utils/formato';
 
@@ -38,6 +38,8 @@ export class Obras implements OnInit {
   protected readonly formularioAberto = signal(false);
   protected readonly salvando = signal(false);
 
+  protected readonly statusOpcoes = STATUS_OBRA;
+
   protected readonly formulario = this.fb.nonNullable.group({
     mapNumber: [''],
     obraNome: ['', [Validators.required]],
@@ -45,7 +47,7 @@ export class Obras implements OnInit {
     responsavel: [''],
     dataBase: [''],
     periodo: [''],
-    status: ['Em andamento'],
+    status: ['a_iniciar' as ChaveStatusObra],
     obs: [''],
   });
 
@@ -110,7 +112,7 @@ export class Obras implements OnInit {
   // Formulário — Nova obra
   // ------------------------------------------------------------------
   protected novo(): void {
-    this.formulario.reset({ status: 'Em andamento' });
+    this.formulario.reset({ status: 'a_iniciar' });
     this.formularioAberto.set(true);
   }
 
@@ -125,7 +127,6 @@ export class Obras implements OnInit {
     }
 
     const v = this.formulario.getRawValue();
-    const obs = [`Status: ${v.status}`, v.obs.trim()].filter(Boolean).join(' — ');
 
     const payload: ObraPayload = {
       // map_number e data_base são as únicas colunas realmente NULLable no
@@ -142,13 +143,14 @@ export class Obras implements OnInit {
       responsavel: v.responsavel.trim(),
       local_obra: '',
       periodo: v.periodo.trim(),
-      obs,
+      obs: v.obs.trim(),
       bdi_scope: 'global',
       bdi_mode: 'pct',
       bdi_percent: 0,
       bdi_value: 0,
       is_confirmed: false,
       confirmed_at: null,
+      status: v.status,
     };
 
     this.salvando.set(true);
@@ -168,5 +170,22 @@ export class Obras implements OnInit {
   protected temErro(campo: string): boolean {
     const controle = this.formulario.get(campo);
     return Boolean(controle?.invalid && (controle.dirty || controle.touched));
+  }
+
+  /** Troca de status direto na lista — sem precisar reabrir a obra. */
+  protected mudarStatusInline(obra: Obra, evento: Event): void {
+    const status = (evento.target as HTMLSelectElement).value as ChaveStatusObra;
+    const anterior = obra.status;
+
+    this.obras.update((lista) => lista.map((o) => (o.id === obra.id ? { ...o, status } : o)));
+
+    this.api.atualizarObra(obra.id, { status }).subscribe({
+      error: () => {
+        this.obras.update((lista) =>
+          lista.map((o) => (o.id === obra.id ? { ...o, status: anterior } : o)),
+        );
+        window.alert('Não foi possível atualizar o status da obra.');
+      },
+    });
   }
 }

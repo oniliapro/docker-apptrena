@@ -1,7 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { Empreita, Mapa, Obra, RegistroDiario, dadosDaEmpresa } from '../../core/models/api.models';
+import {
+  Empreita,
+  Mapa,
+  Obra,
+  RegistroDiario,
+  dadosDaEmpresa,
+  rotuloStatusObra,
+} from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { diasRestantes, formatarData } from '../../core/utils/formato';
 
@@ -26,9 +33,10 @@ export class Dashboard implements OnInit {
   private readonly api = inject(ApiService);
 
   protected readonly formatarData = formatarData;
+  protected readonly rotuloStatusObra = rotuloStatusObra;
 
   // ---- Indicadores ----
-  protected readonly obrasAtivas = signal<string | number>('—');
+  protected readonly obrasEmAndamento = signal<string | number>('—');
   protected readonly obrasTotais = signal<number | null>(null);
   protected readonly obrasFinalizadas = signal<string | number>('—');
   protected readonly assinatura = signal('—');
@@ -59,13 +67,17 @@ export class Dashboard implements OnInit {
   private carregarObras(): void {
     this.api.listarObras().subscribe({
       next: (obras) => {
-        // `is_confirmed` é sobre a EAP (orçamento travado), não sobre a
-        // obra estar concluída — não existe (ainda) um status de "obra
-        // finalizada" no backend. Os rótulos na tela refletem isso
-        // (03/08/2026, achado na varredura geral de bugs).
-        const finalizadas = obras.filter((o) => o.is_confirmed).length;
-        this.obras.set(obras.filter((o) => !o.is_confirmed).slice(0, this.LIMITE));
-        this.obrasAtivas.set(obras.length - finalizadas);
+        // `status` é o campo de verdade pro andamento da obra (03/08/2026)
+        // — antes disso o dashboard usava `is_confirmed` (que é só sobre a
+        // EAP/orçamento estar travado) como se fosse "obra finalizada",
+        // o que é enganoso: uma obra pode ter a EAP confirmada e ainda
+        // estar em andamento, ou nem ter começado.
+        const emAndamento = obras.filter((o) => o.status === 'em_andamento').length;
+        const finalizadas = obras.filter((o) => o.status === 'finalizada').length;
+        const emAberto = obras.filter((o) => o.status !== 'cancelada' && o.status !== 'finalizada');
+
+        this.obras.set(emAberto.slice(0, this.LIMITE));
+        this.obrasEmAndamento.set(emAndamento);
         this.obrasFinalizadas.set(finalizadas);
         this.obrasTotais.set(obras.length);
         this.carregandoObras.set(false);

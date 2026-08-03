@@ -5,17 +5,16 @@
 
 <div class="grade-indicadores">
   <div class="cartao-indicador">
-    <div class="rotulo">Obras com EAP em aberto</div>
-    <div class="numero">{{ obrasAtivas() }}</div>
+    <div class="rotulo">Obras em andamento</div>
+    <div class="numero">{{ obrasEmAndamento() }}</div>
     @if (obrasTotais() !== null) {
       <div class="nota">de {{ obrasTotais() }} obras totais</div>
     }
   </div>
 
   <div class="cartao-indicador">
-    <div class="rotulo">Obras com EAP confirmada</div>
+    <div class="rotulo">Obras finalizadas</div>
     <div class="numero">{{ obrasFinalizadas() }}</div>
-    <div class="nota">orçamento travado — não é o mesmo que obra concluída</div>
   </div>
 
   <div class="cartao-indicador">
@@ -38,10 +37,10 @@
 </div>
 
 <div class="grade-listas">
-  <!-- Obras com EAP em aberto -->
+  <!-- Obras em aberto (todo status exceto cancelada/finalizada) -->
   <div class="cartao-lista">
     <div class="cartao-cabecalho">
-      <h3>Obras com EAP em aberto</h3>
+      <h3>Obras em aberto</h3>
       <a routerLink="/obras">Ver todas →</a>
     </div>
 
@@ -54,10 +53,10 @@
             <span class="t1">{{ obra.obra_nome || '(sem nome)' }}</span>
             <span class="t2">Cliente: {{ obra.cliente || '—' }}</span>
           </span>
-          <span class="etiqueta andamento">Em andamento</span>
+          <span class="etiqueta andamento">{{ rotuloStatusObra(obra.status) }}</span>
         </a>
       } @empty {
-        <div class="vazio atenuado">Nenhuma obra com EAP em aberto.</div>
+        <div class="vazio atenuado">Nenhuma obra em aberto.</div>
       }
     }
   </div>

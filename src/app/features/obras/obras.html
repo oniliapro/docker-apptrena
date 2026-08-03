@@ -37,6 +37,7 @@
             <th>Cliente</th>
             <th>Responsável</th>
             <th class="centro">Data base</th>
+            <th class="centro">Status</th>
             <th class="centro">EAP</th>
             <th class="centro">Ações</th>
           </tr>
@@ -49,6 +50,18 @@
               <td>{{ obra.cliente || '—' }}</td>
               <td>{{ obra.responsavel || '—' }}</td>
               <td class="centro">{{ formatarData(obra.data_base) || '—' }}</td>
+              <td class="centro">
+                <select
+                  class="select-status-inline"
+                  [value]="obra.status || 'a_iniciar'"
+                  (change)="mudarStatusInline(obra, $event)">
+                  @for (opcao of statusOpcoes; track opcao.chave) {
+                    <option [value]="opcao.chave" [selected]="opcao.chave === obra.status">
+                      {{ opcao.rotulo }}
+                    </option>
+                  }
+                </select>
+              </td>
               <td class="centro">
                 @if (obra.is_confirmed) {
                   <span class="etiqueta confirmada">Confirmada</span>
@@ -63,7 +76,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="centro atenuado">Nenhuma obra encontrada.</td>
+              <td colspan="8" class="centro atenuado">Nenhuma obra encontrada.</td>
             </tr>
           }
         </tbody>
@@ -124,9 +137,9 @@
           <label class="campo">
             <span>Status</span>
             <select formControlName="status">
-              <option value="Iniciar">Iniciar</option>
-              <option value="Em andamento">Em andamento</option>
-              <option value="Finalizada">Finalizada</option>
+              @for (opcao of statusOpcoes; track opcao.chave) {
+                <option [value]="opcao.chave">{{ opcao.rotulo }}</option>
+              }
             </select>
           </label>
 

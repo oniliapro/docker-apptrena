@@ -27,6 +27,33 @@ export type EscopoBdi = 'global' | 'category' | 'item';
 /** Se o BDI é percentual ou valor absoluto — coluna obras.bdi_mode. */
 export type ModoBdi = 'pct' | 'value';
 
+/**
+ * Status comercial/operacional da obra — coluna obras.status (03/08/2026).
+ * Independente de `is_confirmed`, que é só sobre a EAP/orçamento estar
+ * travado — uma obra pode estar "em andamento" com a EAP ainda aberta,
+ * ou com a EAP confirmada e a obra nem ter começado.
+ */
+export type ChaveStatusObra =
+  | 'orcamento'
+  | 'proposta_enviada'
+  | 'cancelada'
+  | 'a_iniciar'
+  | 'em_andamento'
+  | 'finalizada';
+
+export const STATUS_OBRA: ReadonlyArray<{ chave: ChaveStatusObra; rotulo: string }> = [
+  { chave: 'orcamento', rotulo: 'Orçamento' },
+  { chave: 'proposta_enviada', rotulo: 'Proposta enviada' },
+  { chave: 'cancelada', rotulo: 'Cancelada' },
+  { chave: 'a_iniciar', rotulo: 'A iniciar' },
+  { chave: 'em_andamento', rotulo: 'Em andamento' },
+  { chave: 'finalizada', rotulo: 'Finalizada' },
+];
+
+export function rotuloStatusObra(chave: string | null | undefined): string {
+  return STATUS_OBRA.find((s) => s.chave === chave)?.rotulo ?? '—';
+}
+
 export interface Obra {
   id: string;
   map_number?: string | null;
@@ -43,6 +70,7 @@ export interface Obra {
   bdi_value?: number | null;
   is_confirmed?: boolean | null;
   confirmed_at?: string | null;
+  status?: ChaveStatusObra | null;
 }
 
 /** Payload de criação/edição — o `id` é gerado pelo backend. */
