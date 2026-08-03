@@ -75,7 +75,9 @@ export class Mapas implements OnInit {
   }
 
   private carregarContagemPagamentos(mapas: Mapa[]): void {
-    const obraIds = [...new Set(mapas.map((m) => m.obra_id).filter((id): id is string => !!id))];
+    const obraIds = [
+      ...new Set(mapas.map((m) => m['obra_id']).filter((id): id is string => !!id)),
+    ];
     if (!obraIds.length) return;
 
     const leituras = obraIds.map((obraId) =>
