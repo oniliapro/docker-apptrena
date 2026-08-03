@@ -63,6 +63,17 @@ class ObraController extends Controller
         // porque o problema é anterior à validação. Por isso, depois do
         // validate(), forçamos de volta pra string vazia qualquer uma
         // dessas colunas que tenha vindo null.
+        //
+        // BUG CORRIGIDO EM 03/08/2026: esse loop usava `$data[$campo] ??
+        // ''` sem checar se $campo sequer existia em $data — e
+        // ->validated() só inclui uma chave quando ela veio na requisição.
+        // Resultado: um PUT parcial tipo `{status: 'em_andamento'}` (usado
+        // pela troca de status inline na lista de Obras) recriava
+        // obra_nome/cliente/responsavel/etc. como '' e o
+        // $obra->update($data) apagava esses campos na obra inteira,
+        // mesmo eles não fazendo parte do payload. Agora só normaliza um
+        // campo se ele de fato veio na requisição — update parcial
+        // continua parcial.
         $data = $request->validate([
             'map_number' => 'nullable|string|max:50',
             'obra_nome' => 'nullable|string|max:180',
@@ -82,7 +93,9 @@ class ObraController extends Controller
         ]);
 
         foreach (['obra_nome', 'cliente', 'responsavel', 'local_obra', 'periodo'] as $campo) {
-            $data[$campo] = $data[$campo] ?? '';
+            if (array_key_exists($campo, $data)) {
+                $data[$campo] = $data[$campo] ?? '';
+            }
         }
 
         return $data;
