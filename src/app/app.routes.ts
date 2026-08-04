@@ -26,7 +26,18 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/eap/eap').then((m) => m.Eap),
   },
   reservada('cronograma', 'Cronograma'),
-  reservada('desembolso', 'Cronograma de desembolso'),
+  {
+    // Matriz EAP x período (item 3 do roteiro, 04/08/2026) — cruza os
+    // itens da EAP com os pagamentos confirmados da obra, agrupados por
+    // mês. Ver comentário em cronograma-desembolso.ts pras decisões de
+    // escopo tomadas na ausência da spec original.
+    path: 'desembolso',
+    data: { titulo: 'Cronograma de desembolso' },
+    loadComponent: () =>
+      import('./features/cronograma-desembolso/cronograma-desembolso').then(
+        (m) => m.CronogramaDesembolso,
+      ),
+  },
   reservada('medicoes', 'Medições de Obra'),
   {
     // Lista de empreitas desta obra (uma obra pode ter várias — task
