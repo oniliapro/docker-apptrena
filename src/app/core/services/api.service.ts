@@ -11,6 +11,7 @@ import {
   ObraPayload,
   Pagamento,
   RegistroDiario,
+  RespostaLeituraFornecedor,
   RespostaLeituraNota,
   RespostaMe,
 } from '../models/api.models';
@@ -156,6 +157,17 @@ export class ApiService {
     const dados = new FormData();
     dados.append('imagem', imagem);
     return this.http.post<RespostaLeituraNota>(`${this.base}/pagamentos/ler-nota`, dados);
+  }
+
+  /**
+   * POST /fornecedores/ler-nota — lê a nota fiscal do PRÓPRIO fornecedor
+   * pra extrair os dados de cadastro (nome, tipo, documento, endereço,
+   * especialidade). 04/08/2026, pedido do Lucas.
+   */
+  lerNotaFornecedor(imagem: File): Observable<RespostaLeituraFornecedor> {
+    const dados = new FormData();
+    dados.append('imagem', imagem);
+    return this.http.post<RespostaLeituraFornecedor>(`${this.base}/fornecedores/ler-nota`, dados);
   }
 
   // ---------------- Diário de obra ----------------

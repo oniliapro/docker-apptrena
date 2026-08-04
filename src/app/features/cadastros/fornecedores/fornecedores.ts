@@ -14,6 +14,8 @@ import {
   formatarTelefone,
   validarDocumento,
 } from '../../../core/utils/documento';
+import { RespostaLeituraFornecedor } from '../../../core/models/api.models';
+import { ApiService } from '../../../core/services/api.service';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
 import { ContatoFornecedor, Fornecedor, TipoPessoa } from '../cadastros.models';
@@ -51,12 +53,18 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
 export class Fornecedores implements OnInit {
   protected readonly store = inject<CadastroStore<Fornecedor>>(CadastroStore);
   private readonly fb = inject(FormBuilder);
+  private readonly api = inject(ApiService);
 
   protected readonly formularioAberto = signal(false);
   protected readonly editandoId = signal<string | null>(null);
 
   protected readonly formatarDocumento = formatarDocumento;
   protected readonly formatarTelefone = formatarTelefone;
+
+  // ---- Leitura de nota fiscal por foto (preenche o cadastro) ----
+  protected readonly lendoNota = signal(false);
+  protected readonly statusNota = signal<string>('');
+  private notaSelecionada: File | null = null;
 
   protected readonly formulario = this.fb.nonNullable.group({
     nome: ['', [Validators.required]],
@@ -139,6 +147,8 @@ export class Fornecedores implements OnInit {
     this.editandoId.set(null);
     this.contatos.clear();
     this.formulario.reset({ tipo: 'PF' });
+    this.notaSelecionada = null;
+    this.statusNota.set('');
     this.formularioAberto.set(true);
   }
 
@@ -155,6 +165,8 @@ export class Fornecedores implements OnInit {
       especialidade: registro.especialidade,
       observacoes: registro.observacoes,
     });
+    this.notaSelecionada = null;
+    this.statusNota.set('');
     this.formularioAberto.set(true);
   }
 
@@ -176,6 +188,67 @@ export class Fornecedores implements OnInit {
     const formatado = formatarDocumento(alvo.value);
     alvo.value = formatado;
     this.formulario.controls.documento.setValue(formatado);
+  }
+
+  // ------------------------------------------------------------------
+  // Leitura de nota fiscal por foto (IA) — preenche o formulário, mas o
+  // campo de digitação manual continua ali para completar ou corrigir.
+  // ------------------------------------------------------------------
+  protected selecionarNota(evento: Event): void {
+    const arquivos = (evento.target as HTMLInputElement).files;
+    this.notaSelecionada = arquivos?.[0] ?? null;
+    this.statusNota.set('');
+  }
+
+  protected lerNota(): void {
+    if (!this.notaSelecionada) {
+      window.alert('Selecione uma foto da nota fiscal do fornecedor primeiro.');
+      return;
+    }
+    if (this.lendoNota()) return;
+
+    this.lendoNota.set(true);
+    this.statusNota.set('Lendo a nota…');
+
+    this.api.lerNotaFornecedor(this.notaSelecionada).subscribe({
+      next: (resposta) => {
+        this.lendoNota.set(false);
+
+        if (!resposta?.ok) {
+          this.statusNota.set('');
+          window.alert(resposta?.message || 'Não foi possível ler a nota fiscal.');
+          return;
+        }
+
+        this.aplicarDadosDaNota(resposta.dados ?? {});
+        this.statusNota.set('Dados preenchidos — confira antes de salvar.');
+      },
+      error: () => {
+        this.lendoNota.set(false);
+        this.statusNota.set('');
+        window.alert('Não foi possível falar com o servidor para ler a nota.');
+      },
+    });
+  }
+
+  /**
+   * O que a IA não reconhecer fica null e não mexe no campo — o usuário
+   * completa à mão, como já era o comportamento em Pagamentos.
+   */
+  private aplicarDadosDaNota(dados: NonNullable<RespostaLeituraFornecedor['dados']>): void {
+    if (dados.tipo === 'PF' || dados.tipo === 'PJ') {
+      this.mudarTipo(dados.tipo);
+    }
+
+    const patch: Record<string, string> = {};
+    if (dados.nome) patch['nome'] = String(dados.nome);
+    if (dados.documento) patch['documento'] = formatarDocumento(String(dados.documento));
+    if (dados.endereco) patch['endereco'] = String(dados.endereco);
+    if (dados.especialidade) patch['especialidade'] = String(dados.especialidade);
+
+    if (Object.keys(patch).length) {
+      this.formulario.patchValue(patch);
+    }
   }
 
   protected salvar(): void {

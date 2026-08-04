@@ -90,6 +90,17 @@
       </div>
 
       <div class="modal-corpo">
+        <div class="leitura-nota">
+          <div class="painel-titulo">Preencher pela foto da nota fiscal do fornecedor</div>
+          <div class="linha-nota">
+            <input type="file" accept="image/*" (change)="selecionarNota($event)" />
+            <button type="button" [disabled]="lendoNota()" (click)="lerNota()">
+              {{ lendoNota() ? 'Lendo…' : '📄 Ler nota' }}
+            </button>
+            @if (statusNota(); as texto) { <span class="atenuado pequeno">{{ texto }}</span> }
+          </div>
+        </div>
+
         <div class="tipo-pessoa">
           <button type="button" [class.ativo]="tipoAtual === 'PF'" (click)="mudarTipo('PF')">
             Pessoa física

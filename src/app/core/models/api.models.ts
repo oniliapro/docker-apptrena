@@ -210,3 +210,21 @@ export interface RespostaLeituraNota {
     valor_total?: number | null;
   };
 }
+
+/**
+ * Resposta de POST /api/fornecedores/ler-nota — dados de CADASTRO extraídos
+ * de uma nota fiscal do próprio fornecedor (04/08/2026, pedido do Lucas:
+ * agiliza o cadastro e evita erro de digitação). Mesma ideia de
+ * `RespostaLeituraNota`, mas os campos são os do formulário de Fornecedor.
+ */
+export interface RespostaLeituraFornecedor {
+  ok: boolean;
+  message?: string;
+  dados?: {
+    nome?: string | null;
+    tipo?: 'PF' | 'PJ' | null;
+    documento?: string | null;
+    endereco?: string | null;
+    especialidade?: string | null;
+  };
+}

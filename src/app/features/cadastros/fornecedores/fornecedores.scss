@@ -164,6 +164,27 @@
   border-top: 1px solid var(--cor-borda);
 }
 
+// ---- Leitura de nota fiscal por foto (IA) ----
+.leitura-nota {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px dashed var(--cor-borda-forte);
+  border-radius: var(--raio-md);
+  background: var(--cor-fundo);
+
+  .painel-titulo { margin-bottom: 8px; }
+}
+
+.linha-nota {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  input[type='file'] { width: auto; height: 26px; flex: 1; min-width: 200px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
 // ---- Escolha do tipo de pessoa ----
 .tipo-pessoa {
   display: flex;
