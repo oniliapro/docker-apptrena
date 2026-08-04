@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('pagamentos', PagamentoController::class);
     Route::post('pagamentos/ler-nota', [NotaFiscalController::class, 'ler']);
+    Route::post('fornecedores/ler-nota', [NotaFiscalController::class, 'lerFornecedor']);
 
     Route::get('storage', [StorageController::class, 'get']);
     Route::post('storage', [StorageController::class, 'set']);
