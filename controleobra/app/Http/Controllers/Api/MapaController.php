@@ -72,7 +72,7 @@ class MapaController extends Controller
             'itens' => 'nullable|array',
         ]);
 
-        DB::transaction(function () use ($data, $mapa) {
+        DB::transaction(function () use ($data, $mapa, $request) {
             $mapa->fill([
                 'obra_id' => $data['obra_id'] ?? $mapa->obra_id,
                 'numero_mapa' => $data['numero_mapa'] ?? '',
@@ -91,76 +91,98 @@ class MapaController extends Controller
             $mapa->save();
 
             // fornecedores (ex.: [{id?, fornecedor, contato, impostoPercent, frete, desconto, descontoParcial, ativo}])
-            $fornecedorIdMap = []; // índice do payload -> id real (para casar com precos/escolhaFornecedor depois)
-            $keepFornecedores = [];
-            foreach ((array) ($data['fornecedores'] ?? []) as $i => $f) {
-                $id = $f['id'] ?? (string) Str::uuid();
-                $fornecedorIdMap[$i] = $id;
-                $keepFornecedores[] = $id;
+            //
+            // Importante (04/08/2026, investigação de mapas de teste que
+            // sumiram): só mexe nos fornecedores existentes se a chave
+            // "fornecedores" vier de fato no payload. Antes, um payload sem
+            // essa chave caía no `?? []` e o passo de limpeza abaixo
+            // apagava TODOS os fornecedores do mapa — destrutivo para
+            // qualquer chamador futuro (ou qualquer PUT parcial) que não
+            // reenvie a lista inteira a cada gravação.
+            if ($request->has('fornecedores')) {
+                $fornecedorIdMap = []; // índice do payload -> id real (para casar com precos/escolhaFornecedor depois)
+                $keepFornecedores = [];
+                foreach ((array) ($data['fornecedores'] ?? []) as $i => $f) {
+                    $id = $f['id'] ?? (string) Str::uuid();
+                    $fornecedorIdMap[$i] = $id;
+                    $keepFornecedores[] = $id;
 
-                MapaFornecedor::updateOrCreate(['id' => $id], [
-                    'mapa_id' => $mapa->id,
-                    'ordem' => $i,
-                    'fornecedor' => $f['fornecedor'] ?? '',
-                    'contato' => $f['contato'] ?? '',
-                    'imposto_percent' => $f['impostoPercent'] ?? 0,
-                    'frete' => $f['frete'] ?? 0,
-                    'desconto' => $f['desconto'] ?? 0,
-                    'desconto_parcial' => $f['descontoParcial'] ?? 0,
-                    'ativo' => $f['ativo'] ?? true,
-                ]);
+                    MapaFornecedor::updateOrCreate(['id' => $id], [
+                        'mapa_id' => $mapa->id,
+                        'ordem' => $i,
+                        'fornecedor' => $f['fornecedor'] ?? '',
+                        'contato' => $f['contato'] ?? '',
+                        'imposto_percent' => $f['impostoPercent'] ?? 0,
+                        'frete' => $f['frete'] ?? 0,
+                        'desconto' => $f['desconto'] ?? 0,
+                        'desconto_parcial' => $f['descontoParcial'] ?? 0,
+                        'ativo' => $f['ativo'] ?? true,
+                    ]);
+                }
+                $mapa->fornecedores()->whereNotIn('id', $keepFornecedores ?: ['__none__'])->delete();
+            } else {
+                // Sem a chave no payload: mantém os fornecedores atuais,
+                // só reconstrói o mapa índice->id pra casar os preços dos
+                // itens (também opcionais) com quem já existe no banco.
+                $fornecedorIdMap = $mapa->fornecedores()->orderBy('ordem')
+                    ->pluck('id', 'ordem')->all();
             }
-            $mapa->fornecedores()->whereNotIn('id', $keepFornecedores ?: ['__none__'])->delete();
 
             // itens (ex.: [{id?, descricao, tipoCustoId, quantidade, unidade, eapItemId, modoEtapa,
             //               precos: [{fornecedorIndex, valorUnitario, comprar}], etapas: [{eapItemId, valor}]}])
-            $keepItens = [];
-            foreach ((array) ($data['itens'] ?? []) as $i => $raw) {
-                $id = $raw['id'] ?? (string) Str::uuid();
-                $keepItens[] = $id;
+            //
+            // Mesma proteção do bloco de fornecedores acima: só sincroniza
+            // (e portanto só apaga o que não vier na lista) se "itens" foi
+            // de fato enviado no payload.
+            if ($request->has('itens')) {
+                $keepItens = [];
+                foreach ((array) ($data['itens'] ?? []) as $i => $raw) {
+                    $id = $raw['id'] ?? (string) Str::uuid();
+                    $keepItens[] = $id;
 
-                $escolhaFornecedorId = isset($raw['fornecedorEscolhidoIndex'])
-                    ? ($fornecedorIdMap[$raw['fornecedorEscolhidoIndex']] ?? null)
-                    : null;
+                    $escolhaFornecedorId = isset($raw['fornecedorEscolhidoIndex'])
+                        ? ($fornecedorIdMap[$raw['fornecedorEscolhidoIndex']] ?? null)
+                        : null;
 
-                $item = MapaItem::updateOrCreate(['id' => $id], [
-                    'mapa_id' => $mapa->id,
-                    'ordem' => $i,
-                    'descricao' => $raw['descricao'] ?? '',
-                    'tipo_custo_id' => $raw['tipoCustoId'] ?? null,
-                    'quantidade' => $raw['quantidade'] ?? 0,
-                    'unidade' => $raw['unidade'] ?? '',
-                    'etapa' => $raw['etapa'] ?? '',
-                    'eap_item_id' => $raw['eapItemId'] ?? null,
-                    'modo_etapa' => $raw['modoEtapa'] ?? 'percentual',
-                    'escolha_fornecedor_id' => $escolhaFornecedorId,
-                ]);
-
-                $keepPrecos = [];
-                foreach ((array) ($raw['precos'] ?? []) as $preco) {
-                    $fornecedorId = $fornecedorIdMap[$preco['fornecedorIndex'] ?? null] ?? null;
-                    if (!$fornecedorId) continue;
-                    $keepPrecos[] = $fornecedorId;
-                    $item->precos()->updateOrCreate(
-                        ['fornecedor_id' => $fornecedorId],
-                        ['valor_unitario' => $preco['valorUnitario'] ?? 0, 'comprar' => $preco['comprar'] ?? false]
-                    );
-                }
-                $item->precos()->whereNotIn('fornecedor_id', $keepPrecos ?: ['__none__'])->delete();
-
-                $keepEtapas = [];
-                foreach ((array) ($raw['etapas'] ?? []) as $ordemEtapa => $etapa) {
-                    $etapaId = $etapa['id'] ?? (string) Str::uuid();
-                    $keepEtapas[] = $etapaId;
-                    $item->etapas()->updateOrCreate(['id' => $etapaId], [
-                        'ordem' => $ordemEtapa,
-                        'eap_item_id' => $etapa['eapItemId'] ?? null,
-                        'valor' => $etapa['valor'] ?? 0,
+                    $item = MapaItem::updateOrCreate(['id' => $id], [
+                        'mapa_id' => $mapa->id,
+                        'ordem' => $i,
+                        'descricao' => $raw['descricao'] ?? '',
+                        'tipo_custo_id' => $raw['tipoCustoId'] ?? null,
+                        'quantidade' => $raw['quantidade'] ?? 0,
+                        'unidade' => $raw['unidade'] ?? '',
+                        'etapa' => $raw['etapa'] ?? '',
+                        'eap_item_id' => $raw['eapItemId'] ?? null,
+                        'modo_etapa' => $raw['modoEtapa'] ?? 'percentual',
+                        'escolha_fornecedor_id' => $escolhaFornecedorId,
                     ]);
+
+                    $keepPrecos = [];
+                    foreach ((array) ($raw['precos'] ?? []) as $preco) {
+                        $fornecedorId = $fornecedorIdMap[$preco['fornecedorIndex'] ?? null] ?? null;
+                        if (!$fornecedorId) continue;
+                        $keepPrecos[] = $fornecedorId;
+                        $item->precos()->updateOrCreate(
+                            ['fornecedor_id' => $fornecedorId],
+                            ['valor_unitario' => $preco['valorUnitario'] ?? 0, 'comprar' => $preco['comprar'] ?? false]
+                        );
+                    }
+                    $item->precos()->whereNotIn('fornecedor_id', $keepPrecos ?: ['__none__'])->delete();
+
+                    $keepEtapas = [];
+                    foreach ((array) ($raw['etapas'] ?? []) as $ordemEtapa => $etapa) {
+                        $etapaId = $etapa['id'] ?? (string) Str::uuid();
+                        $keepEtapas[] = $etapaId;
+                        $item->etapas()->updateOrCreate(['id' => $etapaId], [
+                            'ordem' => $ordemEtapa,
+                            'eap_item_id' => $etapa['eapItemId'] ?? null,
+                            'valor' => $etapa['valor'] ?? 0,
+                        ]);
+                    }
+                    $item->etapas()->whereNotIn('id', $keepEtapas ?: ['__none__'])->delete();
                 }
-                $item->etapas()->whereNotIn('id', $keepEtapas ?: ['__none__'])->delete();
+                $mapa->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
             }
-            $mapa->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
         });
 
         return $mapa->load(['fornecedores.precos', 'itens.precos', 'itens.etapas']);
