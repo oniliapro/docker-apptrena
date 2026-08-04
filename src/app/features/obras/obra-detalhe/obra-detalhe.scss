@@ -5,32 +5,93 @@
   margin-bottom: 14px;
 }
 
+.linha-topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .obra-nome {
+  flex: 0 1 auto;
+  min-width: 160px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 2px 4px;
   font-family: var(--fonte-titulo);
   font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.01em;
+
+  &:hover { border-color: var(--cor-borda); }
+  &:focus { background: #fff; border-color: var(--cor-borda); }
+  &:disabled { background: transparent; color: var(--cor-texto); }
 }
 
-.obra-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 26px;
-  margin-top: 10px;
-}
+.espacador { flex: 1; }
+.pequeno { font-size: 11px; }
 
-.chave {
-  font-family: var(--fonte-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.etiqueta {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--cor-fundo-alt);
   color: var(--cor-texto-suave);
+
+  &.confirmada {
+    background: var(--cor-sucesso-bg);
+    color: var(--cor-sucesso);
+  }
 }
 
-.valor-meta {
-  font-size: 12.5px;
-  font-weight: 600;
-  margin-top: 2px;
+button.primario {
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--raio-md);
+  background: var(--cor-primaria);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover { filter: brightness(1.08); }
+}
+
+// ---- Campos do cabeçalho da obra ----
+.grade-cabecalho {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.campo-largo { grid-column: span 2; }
+
+@media (max-width: 900px) {
+  .grade-cabecalho { grid-template-columns: repeat(2, 1fr); }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  input, select { height: 28px; font-size: 12.5px; }
+
+  input:disabled, select:disabled {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+    cursor: not-allowed;
+  }
 }
 
 // ---- Barra de abas ----

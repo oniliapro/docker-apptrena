@@ -60,3 +60,30 @@ export interface Empreiteiro {
   ativo: boolean;
   observacoes: string;
 }
+
+/** Contato de um fornecedor — pode ter mais de um (comercial, financeiro…). */
+export interface ContatoFornecedor {
+  id: string;
+  nome: string;
+  telefone: string;
+}
+
+/**
+ * Fornecedor de materiais/serviços (quem entra no Mapa de cotação).
+ *
+ * Pedido do Lucas (04/08/2026): hoje o Mapa aceita fornecedor digitado
+ * livremente; a ideia é ter um cadastro de verdade, com contatos, pra
+ * selecionar no Mapa em vez de digitar de novo toda vez.
+ */
+export interface Fornecedor {
+  id: string;
+  nome: string;
+  tipo: TipoPessoa;
+  documento: string;
+  endereco: string;
+  /** Área em que atua: material elétrico, ferragens… — texto livre por enquanto. */
+  especialidade: string;
+  observacoes: string;
+  contatos: ContatoFornecedor[];
+  ativo: boolean;
+}

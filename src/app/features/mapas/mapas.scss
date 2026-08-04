@@ -48,3 +48,80 @@ table { table-layout: auto; }
     line-height: 1;
   }
 }
+
+.link-contagem {
+  border: none;
+  background: none;
+  color: var(--cor-aco);
+  font-weight: 700;
+  font-family: var(--fonte-mono);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover { color: var(--cor-primaria); }
+}
+
+// ---- Popup de pagamentos vinculados ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 94vw);
+  max-height: 80vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; font-size: 13px; }
+
+.modal-corpo { padding: 12px 14px; overflow: auto; }
+
+.tabela-popup {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td { padding: 6px 8px; font-size: 12px; text-align: left; }
+  th { font-family: var(--fonte-mono); font-size: 10px; text-transform: uppercase; color: var(--cor-texto-suave); }
+  .valor { text-align: right; font-family: var(--fonte-mono); }
+  .mono { font-family: var(--fonte-mono); }
+  tbody tr:nth-child(odd) td { background: #fafaf8; }
+}
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+
+  &.pendente {
+    background: var(--cor-alerta-bg);
+    color: var(--cor-alerta);
+  }
+}

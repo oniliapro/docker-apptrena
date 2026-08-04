@@ -114,6 +114,7 @@ export class AppShell {
         { rota: '/obras', texto: 'Obras' },
         { rota: '/responsaveis', texto: 'Responsáveis' },
         { rota: '/empreiteiros', texto: 'Empreiteiros' },
+        { rota: '/fornecedores', texto: 'Fornecedores' },
       ],
     },
     { id: 'mapas', rota: '/mapas', icone: 'camadas', texto: 'Mapas' },

@@ -1,10 +1,13 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { catchError, of } from 'rxjs';
 
 import { Mapa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
+import { Pagamento } from '../pagamentos/pagamentos.models';
 
 /**
  * Lista de mapas de UMA obra, com criação de mapas novos.
@@ -51,6 +54,15 @@ export class MapasObra implements OnInit {
     this.carregar();
   }
 
+  /**
+   * Pagamentos gerados a partir de cada mapa desta obra —
+   * `mapaId -> Pagamento[]`. Mesma correção da lista geral de Mapas
+   * (04/08/2026): o campo `total_mapa` salvo no mapa vinha zerado em
+   * vários casos reais, então o Total passou a ser a soma dos pagamentos
+   * de verdade vinculados por `origem.refId`.
+   */
+  private readonly pagamentosPorMapa = signal<Map<string, Pagamento[]>>(new Map());
+
   private carregar(): void {
     this.carregando.set(true);
     this.erro.set(null);
@@ -65,6 +77,22 @@ export class MapasObra implements OnInit {
         this.carregando.set(false);
       },
     });
+
+    this.api
+      .listarPagamentos({ obraId: this.obraId() })
+      .pipe(catchError(() => of([])))
+      .subscribe((lista) => {
+        const porMapa = new Map<string, Pagamento[]>();
+        for (const bruto of lista) {
+          const pagamento = normalizarPagamento(bruto as Record<string, unknown>);
+          const origem = pagamento.origem;
+          if (origem?.tipo !== 'mapa' || !origem.refId) continue;
+          const atual = porMapa.get(origem.refId) ?? [];
+          atual.push(pagamento);
+          porMapa.set(origem.refId, atual);
+        }
+        this.pagamentosPorMapa.set(porMapa);
+      });
   }
 
   protected numero(mapa: Mapa): string {
@@ -85,7 +113,8 @@ export class MapasObra implements OnInit {
   }
 
   protected total(mapa: Mapa): number {
-    return Number(mapa['total_mapa'] ?? 0);
+    const lista = this.pagamentosPorMapa().get(mapa.id) ?? [];
+    return lista.reduce((soma, p) => soma + (Number(p.valorTotal) || 0), 0);
   }
 
   protected abrir(mapa: Mapa): void {

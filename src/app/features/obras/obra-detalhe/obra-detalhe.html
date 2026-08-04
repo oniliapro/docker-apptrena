@@ -4,30 +4,79 @@
   } @else if (erro(); as mensagem) {
     <div class="atenuado">{{ mensagem }}</div>
   } @else if (obra(); as o) {
-    <div class="obra-nome">{{ o.obra_nome || '(sem nome)' }}</div>
+    <form [formGroup]="formulario">
+      <div class="linha-topo">
+        <input class="obra-nome" type="text" formControlName="obraNome"
+               placeholder="Nome da obra" (change)="editarCampo('obraNome', $event)" />
 
-    <div class="obra-meta">
-      <div>
-        <div class="chave">Cliente</div>
-        <div class="valor-meta">{{ o.cliente || '—' }}</div>
+        <span class="espacador"></span>
+
+        @if (salvando()) {
+          <span class="atenuado pequeno">salvando…</span>
+        }
+
+        <span class="etiqueta" [class.confirmada]="confirmada()">
+          {{ confirmada() ? 'Obra confirmada' : 'Em edição' }}
+        </span>
+        <button type="button" class="primario" (click)="alternarConfirmacao()">
+          {{ confirmada() ? 'Reabrir obra' : 'Confirmar obra' }}
+        </button>
       </div>
-      <div>
-        <div class="chave">Local da obra</div>
-        <div class="valor-meta">{{ o.local_obra || '—' }}</div>
+
+      <div class="grade-cabecalho">
+        <label class="campo">
+          <span>Nº da obra</span>
+          <input type="text" formControlName="mapNumber" (change)="editarCampo('mapNumber', $event)" />
+        </label>
+
+        <label class="campo">
+          <span>Cliente</span>
+          <select formControlName="cliente" (change)="editarCampo('cliente', $event)">
+            <option value="">— selecione —</option>
+            @if (clienteNaoListado()) {
+              <option [value]="o.cliente">{{ o.cliente }} (inativo/não cadastrado)</option>
+            }
+            @for (cliente of clientesAtivos(); track cliente.id) {
+              <option [value]="cliente.nome">{{ cliente.nome }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Local da obra</span>
+          <input type="text" formControlName="localObra" (change)="editarCampo('localObra', $event)" />
+        </label>
+
+        <label class="campo">
+          <span>Responsável</span>
+          <select formControlName="responsavel" (change)="editarCampo('responsavel', $event)">
+            <option value="">— selecione —</option>
+            @if (responsavelNaoListado()) {
+              <option [value]="o.responsavel">{{ o.responsavel }} (inativo/não cadastrado)</option>
+            }
+            @for (responsavel of responsaveisAtivos(); track responsavel.id) {
+              <option [value]="responsavel.nome">{{ responsavel.nome }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Data base</span>
+          <input type="date" formControlName="dataBase" (change)="editarCampo('dataBase', $event)" />
+        </label>
+
+        <label class="campo">
+          <span>Período</span>
+          <input type="text" formControlName="periodo" placeholder="Ex.: Jan/2026"
+                 (change)="editarCampo('periodo', $event)" />
+        </label>
+
+        <label class="campo campo-largo">
+          <span>Observações</span>
+          <input type="text" formControlName="obs" (change)="editarCampo('obs', $event)" />
+        </label>
       </div>
-      <div>
-        <div class="chave">Responsável</div>
-        <div class="valor-meta">{{ o.responsavel || '—' }}</div>
-      </div>
-      <div>
-        <div class="chave">Nº</div>
-        <div class="valor-meta">{{ o.map_number || '—' }}</div>
-      </div>
-      <div>
-        <div class="chave">EAP</div>
-        <div class="valor-meta">{{ o.is_confirmed ? 'Confirmada' : 'Em aberto' }}</div>
-      </div>
-    </div>
+    </form>
   }
 </div>
 

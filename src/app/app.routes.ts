@@ -132,6 +132,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/cadastros/empreiteiros/empreiteiros').then((m) => m.Empreiteiros),
       },
+      {
+        path: 'fornecedores',
+        data: { titulo: 'Fornecedores' },
+        loadComponent: () =>
+          import('./features/cadastros/fornecedores/fornecedores').then((m) => m.Fornecedores),
+      },
 
       // ---- Listas gerais (todas as obras) ----
       {

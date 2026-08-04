@@ -3,9 +3,11 @@ import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { Mapa } from '../../core/models/api.models';
+import { Mapa, Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
+import { Pagamento } from '../pagamentos/pagamentos.models';
 
 /**
  * Lista de Mapas — portado de js/mapas/01-lista.js.
@@ -30,21 +32,34 @@ export class Mapas implements OnInit {
   protected readonly erro = signal<string | null>(null);
 
   protected readonly formatarMoeda = formatarMoeda;
+  protected readonly formatarData = formatarData;
 
   /**
-   * Quantidade de pagamentos gerados a partir de cada mapa —
-   * `mapaId -> contagem`. Cada Pagamento carrega `origem: { tipo:
-   * 'mapa', refId }` quando nasce de "Gerar Pagamento" (ver
-   * `mapa.store.ts#montarPagamentosPorFornecedor`); antes desta correção
-   * (03/08/2026) essa coluna lia um campo `pagamentos_ids` que o backend
-   * nunca envia, então sempre mostrava 0.
-   *
-   * Migrado em 03/08/2026 pro endpoint relacional `/api/pagamentos`: ler
-   * uma chave-valor por obra e procurar `origem.refId` na marra não é
-   * mais necessário — dá pra pedir `listarPagamentos({obraId})` por obra
-   * representada nesta lista, que já vem filtrado pelo backend.
+   * Nome da obra de cada mapa — `obraId -> obra_nome`. A coluna da
+   * lista mostrava "Cliente" (texto digitado à mão dentro do mapa, quase
+   * sempre vazio); trocado para "Obra" (04/08/2026, pedido do Lucas), que
+   * é um dado confiável — vem do cadastro da obra, não de digitação.
    */
-  protected readonly contagemPagamentos = signal<Map<string, number>>(new Map());
+  protected readonly nomeDaObra = signal<Map<string, string>>(new Map());
+
+  /**
+   * Pagamentos gerados a partir de cada mapa — `mapaId -> Pagamento[]`.
+   * Cada Pagamento carrega `origem: { tipo: 'mapa', refId }` quando nasce
+   * de "Gerar Pagamento" (ver `mapa.store.ts#montarPagamentosPorFornecedor`).
+   *
+   * Serve pra três coisas (04/08/2026, revisão da lista com o Lucas):
+   * 1. Contagem da coluna "Pagtos.".
+   * 2. Total da coluna "Total" — o campo `total_mapa` salvo no mapa vinha
+   *    sempre R$ 0,00 em vários casos reais (provavelmente porque só é
+   *    recalculado no editor, e nem todo mapa passa por lá de novo depois
+   *    de gerar pagamento); somar os pagamentos de verdade é mais
+   *    confiável que confiar nesse campo solto.
+   * 3. Popup com a lista de pagamentos ao clicar no número de "Pagtos.".
+   */
+  protected readonly pagamentosPorMapa = signal<Map<string, Pagamento[]>>(new Map());
+
+  /** Mapa cujo popup de pagamentos está aberto — null quando fechado. */
+  protected readonly popupMapa = signal<Mapa | null>(null);
 
   ngOnInit(): void {
     this.carregar();
@@ -58,7 +73,7 @@ export class Mapas implements OnInit {
       next: (mapas) => {
         this.mapas.set(mapas);
         this.carregando.set(false);
-        this.carregarContagemPagamentos(mapas);
+        this.carregarObrasEPagamentos(mapas);
       },
       error: () => {
         this.erro.set('Não foi possível carregar os mapas.');
@@ -67,29 +82,43 @@ export class Mapas implements OnInit {
     });
   }
 
-  private carregarContagemPagamentos(mapas: Mapa[]): void {
+  private carregarObrasEPagamentos(mapas: Mapa[]): void {
     const obraIds = [
       ...new Set(mapas.map((m) => m['obra_id']).filter((id): id is string => !!id)),
     ];
     if (!obraIds.length) return;
 
-    const leituras = obraIds.map((obraId) =>
+    const nomes = obraIds.map((obraId) =>
+      this.api.obterObra(obraId).pipe(catchError(() => of(null as Obra | null))),
+    );
+    const pagamentos = obraIds.map((obraId) =>
       this.api.listarPagamentos({ obraId }).pipe(catchError(() => of([]))),
     );
 
-    forkJoin(leituras).subscribe((resultados) => {
-      const contagem = new Map<string, number>();
+    forkJoin(nomes).subscribe((resultados) => {
+      const mapa = new Map<string, string>();
+      resultados.forEach((obra, indice) => {
+        if (obra) mapa.set(obraIds[indice], String(obra.obra_nome ?? '') || '—');
+      });
+      this.nomeDaObra.set(mapa);
+    });
+
+    forkJoin(pagamentos).subscribe((resultados) => {
+      const porMapa = new Map<string, Pagamento[]>();
 
       for (const lista of resultados) {
-        for (const pagamento of lista) {
-          const origem = pagamento['origem'] as { tipo?: string; refId?: string } | null;
+        for (const bruto of lista) {
+          const pagamento = normalizarPagamento(bruto as Record<string, unknown>);
+          const origem = pagamento.origem;
           if (origem?.tipo !== 'mapa' || !origem.refId) continue;
           const refId = origem.refId;
-          contagem.set(refId, (contagem.get(refId) ?? 0) + 1);
+          const atual = porMapa.get(refId) ?? [];
+          atual.push(pagamento);
+          porMapa.set(refId, atual);
         }
       }
 
-      this.contagemPagamentos.set(contagem);
+      this.pagamentosPorMapa.set(porMapa);
     });
   }
 
@@ -101,8 +130,8 @@ export class Mapas implements OnInit {
     return String(mapa['descricao'] ?? '—');
   }
 
-  protected cliente(mapa: Mapa): string {
-    return String(mapa['cliente'] ?? '—');
+  protected obraDoMapa(mapa: Mapa): string {
+    return this.nomeDaObra().get(this.obraId(mapa)) ?? '—';
   }
 
   protected dataFinalizacao(mapa: Mapa): string {
@@ -113,17 +142,32 @@ export class Mapas implements OnInit {
     return texto.includes('-') ? formatarData(texto) : texto;
   }
 
+  /** Soma dos pagamentos gerados a partir deste mapa — ver `pagamentosPorMapa`. */
   protected total(mapa: Mapa): number {
-    return Number(mapa['total_mapa'] ?? mapa['totalMapa'] ?? 0);
+    const lista = this.pagamentosPorMapa().get(mapa.id) ?? [];
+    return lista.reduce((soma, p) => soma + (Number(p.valorTotal) || 0), 0);
+  }
+
+  protected pagamentosDoMapa(mapa: Mapa): Pagamento[] {
+    return this.pagamentosPorMapa().get(mapa.id) ?? [];
   }
 
   protected quantidadePagamentos(mapa: Mapa): number {
-    return this.contagemPagamentos().get(mapa.id) ?? 0;
+    return this.pagamentosDoMapa(mapa).length;
   }
 
   /** Id da obra dona do mapa — usado pra montar o link de drill-down. */
   protected obraId(mapa: Mapa): string {
     return String(mapa['obra_id'] ?? '');
+  }
+
+  protected abrirPopupPagamentos(mapa: Mapa): void {
+    if (!this.quantidadePagamentos(mapa)) return;
+    this.popupMapa.set(mapa);
+  }
+
+  protected fecharPopupPagamentos(): void {
+    this.popupMapa.set(null);
   }
 
   protected remover(mapa: Mapa): void {

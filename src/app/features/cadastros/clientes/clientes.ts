@@ -105,8 +105,24 @@ export class Clientes implements OnInit {
   // ------------------------------------------------------------------
   protected novo(): void {
     this.editandoId.set(null);
-    this.formulario.reset({ tipo: 'PF' });
+    this.formulario.reset({ tipo: 'PF', identificacao: this.proximoCodigo() });
     this.formularioAberto.set(true);
+  }
+
+  /**
+   * Código interno (ex.: "CLI-014") gerado pelo sistema — não é mais
+   * digitado pelo usuário (pedido do Lucas, 04/08/2026: deve funcionar
+   * como um ID do cliente, sem risco de duplicar ou editar por engano).
+   * Sequencial: maior número já usado em "CLI-NNN" entre os cadastros
+   * existentes, +1.
+   */
+  private proximoCodigo(): string {
+    const maior = this.store.registros().reduce((max, cliente) => {
+      const combinacao = /^CLI-(\d+)$/.exec(cliente.identificacao.trim());
+      const numero = combinacao ? Number(combinacao[1]) : 0;
+      return numero > max ? numero : max;
+    }, 0);
+    return `CLI-${String(maior + 1).padStart(3, '0')}`;
   }
 
   protected editar(cliente: Cliente): void {

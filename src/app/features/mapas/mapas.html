@@ -18,7 +18,7 @@
           <tr>
             <th class="centro">Nº</th>
             <th>Descrição</th>
-            <th>Cliente</th>
+            <th>Obra</th>
             <th class="centro">Finalização</th>
             <th class="valor">Total</th>
             <th class="centro">Pagtos.</th>
@@ -30,10 +30,18 @@
             <tr>
               <td class="centro">{{ numero(mapa) }}</td>
               <td>{{ descricao(mapa) }}</td>
-              <td>{{ cliente(mapa) }}</td>
+              <td>{{ obraDoMapa(mapa) }}</td>
               <td class="centro">{{ dataFinalizacao(mapa) }}</td>
               <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
-              <td class="centro">{{ quantidadePagamentos(mapa) }}</td>
+              <td class="centro">
+                @if (quantidadePagamentos(mapa)) {
+                  <button type="button" class="link-contagem" (click)="abrirPopupPagamentos(mapa)">
+                    {{ quantidadePagamentos(mapa) }}
+                  </button>
+                } @else {
+                  <span class="atenuado">0</span>
+                }
+              </td>
               <td class="centro acoes-linha">
                 <a class="link-medicoes" [routerLink]="['/obras', obraId(mapa), 'mapas', mapa.id]">Ver</a>
                 <button type="button" title="Excluir" (click)="remover(mapa)">✖</button>
@@ -49,3 +57,48 @@
     </div>
   }
 </div>
+
+@if (popupMapa(); as mapa) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharPopupPagamentos()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Pagamentos gerados — {{ descricao(mapa) }}</span>
+        <button type="button" (click)="fecharPopupPagamentos()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <table class="tabela-popup">
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Fornecedor</th>
+              <th class="valor">Total</th>
+              <th class="centro">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pagamento of pagamentosDoMapa(mapa); track pagamento.id) {
+              <tr>
+                <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
+                <td>{{ pagamento.fornecedor || '—' }}</td>
+                <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
+                <td class="centro">
+                  <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                    {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                  </span>
+                </td>
+                <td class="centro">
+                  <a class="link-medicoes" [routerLink]="['/obras', obraId(mapa), 'pagamentos']"
+                     (click)="fecharPopupPagamentos()">Ver</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
