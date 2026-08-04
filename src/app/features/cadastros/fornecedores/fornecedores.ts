@@ -113,7 +113,7 @@ export class Fornecedores implements OnInit {
     });
   }
 
-  protected get contatos(): FormArray {
+  protected get contatos(): FormArray<ReturnType<typeof this.novoControleContato>> {
     return this.formulario.controls.contatos;
   }
 
