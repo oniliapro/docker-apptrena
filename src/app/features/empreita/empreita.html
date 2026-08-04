@@ -49,12 +49,23 @@
         <span class="atenuado pequeno">salvando…</span>
       }
 
+      <button type="button"
+              [disabled]="store.temMedicaoInvalida() || store.totais().pagarEmp <= 0 || store.gerandoPagamento()"
+              (click)="gerarPagamento()"
+              title="Cria um pagamento pendente pro empreiteiro com o avanço medido, pra confirmar depois na aba Pagamentos">
+        {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
+      </button>
+
       <button type="button" class="primario"
               [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0"
               (click)="fecharPeriodo()">
         ✅ Fechar período
       </button>
     </div>
+
+    @if (store.resultadoGerarPagamento(); as mensagem) {
+      <div class="aviso-info">{{ mensagem }}</div>
+    }
 
     <div class="linha-ferramentas">
       <span class="rotulo-grupo">Categorias medidas</span>

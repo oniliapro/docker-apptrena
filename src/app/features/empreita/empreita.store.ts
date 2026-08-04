@@ -1,8 +1,15 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
+import { hojeIso } from '../../core/utils/formato';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { gerarId, normalizarItemEap } from '../eap/eap-normalize';
+import {
+  gerarNumeroPagamento,
+  normalizarPagamento,
+  paraPayloadApi,
+} from '../pagamentos/pagamentos-calc';
+import { ItemPagamento, Pagamento } from '../pagamentos/pagamentos.models';
 import {
   calcularLinhaEmpreita,
   calcularOrcadoDaEap,
@@ -46,6 +53,8 @@ export class EmpreitaStore {
 
   /** Id da empreita atual — definido por `carregar()`, usado em toda gravação. */
   private empreitaId = '';
+  /** Id da obra dona da empreita — usado só por `gerarPagamento()`. */
+  private obraIdAtual = '';
 
   readonly cabecalho = signal<CabecalhoEmpreita>({
     numeroEmpreita: '',
@@ -63,6 +72,9 @@ export class EmpreitaStore {
   readonly carregando = signal(true);
   readonly salvando = signal(false);
   readonly erro = signal<string | null>(null);
+
+  readonly gerandoPagamento = signal(false);
+  readonly resultadoGerarPagamento = signal<string | null>(null);
 
   readonly tiposCusto = TIPOS_CUSTO;
 
@@ -97,6 +109,7 @@ export class EmpreitaStore {
    */
   carregar(empreitaId: string, obraId: string): void {
     this.empreitaId = empreitaId;
+    this.obraIdAtual = obraId;
     this.carregando.set(true);
     this.erro.set(null);
 
@@ -335,5 +348,110 @@ export class EmpreitaStore {
       }),
     );
     this.salvar();
+  }
+
+  // ------------------------------------------------------------------
+  // Gerar Pagamento
+  // ------------------------------------------------------------------
+  /**
+   * Cria um Pagamento pendente pro empreiteiro com o avanço medido nesta
+   * empreita (item 6, 04/08/2026) — mesmo princípio do "Gerar Pagamento"
+   * do Mapa (`MapaStore.gerarPagamentos`), adaptado: aqui só existe um
+   * "fornecedor" (o empreiteiro da empreita), então nasce só 1 pagamento,
+   * com um item por serviço × categoria que teve avanço no período.
+   *
+   * Diferente do Mapa, NÃO é idempotente: cada clique gera um pagamento
+   * novo, porque uma empreita pode ter várias medições ao longo do tempo
+   * (o Mapa é cotação única). Rodar de novo sem medir avanço novo não
+   * gera nada (fica tudo zerado). Chame ANTES de `fecharPeriodo()` — o
+   * cálculo usa o avanço (atual − acumulado), que `fecharPeriodo()` zera.
+   */
+  gerarPagamento(): void {
+    if (!this.empreitaId || !this.obraIdAtual) return;
+
+    this.gerandoPagamento.set(true);
+    this.resultadoGerarPagamento.set(null);
+
+    const obraId = this.obraIdAtual;
+
+    this.api.listarPagamentos({ obraId }).subscribe({
+      next: (brutos) => {
+        const existentes = brutos.map((p) => normalizarPagamento(p as Record<string, unknown>));
+        const novo = this.montarPagamentoDoAvanco(existentes);
+
+        if (!novo) {
+          this.gerandoPagamento.set(false);
+          this.resultadoGerarPagamento.set(
+            'Nenhum avanço de medição pra gerar pagamento — lance a medição atual antes.',
+          );
+          return;
+        }
+
+        this.api.criarPagamento(paraPayloadApi(novo, obraId)).subscribe({
+          next: () => {
+            this.gerandoPagamento.set(false);
+            this.resultadoGerarPagamento.set(
+              'Pagamento gerado — confira na aba Pagamentos da obra.',
+            );
+          },
+          error: () => {
+            this.gerandoPagamento.set(false);
+            this.resultadoGerarPagamento.set('Não foi possível gravar o pagamento.');
+          },
+        });
+      },
+      error: () => {
+        this.gerandoPagamento.set(false);
+        this.resultadoGerarPagamento.set('Não foi possível ler os pagamentos existentes desta obra.');
+      },
+    });
+  }
+
+  /** Um item de pagamento por serviço × categoria com avanço > 0 no período. */
+  private montarPagamentoDoAvanco(numerosEmUso: Pagamento[]): Pagamento | null {
+    const cabecalho = this.cabecalho();
+    const orcado = this.orcado();
+    const tipos = this.tipos();
+
+    const itensPagamento: ItemPagamento[] = [];
+    let valorTotal = 0;
+
+    for (const item of this.itens()) {
+      const linha = calcularLinhaEmpreita(item, cabecalho, orcado);
+      for (const tipo of tipos) {
+        const valor = Number(linha.pagarPorTipo[tipo]) || 0;
+        if (valor <= 0) continue;
+
+        itensPagamento.push({
+          id: gerarId(),
+          descricao: item.desc || 'Serviço',
+          tipo,
+          eapId: item.eapId || '',
+          valor,
+          modoValor: 'valor',
+        });
+        valorTotal += valor;
+      }
+    }
+
+    if (!itensPagamento.length) return null;
+
+    const descricaoBase = [cabecalho.numeroEmpreita, cabecalho.descricaoEmpreita]
+      .filter(Boolean)
+      .join(' — ');
+
+    return {
+      id: gerarId(),
+      numeroPagamento: gerarNumeroPagamento(numerosEmUso),
+      obraNumber: cabecalho.obraNumber,
+      dataSolicitacao: hojeIso(),
+      dataPagamento: '',
+      fornecedor: cabecalho.empreiteiro || 'Empreiteiro',
+      descricao: descricaoBase || 'Medição de empreita',
+      valorTotal,
+      itens: itensPagamento,
+      origem: { tipo: 'empreita', refId: this.empreitaId },
+      status: 'pendente',
+    };
   }
 }

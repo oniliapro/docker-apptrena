@@ -132,6 +132,32 @@ export class Empreita implements OnInit {
     this.store.fecharPeriodo();
   }
 
+  /**
+   * Gera o pagamento pendente do avanço medido — precisa rodar ANTES de
+   * "Fechar período" (que zera o avanço). Ver comentário em
+   * `EmpreitaStore.gerarPagamento`.
+   */
+  protected gerarPagamento(): void {
+    const totais = this.store.totais();
+
+    if (this.store.temMedicaoInvalida()) {
+      window.alert('Há medições menores que o acumulado. Corrija antes de gerar o pagamento.');
+      return;
+    }
+    if (totais.pagarEmp <= 0) {
+      window.alert('Nenhum avanço medido pra pagar ao empreiteiro neste período.');
+      return;
+    }
+
+    const mensagem =
+      `Gerar pagamento ao empreiteiro com o avanço deste período?\n\n` +
+      `A pagar: ${formatarMoeda(totais.pagarEmp)}\n\n` +
+      `Cria um pagamento pendente, pra confirmar depois na aba Pagamentos.`;
+
+    if (!window.confirm(mensagem)) return;
+    this.store.gerarPagamento();
+  }
+
   // ------------------------------------------------------------------
   protected rotuloEap(itemEap: ItemEap): string {
     const eap = String(itemEap.eap ?? '').trim();
