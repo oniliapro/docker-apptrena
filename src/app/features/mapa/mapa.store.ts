@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, forkJoin, of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { Observable, Subject, forkJoin, of } from 'rxjs';
+import { catchError, concatMap, switchMap, tap } from 'rxjs/operators';
 
 import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
@@ -26,6 +26,9 @@ import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
 
 /** Chave da ponte chave-valor onde o cadastro de Responsáveis é gravado. */
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
+
+/** Chave da ponte chave-valor onde o cadastro de Fornecedores é gravado. */
+const CHAVE_FORNECEDORES = 'controleObra.fornecedores.v1';
 
 /**
  * Ids de tipos_custo (tabela seed, ver TiposCustoSeeder.php) — fixos,
@@ -68,25 +71,70 @@ export class MapaStore {
   /** Id do mapa atual — definido por `carregar(mapaId)`, usado em toda gravação. */
   private mapaId = '';
 
-  /** Id da obra da rota — fallback da EAP de etapas quando não há cliente escolhido. */
+  /** Id da obra dona do mapa — vem da rota, usado pra EAP de etapas e Gerar Pagamento. */
   private obraIdDaRota = '';
 
-  /** Todas as obras cadastradas — fonte do select de Cliente e da EAP por cliente. */
-  private readonly obras = signal<Obra[]>([]);
+  /**
+   * Fila de gravações (04/08/2026, investigação de mapas de teste que
+   * sumiram): `salvar()` é chamado a cada edição (fornecedor, item, preço…)
+   * e cada chamada dispara um PUT completo do mapa. Sem sequenciar essas
+   * chamadas, duas edições próximas no tempo geram dois PUTs concorrentes —
+   * se o servidor responder fora de ordem, o PUT mais antigo (com um
+   * snapshot de itens/fornecedores desatualizado) pode chegar por último e
+   * apagar dados de uma edição mais recente já confirmada, já que o
+   * backend faz sync completo (substitui itens/fornecedores pelo que veio
+   * no payload). `concatMap` garante que cada PUT só começa depois do
+   * anterior terminar, e como cada execução lê o estado atual dos signals
+   * no momento em que roda (não no momento em que foi enfileirada), o
+   * último PUT da fila sempre carrega o estado mais recente de verdade.
+   */
+  private readonly salvarSubject = new Subject<void>();
+  private readonly salvar$ = this.salvarSubject.pipe(
+    concatMap(() => this.executarSalvar().pipe(catchError(() => of(null)))),
+  );
 
-  /** Nomes de cliente distintos, das obras cadastradas (revisão 31/07/2026). */
-  readonly clientesDisponiveis = computed(() => {
-    const nomes = this.obras()
-      .map((o) => (o.cliente ?? '').trim())
-      .filter((nome) => nome.length > 0);
-    return Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  });
+  constructor() {
+    this.salvar$.subscribe();
+  }
+
+  /**
+   * Obra dona deste mapa (04/08/2026, pedido do Lucas: "Cliente" deixa de
+   * ser um dropdown escolhido à mão e vira só a Obra, fixa desde a
+   * criação do mapa — `MapasObra.salvar()` já grava `obra_id` no
+   * momento em que o mapa nasce). Usada pra exibir o nome da obra no
+   * cabeçalho (somente leitura) e pra puxar o nome do cliente pro campo
+   * `cabecalho().cliente` automaticamente, sem digitação.
+   */
+  private readonly obraAtual = signal<Obra | null>(null);
+
+  /** Nome da obra pra exibição no cabeçalho — "—" enquanto carrega. */
+  readonly nomeDaObra = computed(() => this.obraAtual()?.obra_nome || '—');
 
   /** Nomes do cadastro de Responsáveis que estão ativos. */
   readonly responsaveisAtivos = signal<string[]>([]);
 
   /**
-   * Etapas (linhas da EAP) da obra do cliente selecionado no cabeçalho.
+   * Cadastro de Fornecedores (nome + contatos), só os ativos — substitui
+   * a lista fixa de `mapa.dados.ts` (04/08/2026, pedido do Lucas: o Mapa
+   * deve selecionar o fornecedor pelo cadastro de verdade, não uma lista
+   * predefinida). Mesma ponte chave-valor usada por Clientes/Responsáveis/
+   * Empreiteiros — ver `features/cadastros/fornecedores`.
+   */
+  private readonly fornecedoresCadastro = signal<{ nome: string; contatos: string[] }[]>([]);
+
+  readonly nomesFornecedoresCadastrados = computed(() =>
+    this.fornecedoresCadastro()
+      .map((f) => f.nome)
+      .filter((nome) => nome.length > 0)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+  );
+
+  contatosDoFornecedor(nome: string): string[] {
+    return this.fornecedoresCadastro().find((f) => f.nome === nome)?.contatos ?? [];
+  }
+
+  /**
+   * Etapas (linhas da EAP) da obra dona do mapa.
    *
    * Guarda o `id` da linha da EAP junto do rótulo: até 03/08/2026 só o
    * rótulo era guardado, e o item do mapa ficava sem `eapId` — por isso os
@@ -101,7 +149,7 @@ export class MapaStore {
     cliente: '',
     responsavelObra: '',
     responsavelMapa: '',
-    data: '',
+    criadoEm: '',
     freteParticular: 0,
     modoManual: false,
     isConfirmed: false,
@@ -163,10 +211,9 @@ export class MapaStore {
   // ------------------------------------------------------------------
   /**
    * `mapaId` é o id do registro em `/mapas` — obrigatório desde a migração pro
-   * relacional. `obraId` (rota /obras/:id/mapas/:mapaId) só serve aqui para
-   * ter uma EAP de referência antes mesmo de o cabeçalho carregar (revisão
-   * 31/07/2026: dropdowns de Cliente/Responsável/Etapa passaram a vir de
-   * dados reais, em vez das listas fixas de mapa.dados.ts).
+   * relacional. `obraId` (rota /obras/:id/mapas/:mapaId) é a obra dona do
+   * mapa — fixa desde a criação (04/08/2026: deixou de existir um fluxo de
+   * "cliente escolhido à mão"; a obra já vem certa da rota).
    */
   carregar(mapaId: string, obraId: string): void {
     this.mapaId = mapaId;
@@ -176,11 +223,16 @@ export class MapaStore {
 
     this.api.obterMapa(mapaId).subscribe({
       next: (mapa) => {
+        // Aplica os dados reais do mapa (itens/fornecedores incluídos)
+        // ANTES de buscar a obra — importante: `carregarObra` pode
+        // disparar um `salvar()` pra preencher o cliente automaticamente,
+        // e esse `salvar()` sempre envia o estado atual completo. Se
+        // rodasse antes de `aplicar()`, mandaria itens/fornecedores vazios
+        // (o estado inicial do signal) e apagaria os dados reais do mapa
+        // no servidor.
         this.aplicar(mapa as Record<string, unknown>);
         this.carregando.set(false);
-        // A EAP de etapas segue o cliente já salvo no mapa; se não houver
-        // nenhum ainda (mapa novo), cai para a EAP da própria obra.
-        this.carregarEapDoCliente(this.cabecalho().cliente || null, obraId);
+        this.carregarObra(obraId);
       },
       error: () => {
         this.erro.set('Não foi possível carregar o mapa.');
@@ -188,18 +240,17 @@ export class MapaStore {
       },
     });
 
-    this.api.listarObras().subscribe({
-      next: (obras) => {
-        this.obras.set(obras);
-        // A lista de obras pode chegar depois do mapa (ou antes) — refaz a
-        // busca da EAP agora que dá pra achar a obra do cliente certo.
-        this.carregarEapDoCliente(this.cabecalho().cliente || null, obraId);
-      },
-      error: () => undefined,
-    });
+    // A EAP de etapas é sempre a da própria obra do mapa — não depende
+    // mais de "achar a obra do cliente escolhido".
+    this.carregarEapDaObra(obraId);
 
     this.armazenamento.ler(CHAVE_RESPONSAVEIS).subscribe({
       next: (bruto) => this.responsaveisAtivos.set(this.extrairResponsaveisAtivos(bruto)),
+      error: () => undefined,
+    });
+
+    this.armazenamento.ler(CHAVE_FORNECEDORES).subscribe({
+      next: (bruto) => this.fornecedoresCadastro.set(this.extrairFornecedoresAtivos(bruto)),
       error: () => undefined,
     });
   }
@@ -219,17 +270,47 @@ export class MapaStore {
     }
   }
 
+  private extrairFornecedoresAtivos(bruto: string | null): { nome: string; contatos: string[] }[] {
+    if (!bruto) return [];
+    try {
+      const lista = JSON.parse(bruto);
+      if (!Array.isArray(lista)) return [];
+      return lista
+        .filter((f: Record<string, unknown>) => f?.['ativo'] !== false)
+        .map((f: Record<string, unknown>) => ({
+          nome: String(f?.['nome'] ?? '').trim(),
+          contatos: (Array.isArray(f?.['contatos']) ? (f['contatos'] as Record<string, unknown>[]) : [])
+            .map((c) => String(c?.['nome'] ?? '').trim())
+            .filter((nome) => nome.length > 0),
+        }))
+        .filter((f) => f.nome.length > 0);
+    } catch {
+      return [];
+    }
+  }
+
   /**
-   * Busca a EAP da obra do cliente escolhido, para alimentar o select de
-   * Etapa dos itens. Sem cliente escolhido (ou sem obra encontrada para
-   * ele), cai para a EAP da própria obra do mapa — melhor do que ficar sem
-   * opção nenhuma.
+   * Busca a obra dona do mapa, pro nome exibido no cabeçalho e pra
+   * preencher `cabecalho().cliente` automaticamente (só se ainda estiver
+   * vazio — mapa novo, ou mapa antigo sem cliente gravado; nunca
+   * sobrescreve um valor já existente). Chamado só depois de `aplicar()`
+   * — ver comentário em `carregar()`.
    */
-  private carregarEapDoCliente(clienteNome: string | null, obraIdDaRota: string): void {
-    const obraDoCliente = clienteNome
-      ? this.obras().find((o) => (o.cliente ?? '').trim() === clienteNome.trim())
-      : undefined;
-    const obraId = obraDoCliente?.id || obraIdDaRota;
+  private carregarObra(obraId: string): void {
+    this.api.obterObra(obraId).subscribe({
+      next: (obra) => {
+        this.obraAtual.set(obra);
+        if (!this.cabecalho().cliente && obra.cliente) {
+          this.cabecalho.update((c) => ({ ...c, cliente: obra.cliente ?? '' }));
+          this.salvar();
+        }
+      },
+      error: () => undefined,
+    });
+  }
+
+  /** Busca a EAP da obra do mapa, para alimentar o select de Etapa dos itens. */
+  private carregarEapDaObra(obraId: string): void {
     if (!obraId) return;
 
     this.api.obterEap(obraId).subscribe({
@@ -279,13 +360,15 @@ export class MapaStore {
       cliente: String(mapa['cliente'] ?? ''),
       responsavelObra: String(mapa['responsavel_obra'] ?? ''),
       responsavelMapa: String(mapa['responsavel_mapa'] ?? ''),
-      // O backend devolve data ISO completa (ex.: 2026-02-12T00:00:00.000000Z);
-      // o <input type="date"> só aceita AAAA-MM-DD.
-      data: String(mapa['data_finalizacao'] ?? '').slice(0, 10),
+      // Datas automáticas (04/08/2026) — vêm prontas do servidor, com
+      // hora, e não são mais digitadas: `created_at` é o timestamp padrão
+      // do Eloquent (quando o registro do mapa nasceu); `confirmed_at` é
+      // gravado por `alternarConfirmacao()` no momento de "Finalizar mapa".
+      criadoEm: String(mapa['created_at'] ?? ''),
       freteParticular: Number(mapa['frete_particular']) || 0,
       modoManual: Boolean(mapa['modo_manual']),
       isConfirmed: Boolean(mapa['is_confirmed']),
-      confirmedAt: String(mapa['confirmed_at'] ?? '').slice(0, 10),
+      confirmedAt: String(mapa['confirmed_at'] ?? ''),
     });
 
     const fornecedoresBrutos = Array.isArray(mapa['fornecedores'])
@@ -342,7 +425,11 @@ export class MapaStore {
   salvar(): void {
     if (!this.mapaId) return;
     this.salvando.set(true);
+    this.salvarSubject.next();
+  }
 
+  /** Execução de fato do PUT — sempre lê o estado mais atual dos signals. */
+  private executarSalvar(): Observable<unknown> {
     const fornecedores = this.fornecedores();
     const cabecalho = this.cabecalho();
 
@@ -352,7 +439,6 @@ export class MapaStore {
       cliente: cabecalho.cliente,
       responsavel_obra: cabecalho.responsavelObra,
       responsavel_mapa: cabecalho.responsavelMapa,
-      data_finalizacao: cabecalho.data || null,
       frete_particular: cabecalho.freteParticular,
       modo_manual: cabecalho.modoManual,
       is_confirmed: cabecalho.isConfirmed,
@@ -383,17 +469,19 @@ export class MapaStore {
       })),
     };
 
-    this.api.atualizarMapa(this.mapaId, payload).subscribe({
-      next: (mapa) => {
-        // Fornecedores/itens recém-criados só ganham id de verdade na
-        // resposta — reaplica pra manter os índices corretos na próxima
-        // gravação (ex.: fornecedorEscolhidoIndex depende de ordem estável,
-        // não de id, então isso é só higiene, não corrige um bug).
-        this.aplicar(mapa as Record<string, unknown>);
-        this.salvando.set(false);
-      },
-      error: () => this.salvando.set(false),
-    });
+    return this.api.atualizarMapa(this.mapaId, payload).pipe(
+      tap({
+        next: (mapa) => {
+          // Fornecedores/itens recém-criados só ganham id de verdade na
+          // resposta — reaplica pra manter os índices corretos na próxima
+          // gravação (ex.: fornecedorEscolhidoIndex depende de ordem estável,
+          // não de id, então isso é só higiene, não corrige um bug).
+          this.aplicar(mapa as Record<string, unknown>);
+          this.salvando.set(false);
+        },
+        error: () => this.salvando.set(false),
+      }),
+    );
   }
 
   /**
@@ -426,23 +514,19 @@ export class MapaStore {
   atualizarCabecalho<K extends keyof CabecalhoMapa>(campo: K, valor: CabecalhoMapa[K]): void {
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
-
-    // Trocar o cliente muda de qual obra vem a EAP usada nas etapas dos itens.
-    if (campo === 'cliente') {
-      this.carregarEapDoCliente(String(valor) || null, this.obraIdDaRota);
-    }
   }
 
   /**
    * Finaliza (ou reabre) o mapa — mesmo padrão de `EapStore.alternarConfirmacao()`.
    * Enquanto não finalizado, a tela permanece editável e os botões de
-   * Gerar PDF / Gerar Pagamento ficam desabilitados.
+   * Gerar PDF / Gerar Pagamento ficam desabilitados. `confirmedAt` guarda
+   * data E hora (04/08/2026) — antes só a data.
    */
   alternarConfirmacao(): void {
     this.cabecalho.update((c) => ({
       ...c,
       isConfirmed: !c.isConfirmed,
-      confirmedAt: !c.isConfirmed ? new Date().toISOString().slice(0, 10) : '',
+      confirmedAt: !c.isConfirmed ? new Date().toISOString() : '',
     }));
     this.salvar();
   }

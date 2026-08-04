@@ -106,15 +106,29 @@ export interface CabecalhoEapSnapshot {
 export interface CabecalhoMapa {
   numeroMapa: string;
   descricao: string;
+  /**
+   * Nome do cliente — não é mais digitado nem escolhido aqui (04/08/2026):
+   * é puxado automaticamente da Obra dona do mapa (`MapaStore.obraAtual`),
+   * só guardado neste campo pra manter o dado no registro do mapa (ex.:
+   * impressão). Ver `nomeDaObra`/`obraAtual` no store — o vínculo de
+   * verdade é `obra_id`, fixo desde a criação do mapa.
+   */
   cliente: string;
   responsavelObra: string;
   responsavelMapa: string;
-  data: string;
+  /**
+   * Data/hora de criação do mapa (`created_at`) — só leitura, preenchida
+   * pelo servidor. Substitui o antigo campo "Data" editável à mão
+   * (04/08/2026, pedido do Lucas: as duas datas do cabeçalho devem ser
+   * automáticas, com hora, e travadas pra edição).
+   */
+  criadoEm: string;
   /** Frete pago por fora da nota — não sofre imposto. */
   freteParticular: number;
   /** Quando ligado, o usuário escolhe o fornecedor de cada item. */
   modoManual: boolean;
   /** Mapa finalizado: trava edição e libera Gerar PDF / Gerar Pagamento. */
   isConfirmed: boolean;
+  /** Data/hora em que o mapa foi finalizado — também automática, com hora. */
   confirmedAt: string;
 }

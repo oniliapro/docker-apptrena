@@ -21,19 +21,17 @@
                (change)="editarCabecalho('descricao', $event)" />
       </label>
       <label class="campo">
-        <span>Data</span>
-        <input type="date" [value]="store.cabecalho().data"
-               (change)="editarCabecalho('data', $event)" />
+        <span>Início do mapa</span>
+        <input type="text" [value]="formatarDataHora(store.cabecalho().criadoEm) || '—'" disabled />
+      </label>
+      <label class="campo">
+        <span>Finalização do mapa</span>
+        <input type="text" [value]="formatarDataHora(store.cabecalho().confirmedAt) || '—'" disabled />
       </label>
 
       <label class="campo">
-        <span>Cliente</span>
-        <select [value]="store.cabecalho().cliente" (change)="editarCabecalho('cliente', $event)">
-          <option value=""></option>
-          @for (cliente of store.clientesDisponiveis(); track cliente) {
-            <option [value]="cliente" [selected]="cliente === store.cabecalho().cliente">{{ cliente }}</option>
-          }
-        </select>
+        <span>Obra</span>
+        <input type="text" [value]="store.nomeDaObra()" disabled />
       </label>
       <label class="campo">
         <span>Responsável da obra</span>
@@ -124,7 +122,7 @@
                   <span>Nome</span>
                   <select [value]="fornecedor.nome" (change)="editarNomeFornecedor($index, $event)">
                     <option value=""></option>
-                    @for (nome of listaFornecedores; track nome) {
+                    @for (nome of store.nomesFornecedoresCadastrados(); track nome) {
                       <option [value]="nome" [selected]="nome === fornecedor.nome">{{ nome }}</option>
                     }
                   </select>

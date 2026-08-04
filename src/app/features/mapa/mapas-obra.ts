@@ -44,10 +44,8 @@ export class MapasObra implements OnInit {
   protected readonly formulario = this.fb.nonNullable.group({
     numeroMapa: [''],
     descricao: ['', [Validators.required]],
-    cliente: [''],
     responsavelObra: [''],
     responsavelMapa: [''],
-    dataFinalizacao: [''],
   });
 
   ngOnInit(): void {
@@ -107,8 +105,14 @@ export class MapasObra implements OnInit {
     return String(mapa['cliente'] ?? '—');
   }
 
+  /**
+   * Coluna "Finalização" — passou a ler `confirmed_at` (04/08/2026), o
+   * timestamp automático de quando o mapa foi finalizado (botão
+   * "Finalizar mapa" no editor). O antigo `data_finalizacao` era digitado
+   * à mão e não tinha relação garantida com o mapa estar de fato pronto.
+   */
   protected dataFinalizacao(mapa: Mapa): string {
-    const bruto = mapa['data_finalizacao'];
+    const bruto = mapa['confirmed_at'];
     return bruto ? formatarData(String(bruto)) : '—';
   }
 
@@ -151,14 +155,16 @@ export class MapasObra implements OnInit {
 
     const v = this.formulario.getRawValue();
 
+    // Cliente e datas não são mais digitados aqui (04/08/2026, pedido do
+    // Lucas): o editor do mapa puxa o cliente automaticamente da obra
+    // (`MapaStore.carregarObra`) e as datas de início/finalização são
+    // preenchidas pelo próprio sistema (created_at / confirmed_at).
     const payload = {
       obra_id: this.obraId(),
       numero_mapa: v.numeroMapa.trim(),
       descricao: v.descricao.trim(),
-      cliente: v.cliente.trim(),
       responsavel_obra: v.responsavelObra.trim(),
       responsavel_mapa: v.responsavelMapa.trim(),
-      data_finalizacao: v.dataFinalizacao || null,
       frete_particular: 0,
       modo_manual: false,
     };

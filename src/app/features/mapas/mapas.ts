@@ -134,12 +134,15 @@ export class Mapas implements OnInit {
     return this.nomeDaObra().get(this.obraId(mapa)) ?? '—';
   }
 
+  /**
+   * Coluna "Finalização" — lê `confirmed_at` (04/08/2026), preenchido
+   * automaticamente pelo botão "Finalizar mapa" no editor. Substitui o
+   * antigo `data_finalizacao`, que era digitado à mão e não garantia que
+   * o mapa estivesse de fato pronto.
+   */
   protected dataFinalizacao(mapa: Mapa): string {
-    const bruto = mapa['data_finalizacao'] ?? mapa['dataFinalizacao'];
-    if (!bruto) return '—';
-    // O formato antigo já vinha em dd/mm/aaaa; o novo vem ISO.
-    const texto = String(bruto);
-    return texto.includes('-') ? formatarData(texto) : texto;
+    const bruto = mapa['confirmed_at'];
+    return bruto ? formatarData(String(bruto)) : '—';
   }
 
   /** Soma dos pagamentos gerados a partir deste mapa — ver `pagamentosPorMapa`. */

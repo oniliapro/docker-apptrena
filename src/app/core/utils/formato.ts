@@ -23,6 +23,16 @@ export function hojeIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Aceita ISO completo (com hora) e devolve "25/07/2026 14:30", no fuso local do navegador. */
+export function formatarDataHora(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return '';
+  const horas = String(data.getHours()).padStart(2, '0');
+  const minutos = String(data.getMinutes()).padStart(2, '0');
+  return `${formatarData(iso)} ${horas}:${minutos}`;
+}
+
 /**
  * Dias entre hoje e a data informada. Negativo se já passou;
  * null se não houver data.

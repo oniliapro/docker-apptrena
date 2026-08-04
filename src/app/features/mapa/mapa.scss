@@ -70,6 +70,12 @@ button:disabled {
   }
 
   input, select { height: 26px; }
+
+  input:disabled {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+    cursor: not-allowed;
+  }
 }
 
 // ---- Barra de ações ----

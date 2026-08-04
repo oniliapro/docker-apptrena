@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, input } from '@angular/core';
 
-import { formatarMoeda } from '../../core/utils/formato';
+import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
 import {
@@ -9,7 +9,6 @@ import {
   obterVencedorAutomatico,
   obterVencedorEfetivo,
 } from './mapa-engine';
-import { CONTATOS, FORNECEDORES } from './mapa.dados';
 import { ResumoEtapas } from './mapa-resumo-etapas';
 import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
 import { MapaStore } from './mapa.store';
@@ -51,7 +50,7 @@ export class Mapa implements OnInit {
   readonly mapaId = input.required<string>({ alias: 'mapaId' });
 
   protected readonly formatarMoeda = formatarMoeda;
-  protected readonly listaFornecedores = FORNECEDORES;
+  protected readonly formatarDataHora = formatarDataHora;
 
   /**
    * Rateio por etapa. Fica como instância própria do componente porque
@@ -143,7 +142,7 @@ export class Mapa implements OnInit {
   // Fornecedores
   // ------------------------------------------------------------------
   protected contatosDe(fornecedor: Fornecedor): string[] {
-    return CONTATOS[fornecedor.nome] ?? [];
+    return this.store.contatosDoFornecedor(fornecedor.nome);
   }
 
   protected editarNomeFornecedor(indice: number, evento: Event): void {
