@@ -5,6 +5,7 @@ import {
   Empreita,
   Mapa,
   Obra,
+  Pagamento,
   RegistroDiario,
   dadosDaEmpresa,
   rotuloStatusObra,
@@ -47,11 +48,13 @@ export class Dashboard implements OnInit {
   protected readonly diarios = signal<RegistroDiario[]>([]);
   protected readonly mapas = signal<Mapa[]>([]);
   protected readonly empreitas = signal<Empreita[]>([]);
+  protected readonly pagamentos = signal<Pagamento[]>([]);
 
   protected readonly carregandoObras = signal(true);
   protected readonly carregandoDiarios = signal(true);
   protected readonly carregandoMapas = signal(true);
   protected readonly carregandoEmpreitas = signal(true);
+  protected readonly carregandoPagamentos = signal(true);
 
   /** Quantos itens cada card mostra antes do "ver mais". */
   private readonly LIMITE = 5;
@@ -62,6 +65,7 @@ export class Dashboard implements OnInit {
     this.carregarDiarios();
     this.carregarMapas();
     this.carregarEmpreitas();
+    this.carregarPagamentos();
   }
 
   private carregarObras(): void {
@@ -139,6 +143,22 @@ export class Dashboard implements OnInit {
         this.carregandoEmpreitas.set(false);
       },
       error: () => this.carregandoEmpreitas.set(false),
+    });
+  }
+
+  /**
+   * Card "Pagamentos" — ficou como placeholder estático desde antes da
+   * migração pro endpoint relacional (03/08/2026): antes não existia
+   * como listar "todos os pagamentos" nenhum lugar. Mesmo padrão dos
+   * cards de Mapas/Empreitas acima.
+   */
+  private carregarPagamentos(): void {
+    this.api.listarPagamentos().subscribe({
+      next: (pagamentos) => {
+        this.pagamentos.set(pagamentos.slice(0, this.LIMITE));
+        this.carregandoPagamentos.set(false);
+      },
+      error: () => this.carregandoPagamentos.set(false),
     });
   }
 

@@ -136,9 +136,23 @@
   <div class="cartao-lista">
     <div class="cartao-cabecalho">
       <h3>Pagamentos</h3>
-      <a routerLink="/obras" title="Pagamentos ficam dentro de cada obra">Ver todos →</a>
+      <a routerLink="/pagamentos">Ver todos →</a>
     </div>
-    <div class="vazio atenuado">Abra a tela de pagamentos para lançar e consultar.</div>
+
+    @if (carregandoPagamentos()) {
+      <div class="vazio atenuado">Carregando…</div>
+    } @else {
+      @for (pagamento of pagamentos(); track pagamento.id) {
+        <div class="linha">
+          <span>
+            <span class="t1">{{ campo(pagamento, 'fornecedor') }}</span>
+            <span class="t2">{{ campo(pagamento, 'obraNumber') }} · {{ campo(pagamento, 'numeroPagamento') }}</span>
+          </span>
+        </div>
+      } @empty {
+        <div class="vazio atenuado">Nenhum pagamento lançado.</div>
+      }
+    }
   </div>
 
   <!-- Relatórios -->
