@@ -73,7 +73,7 @@
               <td class="valor"><b>{{ formatarMoeda(total(empreita)) }}</b></td>
               <td class="valor"><b>{{ formatarMoeda(totalPago(empreita)) }}</b></td>
               <td class="centro">
-                <a class="link-medicoes" [routerLink]="['/empreitas', empreita.id, 'medicoes']">
+                <a class="link-medicoes" [routerLink]="['/obras', obraId(empreita), 'empreitas', empreita.id]">
                   Ver
                 </a>
               </td>

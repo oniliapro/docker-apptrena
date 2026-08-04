@@ -140,8 +140,16 @@ export const routes: Routes = [
           import('./features/empreitas/medicoes/medicoes').then((m) => m.Medicoes),
       },
       // Pagamentos (editor único) mudou para /obras/:id/pagamentos — task
-      // "obra como contexto" (28/07/2026). Sem essa rota geral, cada
-      // pagamento agora só existe dentro de uma obra.
+      // "obra como contexto" (28/07/2026). A rota geral abaixo voltou em
+      // 03/08/2026 (item 4) como LISTA (todos os pagamentos de todas as
+      // obras, via /api/pagamentos relacional), não editor — o "Ver" de
+      // cada linha manda pra página que originou o lançamento.
+      {
+        path: 'pagamentos',
+        data: { titulo: 'Pagamentos' },
+        loadComponent: () =>
+          import('./features/pagamentos-geral/pagamentos-geral').then((m) => m.PagamentosGeral),
+      },
       {
         path: 'diario-obra',
         data: { titulo: 'Diários de obra' },

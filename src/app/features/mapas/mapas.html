@@ -34,7 +34,8 @@
               <td class="centro">{{ dataFinalizacao(mapa) }}</td>
               <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
               <td class="centro">{{ quantidadePagamentos(mapa) }}</td>
-              <td class="centro">
+              <td class="centro acoes-linha">
+                <a class="link-medicoes" [routerLink]="['/obras', obraId(mapa), 'mapas', mapa.id]">Ver</a>
                 <button type="button" title="Excluir" (click)="remover(mapa)">✖</button>
               </td>
             </tr>

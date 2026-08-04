@@ -121,6 +121,11 @@ export class Mapas implements OnInit {
     return this.contagemPagamentos().get(mapa.id) ?? 0;
   }
 
+  /** Id da obra dona do mapa — usado pra montar o link de drill-down. */
+  protected obraId(mapa: Mapa): string {
+    return String(mapa['obra_id'] ?? '');
+  }
+
   protected remover(mapa: Mapa): void {
     if (!window.confirm('Excluir este mapa da lista?')) return;
 

@@ -1,0 +1,58 @@
+<div class="cabecalho">
+  <div>
+    <h1>Pagamentos</h1>
+    <div class="atenuado">Todos os lançamentos, de todas as obras</div>
+  </div>
+  <a class="botao-novo" routerLink="/obras" title="Escolha a obra para lançar o pagamento">+ Novo pagamento</a>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Obra</th>
+            <th class="centro">Nº</th>
+            <th class="centro">Solicitação</th>
+            <th>Fornecedor</th>
+            <th>Descrição</th>
+            <th class="centro">Origem</th>
+            <th class="valor">Total</th>
+            <th class="centro">Status</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pagamento of pagamentos(); track pagamento.id) {
+            <tr>
+              <td class="centro">{{ obraNumber(pagamento) }}</td>
+              <td class="centro">{{ numero(pagamento) }}</td>
+              <td class="centro">{{ dataSolicitacao(pagamento) }}</td>
+              <td>{{ fornecedor(pagamento) }}</td>
+              <td>{{ descricao(pagamento) }}</td>
+              <td class="centro">{{ origemRotulo(pagamento) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(valorTotal(pagamento)) }}</b></td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="pendente(pagamento)">
+                  {{ pendente(pagamento) ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </td>
+              <td class="centro">
+                <a class="link-medicoes" [routerLink]="rotaOrigem(pagamento)">Ver</a>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="centro atenuado">Nenhum pagamento lançado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

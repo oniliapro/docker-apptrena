@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
-import { Empreita } from '../../core/models/api.models';
+import { Empreita, Pagamento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
 
@@ -16,9 +18,12 @@ interface ServicoEmpreita {
  *
  * O original montava as colunas "Serviços" e "Pagamentos" cruzando três
  * chaves diferentes do localStorage (empreitas, pagamentos e um snapshot
- * da EAP) na mão. Aqui as colunas alternáveis foram preservadas, mas o
- * cruzamento com pagamentos depende do backend devolver esses dados
- * junto — enquanto isso, a coluna mostra o que vier em `pagamentos`.
+ * da EAP) na mão. Aqui a coluna "Pagamentos" cruza com o endpoint
+ * relacional `/api/pagamentos` (migrado em 03/08/2026), filtrando por
+ * `origem.tipo === 'empreita'` e `origem.refId === empreita.id` — mesmo
+ * princípio da coluna "Pagtos." da lista de Mapas. Fica vazia até existir
+ * uma forma de gerar pagamento a partir de uma medição de empreita (item
+ * 6, ainda não construído).
  */
 @Component({
   selector: 'app-empreitas',
@@ -38,6 +43,9 @@ export class Empreitas implements OnInit {
 
   protected readonly formatarMoeda = formatarMoeda;
 
+  /** `empreitaId -> pagamentos` gerados a partir dela (ver comentário acima). */
+  protected readonly pagamentosPorEmpreita = signal<Map<string, Pagamento[]>>(new Map());
+
   ngOnInit(): void {
     this.carregar();
   }
@@ -50,12 +58,45 @@ export class Empreitas implements OnInit {
       next: (empreitas) => {
         this.empreitas.set(empreitas);
         this.carregando.set(false);
+        this.carregarPagamentos(empreitas);
       },
       error: () => {
         this.erro.set('Não foi possível carregar as empreitas.');
         this.carregando.set(false);
       },
     });
+  }
+
+  private carregarPagamentos(empreitas: Empreita[]): void {
+    const obraIds = [
+      ...new Set(empreitas.map((e) => e['obra_id']).filter((id): id is string => !!id)),
+    ];
+    if (!obraIds.length) return;
+
+    const leituras = obraIds.map((obraId) =>
+      this.api.listarPagamentos({ obraId }).pipe(catchError(() => of([]))),
+    );
+
+    forkJoin(leituras).subscribe((resultados) => {
+      const mapa = new Map<string, Pagamento[]>();
+
+      for (const lista of resultados) {
+        for (const pagamento of lista) {
+          const origem = pagamento['origem'] as { tipo?: string; refId?: string } | null;
+          if (origem?.tipo !== 'empreita' || !origem.refId) continue;
+          const lista2 = mapa.get(origem.refId) ?? [];
+          lista2.push(pagamento);
+          mapa.set(origem.refId, lista2);
+        }
+      }
+
+      this.pagamentosPorEmpreita.set(mapa);
+    });
+  }
+
+  /** Id da obra dona da empreita — usado pra montar o link de drill-down. */
+  protected obraId(e: Empreita): string {
+    return String(e['obra_id'] ?? '');
   }
 
   protected alternarServicos(): void {
@@ -87,9 +128,8 @@ export class Empreitas implements OnInit {
     return Array.isArray(lista) ? (lista as ServicoEmpreita[]) : [];
   }
 
-  protected pagamentos(e: Empreita): Array<Record<string, unknown>> {
-    const lista = e['pagamentos'];
-    return Array.isArray(lista) ? (lista as Array<Record<string, unknown>>) : [];
+  protected pagamentos(e: Empreita): Pagamento[] {
+    return this.pagamentosPorEmpreita().get(e.id) ?? [];
   }
 
   protected totalPago(e: Empreita): number {
