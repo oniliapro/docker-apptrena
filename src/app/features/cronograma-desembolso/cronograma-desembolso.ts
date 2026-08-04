@@ -50,7 +50,7 @@ const NOMES_MES = [
   styleUrl: './cronograma-desembolso.scss',
 })
 export class CronogramaDesembolso implements OnInit {
-  private readonly eap = inject(EapStore);
+  protected readonly eap = inject(EapStore);
   protected readonly pagamentosStore = inject(PagamentosStore);
   protected readonly formatarMoeda = formatarMoeda;
 
