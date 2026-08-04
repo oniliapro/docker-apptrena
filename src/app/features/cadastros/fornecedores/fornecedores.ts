@@ -195,9 +195,15 @@ export class Fornecedores implements OnInit {
   // campo de digitação manual continua ali para completar ou corrigir.
   // ------------------------------------------------------------------
   protected selecionarNota(evento: Event): void {
-    const arquivos = (evento.target as HTMLInputElement).files;
-    this.notaSelecionada = arquivos?.[0] ?? null;
+    const alvo = evento.target as HTMLInputElement;
+    this.notaSelecionada = alvo.files?.[0] ?? null;
     this.statusNota.set('');
+    // Limpa o valor pra permitir escolher a mesma foto de novo depois.
+    alvo.value = '';
+
+    if (this.notaSelecionada) {
+      this.lerNota();
+    }
   }
 
   protected lerNota(): void {

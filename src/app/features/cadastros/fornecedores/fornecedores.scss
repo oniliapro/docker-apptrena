@@ -181,8 +181,19 @@
   gap: 10px;
   flex-wrap: wrap;
 
-  input[type='file'] { width: auto; height: 26px; flex: 1; min-width: 200px; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.input-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 // ---- Escolha do tipo de pessoa ----
