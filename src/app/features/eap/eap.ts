@@ -10,7 +10,6 @@ import { ehDescendente } from './eap-engine';
 import { criarVazioPorTipo } from './eap-normalize';
 import { EapStore } from './eap.store';
 import {
-  CabecalhoObra,
   ChaveTipo,
   EscopoBdi,
   ItemEap,
@@ -162,12 +161,8 @@ export class Eap implements OnInit {
   }
 
   // ------------------------------------------------------------------
-  // Cabeçalho
+  // Cabeçalho (só o que é específico da EAP/orçamento — BDI, confirmação)
   // ------------------------------------------------------------------
-  protected editarCabecalho(campo: keyof CabecalhoObra, evento: Event): void {
-    this.store.atualizarCabecalho(campo, (evento.target as HTMLInputElement).value);
-  }
-
   protected mudarEscopoBdi(escopo: EscopoBdi): void {
     this.store.atualizarCabecalho('bdiScope', escopo);
   }

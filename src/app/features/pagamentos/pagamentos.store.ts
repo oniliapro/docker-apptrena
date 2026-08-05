@@ -29,6 +29,12 @@ export class PagamentosStore {
   private obraId = '';
 
   readonly cabecalho = signal<CabecalhoPagamentos>({ obraNumber: '' });
+  /**
+   * Nome da obra — só leitura, usado como reserva na coluna "Obra" da
+   * tabela quando a obra não tem `map_number` cadastrado (05/08/2026,
+   * revisão: a coluna ficava "—" pra sempre em obras sem número).
+   */
+  readonly obraNome = signal('');
   readonly pagamentos = signal<Pagamento[]>([]);
   readonly snapshotEap = signal<ItemEapSnapshot[]>([]);
   readonly carregando = signal(true);
@@ -69,7 +75,10 @@ export class PagamentosStore {
    */
   private carregarObraNumber(obraId: string): void {
     this.api.obterObra(obraId).subscribe({
-      next: (obra) => this.cabecalho.set({ obraNumber: String(obra.map_number ?? '') }),
+      next: (obra) => {
+        this.cabecalho.set({ obraNumber: String(obra.map_number ?? '') });
+        this.obraNome.set(String(obra.obra_nome ?? ''));
+      },
       error: () => undefined,
     });
   }

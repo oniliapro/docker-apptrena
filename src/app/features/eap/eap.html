@@ -6,56 +6,18 @@
     <div class="aviso-erro">{{ mensagem }}</div>
   }
 
-  <!-- ============ Cabeçalho da obra ============ -->
-  <div class="painel cabecalho-obra">
-    <div class="grade-cabecalho">
-      <label class="campo">
-        <span>Nº da obra</span>
-        <input type="text" placeholder="Ex.: OB-2026-001"
-               [value]="store.cabecalho().mapNumber"
-               (change)="editarCabecalho('mapNumber', $event)" />
-      </label>
-      <label class="campo campo-largo">
-        <span>Obra</span>
-        <input type="text" placeholder="Nome da obra"
-               [value]="store.cabecalho().obraNome"
-               (change)="editarCabecalho('obraNome', $event)" />
-      </label>
-      <label class="campo">
-        <span>Cliente</span>
-        <input type="text" [value]="store.cabecalho().cliente"
-               (change)="editarCabecalho('cliente', $event)" />
-      </label>
-      <label class="campo">
-        <span>Data base</span>
-        <input type="date" [value]="store.cabecalho().dataBase"
-               (change)="editarCabecalho('dataBase', $event)" />
-      </label>
-      <label class="campo">
-        <span>Responsável</span>
-        <input type="text" placeholder="Eng. / Técnico"
-               [value]="store.cabecalho().responsavel"
-               (change)="editarCabecalho('responsavel', $event)" />
-      </label>
-      <label class="campo">
-        <span>Local</span>
-        <input type="text" placeholder="Cidade/UF"
-               [value]="store.cabecalho().local"
-               (change)="editarCabecalho('local', $event)" />
-      </label>
-      <label class="campo">
-        <span>Período</span>
-        <input type="text" placeholder="Ex.: Jan/2026"
-               [value]="store.cabecalho().periodo"
-               (change)="editarCabecalho('periodo', $event)" />
-      </label>
-      <label class="campo campo-largo">
-        <span>Observações</span>
-        <input type="text" [value]="store.cabecalho().obs"
-               (change)="editarCabecalho('obs', $event)" />
-      </label>
-    </div>
-  </div>
+  <!--
+    O cabeçalho de identificação da obra (Nº, nome, cliente, data base,
+    responsável, local, período, observações) já é mostrado uma vez em
+    `obra-detalhe.html`, acima das abas, e edita a Obra de verdade (via
+    ApiService.atualizarObra). Até 05/08/2026 este componente repetia os
+    mesmos campos aqui embaixo, mas editando um blob solto e independente
+    (`EapPayload.header`, herdado da ponte chave-valor do app antigo) —
+    os dois nunca ficavam sincronizados (dava pra ver "Data base" vazia
+    em cima e preenchida aqui, por exemplo). Removido o bloco duplicado;
+    `store.cabecalho()` continua existindo só para os campos que são
+    mesmo específicos da EAP/orçamento (BDI, confirmação, etc.).
+  -->
 
   <!-- ============ Ações e colunas ============ -->
   <div class="painel barra-ferramentas">
@@ -203,7 +165,7 @@
             <td>
               <input type="text" class="descricao"
                      [style.padding-left.px]="8 + nivel(item) * 14"
-                     [value]="item.desc"
+                     [value]="item.desc" [title]="item.desc"
                      (change)="editarTexto(item, 'desc', $event)" />
             </td>
             <td>
