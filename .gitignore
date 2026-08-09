@@ -10,6 +10,9 @@ banco-mysql/
 # Logs
 nginx/logs/
 *.log
+npm-debug.log
+yarn-error.log
+testem.log
 
 # Pastas de referência/lixo, não fazem parte do sistema em produção
 _lixo_backend/
@@ -23,3 +26,35 @@ _lixo_laravel_ref/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Frontend (Angular) — build, dependências e artefatos gerados
+/frontend/dist
+/frontend/tmp
+/frontend/out-tsc
+/frontend/bazel-out
+/frontend/node_modules
+/frontend/.angular/cache
+/frontend/connect.lock
+/frontend/coverage
+/frontend/libpeerconnection.log
+/frontend/typings
+/frontend/verificacao/portado-*.js
+/frontend/revisao-para-enviar
+.sass-cache/
+__screenshots__/
+
+# IDEs e editores
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+/frontend/.vscode/*
+!/frontend/.vscode/settings.json
+!/frontend/.vscode/tasks.json
+!/frontend/.vscode/launch.json
+!/frontend/.vscode/extensions.json
+!/frontend/.vscode/mcp.json
+/frontend/.history/*
