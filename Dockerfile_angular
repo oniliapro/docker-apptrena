@@ -1,0 +1,28 @@
+FROM node:24.18.1
+
+# Definir o diretório de trabalho dentro do container
+WORKDIR /frontend
+
+# Copiar todo o conteúdo da pasta do projeto (/frontend) para a raiz do container
+COPY frontend/ .
+
+# Atualizar o apt
+RUN apt update -y && apt list --upgradable
+
+# Instalar o @angular/cli globalmente (fixado na major 19 para bater com a versão do Angular do
+# projeto — "latest" instalaria uma major mais nova e incompatível com o resto do código)
+RUN npm install -g @angular/cli@19 --verbose
+
+# Garantir que o @angular-devkit/build-angular está instalado
+# RUN npm install --verbose @angular-devkit/build-angular
+
+# Instalar as dependências do projeto
+RUN npm install --verbose
+
+# Expor a porta 4200
+EXPOSE 4200
+
+# Executar o ng serve na porta 4200
+#CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--configuration=development", "--disable-host-check", "--no-open"]
+#CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--configuration=development", "--no-open"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--configuration=development"]
