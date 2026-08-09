@@ -1,0 +1,282 @@
+:host { display: block; }
+
+.painel { margin-bottom: 14px; }
+.painel.sem-preenchimento { padding: 0; overflow-x: auto; }
+
+.aviso-erro {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.aviso-info {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 11.5px;
+}
+
+// ---- Cabeçalho ----
+.grade-cabecalho {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 12px;
+}
+
+.campo-largo { grid-column: span 2; }
+
+@media (max-width: 900px) {
+  .grade-cabecalho { grid-template-columns: repeat(2, 1fr); }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  input { height: 26px; }
+}
+
+// ---- Barra de ferramentas ----
+.linha-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  & + & {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cor-fundo-alt);
+  }
+}
+
+.espacador { flex: 1; }
+
+.rotulo-grupo {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  user-select: none;
+  cursor: pointer;
+
+  input { width: auto; height: auto; }
+}
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+// ---- Tabela ----
+.tabela-empreita {
+  width: 100%;
+  border-collapse: collapse;
+
+  th { padding: 7px 5px; text-align: center; }
+
+  td {
+    padding: 3px 5px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 12px;
+  }
+
+  input {
+    border: 1px solid transparent;
+    background: transparent;
+    height: 22px;
+    text-align: center;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+
+  input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
+}
+
+.col-num { width: 36px; }
+.col-desc { min-width: 190px; }
+.col-eap { min-width: 170px; }
+.col-valor { width: 100px; }
+.col-acoes { width: 40px; }
+
+// Cabeçalhos dos quatro grupos — cada um mantém colunas fixas
+// (Por tipo/Total, Empreiteiro/Reserva/Total, etc.); a discriminação por
+// categoria de custo fica em linhas dentro da célula, não em colunas
+// repetidas por categoria (revisão 31/07/2026, modelo do sistema antigo).
+.grupo-orcado, .grupo-contrato, .grupo-medicao, .grupo-pagamento {
+  background: var(--cor-primaria-clara);
+  min-width: 92px;
+}
+
+// ---- Célula com a discriminação por categoria empilhada ----
+.celula-tipos {
+  min-width: 92px;
+  padding: 4px 6px !important;
+  vertical-align: top;
+}
+
+.linha-tipo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 0;
+
+  & + .linha-tipo { border-top: 1px dashed var(--cor-fundo-alt); }
+
+  &.invalida {
+    background: var(--cor-perigo-bg);
+
+    input { color: var(--cor-perigo); font-weight: 700; }
+  }
+}
+
+.rotulo-tipo {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.valor-tipo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.celula-tipos input {
+  width: 100%;
+  height: 19px;
+  text-align: right;
+  font-size: 11px;
+}
+
+.indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
+.zebra td { background: #fafaf8; }
+.vazio { padding: 34px 16px; }
+
+// A reserva discricionária é o diferencial do produto — recebe destaque
+// próprio para não se perder entre as demais colunas de valor.
+.reserva {
+  background: var(--cor-alerta-bg) !important;
+
+  &.col-valor { color: var(--cor-alerta); }
+}
+
+.cor-reserva { color: var(--cor-alerta); }
+
+// Medição que retrocedeu
+.invalida td { background: var(--cor-perigo-bg) !important; }
+
+.celula-invalida input {
+  border-color: var(--cor-perigo) !important;
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.rotulo-rodape { text-align: right; font-weight: 700; }
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+  font-family: var(--fonte);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+}
+
+// ---- Painéis inferiores ----
+.grade-inferior {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grade-inferior { grid-template-columns: 1fr; }
+}
+
+.linha-resumo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+  font-size: 12.5px;
+
+  b { font-family: var(--fonte-mono); font-size: 13px; }
+
+  &.destaque {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cor-borda-forte);
+    border-bottom: none;
+
+    b { font-size: 15px; color: var(--cor-primaria); }
+  }
+}
+
+.nota {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--cor-borda);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.tabela-resumo {
+  width: 100%;
+
+  th, td { padding: 5px 8px; font-size: 11.5px; }
+  tfoot th { border-top: 2px solid var(--cor-borda-forte); }
+
+  .acima { color: var(--cor-perigo); font-weight: 700; }
+}
+
+// Dica de atalhos: presente mas discreta — quem já sabe não precisa ver.
+.dica {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+
+  kbd {
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    padding: 1px 4px;
+    border: 1px solid var(--cor-borda);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    background: var(--cor-fundo-alt);
+  }
+}

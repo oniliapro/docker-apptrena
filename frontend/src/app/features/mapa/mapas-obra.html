@@ -1,0 +1,101 @@
+<div class="cabecalho">
+  <div>
+    <h1>Mapas</h1>
+    <div class="atenuado">Cotações de fornecedores desta obra</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Novo mapa</button>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Nº</th>
+            <th>Descrição</th>
+            <th>Cliente</th>
+            <th class="centro">Finalização</th>
+            <th class="valor">Total</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (mapa of mapas(); track mapa.id) {
+            <tr class="linha-clicavel" (click)="abrir(mapa)">
+              <td class="centro">{{ numero(mapa) }}</td>
+              <td>{{ descricao(mapa) }}</td>
+              <td>{{ cliente(mapa) }}</td>
+              <td class="centro">{{ dataFinalizacao(mapa) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
+              <td class="centro">
+                <button type="button" title="Excluir" (click)="remover(mapa, $event)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="centro atenuado">Nenhum mapa cadastrado nesta obra ainda.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ============ Formulário ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fechar()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Novo mapa</span>
+        <button type="button" (click)="fechar()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo">
+            <span>Nº do mapa</span>
+            <input type="text" formControlName="numeroMapa" placeholder="Ex.: 07" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricao" placeholder="Ex.: Compra de aço" />
+            @if (temErro('descricao')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Responsável da obra</span>
+            <input type="text" formControlName="responsavelObra" />
+          </label>
+
+          <label class="campo">
+            <span>Responsável da cotação</span>
+            <input type="text" formControlName="responsavelMapa" />
+          </label>
+        </div>
+
+        <p class="atenuado pequeno">
+          Cliente vem da obra automaticamente. Datas de início e finalização são
+          preenchidas pelo sistema.
+        </p>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Cadastrar mapa' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

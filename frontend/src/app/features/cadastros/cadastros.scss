@@ -1,0 +1,233 @@
+// =====================================================================
+// Estilos compartilhados pelos cadastros (Clientes, Responsáveis,
+// Empreiteiros). Os três têm a mesma estrutura: cabeçalho com botão,
+// barra de filtros, tabela e formulário em modal.
+// =====================================================================
+
+:host { display: block; }
+
+.cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+
+  h1 { margin: 0 0 2px; }
+}
+
+.botao-novo {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--raio-md);
+  background: var(--cor-destaque);
+  color: var(--cor-primaria-escura);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover { filter: brightness(1.05); }
+}
+
+.painel { margin-bottom: 14px; }
+.painel.sem-preenchimento { padding: 0; overflow-x: auto; }
+
+.barra-ferramentas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  select { width: auto; height: 28px; }
+}
+
+.espacador { flex: 1; }
+.busca { width: 280px; height: 28px; }
+
+.mensagem { padding: 20px 16px; }
+.vazio { padding: 34px 16px; }
+
+// ---- Tabela ----
+.codigo { font-family: var(--fonte-mono); color: var(--cor-aco); font-weight: 600; }
+.nome { font-weight: 600; }
+.mono { font-family: var(--fonte-mono); font-size: 11.5px; }
+
+// Registro desativado: apagado, mas ainda legível — continua servindo de
+// referência histórica nas obras que ele contratou.
+.inativo td {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.etiqueta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+
+  &.pj {
+    background: var(--cor-primaria-clara);
+    color: var(--cor-primaria);
+  }
+}
+
+// Chave liga/desliga
+.chave {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  background: var(--cor-borda-forte);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s ease;
+  }
+
+  &.ligada {
+    background: var(--cor-sucesso);
+
+    &::after { transform: translateX(15px); }
+  }
+}
+
+.acoes {
+  white-space: nowrap;
+
+  button {
+    width: 24px;
+    padding: 2px 0;
+    font-size: 11px;
+    line-height: 1;
+  }
+}
+
+// ---- Modal de formulário ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+// ---- Escolha do tipo de pessoa ----
+.tipo-pessoa {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+
+  button {
+    flex: 1;
+    padding: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+
+    &.ativo {
+      background: var(--cor-primaria);
+      border-color: var(--cor-primaria-escura);
+      color: #fff;
+    }
+  }
+}
+
+// ---- Campos ----
+.grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+}
+
+.campo-largo { grid-column: span 2; }
+.campo-total { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .grade { grid-template-columns: 1fr; }
+  .campo-largo, .campo-total { grid-column: auto; }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  span.obrigatorio::after {
+    content: ' *';
+    color: var(--cor-perigo);
+  }
+
+  input { height: 30px; font-size: 13px; padding: 4px 8px; }
+}
+
+.erro-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--cor-perigo);
+}

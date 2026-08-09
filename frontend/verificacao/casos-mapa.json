@@ -1,0 +1,113 @@
+[
+  {
+    "nome": "tres fornecedores, impostos diferentes",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "AC Coelho", "ativo": true, "imposto": 18, "frete": 300, "desconto": 0 },
+      { "nome": "Objetiva", "ativo": true, "imposto": 12, "frete": 150, "desconto": 0 },
+      { "nome": "Itatiaia", "ativo": true, "imposto": 0, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Cimento", "qtde": 100, "unit": [32.5, 34, 33.9] },
+      { "desc": "Areia", "qtde": 20, "unit": [85, 79.9, 92] },
+      { "desc": "Brita", "qtde": 15, "unit": [110, 0, 105] }
+    ]
+  },
+  {
+    "nome": "desconto na nota reduz base de imposto",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "Com desconto", "ativo": true, "imposto": 20, "frete": 500, "desconto": 1000 },
+      { "nome": "Sem desconto", "ativo": true, "imposto": 20, "frete": 500, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Item A", "qtde": 10, "unit": [1000, 1000] },
+      { "desc": "Item B", "qtde": 5, "unit": [200, 200] }
+    ]
+  },
+  {
+    "nome": "fornecedor inativo sai da comparacao",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "Mais barato mas inativo", "ativo": false, "imposto": 0, "frete": 0, "desconto": 0 },
+      { "nome": "Ativo", "ativo": true, "imposto": 10, "frete": 100, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Item", "qtde": 4, "unit": [50, 90] }
+    ]
+  },
+  {
+    "nome": "preco zero conta como nao cotado",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "F1", "ativo": true, "imposto": 5, "frete": 0, "desconto": 0 },
+      { "nome": "F2", "ativo": true, "imposto": 5, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "So F2 cotou", "qtde": 3, "unit": [0, 40] },
+      { "desc": "Ninguem cotou", "qtde": 2, "unit": [0, 0] }
+    ]
+  },
+  {
+    "nome": "integral invalido quando falta cotacao",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "Cotou tudo", "ativo": true, "imposto": 15, "frete": 200, "desconto": 50 },
+      { "nome": "Faltou um item", "ativo": true, "imposto": 15, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "A", "qtde": 10, "unit": [100, 90] },
+      { "desc": "B", "qtde": 10, "unit": [100, 0] }
+    ]
+  },
+  {
+    "nome": "item com quantidade zero e ignorado",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "F1", "ativo": true, "imposto": 10, "frete": 100, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Sem quantidade", "qtde": 0, "unit": [999] },
+      { "desc": "Com quantidade", "qtde": 2, "unit": [50] }
+    ]
+  },
+  {
+    "nome": "modo manual: escolha valida prevalece",
+    "modoManual": true,
+    "fornecedores": [
+      { "nome": "Mais barato", "ativo": true, "imposto": 0, "frete": 0, "desconto": 0 },
+      { "nome": "Escolhido a mao", "ativo": true, "imposto": 0, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Item", "qtde": 1, "unit": [10, 25], "choice": 1 }
+    ]
+  },
+  {
+    "nome": "modo manual: escolha invalida cai no automatico",
+    "modoManual": true,
+    "fornecedores": [
+      { "nome": "Ativo", "ativo": true, "imposto": 0, "frete": 0, "desconto": 0 },
+      { "nome": "Ficou inativo", "ativo": false, "imposto": 0, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Escolha envelhecida", "qtde": 1, "unit": [30, 10], "choice": 1 }
+    ]
+  },
+  {
+    "nome": "empate de preco fica com o primeiro",
+    "modoManual": false,
+    "fornecedores": [
+      { "nome": "F1", "ativo": true, "imposto": 10, "frete": 0, "desconto": 0 },
+      { "nome": "F2", "ativo": true, "imposto": 10, "frete": 0, "desconto": 0 }
+    ],
+    "itens": [
+      { "desc": "Mesmo preco", "qtde": 5, "unit": [100, 100] }
+    ]
+  },
+  {
+    "nome": "mapa vazio",
+    "modoManual": false,
+    "fornecedores": [{ "nome": "F1", "ativo": true, "imposto": 10, "frete": 100, "desconto": 0 }],
+    "itens": []
+  }
+]

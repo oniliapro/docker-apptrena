@@ -1,0 +1,72 @@
+<div class="cabecalho">
+  <div>
+    <h1>Medições da empreita</h1>
+    <div class="atenuado">Períodos já fechados</div>
+  </div>
+  <a class="voltar" routerLink="/empreitas">← Voltar à lista</a>
+</div>
+
+@if (carregando()) {
+  <div class="painel atenuado">Carregando…</div>
+} @else if (erro(); as mensagem) {
+  <div class="painel atenuado">{{ mensagem }}</div>
+} @else if (!empreita()) {
+  <div class="painel atenuado">Empreita não encontrada.</div>
+} @else {
+
+  <div class="painel">
+    <table class="tabela-info">
+      <tbody>
+        <tr><th>Obra</th><td>{{ campo('obraNumber') }}</td></tr>
+        <tr><th>Nº da empreita</th><td>{{ campo('numeroEmpreita') }}</td></tr>
+        <tr><th>Descrição</th><td>{{ campo('descricaoEmpreita') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="painel sem-preenchimento">
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Data</th>
+            <th class="centro">Competência</th>
+            <th>Observações</th>
+            <th class="valor">Pago</th>
+            <th class="valor reserva">Reserva</th>
+            <th class="valor">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (registro of registros(); track $index) {
+            <tr>
+              <td class="centro">{{ data(registro.date) }}</td>
+              <td class="centro">{{ registro.competencia || '—' }}</td>
+              <td>{{ registro.obs || '' }}</td>
+              <td class="valor"><b>{{ formatarMoeda(registro.totals?.pagarEmp || 0) }}</b></td>
+              <td class="valor reserva">{{ formatarMoeda(registro.totals?.reservarPgto || 0) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(registro.totals?.totalPeriodo || 0) }}</b></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="centro atenuado vazio">
+                Nenhuma medição registrada ainda nesta empreita.
+              </td>
+            </tr>
+          }
+        </tbody>
+
+        @if (registros().length) {
+          <tfoot>
+            <tr>
+              <th colspan="3" class="rotulo-rodape">ACUMULADO</th>
+              <th class="valor">{{ formatarMoeda(acumulado().pagar) }}</th>
+              <th class="valor reserva">{{ formatarMoeda(acumulado().reserva) }}</th>
+              <th class="valor">{{ formatarMoeda(acumulado().total) }}</th>
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  </div>
+}

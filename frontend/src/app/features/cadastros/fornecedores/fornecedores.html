@@ -1,0 +1,183 @@
+<div class="cabecalho">
+  <div>
+    <h1>Fornecedores</h1>
+    <div class="atenuado">Quem fornece material e serviço para as cotações (Mapas)</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Novo fornecedor</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltro($event)">
+    <option value="todos">Situação: todos</option>
+    <option value="ativos">Ativos</option>
+    <option value="inativos">Inativos</option>
+  </select>
+
+  <span class="espacador"></span>
+
+  @if (store.salvando()) {
+    <span class="atenuado pequeno">salvando…</span>
+  }
+
+  <input class="busca" type="search" placeholder="Buscar por nome ou especialidade…"
+         (input)="mudarBusca($event)" />
+</div>
+
+<div class="painel sem-preenchimento">
+  @if (store.carregando()) {
+    <div class="mensagem atenuado">Carregando…</div>
+  } @else if (store.erro(); as mensagem) {
+    <div class="mensagem atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Especialidade</th>
+            <th class="centro">Tipo</th>
+            <th>CPF / CNPJ</th>
+            <th>Contatos</th>
+            <th class="centro">Ativo</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (registro of store.listaFiltrada(); track registro.id) {
+            <tr [class.inativo]="!registro.ativo">
+              <td class="nome">{{ registro.nome }}</td>
+              <td>{{ registro.especialidade || '—' }}</td>
+              <td class="centro">
+                <span class="etiqueta" [class.pj]="registro.tipo === 'PJ'">
+                  {{ registro.tipo === 'PJ' ? 'Jurídica' : 'Física' }}
+                </span>
+              </td>
+              <td class="mono">
+                {{ registro.documento ? formatarDocumento(registro.documento) : '—' }}
+              </td>
+              <td>{{ rotuloContatos(registro) }}</td>
+              <td class="centro">
+                <button type="button" class="chave" [class.ligada]="registro.ativo"
+                        [title]="registro.ativo ? 'Desativar' : 'Reativar'"
+                        (click)="store.alternarAtivo(registro.id)"></button>
+              </td>
+              <td class="centro acoes">
+                <button type="button" title="Editar" (click)="editar(registro)">✎</button>
+                <button type="button" title="Excluir" (click)="remover(registro)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="centro atenuado vazio">Nenhum fornecedor cadastrado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fechar()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">
+          {{ editandoId() ? 'Editar fornecedor' : 'Novo fornecedor' }}
+        </span>
+        <button type="button" (click)="fechar()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="leitura-nota">
+          <div class="painel-titulo">Preencher pela foto da nota fiscal do fornecedor</div>
+          <div class="linha-nota">
+            <input #inputNota class="input-oculto" type="file" accept="image/*"
+                   (change)="selecionarNota($event)" />
+            <button type="button" [disabled]="lendoNota()" (click)="inputNota.click()">
+              {{ lendoNota() ? 'Lendo…' : '📄 Ler nota' }}
+            </button>
+            @if (statusNota(); as texto) { <span class="atenuado pequeno">{{ texto }}</span> }
+          </div>
+        </div>
+
+        <div class="tipo-pessoa">
+          <button type="button" [class.ativo]="tipoAtual === 'PF'" (click)="mudarTipo('PF')">
+            Pessoa física
+          </button>
+          <button type="button" [class.ativo]="tipoAtual === 'PJ'" (click)="mudarTipo('PJ')">
+            Pessoa jurídica
+          </button>
+        </div>
+
+        <div class="grade">
+          <label class="campo campo-total">
+            <span class="obrigatorio">
+              {{ tipoAtual === 'PJ' ? 'Razão social' : 'Nome completo' }}
+            </span>
+            <input type="text" formControlName="nome" />
+            @if (temErro('nome')) {
+              <small class="erro-campo">Informe o nome.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>{{ tipoAtual === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
+            <input type="text" formControlName="documento" inputmode="numeric"
+                   [placeholder]="tipoAtual === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'"
+                   (input)="mascararDocumento($event)" />
+            @if (temErro('documento')) {
+              <small class="erro-campo">Documento inválido — confira os números.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Especialidade</span>
+            <input type="text" formControlName="especialidade"
+                   placeholder="Ex.: Material elétrico, Ferragens" />
+          </label>
+
+          <label class="campo campo-total">
+            <span>Endereço</span>
+            <input type="text" formControlName="endereco" />
+          </label>
+
+          <label class="campo campo-total">
+            <span>Observações</span>
+            <input type="text" formControlName="observacoes" />
+          </label>
+        </div>
+
+        <div class="secao-contatos">
+          <div class="secao-cabecalho">
+            <span class="rotulo-secao">Contatos</span>
+            <button type="button" class="link-adicionar" (click)="adicionarContato()">
+              + Adicionar contato
+            </button>
+          </div>
+
+          @if (contatos.length === 0) {
+            <div class="atenuado pequeno">Nenhum contato adicionado.</div>
+          }
+
+          @for (grupo of contatos.controls; track grupo; let i = $index) {
+            <div class="linha-contato" [formGroup]="grupo">
+              <input type="text" formControlName="nome" placeholder="Nome do contato" />
+              <input type="text" formControlName="telefone" inputmode="numeric"
+                     placeholder="(00) 00000-0000" (input)="mascararTelefoneContato(i, $event)" />
+              <button type="button" title="Remover contato" (click)="removerContato(i)">✖</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit">
+          {{ editandoId() ? 'Salvar alterações' : 'Cadastrar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

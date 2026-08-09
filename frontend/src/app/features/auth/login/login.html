@@ -1,0 +1,60 @@
+<div class="tela-login">
+  <!-- Lado com a mensagem de apresentação, igual à primeira página do
+       protótipo do Lucas (view-login / .pitch em obracontrol.html). -->
+  <div class="login-lado">
+    <div class="marca-lado"><span class="quadrado"></span><span>APPTRENA</span></div>
+
+    <div class="discurso">
+      <span class="rotulo">Controle de obra · multi-usuário · multi-obra</span>
+      <h1>Cada medição, cada empreita, cada real — no lugar certo do canteiro.</h1>
+      <p>EAP, cronogramas, empreitas, pagamentos e diários de obra em um só lugar, com permissões por usuário e por obra.</p>
+    </div>
+
+    <div class="selo">
+      <div>OBRAS ATIVAS<span>128</span></div>
+      <div>CONSTRUTORAS<span>340</span></div>
+      <div>UPTIME<span>99.9%</span></div>
+    </div>
+  </div>
+
+  <div class="login-form-lado">
+  <form class="cartao-login" [formGroup]="formulario" (ngSubmit)="entrar()">
+    <div class="marca">AppTrena</div>
+    <h1>Entrar</h1>
+    <p class="atenuado">Acesse o painel de controle de obra.</p>
+
+    <label class="campo">
+      <span>E-mail</span>
+      <input type="email" formControlName="email" autocomplete="username" />
+    </label>
+
+    <label class="campo">
+      <span>Senha</span>
+      <input type="password" formControlName="senha" autocomplete="current-password" />
+    </label>
+
+    @if (erro(); as mensagem) {
+      <p class="erro" role="alert">{{ mensagem }}</p>
+    }
+
+    <button class="primario" type="submit" [disabled]="formulario.invalid || enviando()">
+      {{ enviando() ? 'Entrando…' : 'Entrar' }}
+    </button>
+
+    <p class="rodape atenuado">
+      Não tem conta? <a routerLink="/cadastro">Criar conta</a>
+    </p>
+
+    @if (permiteDemonstracao) {
+      <div class="separador"><span>ou</span></div>
+      <button type="button" class="demonstracao" (click)="entrarSemServidor()">
+        Entrar sem servidor
+      </button>
+      <p class="nota">
+        Modo de revisão: abre as telas sem backend. Os dados não carregam —
+        serve para conferir layout e navegação durante a migração.
+      </p>
+    }
+  </form>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+[
+  {"nome":"itens em reais, total ausente",
+   "p":{"itens":[{"tipo":"material","valor":100},{"tipo":"maoDeObra","valor":250.5}]}},
+
+  {"nome":"percentual sobre total",
+   "p":{"valorTotal":1000,"itens":[{"tipo":"material","valor":30,"modoValor":"percentual"},{"tipo":"outros","valor":700}]}},
+
+  {"nome":"misto com total ausente (usa p.valor)",
+   "p":{"valor":800,"itens":[{"tipo":"material","valor":25,"modoValor":"pct"},{"tipo":"outros","valor":100}]}},
+
+  {"nome":"formato legado item unico",
+   "p":{"tipo":"material","eapId":"e1","valor":333.33,"desc":"Cimento"}},
+
+  {"nome":"percentuais que somam 100",
+   "p":{"valorTotal":1234.56,"itens":[{"tipo":"material","valor":33.33,"modoValor":"percentual"},{"tipo":"maoDeObra","valor":66.67,"modoValor":"percentual"}]}},
+
+  {"nome":"vazio",
+   "p":{}},
+
+  {"nome":"numero pagamento sequencial",
+   "lista":[{"numeroPagamento":"PG-0007"},{"numeroPagamento":"PG-0012"},{"numeroPagamento":"abc"}]}
+]

@@ -1,0 +1,275 @@
+<h1>Pagamentos</h1>
+
+<div class="painel barra-ferramentas">
+  <label class="campo-obra">
+    <span>Nº da obra</span>
+    <input
+      type="text"
+      [value]="store.cabecalho().obraNumber"
+      (change)="trocarObra($event)" />
+  </label>
+
+  <label class="checagem-inline">
+    <input type="checkbox" [checked]="mostrarEtapas()" (change)="alternarEtapas()" />
+    Mostrar etapas
+  </label>
+
+  <span class="espacador"></span>
+
+  <button class="primario" type="button" (click)="novoPagamento()">+ Novo pagamento</button>
+</div>
+
+<div class="painel">
+  @if (store.carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else {
+    @if (store.erro(); as mensagem) {
+      <div class="aviso-erro">{{ mensagem }}</div>
+    }
+
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Obra</th>
+            <th class="centro">Nº</th>
+            <th class="centro">Solicitação</th>
+            <th>Descrição</th>
+            <th>Itens</th>
+            @if (mostrarEtapas()) { <th>Etapas</th> }
+            <th class="valor">Total</th>
+            <th>Fornecedor</th>
+            <th class="centro">Pagamento</th>
+            <th class="centro">Status</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (pagamento of listaExibida(); track pagamento.id) {
+            <tr>
+              <td class="centro">
+                {{ pagamento.obraNumber || store.cabecalho().obraNumber || store.obraNome() || '—' }}
+              </td>
+              <td class="centro">{{ pagamento.numeroPagamento || '—' }}</td>
+              <td class="centro">{{ formatarDataPtBr(pagamento.dataSolicitacao) }}</td>
+              <td>{{ pagamento.descricao || '—' }}</td>
+
+              <td>
+                @for (item of itensCalculados(pagamento); track item.id) {
+                  <div class="lista-linha">
+                    <span>{{ descricaoItem(item) }}</span>
+                    <span>{{ valorItemTexto(item) }}</span>
+                  </div>
+                } @empty {
+                  <span class="atenuado">—</span>
+                }
+              </td>
+
+              @if (mostrarEtapas()) {
+                <td>
+                  @for (item of itensComEtapa(pagamento); track item.id) {
+                    <div class="lista-linha">
+                      <span>{{ rotuloEtapa(item.eapId) }} ({{ rotuloTipo(item.tipo) }})</span>
+                      <span>{{ formatarMoeda(item.valorCalculado) }}</span>
+                    </div>
+                  } @empty {
+                    <span class="atenuado">—</span>
+                  }
+                </td>
+              }
+
+              <td class="valor"><b>{{ formatarMoeda(pagamento.valorTotal) }}</b></td>
+              <td>{{ pagamento.fornecedor || '—' }}</td>
+              <td class="centro">{{ formatarDataPtBr(pagamento.dataPagamento) }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                  {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </td>
+              <td class="centro acoes-linha">
+                @if (pagamento.status === 'pendente') {
+                  <button type="button" title="Confirmar — passa a contar no Realizado da EAP"
+                          (click)="confirmar(pagamento)">✔</button>
+                }
+                <button type="button" title="Editar" (click)="editar(pagamento)">✎</button>
+                <button type="button" title="Excluir" (click)="remover(pagamento)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="mostrarEtapas() ? 11 : 10" class="centro atenuado">
+                Nenhum pagamento lançado.
+              </td>
+            </tr>
+          }
+        </tbody>
+
+        <tfoot>
+          <tr class="bloco-topo bloco-base">
+            <th [attr.colspan]="mostrarEtapas() ? 6 : 5" class="rotulo-rodape">TOTAL</th>
+            <th class="valor"><b>{{ formatarMoeda(store.total()) }}</b></th>
+            <th colspan="4"></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+</div>
+
+@if (rascunho(); as p) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharModal()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">{{ editando() ? 'Editar pagamento' : 'Novo pagamento' }}</span>
+        <button type="button" (click)="fecharModal()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade-campos">
+          <label class="campo">
+            <span>Nº do pagamento</span>
+            <input type="text" [value]="p.numeroPagamento"
+                   (change)="atualizarCampo('numeroPagamento', $event)" />
+          </label>
+          <label class="campo">
+            <span>Data da solicitação</span>
+            <input type="date" [value]="p.dataSolicitacao"
+                   (change)="atualizarCampo('dataSolicitacao', $event)" />
+          </label>
+          <label class="campo">
+            <span>Data do pagamento</span>
+            <input type="date" [value]="p.dataPagamento"
+                   (change)="atualizarCampo('dataPagamento', $event)" />
+          </label>
+          <label class="campo">
+            <span>Fornecedor</span>
+            <input type="text" [value]="p.fornecedor"
+                   (change)="atualizarCampo('fornecedor', $event)" />
+          </label>
+          <label class="campo campo-largo">
+            <span>Descrição</span>
+            <input type="text" [value]="p.descricao"
+                   (change)="atualizarCampo('descricao', $event)" />
+          </label>
+          <label class="campo">
+            <span>Valor total</span>
+            <input type="text" class="valor" placeholder="R$ 0,00"
+                   [value]="p.valorTotal ? formatarMoeda(p.valorTotal) : ''"
+                   (change)="atualizarValorTotal($event)" />
+          </label>
+        </div>
+
+        <div class="leitura-nota">
+          <div class="painel-titulo">Preencher pela foto da nota</div>
+          <div class="linha-nota">
+            <input type="file" accept="image/*" (change)="selecionarNota($event)" />
+            <button type="button" [disabled]="lendoNota()" (click)="lerNota()">
+              {{ lendoNota() ? 'Lendo…' : '📄 Ler nota' }}
+            </button>
+            @if (statusNota(); as texto) {
+              <span class="atenuado pequeno">{{ texto }}</span>
+            }
+          </div>
+        </div>
+
+        <div class="cabecalho-itens">
+          <span class="painel-titulo">Itens do pagamento</span>
+          <button type="button" (click)="adicionarItem()">+ Adicionar item</button>
+        </div>
+
+        <div class="envoltoria">
+          <table trenaNavegacaoTabela
+                 (inserirLinha)="adicionarItem()"
+                 (removerLinha)="removerItemPorIndice($event)">
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Etapa (EAP)</th>
+                <th>Tipo</th>
+                <th class="valor">Valor</th>
+                <th class="centro">Modo</th>
+                <th class="centro"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of p.itens; track item.id) {
+                <tr>
+                  <td>
+                    <input type="text" [value]="item.descricao"
+                           placeholder="Ex.: Material / frete / desconto"
+                           (change)="atualizarItem(item.id, 'descricao', $event)" />
+                  </td>
+                  <td>
+                    @if (store.snapshotEap().length) {
+                      <select [value]="item.eapId" (change)="atualizarItem(item.id, 'eapId', $event)">
+                        <option value=""></option>
+                        @for (eap of store.snapshotEap(); track eap.id) {
+                          <option [value]="eap.id" [selected]="eap.id === item.eapId">{{ recuoEap(eap) }}{{ rotuloEapItem(eap) }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <select disabled>
+                        <option>(Cadastre a EAP primeiro)</option>
+                      </select>
+                    }
+                  </td>
+                  <td>
+                    <select [value]="item.tipo" (change)="atualizarItem(item.id, 'tipo', $event)">
+                      <option value=""></option>
+                      @for (tipo of tipos; track tipo.chave) {
+                        <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <input type="text" class="valor"
+                           [value]="valorItemEditado(item)"
+                           [placeholder]="item.modoValor === 'percentual' ? '0,00 %' : 'R$ 0,00'"
+                           (change)="atualizarItem(item.id, 'valor', $event)" />
+                    @if (item.modoValor === 'percentual') {
+                      <span class="atenuado pequeno">= {{ formatarMoeda(valorResolvido(item)) }}</span>
+                    }
+                  </td>
+                  <td class="centro">
+                    <button type="button" (click)="alternarModoItem(item.id)">
+                      {{ item.modoValor === 'percentual' ? '%' : 'R$' }}
+                    </button>
+                  </td>
+                  <td class="centro">
+                    <button type="button" title="Remover" (click)="removerItem(item.id)">✖</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="centro atenuado">Sem itens</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="resumo">
+          <div><span>Soma dos itens</span><b>{{ formatarMoeda(somaItens()) }}</b></div>
+          <div><span>Valor total</span><b>{{ formatarMoeda(p.valorTotal) }}</b></div>
+          <div [class.divergente]="diferencaAberta()">
+            <span>Diferença</span><b>{{ formatarMoeda(diferenca()) }}</b>
+          </div>
+        </div>
+
+        @if (diferencaAberta()) {
+          <p class="aviso-erro">
+            A soma dos itens precisa ser igual ao valor total para salvar.
+          </p>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharModal()">Cancelar</button>
+        <button class="primario" type="button" (click)="salvar()">Salvar pagamento</button>
+      </div>
+    </div>
+  </div>
+}

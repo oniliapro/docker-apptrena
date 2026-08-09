@@ -1,0 +1,199 @@
+<div class="cabecalho">
+  <div>
+    <h1>Clientes</h1>
+    <div class="atenuado">Pessoas físicas e jurídicas atendidas pela construtora</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Novo cliente</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltro($event)">
+    <option value="todos">Situação: todos</option>
+    <option value="ativos">Ativos</option>
+    <option value="inativos">Inativos</option>
+  </select>
+
+  <span class="espacador"></span>
+
+  @if (store.salvando()) {
+    <span class="atenuado pequeno">salvando…</span>
+  }
+
+  <input class="busca" type="search" placeholder="Buscar por nome, código, documento…"
+         (input)="mudarBusca($event)" />
+</div>
+
+<div class="painel sem-preenchimento">
+  @if (store.carregando()) {
+    <div class="mensagem atenuado">Carregando…</div>
+  } @else if (store.erro(); as mensagem) {
+    <div class="mensagem atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Código</th>
+            <th>Nome</th>
+            <th class="centro">Tipo</th>
+            <th>CPF / CNPJ</th>
+            <th>Telefone</th>
+            <th>Endereço</th>
+            <th class="centro">Ativo</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (cliente of store.listaFiltrada(); track cliente.id) {
+            <tr [class.inativo]="!cliente.ativo">
+              <td class="centro codigo">{{ cliente.identificacao || '—' }}</td>
+              <td class="nome">{{ cliente.nome }}</td>
+              <td class="centro">
+                <span class="etiqueta" [class.pj]="cliente.tipo === 'PJ'">
+                  {{ cliente.tipo === 'PJ' ? 'Jurídica' : 'Física' }}
+                </span>
+              </td>
+              <td class="mono">{{ rotuloDocumento(cliente) }}</td>
+              <td class="mono">{{ cliente.telefone ? formatarTelefone(cliente.telefone) : '—' }}</td>
+              <td>{{ cliente.endereco || '—' }}</td>
+              <td class="centro">
+                <button type="button" class="chave" [class.ligada]="cliente.ativo"
+                        [title]="cliente.ativo ? 'Desativar' : 'Reativar'"
+                        (click)="store.alternarAtivo(cliente.id)"></button>
+              </td>
+              <td class="centro acoes">
+                <button type="button" title="Editar" (click)="editar(cliente)">✎</button>
+                <button type="button" title="Excluir" (click)="remover(cliente)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="centro atenuado vazio">
+                Nenhum cliente encontrado.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ============ Formulário ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fechar()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">
+          {{ editandoId() ? 'Editar cliente' : 'Novo cliente' }}
+        </span>
+        <button type="button" (click)="fechar()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="tipo-pessoa">
+          <button type="button" [class.ativo]="tipoAtual === 'PF'" (click)="mudarTipo('PF')">
+            Pessoa física
+          </button>
+          <button type="button" [class.ativo]="tipoAtual === 'PJ'" (click)="mudarTipo('PJ')">
+            Pessoa jurídica
+          </button>
+        </div>
+
+        <div class="grade">
+          <label class="campo">
+            <span>Código interno</span>
+            <input type="text" formControlName="identificacao" readonly class="somente-leitura" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">
+              {{ tipoAtual === 'PJ' ? 'Razão social' : 'Nome completo' }}
+            </span>
+            <input type="text" formControlName="nome" />
+            @if (temErro('nome')) {
+              <small class="erro-campo">Informe o nome.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>{{ rotuloTipoDocumento() }}</span>
+            <input type="text" formControlName="documento" inputmode="numeric"
+                   [placeholder]="tipoAtual === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'"
+                   (input)="mascararDocumento('documento', $event)" />
+            @if (temErro('documento')) {
+              <small class="erro-campo">Documento inválido — confira os números.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Telefone</span>
+            <input type="text" formControlName="telefone" inputmode="numeric"
+                   placeholder="(00) 00000-0000" (input)="mascararTelefone($event)" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span>E-mail</span>
+            <input type="email" formControlName="email" />
+            @if (temErro('email')) {
+              <small class="erro-campo">E-mail inválido.</small>
+            }
+          </label>
+
+          <!-- Campos de pessoa física -->
+          @if (tipoAtual === 'PF') {
+            <label class="campo">
+              <span>RG</span>
+              <input type="text" formControlName="rg" />
+            </label>
+            <label class="campo">
+              <span>Data de nascimento</span>
+              <input type="date" formControlName="dataNascimento" />
+            </label>
+          }
+
+          <!-- Campos de pessoa jurídica -->
+          @if (tipoAtual === 'PJ') {
+            <label class="campo">
+              <span>Inscrição estadual</span>
+              <input type="text" formControlName="inscricaoEstadual" placeholder="Isento ou número" />
+            </label>
+            <label class="campo">
+              <span>Responsável legal</span>
+              <input type="text" formControlName="responsavel" />
+            </label>
+            <label class="campo">
+              <span>CPF do responsável</span>
+              <input type="text" formControlName="documentoResponsavel" inputmode="numeric"
+                     placeholder="000.000.000-00"
+                     (input)="mascararDocumento('documentoResponsavel', $event)" />
+              @if (temErro('documentoResponsavel')) {
+                <small class="erro-campo">CPF inválido — confira os números.</small>
+              }
+            </label>
+          }
+
+          <label class="campo campo-total">
+            <span>Endereço</span>
+            <input type="text" formControlName="endereco"
+                   placeholder="Rua, número, bairro, cidade — UF" />
+          </label>
+
+          <label class="campo campo-total">
+            <span>Observações</span>
+            <input type="text" formControlName="observacoes" />
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit">
+          {{ editandoId() ? 'Salvar alterações' : 'Cadastrar cliente' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

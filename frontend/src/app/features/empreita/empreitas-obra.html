@@ -1,0 +1,96 @@
+<div class="cabecalho">
+  <div>
+    <h1>Empreitas</h1>
+    <div class="atenuado">Contratos de empreitada desta obra</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">Nº</th>
+            <th>Descrição</th>
+            <th>Empreiteiro</th>
+            <th class="valor">Total</th>
+            <th class="valor">Pago</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (empreita of empreitas(); track empreita.id) {
+            <tr class="linha-clicavel" (click)="abrir(empreita)">
+              <td class="centro">{{ numero(empreita) }}</td>
+              <td>{{ descricao(empreita) }}</td>
+              <td>{{ empreiteiro(empreita) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(total(empreita)) }}</b></td>
+              <td class="valor"><b>{{ formatarMoeda(totalPago(empreita)) }}</b></td>
+              <td class="centro">
+                <button type="button" title="Excluir" (click)="remover(empreita, $event)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ============ Formulário ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fechar()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Nova empreita</span>
+        <button type="button" (click)="fechar()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo">
+            <span>Nº da empreita</span>
+            <input type="text" formControlName="numeroEmpreita" placeholder="Ex.: 03" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricaoEmpreita" placeholder="Ex.: Estrutura e alvenaria" />
+            @if (temErro('descricaoEmpreita')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo campo-largo">
+            <span>Empreiteiro</span>
+            <input type="text" formControlName="empreiteiro" placeholder="Nome do empreiteiro já cadastrado" />
+          </label>
+
+          <label class="campo">
+            <span>Data</span>
+            <input type="date" formControlName="dataMedicao" />
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Cadastrar empreita' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
