@@ -23,6 +23,9 @@ _lixo_laravel_ref/
 *.tar.gz
 *.zip
 
+# Dumps de banco de dados — podem conter dados reais de produção
+*.sql
+
 # Sistema
 .DS_Store
 Thumbs.db
