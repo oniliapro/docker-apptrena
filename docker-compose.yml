@@ -8,7 +8,7 @@ services:
       # Só localhost: o nginx do sistema repassa /api pra cá (ver 9.6 do guia).
       - "127.0.0.1:8088:80"
     volumes:
-      - ./controleobra:/usr/share/nginx/controleobra
+      - ./controleobra-api:/usr/share/nginx/controleobra
       - ./nginx/logs:/var/log/nginx/
 
   phpfpm:
@@ -17,13 +17,13 @@ services:
       context: .
       dockerfile: Dockerfile_php
     volumes:
-      - ./controleobra:/usr/share/nginx/controleobra
+      - ./controleobra-api:/usr/share/nginx/controleobra
     ports:
       - "9000:9000"
     working_dir: /usr/share/nginx/controleobra
 
   mysql:
-    image: "mysql:5.7.28"
+    image: "mysql:8.0.45"
     container_name: controleobra-mysql
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
@@ -40,7 +40,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
 
   myadmin:
-    image: phpmyadmin/phpmyadmin:4.7.0-1
+    image: phpmyadmin/phpmyadmin:5.2.1
     container_name: controleobra-myadmin
     environment:
       PMA_HOST: "mysql"
