@@ -96,3 +96,6 @@ RUN \
 
 # Limites maiores de upload (fotos do Diário de Obra, nota fiscal por IA, etc.)
 COPY php-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
+
+# Revalidação de opcache menos frequente (I/O lento em código montado via WSL2)
+COPY php-opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
