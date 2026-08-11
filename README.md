@@ -11,6 +11,10 @@ Ambiente Docker do Controle de Obra: API Laravel (`controleobra-api/`) + fronten
 
 Nenhum `.env` é versionado — os dois precisam ser criados manualmente.
 
+> ⚠️ **Existem dois arquivos `.env` diferentes, com o mesmo nome mas propósitos distintos — não confunda/copie um em cima do outro:**
+> - **`.env` da raiz** — só as 4 variáveis do MySQL (`MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`), lidas pelo `docker-compose.yml` pra configurar o container `mysql`. Se estiver errado/ausente, o `docker-compose build`/`up` avisa "variable is not set, Defaulting to a blank string".
+> - **`controleobra-api/.env`** — a configuração completa do Laravel (`APP_KEY`, `DB_CONNECTION`, sessão, cache, etc.), lida pela aplicação dentro do container `phpfpm`. Se estiver errado/ausente (ex.: com o conteúdo do `.env` da raiz por engano), a API quebra com erro 500 em qualquer rota que toque o banco — e como a resposta de erro não carrega os headers de CORS, o sintoma no navegador aparece como **"CORS Missing Allow Origin"**, escondendo o problema real.
+
 **Raiz do projeto** (credenciais do MySQL, lidas pelo `docker-compose.yml`):
 
 ```bash
