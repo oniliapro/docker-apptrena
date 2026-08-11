@@ -17,9 +17,7 @@ echo "********** CONFIGURANDO A APLICAÇÃO **********"
 docker exec controleobra-phpfpm bash -c "cd /usr/share/nginx/controleobra-api && composer install"
 docker exec controleobra-phpfpm bash -c "cd /usr/share/nginx/controleobra-api/storage && mkdir -p logs"
 docker exec controleobra-phpfpm bash -c "cd /usr/share/nginx/controleobra-api/storage && chmod 777 * -R"
-docker exec controleobra-phpfpm bash -c "cd /usr/share/nginx/controleobra-api && npm install && npm run dev"
 docker exec controleobra-phpfpm bash -c "php artisan cache:clear"
-#docker exec controleobra-phpfpm bash -c "cd /usr/share/nginx/controleobra-api && npm install && npm run production"
 
 echo
 echo "********* CRIANDO E POPULANDO O BANCO MYSQL *********"
