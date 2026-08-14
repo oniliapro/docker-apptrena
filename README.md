@@ -1,6 +1,13 @@
-# docker-ctrlobra
+# docker-ctrlobra (AppTrena)
 
-Ambiente Docker do Controle de Obra: API Laravel (`controleobra-api/`) + frontend Angular (`frontend/`), nginx, MySQL e phpMyAdmin.
+Ambiente Docker do AppTrena — sistema de gestão de obras (antes chamado
+"Controle de Obra"). API Laravel (`controleobra-api/`) + frontend Angular
+(`frontend/`), nginx, MySQL e phpMyAdmin.
+
+> **Contexto do projeto, estado atual, credenciais de teste e manual de
+> operação:** ver `docs/CONTEXTO.md`, `docs/MANUAL.md` e
+> `docs/DEPLOY-PRODUCAO.md`. Comece por `docs/CONTEXTO.md` se estiver
+> chegando no projeto sem histórico.
 
 ## Pré-requisitos
 

@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AppTrena · Controle de obra, orçamento e pagamento em um só sistema</title>
+<meta name="description" content="AppTrena: EAP com BDI, comparação de fornecedores, medição de empreita e pagamento com leitura de nota fiscal por IA — o controle da sua obra em um só sistema.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20200%20200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20rx%3D%2234%22%20fill%3D%22%23092137%22/%3E%3Ctext%20x%3D%22100%22%20y%3D%22128%22%20text-anchor%3D%22middle%22%20fill%3D%22%23B99257%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%22110%22%20font-weight%3D%22bold%22%3EA%3C/text%3E%3C/svg%3E">
+<!-- ===================================================================
+     TROQUE https://SEUDOMINIO.COM.BR PELO ENDEREÇO REAL APÓS PUBLICAR.
+     O WhatsApp e o Facebook exigem URL completa: caminho relativo não funciona.
+     Depois de publicar, force a atualização da prévia em:
+     developers.facebook.com/tools/debug
+     =================================================================== -->
+<link rel="canonical" href="https://SEUDOMINIO.COM.BR/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AppTrena">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://SEUDOMINIO.COM.BR/">
+<meta property="og:title" content="Cada real da obra, no lugar certo do canteiro.">
+<meta property="og:description" content="EAP com BDI, mapa de fornecedores, empreita, pagamentos com leitura de nota fiscal por IA e diário de obra — tudo numa obra só, sem planilha solta.">
+<meta property="og:image" content="https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/8044fd01-69a8-41b3-80a2-690b3701f28e.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="AppTrena — controle de obra, orçamento e pagamento.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cada real da obra, no lugar certo do canteiro.">
+<meta name="twitter:description" content="EAP com BDI, mapa de fornecedores, empreita, pagamentos e diário de obra — tudo numa obra só.">
+<meta name="twitter:image" content="https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/8044fd01-69a8-41b3-80a2-690b3701f28e.jpg">
+<meta name="theme-color" content="#092137">
+<meta name="robots" content="index, follow">
+
+<!-- ===================================================================
+     MEDIÇÃO — descomente e troque os identificadores.
+     GA4: pegue o G-XXXXXXXXXX em analytics.google.com
+     Meta: pegue o número do pixel em business.facebook.com > Gerenciador de Eventos
+     =================================================================== -->
+<!--
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
+
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', 'SEU_PIXEL_ID');
+fbq('track', 'PageView');
+</script>
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter+Tight:wght@400;500;600&family=Michroma&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#092137;
+  --ink-2:#103150;
+  --ink-3:#154A73;
+  --gold:#B99257;
+  --gold-lit:#DBBE8A;
+  --bronze:#3D2F17;
+  --bone:#F1EDE5;
+  --mute:#8AA0B4;
+  --maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -10%, #123A5E 0%, transparent 62%),
+    var(--ink);
+  color:var(--bone);
+  font-family:"Inter Tight",system-ui,sans-serif;
+  font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:radial-gradient(circle at 1px 1px, rgba(190,212,230,.10) 1px, transparent 0);
+  background-size:34px 34px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;position:relative;z-index:1}
+h1{font-family:Michroma,sans-serif;font-weight:400;line-height:1.28;letter-spacing:-.01em}
+h2{font-family:Michroma,sans-serif;font-weight:400;line-height:1.34;letter-spacing:0}
+h3{font-family:"Inter Tight",sans-serif;font-weight:600;line-height:1.25;letter-spacing:-.01em}
+h1{font-size:clamp(1.7rem,4vw,3.1rem)}
+h2{font-size:clamp(1.25rem,2.5vw,1.95rem)}
+h3{font-size:1.22rem;font-weight:600;letter-spacing:-.02em;line-height:1.25}
+p{color:#C4D2DE}
+a{color:inherit}
+img{max-width:100%;display:block}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--gold);opacity:.7}
+.gold{
+  font-family:"Instrument Serif",Georgia,serif;font-style:italic;font-weight:400;
+  color:var(--gold-lit);letter-spacing:-.01em;
+}
+
+/* ---------- nav ---------- */
+nav{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:rgba(9,33,55,.78);border-bottom:1px solid rgba(185,146,87,.14);
+}
+.nav-in{max-width:var(--maxw);margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:26px}
+.nav-claim{font-family:"Instrument Serif",Georgia,serif;font-style:italic;font-size:1.05rem;
+  color:var(--gold-lit);white-space:nowrap;padding-left:22px;
+  border-left:1px solid rgba(185,146,87,.35)}
+.logo{display:flex;align-items:center;text-decoration:none;gap:0}
+.logo-word{font-family:Michroma,sans-serif;font-size:1.28rem;color:var(--bone);letter-spacing:.01em}
+.logo-word b{color:var(--gold);font-weight:400}
+.foot-word{font-family:Michroma,sans-serif;font-size:1.9rem;color:var(--bone);letter-spacing:.01em}
+.foot-word b{color:var(--gold);font-weight:400}
+.nav-links{display:flex;gap:26px;margin-left:auto;font-size:.9rem}
+.nav-links a{color:var(--mute);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--bone)}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:999px;
+  font-weight:600;font-size:.94rem;text-decoration:none;border:1px solid transparent;
+  transition:transform .18s ease, box-shadow .25s ease, background .2s;
+}
+.btn-gold{background:linear-gradient(180deg,var(--gold-lit),var(--gold));color:#08243C;box-shadow:0 0 0 rgba(185,146,87,0)}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 10px 34px -12px rgba(185,146,87,.75)}
+.btn-ghost{border-color:rgba(185,146,87,.42);color:var(--bone)}
+.btn-ghost:hover{background:rgba(185,146,87,.09);transform:translateY(-2px)}
+.btn-sm{padding:10px 20px;font-size:.86rem}
+
+/* ---------- hero ---------- */
+.hero{padding:82px 0 30px}
+.hero h1{margin:22px 0 0;max-width:22ch}
+.hero-sub{font-size:1.16rem;max-width:56ch;margin-top:24px;color:#B7C7D6}
+.hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.hero-note{font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--mute);margin-top:20px;letter-spacing:.04em}
+
+/* ---------- canvas de fluxo (assinatura) ---------- */
+.flow{margin:64px 0 0;border:1px solid rgba(190,212,230,.22);background:
+  linear-gradient(180deg,rgba(185,146,87,.05),transparent 60%),var(--ink-2);
+  border-radius:14px;overflow:hidden}
+.flow-bar{
+  display:flex;align-items:center;gap:10px;padding:11px 16px;
+  border-bottom:1px solid rgba(185,146,87,.16);
+  font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.28}}
+.flow-scroll{overflow-x:auto;padding:10px 0 6px}
+.flow-scroll svg{display:block;min-width:860px;width:100%;height:auto}
+.node-box{fill:var(--ink-3);stroke:rgba(185,146,87,.38)}
+.node-t{font-family:"Inter Tight",sans-serif;font-size:13.5px;font-weight:600;fill:var(--bone)}
+.node-s{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--mute);letter-spacing:.06em}
+.edge{stroke:rgba(185,146,87,.34);stroke-width:1.4;fill:none}
+.pulse{fill:var(--gold-lit)}
+.step-n{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--gold)}
+
+/* ---------- foto em destaque ---------- */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.split-photo{border:1px solid rgba(190,212,230,.22);border-radius:14px;overflow:hidden;
+  background:var(--ink-2)}
+.split-photo img{width:100%;height:100%;object-fit:cover;display:block;aspect-ratio:4/3}
+.split h2{margin:16px 0 16px}
+
+/* galeria pequena */
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:44px}
+.gallery figure{border:1px solid rgba(190,212,230,.22);border-radius:14px;overflow:hidden;background:var(--ink-2)}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.gallery figcaption{
+  font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.08em;color:var(--mute);
+  text-transform:uppercase;padding:12px 16px;border-top:1px solid rgba(190,212,230,.1);
+}
+@media(max-width:900px){.gallery{grid-template-columns:1fr}}
+
+/* ---------- seções ---------- */
+section{padding:104px 0;position:relative;z-index:1}
+.sec-head{max-width:70ch}
+.sec-head h2{margin:18px 0 16px}
+
+/* serviços */
+.svc{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-top:52px}
+.card{
+  border:1px solid rgba(190,212,230,.22);background:transparent;padding:38px;border-radius:14px;
+  transition:border-color .28s, transform .28s, background .28s;
+}
+.card:hover{border-color:rgba(185,146,87,.6);background:rgba(190,212,230,.03);transform:translateY(-3px)}
+.ico{width:36px;height:36px;stroke:var(--gold);fill:none;stroke-width:1.4;
+  stroke-linecap:round;stroke-linejoin:round;display:block;margin-bottom:20px}
+.card h3{margin:16px 0 10px}
+.card p{font-size:.96rem;color:#9DB0C1}
+.card-lead{
+  grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;
+  background:linear-gradient(165deg,rgba(185,146,87,.1),rgba(190,212,230,.02) 55%);
+  border-color:rgba(185,146,87,.5);
+}
+.card-lead h3{font-family:Michroma,sans-serif;font-size:1.5rem;font-weight:400;line-height:1.4;letter-spacing:0}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+.ul{list-style:none;margin-top:26px;display:grid;gap:11px}
+.ul li{padding-left:22px;position:relative;font-size:.95rem;color:#B7C7D6}
+.ul li::before{content:"";position:absolute;left:0;top:9px;width:9px;height:1.5px;background:var(--gold)}
+
+/* demo por perfil de obra */
+.demo{display:grid;grid-template-columns:.85fr 1.15fr;gap:44px;align-items:start;margin-top:48px}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;font-size:.76rem;letter-spacing:.06em;
+  padding:9px 17px;border:1px solid rgba(190,212,230,.16);background:transparent;color:var(--mute);
+  cursor:pointer;border-radius:999px;transition:all .2s;
+}
+.chip:hover{color:var(--bone);border-color:rgba(185,146,87,.4)}
+.chip[aria-selected="true"]{background:var(--gold);color:#08243C;border-color:var(--gold);font-weight:500}
+.gains{display:grid;gap:14px;margin-top:8px}
+.gain{border-left:2px solid var(--gold);padding:2px 0 2px 16px}
+.gain b{display:block;font-size:.98rem;font-weight:600}
+.gain span{font-size:.9rem;color:var(--mute)}
+.phone{
+  border:1px solid rgba(190,212,230,.22);background:transparent;border-radius:14px;
+  padding:20px;min-height:430px;display:flex;flex-direction:column;gap:12px;
+}
+.phone-top{
+  display:flex;align-items:center;gap:11px;padding-bottom:14px;
+  border-bottom:1px solid rgba(190,212,230,.1);margin-bottom:6px;
+}
+.avatar{width:34px;height:34px;border-radius:8px;background:linear-gradient(140deg,var(--gold-lit),var(--gold));
+  display:grid;place-items:center;font-weight:800;color:#08243C;font-size:.85rem;font-family:"Bricolage Grotesque",serif}
+.phone-top div b{font-size:.92rem;display:block}
+.phone-top div span{font-size:.7rem;color:var(--gold);font-family:"IBM Plex Mono",monospace;letter-spacing:.08em}
+.msg{
+  max-width:100%;padding:11px 15px;border-radius:12px;font-size:.93rem;line-height:1.5;
+  animation:pop .34s ease both;
+}
+@keyframes pop{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.msg.sys{
+  align-self:stretch;background:transparent;border:1px dashed rgba(185,146,87,.34);
+  font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--gold);letter-spacing:.05em;
+  padding:9px 13px;border-radius:4px;max-width:none;
+}
+.dash{border-top:1px solid rgba(190,212,230,.12);margin-top:auto;padding-top:16px;display:grid;gap:10px}
+.dash-row{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem;color:var(--mute)}
+.dash-row b{color:var(--bone);font-size:1rem;font-weight:600}
+.bar{height:7px;border-radius:99px;background:rgba(190,212,230,.14);overflow:hidden;margin-top:2px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-lit));border-radius:99px;
+  transition:width .6s cubic-bezier(.2,.7,.3,1)}
+
+/* processo */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:46px;border-top:1px solid rgba(185,146,87,.35)}
+.step{padding:30px 26px 30px 0;border-right:1px solid rgba(190,212,230,.09)}
+.step:last-child{border-right:none}
+.step .n{font-family:"IBM Plex Mono",monospace;color:var(--gold);font-size:.78rem;letter-spacing:.14em}
+.step h3{margin:14px 0 9px;font-size:1.08rem}
+.step p{font-size:.9rem;color:var(--mute)}
+
+/* stack */
+.stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:40px}
+.stack span{
+  font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--mute);
+  border:1px solid rgba(190,212,230,.14);padding:8px 14px;border-radius:2px;
+}
+
+/* faq */
+details{border-bottom:1px solid rgba(190,212,230,.11);padding:22px 0}
+summary{
+  cursor:pointer;list-style:none;font-family:"Inter Tight",sans-serif;font-weight:600;
+  font-size:1.08rem;letter-spacing:-.01em;display:flex;justify-content:space-between;gap:20px;align-items:center;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--gold);font-size:1.5rem;font-family:"IBM Plex Mono",monospace;transition:transform .25s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{margin-top:14px;font-size:.97rem;max-width:78ch}
+
+/* cta final */
+.final{
+  border:1px solid rgba(185,146,87,.5);border-radius:16px;padding:66px 48px;text-align:center;
+  background:
+    linear-gradient(180deg, rgba(9,33,55,.88), rgba(9,33,55,.94)),
+    radial-gradient(ellipse 70% 120% at 50% 0%, rgba(185,146,87,.15), transparent 68%),
+    url("https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/8044fd01-69a8-41b3-80a2-690b3701f28e.jpg") center 30%/cover;
+}
+.final h2{max-width:26ch;margin:16px auto 18px}
+.final p{max-width:52ch;margin:0 auto 34px}
+.final .eyebrow{justify-content:center}
+footer{border-top:1px solid rgba(190,212,230,.1);padding:48px 0 40px;margin-top:96px;background:#071B2D}
+.foot-brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;padding-bottom:26px;
+  border-bottom:1px solid rgba(190,212,230,.08)}
+
+.foot-legal{font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--mute);letter-spacing:.04em}
+.foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;padding-top:26px}
+.foot-col{display:flex;flex-direction:column;gap:6px}
+.foot-label{font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold)}
+.foot-col a{color:var(--bone);text-decoration:none;font-size:1.02rem;font-weight:500;
+  border-bottom:1px solid transparent;align-self:flex-start;transition:border-color .2s}
+.foot-col a:hover{border-color:var(--gold)}
+.foot-plain{font-size:1.02rem;color:#B7C7D6}
+
+/* ---------- botão flutuante whatsapp ---------- */
+.wa{
+  position:fixed;right:10px;bottom:24px;z-index:80;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:16px 30px;border-radius:999px;
+  background:linear-gradient(180deg,var(--gold-lit),var(--gold));
+  color:#08243C;text-decoration:none;font-weight:600;font-size:.98rem;letter-spacing:-.01em;
+  box-shadow:0 14px 36px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(219,190,138,.4) inset;
+  opacity:0;visibility:hidden;transform:translateY(18px) scale(.94);
+  transition:opacity .35s ease, transform .35s cubic-bezier(.2,.8,.3,1), visibility .35s, box-shadow .3s;
+}
+.wa.show{opacity:1;visibility:visible;transform:none}
+.wa:hover,.wa:focus-visible{transform:translateY(-2px);
+  box-shadow:0 18px 44px -12px rgba(185,146,87,.65), 0 0 0 1px rgba(219,190,138,.6) inset}
+@media(max-width:640px){.wa{right:8px;bottom:16px;padding:14px 22px;font-size:.9rem}}
+
+/* dados */
+.dados{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:42px}
+.dado{border:1px solid rgba(190,212,230,.22);border-radius:14px;padding:28px 30px}
+.dado b{display:block;font-family:"Inter Tight",sans-serif;font-weight:600;font-size:1.04rem;
+  color:var(--bone);margin-bottom:8px}
+.dado span{font-size:.94rem;color:#9DB0C1;line-height:1.6}
+.dado.destaque{grid-column:1/-1;background:rgba(185,146,87,.07);border-color:rgba(185,146,87,.45)}
+@media(max-width:900px){.dados{grid-template-columns:1fr}.dado.destaque{grid-column:auto}}
+
+/* o controle */
+.fn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:44px}
+.fn{border:1px solid rgba(190,212,230,.22);border-radius:14px;padding:30px 32px}
+.fn-wide{grid-column:1/-1;background:rgba(185,146,87,.06);border-color:rgba(185,146,87,.45)}
+.fn b{display:block;font-family:"Inter Tight",sans-serif;font-weight:600;font-size:1.06rem;
+  color:var(--bone);margin-bottom:8px}
+.fn span{font-size:.95rem;color:#9DB0C1;line-height:1.6}
+.fn-not{
+  margin-top:40px;border-left:2px solid var(--gold);padding:4px 0 4px 22px;max-width:74ch;
+}
+.fn-not b{display:block;font-family:"Inter Tight",sans-serif;font-weight:600;color:var(--bone);margin-bottom:10px}
+.fn-not p{font-size:.95rem;color:var(--mute)}
+@media(max-width:900px){.fn-grid{grid-template-columns:1fr}.fn-wide{grid-column:auto}}
+
+/* para quem é */
+.pq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:44px}
+.pq{
+  text-align:left;font-family:"Inter Tight",sans-serif;font-size:.96rem;color:#B7C7D6;
+  border:1px solid rgba(190,212,230,.22);background:transparent;border-radius:14px;
+  padding:24px 24px 24px 58px;cursor:pointer;position:relative;line-height:1.5;
+  transition:border-color .25s,background .25s,color .25s,transform .25s;
+}
+.pq::before{
+  content:"";position:absolute;left:22px;top:26px;width:20px;height:20px;border-radius:6px;
+  border:1.5px solid rgba(190,212,230,.4);transition:all .25s;
+}
+.pq::after{
+  content:"";position:absolute;left:28px;top:32px;width:8px;height:5px;
+  border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);
+  transform:rotate(-45deg) scale(.2);opacity:0;transition:all .25s;
+}
+.pq:hover{border-color:rgba(185,146,87,.55);color:var(--bone)}
+.pq[aria-pressed="true"]{border-color:var(--gold);background:rgba(185,146,87,.09);color:var(--bone)}
+.pq[aria-pressed="true"]::before{background:var(--gold);border-color:var(--gold)}
+.pq[aria-pressed="true"]::after{opacity:1;transform:rotate(-45deg) scale(1)}
+.pq b{display:block;font-weight:600;color:var(--bone);margin-bottom:5px;font-size:.98rem}
+.pq-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:16px 22px;margin-top:26px;
+  border:1px solid rgba(185,146,87,.4);border-radius:14px;padding:22px 26px;
+  background:rgba(185,146,87,.06);
+}
+.pq-count{font-family:"IBM Plex Mono",monospace;font-size:.76rem;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.pq-msg{font-size:1.05rem;color:var(--bone);flex:1;min-width:240px}
+.pq-msg em{font-family:"Instrument Serif",Georgia,serif;font-style:italic;color:var(--gold-lit);font-size:1.15em}
+.pq-sectors{display:flex;flex-wrap:wrap;gap:9px;margin-top:34px}
+.pq-sectors span{
+  font-family:"IBM Plex Mono",monospace;font-size:.74rem;letter-spacing:.06em;color:var(--mute);
+  border:1px solid rgba(190,212,230,.16);padding:8px 15px;border-radius:999px;
+}
+.pq-no{margin-top:46px;border-left:2px solid rgba(190,212,230,.25);padding-left:22px;max-width:70ch}
+.pq-no h3{font-size:1.05rem;margin-bottom:12px;color:var(--bone)}
+.pq-no li{color:var(--mute);font-size:.93rem;margin-bottom:7px;list-style:none;padding-left:18px;position:relative}
+.pq-no li::before{content:"\2014";position:absolute;left:0;color:rgba(190,212,230,.35)}
+@media(max-width:900px){.pq-grid{grid-template-columns:1fr}}
+
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+
+@media(max-width:900px){
+  .svc,.demo,.split{grid-template-columns:1fr}
+  .card-lead{grid-row:auto}
+  .steps{grid-template-columns:1fr 1fr}
+  .step{border-right:none;border-bottom:1px solid rgba(190,212,230,.09);padding-right:0}
+  .nav-links,.nav-claim{display:none}
+  section{padding:74px 0}
+  .final{padding:46px 24px}
+  .split{gap:34px}
+  .foot-grid{grid-template-columns:1fr;gap:20px}
+}
+@media(max-width:720px){
+  .flow-scroll svg{min-width:720px}
+  .wrap{padding:0 18px}
+  .hero{padding:56px 0 20px}
+  .card{padding:28px 24px}
+  .fn{padding:24px 22px}
+  .pq{padding:22px 22px 22px 52px}
+  .phone{min-height:0;padding:16px}
+  .msg{max-width:100%;font-size:.9rem}
+  .final{padding:40px 20px}
+  .flow{margin-top:44px}
+}
+@media(max-width:520px){
+  .steps{grid-template-columns:1fr}
+  h1{font-size:clamp(1.5rem,7vw,1.9rem);line-height:1.34}
+  h2{font-size:clamp(1.12rem,5vw,1.4rem);line-height:1.4}
+  .card-lead h3{font-size:1.18rem}
+  .hero-sub{font-size:1.02rem}
+  .hero-cta .btn{width:100%;justify-content:center}
+  .hero-note{font-size:.68rem;line-height:1.9}
+  .pq-bar{padding:18px 20px}
+  .pq-bar .btn{width:100%;justify-content:center}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none}
+}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <a href="#topo" class="logo" aria-label="AppTrena"><span class="logo-word">APP<b>TRENA</b></span></a>
+    <span class="nav-claim">A obra sob controle, não na memória</span>
+    <div class="nav-links">
+      <a href="#paraquem">Para quem é</a>
+      <a href="#controle">Como funciona</a>
+      <a href="#modulos">Módulos</a>
+      <a href="#demo">Na prática</a>
+      <a href="#processo">Implantação</a>
+      <a href="#dados">Segurança</a>
+      <a href="#duvidas">Dúvidas</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap" id="topo">
+  <header class="hero">
+    <div class="eyebrow">Controle de obra e orçamento</div>
+    <h1>Cada real da obra,<br><span class="gold">no lugar certo do canteiro.</span></h1>
+    <p class="hero-sub">Chega de planilha desatualizada e nota perdida no grupo de WhatsApp. Numa reforma de apartamento ou numa obra de 40 unidades, o AppTrena mostra na hora quanto já foi gasto, quanto falta e qual fornecedor ainda não foi pago — sem esperar o fim do mês pra descobrir que estourou o orçamento.</p>
+    <div class="hero-cta">
+      <a class="btn btn-gold" href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20AppTrena%20e%20quero%20uma%20demonstra%C3%A7%C3%A3o%20gratuita." target="_blank" rel="noopener">Pedir demonstração gratuita</a>
+      <a class="btn btn-ghost" href="#modulos">Ver todos os módulos</a>
+    </div>
+    <p class="hero-note">EAP e orçamento · Mapa de fornecedores · Empreita · Pagamentos · Diário de obra</p>
+  </header>
+
+  <!-- ASSINATURA: canvas de fluxo animado -->
+  <div class="flow">
+    <div class="flow-bar"><span class="dot"></span> fluxo da obra · ativo</div>
+    <div class="flow-scroll">
+      <svg viewBox="0 0 980 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fluxo: lança a obra na EAP, compara fornecedores no mapa, mede o serviço na empreita, gera o pagamento e atualiza o orçado x realizado.">
+        <defs>
+          <path id="e1" d="M182,105 C205,105 205,105 228,105"/>
+          <path id="e2" d="M368,105 C391,105 391,105 414,105"/>
+          <path id="e3" d="M554,105 C577,105 577,105 600,105"/>
+          <path id="e4" d="M740,105 C763,105 763,105 786,105"/>
+        </defs>
+
+        <use href="#e1" class="edge"/><use href="#e2" class="edge"/>
+        <use href="#e3" class="edge"/><use href="#e4" class="edge"/>
+
+        <g class="node"><rect class="node-box" x="14" y="62" width="168" height="86" rx="3"/>
+          <text class="step-n" x="30" y="86">01</text>
+          <text class="node-t" x="30" y="108">Lança a obra</text>
+          <text class="node-s" x="30" y="128">EAP · ORÇAMENTO · BDI</text></g>
+
+        <g class="node"><rect class="node-box" x="228" y="62" width="140" height="86" rx="3"/>
+          <text class="step-n" x="244" y="86">02</text>
+          <text class="node-t" x="244" y="108">Compara</text>
+          <text class="node-s" x="244" y="128">FORNECEDOR</text></g>
+
+        <g class="node"><rect class="node-box" x="414" y="62" width="140" height="86" rx="3"/>
+          <text class="step-n" x="430" y="86">03</text>
+          <text class="node-t" x="430" y="108">Mede</text>
+          <text class="node-s" x="430" y="128">EMPREITA</text></g>
+
+        <g class="node"><rect class="node-box" x="600" y="62" width="140" height="86" rx="3"/>
+          <text class="step-n" x="616" y="86">04</text>
+          <text class="node-t" x="616" y="108">Paga</text>
+          <text class="node-s" x="616" y="128">RATEIO · NOTA IA</text></g>
+
+        <g class="node"><rect class="node-box" x="786" y="62" width="180" height="86" rx="3"
+             stroke="rgba(185,146,87,.75)"/>
+          <text class="step-n" x="802" y="86">05</text>
+          <text class="node-t" x="802" y="108">Atualiza o realizado</text>
+          <text class="node-s" x="802" y="128">RELATÓRIOS</text></g>
+
+        <circle class="pulse" r="3.4"><animateMotion dur="1.5s" begin="0s;p4.end+.7s" fill="freeze"><mpath href="#e1"/></animateMotion></circle>
+        <circle class="pulse" r="3.4"><animateMotion dur="1.5s" begin="1.5s;p4.end+2.2s"><mpath href="#e2"/></animateMotion></circle>
+        <circle class="pulse" r="3.4"><animateMotion dur="1.5s" begin="3s;p4.end+3.7s"><mpath href="#e3"/></animateMotion></circle>
+        <circle class="pulse" r="3.4"><animateMotion id="p4" dur="1.5s" begin="4.5s;p4.end+5.2s"><mpath href="#e4"/></animateMotion></circle>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- FOTO EM DESTAQUE -->
+<section style="padding-bottom:0">
+  <div class="wrap">
+    <div class="split reveal">
+      <div class="split-photo">
+        <img src="https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/21435132-eac9-4068-ba1d-c741f3bd8d2b.jpg" alt="Mestre de obra no canteiro segurando um tablet com o orçamento e os gráficos da obra">
+      </div>
+      <div>
+        <div class="eyebrow">Enquanto isso, no canteiro</div>
+        <h2>O que hoje é <span class="gold">memória e caderninho.</span></h2>
+        <p style="font-size:1.05rem;margin-top:6px">O mestre de obra sabe de cabeça quanto já gastou. O engenheiro confia no que o WhatsApp contou. O financeiro só descobre o rombo quando o boleto vence. O AppTrena tira esse controle da cabeça de uma pessoa só e coloca numa tela que todo mundo da equipe pode olhar — cada um vendo só o que precisa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARA QUEM É -->
+<section id="paraquem">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Para quem é</div>
+      <h2>Marque o que trava o controle <span class="gold">da sua obra esta semana.</span></h2>
+      <p>Não é sobre o tamanho da construtora. É sobre onde o controle está vazando.</p>
+    </div>
+
+    <div class="pq-grid reveal">
+      <button class="pq" aria-pressed="false"><b>Planilha desatualizada</b>Ninguém sabe se a obra está estourando o orçamento até o fim do mês.</button>
+      <button class="pq" aria-pressed="false"><b>Nota perdida</b>A nota fiscal do fornecedor se perde no grupo de WhatsApp da obra.</button>
+      <button class="pq" aria-pressed="false"><b>Cotação de cabeça</b>Comparar três orçamentos de fornecedor é de memória, sem registro.</button>
+      <button class="pq" aria-pressed="false"><b>Medição no papel</b>O empreiteiro mede o serviço e ninguém confere antes de pagar.</button>
+      <button class="pq" aria-pressed="false"><b>BDI incerto</b>Ninguém sabe se o BDI aplicado ainda cobre o custo real da etapa.</button>
+      <button class="pq" aria-pressed="false"><b>Pagamento sem rastro</b>O dinheiro sai do caixa sem registrar de qual obra ou etapa é.</button>
+    </div>
+
+    <div class="pq-bar reveal">
+      <span class="pq-count" id="pqCount">0 de 6 marcados</span>
+      <span class="pq-msg" id="pqMsg">Clique nos quadros acima para ver o que o AppTrena resolveria primeiro.</span>
+      <a class="btn btn-gold" id="pqCta" href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20AppTrena%20e%20quero%20uma%20demonstra%C3%A7%C3%A3o%20gratuita." target="_blank" rel="noopener">Pedir demonstração gratuita</a>
+    </div>
+
+    <div class="pq-sectors reveal">
+      <span>Construtoras pequenas e médias</span><span>Reformas residenciais</span>
+      <span>Incorporadoras</span><span>Engenheiros e arquitetos autônomos</span>
+      <span>Empreiteiras</span><span>Escritórios de obra</span>
+    </div>
+
+    <div class="gallery reveal">
+      <figure>
+        <img src="https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/7fe48d18-9dae-4ed5-b72b-bf1cd39bdf25.jpg" alt="Reforma residencial em andamento, parede de tijolo aparente e piso sendo instalado">
+        <figcaption>Reforma residencial — em andamento</figcaption>
+      </figure>
+      <figure>
+        <img src="https://cdn.kairogen.ai/gallery/images/6a4eac89eea4b9fce8b26b53/08f91161-dafd-4e94-831d-aa1a58cbd691.jpg" alt="Mãos conferindo nota fiscal impressa e calculadora sobre plantas de obra">
+        <figcaption>Nota fiscal conferida antes do pagamento</figcaption>
+      </figure>
+    </div>
+
+    <div class="pq-no reveal">
+      <h3>E para quem não é</h3>
+      <ul>
+        <li>Obra muito pequena, sem fornecedor terceirizado e sem equipe fixa — o controle cabe numa caderneta.</li>
+        <li>Quem não quer nenhum registro digital, só confia no papel.</li>
+        <li>Quem procura um programa de desenho ou projeto 3D — o AppTrena não desenha, ele controla dinheiro e prazo.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section id="controle">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Como funciona</div>
+      <h2>O controle que <span class="gold">não escapa pela planilha.</span></h2>
+      <p>Não é uma planilha bonita. É um sistema que já sabe o que é obra, fornecedor, medição e pagamento — e cruza tudo sozinho.</p>
+    </div>
+
+    <div class="fn-grid reveal">
+      <div class="fn"><b>Cada obra separada, sem misturar</b><span>Multiempresa e multiobra de verdade: cada cliente, cada canteiro, com número e status próprio — não é um filtro de tela, é isolamento real dos dados.</span></div>
+      <div class="fn"><b>BDI em três escopos</b><span>Geral da obra, por etapa ou por item, quando o custo pede. O orçamento mostra o preço de venda ao lado do custo real, não só um número solto.</span></div>
+      <div class="fn"><b>Fornecedor comparado, não decorado</b><span>O Mapa de Fornecedores compara propostas lado a lado, já com imposto e frete, e mostra quem ganhou — sem abrir três conversas de WhatsApp pra lembrar o preço.</span></div>
+      <div class="fn"><b>Medição vira pagamento sozinha</b><span>A Empreita fecha a medição por categoria — material, mão de obra, equipamento — e o pagamento sai rateado automaticamente, sem calcular na mão.</span></div>
+      <div class="fn fn-wide"><b>Nota fiscal lida pela foto</b><span>Tira uma foto da nota do fornecedor e a leitura por IA já preenche fornecedor, valor e categoria no formulário de pagamento. Sobra tempo pra conferir, não pra digitar. Sem foto, o cadastro manual continua funcionando normal — a IA é um atalho, não uma obrigação.</span></div>
+    </div>
+
+    <div class="fn-not reveal">
+      <b>E o que ele não faz</b>
+      <p>Não desenha projeto, não substitui um orçamento de material peça a peça como um BIM, e não substitui o engenheiro responsável técnico. O AppTrena controla o dinheiro e o prazo da obra — quem decide o projeto e assina a responsabilidade técnica continua sendo você.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MÓDULOS -->
+<section id="modulos">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">O que o sistema faz</div>
+      <h2>Cada etapa da obra, <span class="gold">com número fechado.</span></h2>
+      <p>Um sistema só, não cinco planilhas separadas. Começa pelo orçamento e vai somando o resto conforme a obra avança.</p>
+    </div>
+
+    <div class="svc">
+      <article class="card card-lead reveal">
+        <div>
+          <svg class="ico" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20V13M22 20V7"/></svg>
+          <span class="tag">Coração do sistema</span>
+          <h3>EAP e<br>Orçamento</h3>
+          <p style="margin-top:14px;max-width:46ch">A estrutura analítica da obra, com BDI de verdade e o orçado ao lado do realizado — atualizado a cada pagamento confirmado, não só no fim do mês.</p>
+          <ul class="ul">
+            <li>BDI geral, por etapa e por item</li>
+            <li>Orçado x realizado por categoria de custo</li>
+            <li>Cronograma de desembolso por período</li>
+            <li>Grupos que somam os itens filhos sozinhos</li>
+            <li>Relatório em PDF pronto pra mostrar ao cliente</li>
+          </ul>
+        </div>
+        <p style="margin-top:30px;font-family:'IBM Plex Mono',monospace;font-size:.74rem;color:var(--gold);letter-spacing:.1em">MULTIEMPRESA · MULTIOBRA · SEUS DADOS</p>
+      </article>
+
+      <article class="card reveal">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v18M6 7l-4 8h8L6 7zM18 7l-4 8h8l-4-8z"/></svg>
+        <span class="tag">Cotação</span>
+        <h3>Mapa de Fornecedores</h3>
+        <p>Compara propostas lado a lado com destaque do vencedor, imposto e frete por fornecedor, e o rateio do custo por etapa da obra.</p>
+      </article>
+
+      <article class="card reveal">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3V2h6v1M8 11l2 2 4-5M8 16h8"/></svg>
+        <span class="tag">Medição</span>
+        <h3>Empreita</h3>
+        <p>Serviço vinculado à EAP, medição percentual por categoria, reserva discricionária e o histórico de medições já fechadas.</p>
+      </article>
+
+      <article class="card reveal">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <span class="tag">Saída de caixa</span>
+        <h3>Pagamentos</h3>
+        <p>Rateio de itens em reais ou percentual com validação da soma, status pendente ou confirmado, e leitura de nota fiscal por foto.</p>
+      </article>
+
+      <article class="card reveal">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+        <span class="tag">Registro</span>
+        <h3>Diário de Obra e Relatórios</h3>
+        <p>Foto do andamento direto do canteiro, e relatórios de orçado x realizado, cronograma de desembolso e status da obra sempre à mão.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO POR PERFIL DE OBRA -->
+<section id="demo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Na prática</div>
+      <h2>Escolha o perfil da obra e veja o sistema rodando.</h2>
+      <p>O mesmo sistema, obras diferentes. É assim que o controle roda em cada tipo de operação.</p>
+    </div>
+
+    <div class="demo">
+      <div class="reveal">
+        <div class="chips" role="tablist" aria-label="Perfis de obra">
+          <button class="chip" role="tab" data-seg="reforma" aria-selected="true">Reforma residencial</button>
+          <button class="chip" role="tab" data-seg="obranova" aria-selected="false">Obra nova</button>
+          <button class="chip" role="tab" data-seg="comercial" aria-selected="false">Empreitada comercial</button>
+          <button class="chip" role="tab" data-seg="condominio" aria-selected="false">Reforma predial</button>
+          <button class="chip" role="tab" data-seg="multiobra" aria-selected="false">Várias obras</button>
+        </div>
+        <div class="gains" id="gains"></div>
+      </div>
+
+      <div class="phone">
+        <div class="phone-top">
+          <div class="avatar">AT</div>
+          <div><b id="segName">Obra</b><span>PAINEL · ATUALIZADO AGORA</span></div>
+        </div>
+        <div id="chat" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="dash">
+          <div class="dash-row"><span>Orçado</span><b id="dOrcado">—</b></div>
+          <div class="dash-row"><span>Realizado</span><b id="dRealizado">—</b></div>
+          <div class="bar"><i id="dBar" style="width:0%"></i></div>
+          <div class="dash-row"><span>Etapa atual</span><b id="dEtapa">—</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESSO -->
+<section id="processo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Implantação</div>
+      <h2>Da planilha <span class="gold">ao sistema no ar.</span></h2>
+      <p>Sem projeto de seis meses. A primeira obra entra no sistema enquanto o resto é migrado aos poucos.</p>
+    </div>
+
+    <div class="steps reveal">
+      <div class="step"><div class="n">ETAPA 01</div><h3>Cadastro da empresa</h3><p>Cadastra sua construtora, clientes, responsáveis e fornecedores. Poucos minutos, sem TI.</p></div>
+      <div class="step"><div class="n">ETAPA 02</div><h3>Primeira obra</h3><p>Lança a EAP com o orçamento e o BDI da obra que está em andamento agora.</p></div>
+      <div class="step"><div class="n">ETAPA 03</div><h3>Equipe com acesso</h3><p>Cada usuário — financeiro, engenheiro, mestre de obra — entra só com o que precisa ver.</p></div>
+      <div class="step"><div class="n">ETAPA 04</div><h3>No ar, obra por obra</h3><p>Mapa, Empreita, Pagamentos e Diário rodando desde a primeira medição.</p></div>
+    </div>
+
+    <div class="stack reveal">
+      <span>Multiempresa</span><span>Multiobra</span><span>Leitura de nota por IA</span>
+      <span>BDI por etapa</span><span>Relatórios em tempo real</span><span>Hospedagem própria</span>
+    </div>
+  </div>
+</section>
+
+<!-- DADOS -->
+<section id="dados">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Segurança</div>
+      <h2>Onde ficam os dados <span class="gold">da sua obra.</span></h2>
+      <p>Orçamento, proposta de fornecedor, nota fiscal, histórico de pagamento. Se você lida com o dinheiro do cliente, essa é a parte que importa antes de qualquer demonstração.</p>
+    </div>
+
+    <div class="dados reveal">
+      <div class="dado"><b>Cada empresa só vê a própria obra</b><span>Isolamento real por empresa — não é um filtro de tela, é a própria estrutura do banco de dados que separa uma construtora da outra.</span></div>
+      <div class="dado"><b>Seus dados não saem daqui</b><span>Orçamento e valores pagos ficam no seu ambiente, não são misturados nem compartilhados entre outros clientes do sistema.</span></div>
+      <div class="dado"><b>Acesso por perfil</b><span>Cada usuário vê só as obras e as telas que precisa. O financeiro não precisa abrir o diário, o mestre de obra não precisa ver o pagamento de outra frente.</span></div>
+      <div class="dado destaque"><b>Nota fiscal lida por IA, sem guardar em outro lugar</b><span>A leitura da nota fiscal usa um provedor de inteligência artificial contratado sem retenção: a imagem e o texto extraído não ficam armazenados fora do seu ambiente nem treinam modelo de terceiros. Sem essa configuração, o recurso simplesmente fica desligado — o resto do sistema continua funcionando normal, com cadastro manual.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="duvidas">
+  <div class="wrap" style="max-width:900px">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Dúvidas honestas</div>
+      <h2>O que todo dono de obra pergunta antes de fechar.</h2>
+    </div>
+    <div class="reveal" style="margin-top:40px">
+      <details><summary>Preciso trocar minha planilha de uma vez?</summary>
+        <p>Não. Dá pra migrar obra por obra, começando pela que está em andamento agora. O que já foi orçado na planilha vira o ponto de partida da EAP no sistema.</p></details>
+      <details><summary>Funciona pra reforma pequena e pra obra grande?</summary>
+        <p>O cadastro é o mesmo em ambos os casos; o que muda é quantas etapas, itens e fornecedores você lança. Funciona dos dois tamanhos, de um apartamento a um condomínio inteiro.</p></details>
+      <details><summary>O BDI é fixo ou eu escolho?</summary>
+        <p>Você define. Pode ter um BDI geral da obra e um diferente por etapa ou por item, quando o custo real da frente pede um percentual próprio.</p></details>
+      <details><summary>Quem pode ver os valores da obra?</summary>
+        <p>Só quem você der acesso. Cada usuário entra com um perfil, e cada empresa cadastrada só vê os próprios dados — mesmo dentro do mesmo sistema.</p></details>
+      <details><summary>Preciso de internet no canteiro?</summary>
+        <p>Sim, é um sistema web. Funciona pelo celular do mestre de obra pra registrar o diário, e pelo computador do escritório pra orçamento e pagamento.</p></details>
+      <details><summary>Quanto custa?</summary>
+        <p>Depende do número de obras simultâneas e de usuários com acesso — preço de tabela pra isso seria chute. O modelo é sempre o mesmo: um valor de implantação, cobrado uma vez, e uma mensalidade que cobre operação, ajustes e suporte. A demonstração devolve os dois números fechados, por escrito, antes de qualquer compromisso.</p></details>
+      <details><summary>Tem fidelidade? E se eu quiser encerrar?</summary>
+        <p>O que foi lançado é seu: as obras, os orçamentos e o histórico de pagamento continuam disponíveis pra exportação. A mensalidade paga o acompanhamento — se você encerrar, entregamos os relatórios do que está no sistema.</p></details>
+      <details><summary>E depois que a obra entra no sistema, quem cuida?</summary>
+        <p>Nós. Obra muda: entra um fornecedor novo, muda o BDI de uma etapa, aparece um cadastro que faltava. O acompanhamento ajusta o sistema conforme a obra evolui.</p></details>
+      <details><summary>Dá pra exportar relatório?</summary>
+        <p>Sim. O mapa de fornecedores e os relatórios de orçado x realizado saem em PDF, prontos pra mostrar ao cliente ou anexar na prestação de contas.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="final reveal">
+      <div class="eyebrow">Demonstração sem custo</div>
+      <h2>Cada real da obra, <span class="gold">no lugar certo.</span></h2>
+      <p>Quem controla a obra na planilha provavelmente já perdeu uma nota ou pagou uma medição errada este mês. Mande uma mensagem contando o tamanho da sua operação — a gente responde com os pontos em que o AppTrena se paga primeiro.</p>
+      <a class="btn btn-gold" href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20AppTrena%20e%20quero%20uma%20demonstra%C3%A7%C3%A3o%20gratuita." target="_blank" rel="noopener">Pedir demonstração gratuita</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-brand">
+      <span class="foot-word">APP<b>TRENA</b></span>
+      <span class="foot-legal">Um produto Zero1 Mobilidade e Tecnologia Ltda · CNPJ 49.093.647/0001-02</span>
+    </div>
+    <div class="foot-grid">
+      <div class="foot-col">
+        <span class="foot-label">Telefone Brasil</span>
+        <a href="tel:+5561996713169">+55 61 99671 3169</a>
+      </div>
+      <div class="foot-col">
+        <span class="foot-label">WhatsApp</span>
+        <a href="https://wa.me/595995631900" target="_blank" rel="noopener">+595 995 631 900</a>
+      </div>
+      <div class="foot-col">
+        <span class="foot-label">Comercial</span>
+        <span class="foot-plain">Onilia Cristina de Almeida</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<a class="wa" id="waBtn" href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20AppTrena%20e%20quero%20a%20demonstra%C3%A7%C3%A3o%20gratuita."
+   target="_blank" rel="noopener">Pedir demonstração gratuita</a>
+
+<script>
+const SEG = {
+  reforma:{
+    name:"Apto 302 · Reforma completa",
+    gains:[["Nota lida pela foto","Fornecedor, valor e categoria preenchidos sozinhos."],
+           ["Fornecedor comparado","Três orçamentos de marcenaria lado a lado, com frete."],
+           ["Saldo sempre à vista","Orçado x realizado atualiza a cada pagamento confirmado."]],
+    log:[["sys","cadastro · Apto 302, cliente Fernanda Reis"],
+         ["sys","mapa de fornecedores · 3 propostas de marcenaria comparadas"],
+         ["sys","nota fiscal lida por IA · Marcenaria Silva, R$ 8.400"],
+         ["sys","pagamento gerado · rateado em 2 etapas"]],
+    orcado:"R$ 82.400", realizado:"R$ 51.230", pct:62, etapa:"Marcenaria e acabamento"
+  },
+  obranova:{
+    name:"Casa térrea 180m² · Jardins",
+    gains:[["BDI em três níveis","Geral, por etapa e por item — sem perder o custo real."],
+           ["Medição vira pagamento","A empreita fecha e o rateio já sai calculado."],
+           ["Cronograma de desembolso","Sabe quanto vai sair do caixa em cada mês da obra."]],
+    log:[["sys","cadastro · obra confirmada, EAP com BDI de 22%"],
+         ["sys","mapa de fornecedores · concreto usinado, 4 propostas"],
+         ["sys","empreita · medição da fundação registrada, 100%"],
+         ["sys","pagamento gerado · empreiteiro da estrutura"]],
+    orcado:"R$ 410.000", realizado:"R$ 96.500", pct:23, etapa:"Alvenaria e fechamento"
+  },
+  comercial:{
+    name:"Loja Shopping Vale · 140m²",
+    gains:[["Reserva discricionária","Margem de manobra prevista, não descoberta na hora."],
+           ["Alerta de desvio","Sabe que o BDI da etapa não fecha antes de pagar a mais."],
+           ["Relatório pronto pro cliente","PDF do orçado x realizado, sem montar na mão."]],
+    log:[["sys","cadastro · obra com prazo de entrega em 45 dias"],
+         ["sys","mapa de fornecedores · vidraçaria e forro comparados"],
+         ["sys","empreita · reserva discricionária de 4% aplicada"],
+         ["sys","alerta · BDI da etapa acabamento abaixo do previsto"]],
+    orcado:"R$ 145.000", realizado:"R$ 138.900", pct:96, etapa:"Acabamento final"
+  },
+  condominio:{
+    name:"Cond. Bela Vista · fachada",
+    gains:[["Multiobra de verdade","Cada torre ou etapa do prédio, separada e com seu número."],
+           ["Diário direto do celular","Foto do andamento registrada no canteiro, sem planilha."],
+           ["Fornecedor rateado por etapa","Frete e imposto divididos certo entre as frentes."]],
+    log:[["sys","cadastro · obra vinculada ao cliente Cond. Bela Vista"],
+         ["sys","mapa de fornecedores · 4 propostas de pintura e impermeabilização"],
+         ["sys","diário de obra · fotos da fachada norte registradas"],
+         ["sys","pagamento gerado · rateado por etapa do prédio"]],
+    orcado:"R$ 620.000", realizado:"R$ 205.000", pct:33, etapa:"Fachada e hidráulica"
+  },
+  multiobra:{
+    name:"5 obras ativas · visão geral",
+    gains:[["Uma tela, todas as obras","Sem abrir cinco planilhas pra saber o total gasto."],
+           ["Acesso por perfil","Cada pessoa da equipe vê só o que precisa ver."],
+           ["Realizado é o que foi pago","Não confunde orçado com o que só foi lançado."]],
+    log:[["sys","multiempresa · cada obra com cliente e status próprio"],
+         ["sys","relatório · cronograma de desembolso consolidado"],
+         ["sys","dashboard · obras classificadas por status"],
+         ["sys","acesso por perfil · financeiro só vê pagamentos"]],
+    orcado:"R$ 1.860.000", realizado:"R$ 742.000", pct:40, etapa:"5 obras em andamento"
+  }
+};
+
+const chat=document.getElementById('chat'), gains=document.getElementById('gains'), segName=document.getElementById('segName');
+const dOrcado=document.getElementById('dOrcado'), dRealizado=document.getElementById('dRealizado'),
+      dBar=document.getElementById('dBar'), dEtapa=document.getElementById('dEtapa');
+let timers=[];
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function render(key){
+  timers.forEach(clearTimeout); timers=[];
+  chat.innerHTML=''; dBar.style.width='0%';
+  const s=SEG[key];
+  segName.textContent=s.name;
+  gains.innerHTML=s.gains.map(g=>`<div class="gain"><b>${g[0]}</b><span>${g[1]}</span></div>`).join('');
+
+  if(reduced){
+    chat.innerHTML=s.log.map(m=>`<div class="msg ${m[0]}">${m[1]}</div>`).join('');
+    dOrcado.textContent=s.orcado; dRealizado.textContent=s.realizado;
+    dBar.style.width=s.pct+'%'; dEtapa.textContent=s.etapa;
+    return;
+  }
+  let delay=200;
+  s.log.forEach(m=>{
+    const t=setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='msg '+m[0]; el.textContent=m[1];
+      chat.appendChild(el);
+    },delay);
+    timers.push(t);
+    delay+=550;
+  });
+  timers.push(setTimeout(()=>{
+    dOrcado.textContent=s.orcado; dRealizado.textContent=s.realizado; dEtapa.textContent=s.etapa;
+  },delay));
+  timers.push(setTimeout(()=>{ dBar.style.width=s.pct+'%'; },delay+120));
+}
+
+document.querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-selected','false'));
+    c.setAttribute('aria-selected','true');
+    render(c.dataset.seg);
+  });
+});
+
+const demoObs=new IntersectionObserver((e,o)=>{
+  e.forEach(x=>{ if(x.isIntersecting){ render('reforma'); o.disconnect(); } });
+},{threshold:.25});
+demoObs.observe(document.getElementById('demo'));
+
+const revObs=new IntersectionObserver(e=>{
+  e.forEach(x=>{ if(x.isIntersecting){ x.target.classList.add('in'); revObs.unobserve(x.target); } });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{
+  el.style.transitionDelay=(i%3)*70+'ms';
+  revObs.observe(el);
+});
+
+document.querySelectorAll('a[href*="wa.me"]').forEach(a=>{
+  a.addEventListener('click',()=>{
+    if(window.gtag) gtag('event','contato_whatsapp',{origem:a.closest('section')?.id||'topo'});
+    if(window.fbq)  fbq('track','Contact');
+  });
+});
+
+const pqBtns=[...document.querySelectorAll('.pq')];
+const pqCount=document.getElementById('pqCount'), pqMsg=document.getElementById('pqMsg');
+const PQ_MSG=[
+  'Clique nos quadros acima para ver o que o AppTrena resolveria primeiro.',
+  'Um ponto só já resolve. <em>Dá para começar por uma obra.</em>',
+  'Dois pontos de vazamento. <em>A conta começa a fechar.</em>',
+  'Três gargalos: o sistema <em>se paga na primeira medição evitada.</em>',
+  'Quatro gargalos. <em>Sua planilha está segurando a obra.</em>',
+  'Cinco gargalos. <em>Isso já está custando dinheiro todo mês.</em>',
+  'Seis de seis. <em>Cada real da obra merece um lugar certo.</em>'
+];
+function pqUpdate(){
+  const n=pqBtns.filter(b=>b.getAttribute('aria-pressed')==='true').length;
+  pqCount.textContent=n+' de 6 marcados';
+  pqMsg.innerHTML=PQ_MSG[n];
+}
+pqBtns.forEach(b=>b.addEventListener('click',()=>{
+  b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')==='true'?'false':'true');
+  pqUpdate();
+}));
+
+const waBtn=document.getElementById('waBtn');
+const toggleWa=()=>waBtn.classList.toggle('show', window.scrollY > 420);
+toggleWa();
+window.addEventListener('scroll',toggleWa,{passive:true});
+</script>
+</body>
+</html>
