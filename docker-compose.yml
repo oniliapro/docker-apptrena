@@ -6,7 +6,9 @@ services:
       dockerfile: Dockerfile_nginx
     ports:
       # Só localhost: o nginx do sistema repassa /api pra cá (ver 9.6 do guia).
-      - "127.0.0.1:8088:80"
+      # Porta 8188 (não 8088) porque o projeto ImigraParaguai já usa a 8088
+      # nesta máquina — ver docs/CONTEXTO.md.
+      - "127.0.0.1:8188:80"
     volumes:
       - ./controleobra-api:/usr/share/nginx/controleobra-api
       - ./nginx/logs:/var/log/nginx/
@@ -19,7 +21,8 @@ services:
     volumes:
       - ./controleobra-api:/usr/share/nginx/controleobra-api
     ports:
-      - "9000:9000"
+      # 9001 (não 9000) — o ImigraParaguai já usa a 9000 nesta máquina.
+      - "9001:9000"
     working_dir: /usr/share/nginx/controleobra-api
 
   mysql:
@@ -34,7 +37,8 @@ services:
       # Só acessível de dentro da própria máquina (127.0.0.1), nunca da
       # internet — mesmo se essa máquina/VPS tiver IP público. Pra acessar
       # de fora, use um túnel SSH (ssh -L 3306:localhost:3306 usuario@host).
-      - "127.0.0.1:3306:3306"
+      # Porta 3307 (não 3306) — o ImigraParaguai já usa a 3306 nesta máquina.
+      - "127.0.0.1:3307:3306"
     volumes:
       - banco_mysql_data:/var/lib/mysql
       - /etc/localtime:/etc/localtime:ro
@@ -47,7 +51,8 @@ services:
     ports:
       # Mesma lógica: phpMyAdmin nunca deve ficar acessível publicmente na
       # internet (é uma porta de entrada e essa versão é bem antiga).
-      - "127.0.0.1:8084:80"
+      # Porta 8184 (não 8084) — o ImigraParaguai já usa a 8084 nesta máquina.
+      - "127.0.0.1:8184:80"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       
@@ -57,7 +62,8 @@ services:
         context: .
         dockerfile: Dockerfile_angular
     ports:
-        - "4200:4200"
+        # 4201 (não 4200) — o ImigraParaguai já usa a 4200 nesta máquina.
+        - "4201:4200"
     volumes:
         - ./frontend:/frontend
         - /frontend/node_modules # Volume anônimo para preservar node_modules

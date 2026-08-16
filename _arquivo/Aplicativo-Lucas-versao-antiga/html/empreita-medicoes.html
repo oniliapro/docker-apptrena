@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medições da Empreita</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body data-page="empreita-medicoes">
+
+<aside class="barra-lateral">
+  <div class="barra-lateral-cabecalho">
+    <button class="botao-icone" id="alternarBarraLateral" title="Ocultar/mostrar menu">☰</button>
+    <div class="barra-lateral-marca">TrenaApp</div>
+  </div>
+  <nav class="barra-lateral-nav">
+    <a href="./index.html"><span class="nav-icone">🏠</span><span class="nav-texto">Início</span></a>
+    <a href="./eap.html"><span class="nav-icone">🧱</span><span class="nav-texto">Cadastro de EAP</span></a>
+    <a href="./empreita.html"><span class="nav-icone">👷</span><span class="nav-texto">Empreita</span></a>
+    <a href="./pagamentos.html"><span class="nav-icone">💳</span><span class="nav-texto">Pagamentos</span></a>
+    <a href="./mapa.html"><span class="nav-icone">🗺️</span><span class="nav-texto">Mapa</span></a>
+    <a href="./mapas.html"><span class="nav-icone">🧾</span><span class="nav-texto">Lista de Mapas</span></a>
+    <a href="./empreitas.html"><span class="nav-icone">📋</span><span class="nav-texto">Lista de Empreitas</span></a>
+    <a href="./diario-obra.html"><span class="nav-icone">📔</span><span class="nav-texto">Diário de Obra</span></a>
+  </nav>
+</aside>
+
+<header class="barra-topo">
+  <h1 class="titulo-pagina">Medições da Empreita</h1>
+  <div class="barra-topo-direita">
+    <div class="menu-area">
+      <button class="botao-icone" id="botaoMenuUsuario" title="Configuracoes">⚙</button>
+      <div class="menu-suspenso oculto" id="menuUsuario">
+        <button onclick="abrirConfiguracoes()">Configurações</button>
+        <button onclick="sairAplicativo()">Sair</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo">
+
+<div class="painel">
+  <div class="painel-titulo">RESUMO</div>
+  <div id="infoEmpreita" class="painel-corpo"></div>
+</div>
+
+<div class="painel" style="margin-top: 10px;">
+  <div class="painel-titulo">REGISTROS DE MEDIÇÃO</div>
+  <div class="envoltoria">
+    <table class="tabela-resumo">
+      <thead>
+        <tr>
+          <th style="width:120px;">Data</th>
+          <th style="width:160px;">Competência</th>
+          <th>Observações</th>
+          <th style="width:140px;">Pagar</th>
+          <th style="width:140px;">Reservar</th>
+          <th style="width:140px;">Total</th>
+        </tr>
+      </thead>
+      <tbody id="corpoMedicoes"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="../js/shared/backend-storage.js"></script>
+<script src="../js/shared/shell.js"></script>
+<script src="../js/empreitas/02-medicoes.js"></script>
+
+</main>
+
+</body>
+</html>

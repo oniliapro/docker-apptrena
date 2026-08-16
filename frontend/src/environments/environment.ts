@@ -6,12 +6,13 @@ export const environment = {
   /**
    * API do Controle de Obra.
    *
-   * O backend roda em Docker (`AppTrena/backend-docker`, dentro de
-   * Projetos), com o nginx do container exposto em 127.0.0.1:8088 — a
-   * mesma porta que o app vanilla já usava.
+   * O backend roda em Docker (`D:\projetos\apptrena`), com o nginx do
+   * container exposto em 127.0.0.1:8188 (não 8088 — porta remapeada
+   * porque o projeto ImigraParaguai já usa 8088/3306/8084/4200/9000
+   * nesta máquina; ver docs/CONTEXTO.md).
    *
    * Para subir: `docker-compose --project-name controleobra up -d`
-   * dentro daquela pasta, pelo WSL.
+   * dentro daquela pasta.
    */
-  apiUrl: 'http://localhost:8088/api',
+  apiUrl: 'http://localhost:8188/api',
 };

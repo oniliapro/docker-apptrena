@@ -1,0 +1,177 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mapa de Cotação</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body data-page="mapa">
+
+<aside class="barra-lateral">
+  <div class="barra-lateral-cabecalho">
+    <button class="botao-icone" id="alternarBarraLateral" title="Ocultar/mostrar menu">☰</button>
+    <div class="barra-lateral-marca">TrenaApp</div>
+  </div>
+  <nav class="barra-lateral-nav">
+    <a href="./index.html"><span class="nav-icone">🏠</span><span class="nav-texto">Início</span></a>
+    <a href="./eap.html"><span class="nav-icone">🧱</span><span class="nav-texto">Cadastro de EAP</span></a>
+    <a href="./empreita.html"><span class="nav-icone">👷</span><span class="nav-texto">Empreita</span></a>
+    <a href="./pagamentos.html"><span class="nav-icone">💳</span><span class="nav-texto">Pagamentos</span></a>
+    <a href="./mapa.html"><span class="nav-icone">🗺️</span><span class="nav-texto">Mapa</span></a>
+    <a href="./mapas.html"><span class="nav-icone">🧾</span><span class="nav-texto">Lista de Mapas</span></a>
+    <a href="./empreitas.html"><span class="nav-icone">📋</span><span class="nav-texto">Lista de Empreitas</span></a>
+    <a href="./diario-obra.html"><span class="nav-icone">📔</span><span class="nav-texto">Diário de Obra</span></a>
+  </nav>
+</aside>
+
+<header class="barra-topo">
+  <h1 class="titulo-pagina">Controle de Empreita</h1>
+  <div class="barra-topo-direita">
+    <div class="menu-area">
+      <button class="botao-icone" id="botaoMenuUsuario" title="Configuracoes">⚙</button>
+      <div class="menu-suspenso oculto" id="menuUsuario">
+        <button onclick="abrirConfiguracoes()">Configurações</button>
+        <button onclick="sairAplicativo()">Sair</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="conteudo">
+
+<div class="barra-superior">
+  <div class="numero-mapa">
+    <label>Nº Mapa</label><input id="numeroMapa" type="text" />
+  </div>
+</div>
+
+<table class="cabecalho-tabela">
+  <tr>
+    <td>Descrição</td><td><input id="descricaoMapa" placeholder="Ex.: Compra de materiais"></td>
+    <td>Responsável Cotação</td><td><select id="responsavelMapa"></select></td>
+    <td>Data Finalização</td><td><input id="dataFinalizacaoMapa" type="date"></td>
+  </tr>
+  <tr>
+    <td>Cliente</td>
+    <td><select id="cliente"></select></td>
+    <td>Responsável Obra</td>
+    <td><select id="responsavelObra"></select></td>
+    <td>Data Necessidade</td><td><input id="dataNecessidadeMapa" type="date"></td>
+  </tr>
+  <tr>
+    <td>CPF / CNPJ</td><td><input id="documentoCliente"></td>
+    <td>Endereço de Entrega</td><td colspan="3"><input id="enderecoEntrega"></td>
+  </tr>
+  <tr>
+    <td>Compra personalizada</td>
+    <td colspan="5">
+      <label class="checagem-inline">
+        <input id="modoManual" type="checkbox" />
+        Compra manual
+      </label>
+    </td>
+  </tr>
+</table>
+
+<br>
+
+<div class="acoes">
+  <button onclick="adicionarFornecedor()">➕ Adicionar fornecedor</button>
+  <button onclick="adicionarItem()">➕ Adicionar item</button>
+  <button class="primario" onclick="finalizarMapa()">✅ Finalizar mapa e gerar pagamentos</button>
+</div>
+
+<div class="envoltoria">
+  <table id="tabelaMapa">
+    <colgroup id="grupoColunas"></colgroup>
+    <thead id="cabecalhoTabela"></thead>
+    <tbody id="corpoTabela"></tbody>
+    <tfoot id="rodapeTabela"></tfoot>
+  </table>
+</div>
+
+<div class="abaixo-grade abaixo-grade-mapa">
+  <div class="painel painel-testes-mapa">
+    <div id="painelTestes"></div>
+  </div>
+
+  <div class="painel painel-saldo-mapa">
+    <div class="painel-titulo">SALDO POR ETAPA (ORCADO x REALIZADO)</div>
+    <div id="painelSaldoEtapas" class="painel-corpo"></div>
+  </div>
+
+  <div class="painel painel-resumos-mapa">
+    <div id="resumoEtapas" class="painel-corpo"></div>
+    <div class="painel-separador"></div>
+    <div id="resumoMapa" class="painel-corpo"></div>
+  </div>
+</div>
+
+<!-- MODAL: ETAPAS DO ITEM -->
+<div id="modalEtapas" class="modal oculto" aria-hidden="true">
+  <div class="modal-fundo" onclick="fecharModalEtapas()"></div>
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <div id="tituloModalEtapas" class="modal-titulo">Etapas do item</div>
+      <button type="button" onclick="fecharModalEtapas()">✖</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="acoes" style="margin-bottom: 6px;">
+        <label class="checagem-inline">
+          <input id="modoEtapasPercentual" type="radio" name="modoEtapas" value="percentual" checked>
+          Percentual
+        </label>
+        <label class="checagem-inline">
+          <input id="modoEtapasQuantidade" type="radio" name="modoEtapas" value="quantidade">
+          Quantidade
+        </label>
+        <button type="button" onclick="adicionarLinhaEtapa()">➕ Adicionar etapa</button>
+      </div>
+      <div class="envoltoria">
+        <table class="tabela-resumo">
+          <thead>
+            <tr>
+              <th style="width:260px;">Etapa (EAP)</th>
+              <th style="width:160px;">Valor</th>
+              <th style="width:80px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpoModalEtapas"></tbody>
+        </table>
+      </div>
+      <div class="resumo-envoltoria" style="margin-top: 8px;">
+        <table class="tabela-resumo">
+          <tbody>
+            <tr><th>Soma</th><td id="somaEtapasModal" class="valor">0</td></tr>
+            <tr><th>Referência</th><td id="referenciaEtapasModal" class="valor">0</td></tr>
+            <tr><th>Diferença</th><td id="diferencaEtapasModal" class="valor">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="acoes acoes-inferior">
+        <button class="primario" type="button" onclick="salvarModalEtapas()">Salvar</button>
+        <button type="button" onclick="fecharModalEtapas()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/shared/backend-storage.js"></script>
+<script src="../js/shared/shell.js"></script>
+<script src="../js/shared/pagamentos-utils.js"></script>
+
+<!-- SCRIPTS (ORDEM IMPORTA) -->
+<script src="../js/mapa/00-dom.js"></script>
+<script src="../js/mapa/01-data.js"></script>
+<script src="../js/mapa/02-state-utils.js"></script>
+<script src="../js/mapa/03-engine.js"></script>
+<script src="../js/mapa/04-tests.js"></script>
+<script src="../js/mapa/04b-summaries.js"></script>
+<script src="../js/mapa/05-render.js"></script>
+<script src="../js/mapa/06-nav.js"></script>
+<script src="../js/mapa/07-app.js"></script>
+</main>
+
+</body>
+</html>
