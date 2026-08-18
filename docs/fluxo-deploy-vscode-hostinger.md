@@ -13,10 +13,10 @@ trabalho um do outro.
 > as duas pastas antigas (`apptrena-angular-src` e
 > `~/docker-crtlobras/controleobra`) — se for o segundo caso, o `cd`
 > deste guia não vai encontrar a pasta certa; confirme com o Lucas antes
-> de rodar os comandos do lado do VPS. Também não confirmado: se o site
-> continua em `https://trenadigital.com.br/app/` (com `--base-href /app/`,
-> como abaixo) ou passou a ser servido na raiz — ver mesma dúvida em
-> `docs/DEPLOY-PRODUCAO.md`, seção 4.
+> de rodar os comandos do lado do VPS. **Confirmado (18/08/2026,
+> acessando o site ao vivo):** o Angular continua em
+> `https://trenadigital.com.br/app/` (com `--base-href /app/`, como
+> abaixo) — a raiz do domínio segue sendo o app antigo vanilla.
 
 ## Regras de ouro
 
@@ -54,12 +54,10 @@ npm run build -- --base-href /app/
 rsync -a --delete dist/trenaapp-angular/browser/ /var/www/apptrena-angular/
 ```
 
-Site atualizado em `https://trenadigital.com.br/app/` (confirme se esse
-ainda é o caminho certo — ver aviso no topo deste arquivo).
+Site atualizado em `https://trenadigital.com.br/app/`.
 
-> ⚠️ Se o site for mesmo servido em `/app/`, o `--base-href /app/` é
-> **obrigatório**. Sem ele o build quebra o site inteiro (tela em
-> branco, arquivos JS/CSS pedidos do lugar errado).
+> ⚠️ O `--base-href /app/` é **obrigatório**. Sem ele o build quebra o
+> site inteiro (tela em branco, arquivos JS/CSS pedidos do lugar errado).
 
 ---
 

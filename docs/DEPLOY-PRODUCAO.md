@@ -11,9 +11,15 @@
 > clonado a partir desse repositório único ou se ainda está no esquema
 > antigo de dois repositórios — confirme antes de rodar `git pull` lá
 > (se ainda estiver no esquema antigo, pode ser necessário re-clonar do
-> zero em vez de só puxar). Também não está confirmado se o Angular em
-> produção é servido na raiz (`/`) ou em `/app/` — os dois guias deste
-> projeto divergem nisso (ver seção 4 e o `fluxo-deploy-vscode-hostinger.md`).
+> zero em vez de só puxar). **Confirmado (18/08/2026, acessando o site
+> ao vivo):** o Angular é servido em `/app/` (`https://trenadigital.com.br/app/`
+> carrega o AppTrena de verdade, com os JS/CSS vindo de `/app/main-*.js`
+> etc.) — a raiz do domínio (`/`) ainda redireciona pro app antigo
+> vanilla em `/html/login.html`. A seção 4 abaixo e o
+> `fluxo-deploy-vscode-hostinger.md` já usam `--base-href /app/`, que é
+> o certo; a seção 5 (config de nginx), porém, foi escrita achando que o
+> Angular tomaria conta da raiz — está desatualizada em relação ao que
+> está no ar hoje, use como referência de sintaxe, não copie literal.
 > Também: `docker-compose.yml` já ganhou `restart: unless-stopped` em
 > todos os serviços (18/08/2026) — o risco de a stack não voltar sozinha
 > depois de um restart do VPS, mencionado abaixo, está resolvido a
@@ -188,15 +194,10 @@ curl -s http://127.0.0.1:8088/api/obras   # deve responder 401 (sem token) ou JS
 **Atualizado 18/08/2026:** a pasta é `frontend/` (dentro do repositório
 único), não mais `AppTrena-Angular` num repositório separado.
 
-**Ponto não confirmado — cheque antes de rodar:** este guia (escrito
-originalmente achando que o Angular seria servido na raiz do domínio)
-usa `npm run build` simples abaixo. Já o `docs/fluxo-deploy-vscode-hostinger.md`
-descreve o site publicado em `https://trenadigital.com.br/app/`, exigindo
-`npm run build -- --base-href /app/` — sem isso o site quebra (tela
-branca, JS/CSS pedidos do caminho errado). **Os dois guias divergem
-nisso; confirme com o Lucas qual é o caminho real em produção hoje**
-(acessando `https://trenadigital.com.br/` e `https://trenadigital.com.br/app/`
-e vendo qual responde o app) antes de decidir o comando de build.
+**Confirmado (18/08/2026):** o site em produção serve o Angular em
+`https://trenadigital.com.br/app/` (não na raiz — a raiz ainda é o app
+antigo, `/html/login.html`). Use sempre `--base-href /app/`; sem isso o
+site quebra (tela branca, JS/CSS pedidos do caminho errado).
 
 No seu Windows (ou aqui mesmo no VPS, se preferir clonar o repositório
 também):
@@ -204,9 +205,7 @@ também):
 ```bash
 cd frontend
 npm install
-npm run build
-# ou, se o site for servido em /app/ (ver aviso acima):
-# npm run build -- --base-href /app/
+npm run build -- --base-href /app/
 ```
 
 Isso gera `dist/trenaapp-angular/browser/` — é essa pasta (o
@@ -340,9 +339,6 @@ acima.
   `docker-apptrena`, ou se ainda está clonado no esquema antigo de dois
   repositórios (`apptrena-angular` + `apptrena-backend`) — muda o
   comando certo pra seção 1.
-- **(18/08/2026) Se o Angular em produção é servido em `/` ou em
-  `/app/`** — muda o comando de build da seção 4 (com ou sem
-  `--base-href /app/`). Ver aviso na seção 4.
 - Se já existe alguma config de nginx/certificado no VPS que este guia
   vai sobrescrever — verifique a seção 0 antes de aplicar a seção 5.
 - Se o app antigo (vanilla) já está rodando de outro jeito no VPS (não
