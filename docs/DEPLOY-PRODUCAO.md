@@ -28,6 +28,14 @@
 > commitadas que ainda precisam rodar em produção — ver checklist no
 > fim deste arquivo.
 >
+> **⚠️ Achado importante (18/08/2026):** o `docker-compose.yml` teve as
+> portas deslocadas (nginx 8088→8188, phpfpm 9000→9001, MySQL 3306→3307,
+> phpMyAdmin 8084→8184) só por causa de outro projeto que ocupa essas
+> portas na máquina de desenvolvimento do Lucas. Se isso for aplicado
+> direto no VPS sem ajuste, o nginx do sistema (que aponta pra 8088)
+> perde a API. Ver `docs/migrar-vps-repositorio-unico.md` (passo 3) pra
+> como checar e resolver antes de subir os containers no servidor.
+>
 > **Atualização (13/08/2026): este deploy já foi feito.** O AppTrena está
 > no ar de verdade em `https://trenadigital.com.br` — Angular publicado
 > em `/var/www/apptrena-angular/`, containers Laravel/MySQL rodando via
