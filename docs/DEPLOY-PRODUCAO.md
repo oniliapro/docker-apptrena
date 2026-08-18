@@ -28,13 +28,17 @@
 > commitadas que ainda precisam rodar em produção — ver checklist no
 > fim deste arquivo.
 >
-> **⚠️ Achado importante (18/08/2026):** o `docker-compose.yml` teve as
-> portas deslocadas (nginx 8088→8188, phpfpm 9000→9001, MySQL 3306→3307,
-> phpMyAdmin 8084→8184) só por causa de outro projeto que ocupa essas
-> portas na máquina de desenvolvimento do Lucas. Se isso for aplicado
-> direto no VPS sem ajuste, o nginx do sistema (que aponta pra 8088)
-> perde a API. Ver `docs/migrar-vps-repositorio-unico.md` (passo 3) pra
-> como checar e resolver antes de subir os containers no servidor.
+> **Resolvido (18/08/2026):** o `docker-compose.yml` chegou a ter as
+> portas dos serviços de produção deslocadas (nginx 8088→8188, phpfpm
+> 9000→9001, MySQL 3306→3307, phpMyAdmin 8084→8184) por causa de
+> referências a outro projeto (ImigraParaguai) commitadas por engano
+> nesse arquivo. Revertido — essas 4 portas voltaram pras originais, que
+> já batem com o que o nginx do sistema no VPS espera. Não precisa mais
+> de ajuste de porta pra migrar esses 4 serviços (o Passo 3 do
+> `docs/migrar-vps-repositorio-unico.md` ficou sem objeto pra eles). O
+> serviço `angular` (só usado em desenvolvimento local, não entra no
+> deploy) continua na porta 4201 — esse conflito com o ImigraParaguai é
+> real (o Angular dele roda em `localhost:4200` na mesma máquina).
 >
 > **Atualização (13/08/2026): este deploy já foi feito.** O AppTrena está
 > no ar de verdade em `https://trenadigital.com.br` — Angular publicado

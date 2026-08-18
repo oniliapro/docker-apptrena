@@ -7,28 +7,24 @@
 > checar de fora (ex.: o site ao vivo) e marcando com ⚠️ o que só dá
 > pra confirmar rodando os comandos de verificação lá dentro.
 
-## Antes de tudo: o achado mais importante
+## Antes de tudo: o achado que motivou este guia (já resolvido)
 
-O `docker-compose.yml` deste repositório **mudou as portas** num commit
-recente (`4f364b4`, "Últimas modificações antes da mudança para nova
-wsl"): nginx 8088→**8188**, phpfpm 9000→**9001**, MySQL 3306→**3307**,
-phpMyAdmin 8084→**8184**, Angular dev 4200→**4201**. O comentário no
-arquivo explica por quê: **na máquina de desenvolvimento do Lucas**,
-outro projeto (ImigraParaguai) já ocupa as portas padrão.
+O `docker-compose.yml` deste repositório chegou a ter as portas dos
+serviços de produção deslocadas (nginx 8088→8188, phpfpm 9000→9001,
+MySQL 3306→3307, phpMyAdmin 8084→8184) por causa de referências a outro
+projeto (ImigraParaguai) commitadas por engano nesse arquivo — não era
+uma configuração intencional do AppTrena. **Corrigido em 18/08/2026:**
+essas 4 portas voltaram pras originais, que já batem com o que o nginx
+do sistema no VPS espera. Ou seja, **o Passo 3 abaixo (portas) não é
+mais necessário** para nginx/phpfpm/mysql/myadmin. Mantive o passo no
+guia só como registro/checagem de segurança, caso o VPS tenha alguma
+particularidade própria.
 
-O problema: toda a documentação de deploy (`DEPLOY-PRODUCAO.md`) e,
-presumivelmente, a config atual do nginx do sistema no VPS, apontam pro
-container da API na porta **8088** (padrão antigo). Se você simplesmente
-clonar e subir este `docker-compose.yml` como está no VPS, a API vai
-passar a escutar em 8188 — e o nginx do sistema, apontando pra 8088,
-vai começar a dar erro (502/504) em `/api/`, derrubando o site inteiro,
-mesmo com todo o resto certo.
-
-**Isso só é um problema se o VPS não tiver o mesmo conflito de portas**
-(ou seja, se o ImigraParaguai não estiver também rodando lá). O passo 3
-abaixo mostra como checar e resolver — sem precisar mexer no
-`docker-compose.yml` versionado (que precisa continuar com as portas
-deslocadas, por causa da máquina do Lucas).
+O serviço `angular` (usado só em desenvolvimento local — em produção o
+Angular é build estático servido pelo nginx do sistema, esse container
+nem sobe no VPS) continua na porta 4201 em vez de 4200: esse conflito
+com o ImigraParaguai é real (o Angular dele roda em `localhost:4200`
+nesta máquina), então não precisa nem deve ser revertido.
 
 ---
 ## Passo 0 — Descobrir o estado atual do VPS (só leitura, não muda nada)
