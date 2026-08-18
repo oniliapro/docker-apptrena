@@ -1,5 +1,27 @@
 # Deploy em produção — VPS Hostinger (trenadigital.com.br)
 
+> **Atualização (18/08/2026 — leia antes de seguir o resto do guia):**
+> desde então a pasta do projeto foi **unificada num repositório Git
+> único**, `docker-apptrena` (`github.com/ciceroalmeida/docker-apptrena`),
+> com `controleobra-api/` e `frontend/` direto na raiz — não são mais
+> dois repositórios separados (`apptrena-angular` + `apptrena-backend`)
+> como o texto original deste guia (e o `fluxo-deploy-vscode-hostinger.md`)
+> descrevia. As seções 1, 2 e 4 abaixo foram atualizadas para refletir
+> essa estrutura nova. **Ainda não confirmado:** se o VPS já está
+> clonado a partir desse repositório único ou se ainda está no esquema
+> antigo de dois repositórios — confirme antes de rodar `git pull` lá
+> (se ainda estiver no esquema antigo, pode ser necessário re-clonar do
+> zero em vez de só puxar). Também não está confirmado se o Angular em
+> produção é servido na raiz (`/`) ou em `/app/` — os dois guias deste
+> projeto divergem nisso (ver seção 4 e o `fluxo-deploy-vscode-hostinger.md`).
+> Também: `docker-compose.yml` já ganhou `restart: unless-stopped` em
+> todos os serviços (18/08/2026) — o risco de a stack não voltar sozinha
+> depois de um restart do VPS, mencionado abaixo, está resolvido a
+> partir do próximo `docker compose up -d` que rodar no servidor com
+> essa versão do arquivo. E há migrations novas (15 a 21/08) já
+> commitadas que ainda precisam rodar em produção — ver checklist no
+> fim deste arquivo.
+>
 > **Atualização (13/08/2026): este deploy já foi feito.** O AppTrena está
 > no ar de verdade em `https://trenadigital.com.br` — Angular publicado
 > em `/var/www/apptrena-angular/`, containers Laravel/MySQL rodando via
@@ -7,10 +29,8 @@
 > deploy) continua útil como **referência de como a coisa funciona e
 > como repetir o processo** numa próxima atualização — mas não rode do
 > zero achando que nada existe ainda. Veja `CONTEXTO.md` primeiro pro
-> estado atual (inclusive um incidente de 2 dias fora do ar, já
-> resolvido, e o risco pendente de configurar `restart:` no
-> `docker-compose.yml`). Para o dia a dia de "só publiquei uma alteração
-> nova", o fluxo mais simples é `docs/fluxo-deploy-vscode-hostinger.md`.
+> estado atual. Para o dia a dia de "só publiquei uma alteração nova", o
+> fluxo mais simples é `docs/fluxo-deploy-vscode-hostinger.md`.
 
 Guia de referência pra colocar o AppTrena (Angular + Laravel + MySQL) no
 ar de verdade, no VPS que já responde por `trenadigital.com.br`.
@@ -50,24 +70,32 @@ direto pra seção 3 (migração/seed) e 5 (nginx), sem repetir o clone e o
 
 ## 1. Levar o código pro servidor
 
-Se ainda não tem o repositório clonado no VPS:
+**Atualizado 18/08/2026 — o projeto agora é um repositório único.** Se
+ainda não tem o repositório clonado no VPS:
 
 ```bash
 cd /opt   # ou onde preferir manter o projeto no servidor
-git clone <url-do-seu-repositorio-git> apptrena
-cd apptrena/backend-docker
+git clone https://github.com/ciceroalmeida/docker-apptrena.git apptrena
+cd apptrena
 ```
 
-Se o projeto **não está num repositório git** ainda (é só uma pasta
-local no seu Windows), o jeito mais simples é abrir a pasta
-`backend-docker` no VSCode conectado ao servidor (Remote-SSH) e usar o
-próprio VSCode pra copiar a pasta inteira pro VPS — ou `rsync`/`scp` a
-partir do seu Windows (via WSL ou Git Bash):
+`controleobra-api/` e `frontend/` ficam direto dentro dessa pasta — não
+existe mais o nível `backend-docker/` nem repositórios separados pro
+Angular e pro Laravel.
+
+Se o VPS **já tem uma cópia antiga**, do esquema de dois repositórios
+(`apptrena-angular` + `apptrena-backend`), não dá pra só `git pull` em
+cima dela — são históricos diferentes. Confirme com o Lucas onde/como
+está clonado hoje antes de decidir entre migrar essa pasta existente ou
+clonar o repositório novo do zero ao lado.
+
+Se preferir levar por `rsync` em vez de clonar (por exemplo, numa
+primeira vez sem acesso de rede do VPS ao GitHub):
 
 ```bash
 # rodando no seu Windows (WSL/Git Bash), não no servidor
-rsync -avz --exclude 'vendor' --exclude 'node_modules' \
-  "/caminho/para/AppTrena/backend-docker/" usuario@SEU_IP:/opt/apptrena/backend-docker/
+rsync -avz --exclude 'vendor' --exclude 'node_modules' --exclude '.git' \
+  "/caminho/para/docker-apptrena/" usuario@SEU_IP:/opt/apptrena/
 ```
 
 **Não copie os arquivos `.env`** por esse `rsync`/`git` — eles já têm
@@ -78,28 +106,32 @@ propósito. Copie-os à parte, manualmente (passo 2).
 
 ## 2. Os `.env` (já estão prontos — só levar com cuidado)
 
-Duas coisas boas: os dois arquivos `.env` deste projeto **já estão
-configurados como produção**, não como desenvolvimento:
+**Atualizado 18/08/2026 — caminhos novos** (mesmo conteúdo/lógica de
+antes, só mudou onde ficam dentro do repositório único):
 
-- `backend-docker/.env` — lido pelo `docker-compose.yml` (senha do
-  MySQL, nome do banco, usuário).
-- `backend-docker/controleobra/.env` — lido pelo Laravel. Já tem
+- `.env` (raiz do repositório) — lido pelo `docker-compose.yml` (senha
+  do MySQL, nome do banco, usuário).
+- `controleobra-api/.env` — lido pelo Laravel. Precisa ter
   `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://trenadigital.com.br`
-  e `CORS_ALLOWED_ORIGINS=https://trenadigital.com.br,...` certos.
+  e `CORS_ALLOWED_ORIGINS=https://trenadigital.com.br,...` certos — **o
+  `.env` local desta pasta hoje está configurado como desenvolvimento**
+  (`APP_ENV=local`, `APP_DEBUG=true`, `APP_URL=http://localhost:8088`),
+  então não copie ele direto: use como referência de estrutura e ajuste
+  os valores de produção, ou use o `.env` que já está no VPS (se ele já
+  tiver um de uma versão anterior do deploy).
 
 O que fazer:
 
 1. Copie os dois arquivos do seu Windows pro servidor (via `scp`, ou
    arrastando pelo VSCode Remote-SSH) — **nunca por `git`/rsync
-   público**, exatamente onde estavam: `backend-docker/.env` e
-   `backend-docker/controleobra/.env`.
+   público**, pros caminhos: `.env` (raiz) e `controleobra-api/.env`.
 2. Confira que a senha do MySQL é a mesma nos dois arquivos (o usuário
    `app_controleobra` e a senha dele precisam bater em ambos — hoje
    batem, só não mude um sem mudar o outro).
 3. Se quiser habilitar a leitura de nota fiscal por IA, cole sua chave
    da Anthropic em `ANTHROPIC_API_KEY` dentro de
-   `controleobra/.env` (fica desligado, sem quebrar nada, se deixar em
-   branco).
+   `controleobra-api/.env` (fica desligado, sem quebrar nada, se deixar
+   em branco).
 4. **Troque a senha do MySQL antes de ir pro ar de verdade**, se essa
    senha que está aí hoje foi usada só em desenvolvimento local — é
    rápido: gere uma nova, atualize nos dois `.env` (tem que bater nos
@@ -111,20 +143,29 @@ O que fazer:
 
 ## 3. Subir os containers
 
-Dentro de `backend-docker/`:
+Dentro da raiz do repositório (`docker-apptrena/`, não mais
+`backend-docker/`):
 
 ```bash
 # Instala as dependências do Laravel (vendor/ não foi trazido de propósito)
-docker run --rm -v "$(pwd)/controleobra:/app" -w /app composer:2 install --no-dev --optimize-autoloader
+docker run --rm -v "$(pwd)/controleobra-api:/app" -w /app composer:2 install --no-dev --optimize-autoloader
 
 docker-compose --project-name controleobra build
 docker-compose --project-name controleobra up -d
 
-docker ps   # confirme os 5 containers: nginx, phpfpm, mysql, myadmin, frontend
+docker ps   # confirme os containers: nginx, phpfpm, mysql, myadmin (e angular, só em dev)
 ```
 
+> `docker-compose.yml` já tem `restart: unless-stopped` em cada serviço
+> (adicionado 18/08/2026) — se o VPS reiniciar depois disso, a stack
+> sobe sozinha, sem precisar de ninguém notando e rodando `docker
+> compose up -d` na mão (o que já aconteceu uma vez, 2 dias fora do ar).
+
 Depois, rode as migrations e os seeders (o `TiposCustoSeeder` é
-obrigatório — sem ele a EAP não tem categorias de custo pra usar):
+obrigatório — sem ele a EAP não tem categorias de custo pra usar; se o
+deploy já existia antes e só está sendo atualizado, `migrate --force`
+sozinho já aplica as migrations novas sem precisar rodar o seeder de
+novo):
 
 ```bash
 docker exec -it controleobra-phpfpm php artisan migrate --force
@@ -144,13 +185,28 @@ curl -s http://127.0.0.1:8088/api/obras   # deve responder 401 (sem token) ou JS
 
 ## 4. Build do Angular
 
-No seu Windows (ou aqui mesmo no VPS, se preferir clonar o frontend
+**Atualizado 18/08/2026:** a pasta é `frontend/` (dentro do repositório
+único), não mais `AppTrena-Angular` num repositório separado.
+
+**Ponto não confirmado — cheque antes de rodar:** este guia (escrito
+originalmente achando que o Angular seria servido na raiz do domínio)
+usa `npm run build` simples abaixo. Já o `docs/fluxo-deploy-vscode-hostinger.md`
+descreve o site publicado em `https://trenadigital.com.br/app/`, exigindo
+`npm run build -- --base-href /app/` — sem isso o site quebra (tela
+branca, JS/CSS pedidos do caminho errado). **Os dois guias divergem
+nisso; confirme com o Lucas qual é o caminho real em produção hoje**
+(acessando `https://trenadigital.com.br/` e `https://trenadigital.com.br/app/`
+e vendo qual responde o app) antes de decidir o comando de build.
+
+No seu Windows (ou aqui mesmo no VPS, se preferir clonar o repositório
 também):
 
 ```bash
-cd AppTrena-Angular
+cd frontend
 npm install
 npm run build
+# ou, se o site for servido em /app/ (ver aviso acima):
+# npm run build -- --base-href /app/
 ```
 
 Isso gera `dist/trenaapp-angular/browser/` — é essa pasta (o
@@ -269,11 +325,24 @@ acima.
       dar timeout/recusado, nunca abrir.
 - [ ] Trocar a senha do MySQL de desenvolvimento por uma nova, se ainda
       não foi feito (seção 2, item 4).
+- [ ] **(18/08/2026) Rodar as migrations novas de 15–21/08** (nível da
+      EAP, orçado congelado, frete como item no mapa, freteiro
+      particular, código do mapa, tabelas de pastas/arquivos) —
+      `docker exec controleobra-phpfpm php artisan migrate --force`.
+      Sem isso a API quebra ao usar essas features assim que o frontend
+      novo for publicado.
 
 ---
 
 ## O que eu não sei e você (ou o Lucas) precisa confirmar
 
+- **(18/08/2026) Se o VPS já foi migrado pro repositório único**
+  `docker-apptrena`, ou se ainda está clonado no esquema antigo de dois
+  repositórios (`apptrena-angular` + `apptrena-backend`) — muda o
+  comando certo pra seção 1.
+- **(18/08/2026) Se o Angular em produção é servido em `/` ou em
+  `/app/`** — muda o comando de build da seção 4 (com ou sem
+  `--base-href /app/`). Ver aviso na seção 4.
 - Se já existe alguma config de nginx/certificado no VPS que este guia
   vai sobrescrever — verifique a seção 0 antes de aplicar a seção 5.
 - Se o app antigo (vanilla) já está rodando de outro jeito no VPS (não

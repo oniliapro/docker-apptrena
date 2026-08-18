@@ -1,6 +1,7 @@
 services:
   nginx:
     container_name: controleobra-nginx
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile_nginx
@@ -15,6 +16,7 @@ services:
 
   phpfpm:
     container_name: controleobra-phpfpm
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile_php
@@ -28,6 +30,7 @@ services:
   mysql:
     image: "mysql:8.0.45"
     container_name: controleobra-mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
@@ -46,6 +49,7 @@ services:
   myadmin:
     image: phpmyadmin/phpmyadmin:5.2.1
     container_name: controleobra-myadmin
+    restart: unless-stopped
     environment:
       PMA_HOST: "mysql"
     ports:
@@ -58,6 +62,7 @@ services:
       
   angular:
     container_name: controleobra-frontend
+    restart: unless-stopped
     build:
         context: .
         dockerfile: Dockerfile_angular
