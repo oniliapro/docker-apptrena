@@ -16,18 +16,24 @@ class Mapa extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'empresa_id', 'obra_id', 'numero_mapa', 'descricao', 'cliente', 'responsavel_mapa',
+        'id', 'codigo', 'empresa_id', 'obra_id', 'numero_mapa', 'descricao', 'cliente', 'responsavel_mapa',
         'responsavel_obra', 'data_finalizacao', 'data_necessidade', 'frete_particular',
-        'modo_manual', 'is_confirmed', 'confirmed_at', 'total_mapa',
+        'freteiro_particular', 'lancar_frete_como_item', 'frete_etapa_id', 'frete_categoria_tipo',
+        'modo_manual', 'is_confirmed', 'confirmed_at', 'ultima_finalizacao_em', 'total_mapa',
     ];
 
     protected $casts = [
         'data_finalizacao' => 'date',
         'data_necessidade' => 'date',
         'frete_particular' => 'float',
+        'lancar_frete_como_item' => 'boolean',
         'modo_manual' => 'boolean',
         'is_confirmed' => 'boolean',
-        'confirmed_at' => 'date',
+        // 'date' truncava a hora (virava sempre 00:00) — 'datetime' corrige
+        // isso pra valer o que o comentário de MapaStore::alternarConfirmacao
+        // já dizia querer desde 04/08/2026 ("guarda data E hora").
+        'confirmed_at' => 'datetime',
+        'ultima_finalizacao_em' => 'datetime',
         'total_mapa' => 'float',
     ];
 

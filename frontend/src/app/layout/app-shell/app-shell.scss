@@ -143,6 +143,45 @@
 
 .item.aberto .submenu { display: block; }
 
+// ---- Popup do submenu com a barra recolhida (20/08/2026, pedido do Lucas) ----
+// `position: fixed` (não `absolute`) de propósito: `.nav` tem
+// `overflow-y: auto`, e por regra do CSS isso também vira `overflow-x:
+// auto` — um popup `absolute` seria cortado ao tentar escapar pela
+// lateral. `fixed` ignora esse corte; o `top` vem calculado em
+// `alternarGrupo()`, na hora do clique.
+.submenu-popup {
+  position: fixed;
+  left: calc(var(--barra-lateral-largura-recolhida) + 8px);
+  min-width: 190px;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-md);
+  overflow: hidden;
+  z-index: 100;
+
+  a {
+    display: block;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    color: var(--cor-texto);
+    text-decoration: none;
+
+    &:hover { background: var(--cor-fundo); }
+    &.ativo { color: var(--cor-primaria); font-weight: 600; }
+  }
+}
+
+.submenu-popup-titulo {
+  padding: 8px 12px;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
 // ---- Box de assinatura ----
 .caixa-plano {
   margin: 10px 12px 14px;

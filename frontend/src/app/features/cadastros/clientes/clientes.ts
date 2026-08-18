@@ -10,7 +10,8 @@ import {
 } from '../../../core/utils/documento';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
-import { Cliente, TipoPessoa } from '../cadastros.models';
+import { Cliente, TipoPessoa, rotuloTipoPessoa } from '../cadastros.models';
+import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 
 const CHAVE = 'controleObra.clientes.v1';
 
@@ -37,7 +38,7 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-clientes',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   providers: [CadastroStore],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
@@ -51,6 +52,7 @@ export class Clientes implements OnInit {
 
   protected readonly formatarDocumento = formatarDocumento;
   protected readonly formatarTelefone = formatarTelefone;
+  protected readonly rotuloTipoPessoa = rotuloTipoPessoa;
 
   protected readonly formulario = this.fb.nonNullable.group({
     identificacao: [''],
@@ -242,5 +244,10 @@ export class Clientes implements OnInit {
     this.store.filtroAtivos.set(
       (evento.target as HTMLSelectElement).value as 'todos' | 'ativos' | 'inativos',
     );
+  }
+
+  protected mudarFiltroTipo(evento: Event): void {
+    const tipo = (evento.target as HTMLSelectElement).value as TipoPessoa | '';
+    this.store.filtroExtra.set(tipo ? (c) => c.tipo === tipo : null);
   }
 }

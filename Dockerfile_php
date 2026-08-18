@@ -35,6 +35,8 @@ RUN apt-get update && \
 	re2c \
 	libmhash-dev \
 	file \
+	ffmpeg \
+	ghostscript \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -60,9 +62,20 @@ RUN docker-php-ext-configure gd --with-freetype=/usr/include/ --with-jpeg=/usr/i
 #RUN pear install net_socket auth_sasl net_idna2 mail_mime net_smtp crypt_gpg
 #RUN pear install net_idna2-beta kolab/Net_LDAP3
 
-# Instalando e habilitando a extenso Imagick p/ manipular imagens em ormatos, como JPEG, PNG, GIF e BMP, atravs do PHP.
-# RUN apt-get update && \
-#    apt-get install -y libmagickwand-dev --no-install-recommends && pecl install imagick && docker-php-ext-enable imagick
+# Instalando e habilitando a extensão Imagick (usada, entre outras coisas,
+# pra gerar miniatura da 1a página de PDF nos Arquivos Anexados — Imagick
+# delega a rasterização de PDF pro Ghostscript, instalado acima).
+RUN apt-get update && \
+    apt-get install -y libmagickwand-dev --no-install-recommends && \
+    pecl install imagick && \
+    docker-php-ext-enable imagick
+
+# ImageMagick vem com leitura de PDF desabilitada por padrão no Debian
+# (hardening contra exploits antigos de Ghostscript) — sem isso, Imagick
+# lança "not authorized" ao tentar ler um PDF.
+RUN for f in /etc/ImageMagick-6/policy.xml /etc/ImageMagick-7/policy.xml; do \
+        [ -f "$f" ] && sed -i 's/rights="none" pattern="PDF"/rights="read" pattern="PDF"/' "$f" || true; \
+    done
 
 ##Instalando o NODEJS e o NPM
 RUN apt-get update && \

@@ -1,10 +1,19 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { Empreita } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
+
+type ColunaEmpreitaObra = 'numero' | 'descricao' | 'empreiteiro' | 'total' | 'totalPago';
 
 /**
  * Lista de empreitas de UMA obra, com criação de empreitas novas.
@@ -18,7 +27,7 @@ import { formatarMoeda } from '../../core/utils/formato';
  */
 @Component({
   selector: 'app-empreitas-obra',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   templateUrl: './empreitas-obra.html',
   styleUrl: './empreitas-obra.scss',
 })
@@ -44,6 +53,38 @@ export class EmpreitasObra implements OnInit {
     empreiteiro: [''],
     dataMedicao: [''],
   });
+
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaEmpreitaObra> | null>(null);
+  protected readonly setaOrdenacao = setaOrdenacao;
+  protected readonly busca = signal('');
+
+  protected alternarOrdenacaoColuna(coluna: ColunaEmpreitaObra): void {
+    this.ordenacao.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
+  protected mudarBusca(evento: Event): void {
+    this.busca.set((evento.target as HTMLInputElement).value);
+  }
+
+  private readonly listaFiltrada = computed(() => {
+    const termo = this.busca().trim().toLowerCase();
+    if (!termo) return this.empreitas();
+    return this.empreitas().filter((e) =>
+      [this.numero(e), this.descricao(e), this.empreiteiro(e)].join(' ').toLowerCase().includes(termo),
+    );
+  });
+
+  protected readonly listaOrdenada = computed(() =>
+    ordenarPor(this.listaFiltrada(), this.ordenacao(), (e, coluna) => {
+      switch (coluna) {
+        case 'numero': return this.numero(e);
+        case 'descricao': return this.descricao(e);
+        case 'empreiteiro': return this.empreiteiro(e);
+        case 'total': return this.total(e);
+        case 'totalPago': return this.totalPago(e);
+      }
+    }),
+  );
 
   ngOnInit(): void {
     this.carregar();

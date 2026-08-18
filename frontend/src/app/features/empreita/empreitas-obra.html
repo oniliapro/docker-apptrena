@@ -6,6 +6,11 @@
   <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
 </div>
 
+<div class="painel barra-ferramentas">
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar nº, descrição, empreiteiro…" (input)="mudarBusca($event)" />
+</div>
+
 <div class="painel">
   @if (carregando()) {
     <div class="atenuado">Carregando…</div>
@@ -13,19 +18,19 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Nº</th>
-            <th>Descrição</th>
-            <th>Empreiteiro</th>
-            <th class="valor">Total</th>
-            <th class="valor">Pago</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('empreiteiro')">Empreiteiro{{ setaOrdenacao(ordenacao(), 'empreiteiro') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (empreita of empreitas(); track empreita.id) {
+          @for (empreita of listaOrdenada(); track empreita.id) {
             <tr class="linha-clicavel" (click)="abrir(empreita)">
               <td class="centro">{{ numero(empreita) }}</td>
               <td>{{ descricao(empreita) }}</td>

@@ -14,6 +14,30 @@
     Mostrar etapas
   </label>
 
+  <select (change)="mudarFiltroFornecedor($event)">
+    <option value="">Fornecedor: todos</option>
+    @for (fornecedor of fornecedoresDisponiveis(); track fornecedor) {
+      <option [value]="fornecedor">{{ fornecedor }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="todos">Status: todos</option>
+    <option value="pendente">Pendente</option>
+    <option value="confirmado">Confirmado</option>
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Solicitação de</span>
+    <input type="date" (change)="mudarFiltroDataDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroDataAte($event)" />
+  </label>
+
+  <input class="busca" type="search" placeholder="Buscar nº, fornecedor, descrição…" (input)="mudarBusca($event)" />
+
   <span class="espacador"></span>
 
   <button class="primario" type="button" (click)="novoPagamento()">+ Novo pagamento</button>
@@ -28,19 +52,19 @@
     }
 
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Obra</th>
-            <th class="centro">Nº</th>
-            <th class="centro">Solicitação</th>
-            <th>Descrição</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numeroPagamento')">Nº{{ setaOrdenacao(ordenacao(), 'numeroPagamento') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             <th>Itens</th>
             @if (mostrarEtapas()) { <th>Etapas</th> }
-            <th class="valor">Total</th>
-            <th>Fornecedor</th>
-            <th class="centro">Pagamento</th>
-            <th class="centro">Status</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('fornecedor')">Fornecedor{{ setaOrdenacao(ordenacao(), 'fornecedor') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataPagamento')">Pagamento{{ setaOrdenacao(ordenacao(), 'dataPagamento') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
@@ -48,9 +72,7 @@
         <tbody>
           @for (pagamento of listaExibida(); track pagamento.id) {
             <tr>
-              <td class="centro">
-                {{ pagamento.obraNumber || store.cabecalho().obraNumber || store.obraNome() || '—' }}
-              </td>
+              <td class="centro">{{ obraDoPagamento(pagamento) }}</td>
               <td class="centro">{{ pagamento.numeroPagamento || '—' }}</td>
               <td class="centro">{{ formatarDataPtBr(pagamento.dataSolicitacao) }}</td>
               <td>{{ pagamento.descricao || '—' }}</td>
@@ -182,6 +204,7 @@
 
         <div class="envoltoria">
           <table trenaNavegacaoTabela
+                 trenaRedimensionarColunas
                  (inserirLinha)="adicionarItem()"
                  (removerLinha)="removerItemPorIndice($event)">
             <thead>

@@ -55,8 +55,6 @@
 
   td.col-eap { text-align: left; }
 
-  tbody tr:nth-child(odd) td { background: #fafaf8; }
-
   .valor-orc { color: var(--cor-texto-suave); }
 
   .valor-real { color: var(--cor-aco); font-weight: 700; }
@@ -66,6 +64,11 @@
     font-weight: 700;
   }
 
+  // Linhas alternadas (17/08/2026, pedido do Lucas) — só nas linhas que
+  // não são de grupo, mesma regra da EAP: `.linha-grupo` tem `!important`
+  // no fundo, então sempre vence mesmo que as duas classes coincidam.
+  .zebra td { background: var(--cor-zebra); }
+
   .linha-grupo td {
     background: var(--cor-primaria-escura) !important;
     color: #fff;
@@ -73,6 +76,31 @@
 
     &.valor-orc { color: rgba(255, 255, 255, 0.7); }
     &.valor-real { color: var(--cor-destaque); }
+
+    // Botão de recolher/expandir sobre fundo escuro (17/08/2026, pedido
+    // do Lucas) — mesmo tratamento que a EAP dá aos botões dela em cima
+    // de linha de grupo.
+    .botao-colapsar {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #fff;
+      &:hover { background: rgba(255, 255, 255, 0.22); }
+    }
+  }
+
+  // Botão de recolher/expandir grupo — mesmo padrão da EAP: posicionado à
+  // esquerda do texto, na mesma coluna de recuo do item.
+  .celula-eap { position: relative; }
+
+  .botao-colapsar {
+    position: absolute;
+    top: 8px;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border-radius: 3px;
+    font-size: 10px;
+    line-height: 1;
   }
 
   tfoot th {

@@ -67,8 +67,33 @@ export interface EstadoUi {
  */
 export interface ItemEap {
   id: string;
+  /**
+   * Marca linhas de agrupamento (ex.: "1 — SERVIÇOS PRELIMINARES"), que
+   * não têm custo próprio: seus totais em cada categoria são a soma dos
+   * descendentes. **Não é mais escolhido pelo usuário** — decisão tomada
+   * com o Lucas em 15/08/2026: um grupo é simplesmente qualquer linha que
+   * tenha outras linhas aninhadas abaixo dela (nível maior, mesmo que não
+   * seja o próximo nível — "1" com só um filho direto "1.2" ainda soma
+   * "1.2"). `aplicarNumeracaoAutomatica` recalcula este campo do zero a
+   * cada renumeração, depois de fechar os códigos EAP — qualquer valor
+   * vindo de fora (payload salvo antes dessa data) é ignorado/sobrescrito.
+   * Sem checkbox "Grupo" na tela: uma linha vira grupo automaticamente
+   * quando alguém aninha algo embaixo dela, e volta a ser item comum
+   * (com seus próprios qtde/custo, se ainda tiver algum valor lançado
+   * antes de virar grupo) se os filhos forem removidos.
+   */
   isGroup: boolean;
-  /** Numeração hierárquica: "1", "1.1", "2.3"… gerada automaticamente. */
+  /**
+   * Nível hierárquico (1 a 4), escolhido pelo usuário num select — decisão
+   * tomada com o Lucas em 14/08/2026 ao comparar com o protótipo
+   * `obracontrol.html` (antes o nível vinha só do checkbox "Grupo" + posição
+   * na lista, limitado a 2 níveis). `0` é o sentinela de "ainda não
+   * calculado": `aplicarNumeracaoAutomatica` infere o valor legado (grupo =
+   * 1, item dentro de grupo = 2) na primeira renumeração de itens antigos e
+   * grava o resultado de volta no item.
+   */
+  nivel: number;
+  /** Numeração hierárquica: "1", "1.1", "2.3"… gerada automaticamente a partir de `nivel`. */
   eap: string;
   desc: string;
   qtde: number;
@@ -79,6 +104,15 @@ export interface ItemEap {
   bdiMode: ModoBdi;
   bdiPercent: number;
   bdiValue: number;
+  /**
+   * Snapshot do Orçado (custo direto + BDI) por categoria, gravado no
+   * momento em que a EAP é confirmada — decisão tomada com o Lucas em
+   * 14/08/2026: "Orçado" deixa de recalcular ao vivo depois de confirmado,
+   * pra não virar um alvo móvel se qtde/custo mudarem depois. `null`
+   * enquanto o item nunca foi confirmado (ou a EAP foi reaberta) — nesse
+   * caso o Orçado exibido continua sendo o cálculo ao vivo.
+   */
+  orcadoCongelado: PorTipo | null;
 }
 
 /**

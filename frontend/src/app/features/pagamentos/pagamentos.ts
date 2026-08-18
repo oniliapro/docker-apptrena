@@ -4,6 +4,7 @@ import { ApiService } from '../../core/services/api.service';
 
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { hojeIso } from '../../core/utils/formato';
 import {
   calcularSomaItens,
@@ -26,6 +27,23 @@ import {
 } from './pagamentos.models';
 import { PagamentosStore } from './pagamentos.store';
 import { RespostaLeituraNota } from '../../core/models/api.models';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
+import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
+
+type ColunaPagamento =
+  | 'obra'
+  | 'numeroPagamento'
+  | 'dataSolicitacao'
+  | 'descricao'
+  | 'valorTotal'
+  | 'fornecedor'
+  | 'dataPagamento'
+  | 'status';
 
 /**
  * Pagamentos — portado de js/pagamentos/*.js.
@@ -36,7 +54,7 @@ import { RespostaLeituraNota } from '../../core/models/api.models';
  */
 @Component({
   selector: 'app-pagamentos',
-  imports: [NavegacaoTabela],
+  imports: [NavegacaoTabela, RedimensionarColunas],
   providers: [PagamentosStore],
   templateUrl: './pagamentos.html',
   styleUrl: './pagamentos.scss',
@@ -65,8 +83,74 @@ export class Pagamentos implements OnInit {
 
   protected readonly editando = computed(() => this.idEditando !== null);
 
-  /** Lista exibida: mais recentes primeiro, como no app atual. */
-  protected readonly listaExibida = computed(() => [...this.store.pagamentos()].reverse());
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamento> | null>(null);
+  protected readonly setaOrdenacao = setaOrdenacao;
+  protected readonly busca = signal('');
+  protected readonly filtroStatus = signal<'todos' | 'pendente' | 'confirmado'>('todos');
+  protected readonly filtroFornecedor = signal('');
+  protected readonly filtroDataDe = signal('');
+  protected readonly filtroDataAte = signal('');
+
+  protected readonly fornecedoresDisponiveis = computed(() =>
+    valoresDistintos(this.store.pagamentos(), (p) => p.fornecedor ?? ''),
+  );
+
+  protected alternarOrdenacaoColuna(coluna: ColunaPagamento): void {
+    this.ordenacao.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
+  protected mudarBusca(evento: Event): void {
+    this.busca.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroStatus(evento: Event): void {
+    this.filtroStatus.set((evento.target as HTMLSelectElement).value as 'todos' | 'pendente' | 'confirmado');
+  }
+
+  protected mudarFiltroFornecedor(evento: Event): void {
+    this.filtroFornecedor.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected mudarFiltroDataDe(evento: Event): void {
+    this.filtroDataDe.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroDataAte(evento: Event): void {
+    this.filtroDataAte.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected obraDoPagamento(pagamento: Pagamento): string {
+    return pagamento.obraNumber || this.store.cabecalho().obraNumber || this.store.obraNome() || '—';
+  }
+
+  /**
+   * Lista exibida: mais recentes primeiro por padrão, como no app atual —
+   * só reordena de verdade quando o usuário clica num cabeçalho
+   * (18/08/2026, pedido do Lucas). Busca e filtros entram antes da
+   * ordenação.
+   */
+  protected readonly listaExibida = computed(() => {
+    const termo = this.busca().trim().toLowerCase();
+    const status = this.filtroStatus();
+    const fornecedor = this.filtroFornecedor();
+    const de = this.filtroDataDe();
+    const ate = this.filtroDataAte();
+
+    const filtrada = [...this.store.pagamentos()].reverse().filter((p) => {
+      if (status !== 'todos' && p.status !== status) return false;
+      if (fornecedor && p.fornecedor !== fornecedor) return false;
+      if (!dataDentroDoIntervalo(p.dataSolicitacao, de, ate)) return false;
+      if (!termo) return true;
+      return [this.obraDoPagamento(p), p.numeroPagamento, p.fornecedor, p.descricao]
+        .join(' ')
+        .toLowerCase()
+        .includes(termo);
+    });
+
+    return ordenarPor(filtrada, this.ordenacao(), (p, coluna) =>
+      coluna === 'obra' ? this.obraDoPagamento(p) : p[coluna],
+    );
+  });
 
   protected readonly somaItens = computed(() => {
     const rascunho = this.rascunho();

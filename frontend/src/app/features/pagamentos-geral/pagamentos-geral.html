@@ -6,6 +6,40 @@
   <a class="botao-novo" routerLink="/obras" title="Escolha a obra para lançar o pagamento">+ Novo pagamento</a>
 </div>
 
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltroObra($event)">
+    <option value="">Obra: todas</option>
+    @for (obra of obrasDisponiveis(); track obra) {
+      <option [value]="obra">{{ obra }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroOrigem($event)">
+    <option value="todos">Origem: todas</option>
+    <option value="manual">Manual</option>
+    <option value="mapa">Mapa</option>
+    <option value="empreita">Empreita</option>
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="todos">Status: todos</option>
+    <option value="pendente">Pendente</option>
+    <option value="confirmado">Confirmado</option>
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Solicitação de</span>
+    <input type="date" (change)="mudarFiltroDataDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroDataAte($event)" />
+  </label>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar obra, nº, fornecedor, descrição…" (input)="mudarBusca($event)" />
+</div>
+
 <div class="painel">
   @if (carregando()) {
     <div class="atenuado">Carregando…</div>
@@ -13,22 +47,22 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Obra</th>
-            <th class="centro">Nº</th>
-            <th class="centro">Solicitação</th>
-            <th>Fornecedor</th>
-            <th>Descrição</th>
-            <th class="centro">Origem</th>
-            <th class="valor">Total</th>
-            <th class="centro">Status</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('fornecedor')">Fornecedor{{ setaOrdenacao(ordenacao(), 'fornecedor') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('origem')">Origem{{ setaOrdenacao(ordenacao(), 'origem') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (pagamento of pagamentos(); track pagamento.id) {
+          @for (pagamento of listaOrdenada(); track pagamento.id) {
             <tr>
               <td class="centro">{{ obraNumber(pagamento) }}</td>
               <td class="centro">{{ numero(pagamento) }}</td>

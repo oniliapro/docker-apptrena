@@ -22,9 +22,11 @@
   <!-- ============ Ações e colunas ============ -->
   <div class="painel barra-ferramentas">
     <div class="linha-ferramentas">
-      <button type="button" (click)="store.adicionarItem(false)">➕ Adicionar item</button>
-      <button type="button" (click)="store.adicionarItem(true)">📁 Adicionar grupo</button>
-      <button type="button" class="perigo" (click)="limpar()">🧹 Limpar</button>
+      <button type="button" [disabled]="store.travada()" (click)="store.adicionarItem()">➕ Adicionar item</button>
+      <button type="button" class="perigo" [disabled]="store.travada()" (click)="limpar()">🧹 Limpar</button>
+      <button type="button" (click)="alternarTodosOsColapsos()">
+        {{ existeGrupoColapsado() ? '⊞ Expandir tudo' : '⊟ Recolher tudo' }}
+      </button>
 
       <span class="espacador"></span>
 
@@ -46,12 +48,7 @@
         <label class="checagem-inline">
           <input type="checkbox" [checked]="store.ui().showUnit"
                  (change)="store.atualizarUi('showUnit', !store.ui().showUnit)" />
-          Unitário
-        </label>
-        <label class="checagem-inline">
-          <input type="checkbox" [checked]="store.ui().showTotal"
-                 (change)="store.atualizarUi('showTotal', !store.ui().showTotal)" />
-          Totais
+          Custos
         </label>
         <label class="checagem-inline">
           <input type="checkbox" [checked]="store.ui().showBDI"
@@ -60,19 +57,19 @@
         </label>
       } @else {
         <span class="pequeno atenuado">
-          EAP confirmada — mostrando Orçado x Realizado por categoria. Reabra para editar custos.
+          EAP confirmada — mostrando Orçado x Realizado por categoria. Nada é editável até reabrir.
         </span>
       }
 
       <span class="rotulo-grupo">Categorias</span>
       <label class="checagem-inline">
-        <input type="checkbox" [checked]="store.ui().showTypes"
+        <input type="checkbox" [checked]="store.ui().showTypes" [disabled]="store.travada()"
                (change)="store.atualizarUi('showTypes', !store.ui().showTypes)" />
         Detalhar
       </label>
       @for (tipo of tipos; track tipo.chave) {
         <label class="checagem-inline">
-          <input type="checkbox" [checked]="store.ui().visibleTypes[tipo.chave]"
+          <input type="checkbox" [checked]="store.ui().visibleTypes[tipo.chave]" [disabled]="store.travada()"
                  (change)="store.alternarTipoVisivel(tipo.chave)" />
           {{ tipo.rotulo }}
         </label>
@@ -84,11 +81,12 @@
   <div class="envoltoria painel sem-preenchimento">
     <table class="tabela-eap"
            trenaNavegacaoTabela
+           trenaRedimensionarColunas
            (inserirLinha)="inserirAbaixo($event)"
            (removerLinha)="removerPorIndice($event)">
       <thead>
         <tr>
-          <th rowspan="2" class="col-grupo">Grupo</th>
+          <th rowspan="2" class="col-nivel">Nível</th>
           <th rowspan="2" class="col-eap">EAP</th>
           <th rowspan="2" class="col-descricao">Descrição</th>
           <th rowspan="2" class="col-qtde">Qtde</th>
@@ -96,24 +94,18 @@
 
           @if (store.cabecalho().isConfirmed) {
             <th class="grupo-orc-real"
-                [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
+                [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 2 : 1">
               Totais (Orçado x Realizado)
             </th>
           } @else {
             @if (store.ui().showUnit) {
-              <th class="grupo-unit"
+              <th class="grupo-custo"
                   [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
-                Custo unitário
-              </th>
-            }
-            @if (store.ui().showTotal) {
-              <th class="grupo-total"
-                  [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 1 : 1">
-                Custo total
+                Custo (unitário x total)
               </th>
             }
             @if (store.ui().showBDI) {
-              <th class="grupo-bdi" colspan="3">BDI</th>
+              <th class="grupo-bdi" colspan="2">BDI</th>
             }
           }
 
@@ -126,28 +118,20 @@
               @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                 <th class="grupo-orc-real">{{ tipo.rotulo }}</th>
               }
+              <th class="grupo-orc-real">S/ Categoria</th>
             }
             <th class="grupo-orc-real">Total</th>
           } @else {
             @if (store.ui().showUnit) {
               @if (store.mostrarColunasTipo()) {
                 @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                  <th class="grupo-unit">{{ tipo.rotulo }}</th>
+                  <th class="grupo-custo">{{ tipo.rotulo }}</th>
                 }
               }
-              <th class="grupo-unit">Total</th>
-            }
-            @if (store.ui().showTotal) {
-              @if (store.mostrarColunasTipo()) {
-                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                  <th class="grupo-total">{{ tipo.rotulo }}</th>
-                }
-              }
-              <th class="grupo-total">Total</th>
+              <th class="grupo-custo">Total</th>
             }
             @if (store.ui().showBDI) {
-              <th class="grupo-bdi">BDI do item</th>
-              <th class="grupo-bdi">BDI aplicado</th>
+              <th class="grupo-bdi">BDI (item x aplicado)</th>
               <th class="grupo-bdi">Total + BDI</th>
             }
           }
@@ -156,27 +140,47 @@
 
       <tbody>
         @for (item of store.itens(); track item.id; let i = $index) {
-          <tr [class.linha-grupo]="item.isGroup" [class.zebra]="!item.isGroup && i % 2 === 1">
+          @if (!itensOcultos().has(item.id)) {
+          <tr [class.zebra]="!item.isGroup && i % 2 === 1"
+              [class.linha-grupo]="item.isGroup"
+              [class.linha-grupo-fundo-escuro]="item.isGroup && item.nivel <= 3"
+              [class.linha-grupo-fundo-claro]="item.isGroup && item.nivel > 3"
+              [class.linha-grupo-nivel-1]="item.isGroup && item.nivel === 1"
+              [class.linha-grupo-nivel-2]="item.isGroup && item.nivel === 2"
+              [class.linha-grupo-nivel-3]="item.isGroup && item.nivel === 3"
+              [class.linha-grupo-nivel-4]="item.isGroup && item.nivel >= 4">
             <td class="centro">
-              <input type="checkbox" [checked]="item.isGroup" (change)="alternarGrupo(item)"
-                     title="Marcar como grupo" />
+              <select class="select-nivel" [value]="item.nivel" [disabled]="store.travada()"
+                      (change)="mudarNivel(item, $event)" title="Nível hierárquico da linha (1 a 4)">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
             </td>
             <td class="centro indice">{{ item.eap }}</td>
-            <td>
-              <input type="text" class="descricao"
-                     [style.padding-left.px]="8 + nivel(item) * 14"
-                     [value]="item.desc" [title]="item.desc"
-                     (change)="editarTexto(item, 'desc', $event)" />
+            <td class="celula-descricao">
+              @if (item.isGroup) {
+                <button type="button" class="botao-colapsar" [style.left.px]="recuo(item) * 14"
+                        [title]="estaColapsado(item) ? 'Expandir' : 'Recolher'"
+                        (click)="alternarColapso(item)">
+                  {{ estaColapsado(item) ? '+' : '−' }}
+                </button>
+              }
+              <textarea class="descricao" trenaAutoAltura rows="1" [disabled]="store.travada()"
+                        [style.padding-left.px]="8 + recuo(item) * 14 + (item.isGroup ? 15 : 0)"
+                        [value]="item.desc"
+                        (change)="editarTexto(item, 'desc', $event)"></textarea>
             </td>
             <td>
               @if (!item.isGroup) {
-                <input type="text" class="valor" [value]="numeroOuVazio(item.qtde)"
+                <input type="text" class="valor" [value]="numeroOuVazio(item.qtde)" [disabled]="store.travada()"
                        (change)="editarQuantidade(item, $event)" />
               }
             </td>
             <td>
               @if (!item.isGroup) {
-                <input type="text" class="centro" [value]="item.unid"
+                <input type="text" class="centro" [value]="item.unid" [disabled]="store.travada()"
                        (change)="editarTexto(item, 'unid', $event)" />
               }
             </td>
@@ -188,13 +192,9 @@
                   <td class="celula-orc-real">
                     <div class="linha-real">
                       <span class="rotulo-real">Real.</span>
-                      @if (item.isGroup) {
-                        <span class="valor-real">{{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}</span>
-                      } @else {
-                        <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
-                          {{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}
-                        </button>
-                      }
+                      <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item, tipo.chave)">
+                        {{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}
+                      </button>
                     </div>
                     <div class="linha-orc">
                       <span class="rotulo-orc">Orç.</span>
@@ -202,17 +202,25 @@
                     </div>
                   </td>
                 }
+                <td class="celula-orc-real">
+                  <div class="linha-real">
+                    <span class="rotulo-real">Real.</span>
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria(item)">
+                      {{ formatarMoeda(realizadoSemCategoria(item)) }}
+                    </button>
+                  </div>
+                  <div class="linha-orc">
+                    <span class="rotulo-orc">Orç.</span>
+                    <span class="valor-orc atenuado">—</span>
+                  </div>
+                </td>
               }
               <td class="celula-orc-real">
                 <div class="linha-real">
                   <span class="rotulo-real">Real.</span>
-                  @if (item.isGroup) {
-                    <span class="valor-real">{{ formatarMoeda(realizadoDoItem(item)) }}</span>
-                  } @else {
-                    <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
-                      {{ formatarMoeda(realizadoDoItem(item)) }}
-                    </button>
-                  }
+                  <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
+                    {{ formatarMoeda(realizadoDoItem(item)) }}
+                  </button>
                 </div>
                 <div class="linha-orc">
                   <span class="rotulo-orc">Orç.</span>
@@ -220,62 +228,82 @@
                 </div>
               </td>
             } @else {
-              <!-- Custo unitário -->
+              <!-- Custo (unitário em cima, total embaixo — mesmo padrão da EAP confirmada) -->
               @if (store.ui().showUnit) {
                 @if (store.mostrarColunasTipo()) {
                   @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                    <td>
-                      @if (!item.isGroup) {
-                        <input type="text" class="valor" [value]="moedaOuVazio(item.unit[tipo.chave])"
-                               (change)="editarCusto(item, tipo.chave, $event)" />
-                      }
+                    <td class="celula-custo">
+                      <div class="linha-unit">
+                        <span class="rotulo-custo">Unit.</span>
+                        @if (!item.isGroup) {
+                          <input type="text" class="valor" [value]="moedaOuVazio(item.unit[tipo.chave])"
+                                 (change)="editarCusto(item, tipo.chave, $event)" />
+                        }
+                      </div>
+                      <div class="linha-total">
+                        <span class="rotulo-custo">Total</span>
+                        <span class="valor-custo">{{ moedaOuVazio(custoDiretoTipo(i, item, tipo.chave)) }}</span>
+                      </div>
                     </td>
                   }
                 }
-                <td class="valor">
-                  @if (!item.isGroup) {
-                    {{ moedaOuVazio(store.cache().unitTotal[i]) }}
-                  }
+                <td class="celula-custo">
+                  <div class="linha-unit">
+                    <span class="rotulo-custo">Unit.</span>
+                    @if (!item.isGroup) {
+                      <span class="valor-custo">{{ moedaOuVazio(store.cache().unitTotal[i]) }}</span>
+                    }
+                  </div>
+                  <div class="linha-total">
+                    <span class="rotulo-custo">Total</span>
+                    <span class="valor-custo"><b>{{ moedaOuVazio(custoDireto(i, item)) }}</b></span>
+                  </div>
                 </td>
               }
 
-              <!-- Custo total -->
-              @if (store.ui().showTotal) {
-                @if (store.mostrarColunasTipo()) {
-                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                    <td class="valor">{{ moedaOuVazio(custoDiretoTipo(i, item, tipo.chave)) }}</td>
-                  }
-                }
-                <td class="valor"><b>{{ moedaOuVazio(custoDireto(i, item)) }}</b></td>
-              }
-
-              <!-- BDI -->
+              <!-- BDI: BDI do item (editável) em cima, aplicado (calculado) embaixo -->
               @if (store.ui().showBDI) {
-                <td class="celula-bdi">
-                  @if (!item.isGroup) {
-                    <button type="button" class="alternar-bdi" (click)="alternarModoBdiItem(item)">
-                      {{ item.bdiMode === 'pct' ? '%' : 'R$' }}
-                    </button>
-                    <input type="text" class="valor" [value]="valorBdiItem(item)"
-                           (change)="editarBdiItem(item, $event)" />
-                  }
-                </td>
-                <td class="valor">
-                  {{ moedaOuVazio(bdi(i, item)) }}
-                  @if (bdi(i, item)) {
-                    <span class="pequeno atenuado">{{ bdiPercentual(i, item) | number: '1.2-2' }}%</span>
-                  }
+                <td class="celula-bdi-aplicado">
+                  <div class="linha-bdi-item">
+                    <span class="rotulo-custo">BDI</span>
+                    @if (!item.isGroup) {
+                      <span class="valor-bdi-editavel">
+                        <button type="button" class="alternar-bdi" (click)="alternarModoBdiItem(item)">
+                          {{ item.bdiMode === 'pct' ? '%' : 'R$' }}
+                        </button>
+                        <input type="text" class="valor" [value]="valorBdiItem(item)"
+                               (change)="editarBdiItem(item, $event)" />
+                      </span>
+                    }
+                  </div>
+                  <div class="linha-bdi-aplicado">
+                    <span class="rotulo-custo">Aplic.</span>
+                    <span class="valor-custo">
+                      {{ moedaOuVazio(bdi(i, item)) }}
+                      @if (bdi(i, item)) {
+                        <span class="pequeno atenuado">{{ bdiPercentual(i, item) | number: '1.2-2' }}%</span>
+                      }
+                    </span>
+                  </div>
                 </td>
                 <td class="valor"><b>{{ moedaOuVazio(totalComBdi(i, item)) }}</b></td>
               }
             }
 
             <td class="centro acoes-linha">
-              <button type="button" title="Subir" (click)="store.moverItem(item.id, -1)">↑</button>
-              <button type="button" title="Descer" (click)="store.moverItem(item.id, 1)">↓</button>
-              <button type="button" title="Excluir" (click)="remover(item)">✖</button>
+              <div class="acoes-linha-conteudo">
+                <div class="acoes-mover">
+                  <button type="button" title="Subir" [disabled]="store.travada()" (click)="store.moverItem(item.id, -1)">↑</button>
+                  <button type="button" title="Descer" [disabled]="store.travada()" (click)="store.moverItem(item.id, 1)">↓</button>
+                </div>
+                <div class="acoes-inserir-excluir">
+                  <button type="button" title="Inserir item logo abaixo" [disabled]="store.travada()" (click)="inserirAbaixo(i)">+</button>
+                  <button type="button" title="Excluir" [disabled]="store.travada()" (click)="remover(item)">✖</button>
+                </div>
+              </div>
             </td>
           </tr>
+          }
         } @empty {
           <tr>
             <td [attr.colspan]="totalColunas()" class="centro atenuado vazio">
@@ -286,6 +314,39 @@
       </tbody>
 
       <tfoot>
+        @if (store.cabecalho().isConfirmed) {
+          <!--
+            Pagamentos com item sem eapId nenhum — não direcionados a
+            etapa alguma da EAP, quebrados por categoria igual a uma
+            linha normal: tipo definido mas sem etapa cai na coluna
+            daquele tipo; nem tipo nem etapa cai em "S/ Categoria"
+            (19/08/2026, pedido do Lucas).
+          -->
+          <tr>
+            <th colspan="5" class="rotulo-rodape">S/ DEFINIÇÃO</th>
+            @if (store.mostrarColunasTipo()) {
+              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                <th class="celula-orc-real">
+                  <button type="button" class="link-realizado" (click)="abrirPagamentosSemDefinicao(tipo.chave)">
+                    {{ formatarMoeda(realizadoSemDefinicaoPorTipo()[tipo.chave]) }}
+                  </button>
+                </th>
+              }
+              <th class="celula-orc-real">
+                <button type="button" class="link-realizado" (click)="abrirPagamentosSemDefinicaoSemCategoria()">
+                  {{ formatarMoeda(realizadoSemDefinicaoSemCategoria()) }}
+                </button>
+              </th>
+            }
+            <th class="celula-orc-real">
+              <button type="button" class="link-realizado" (click)="abrirPagamentosSemDefinicao()">
+                {{ formatarMoeda(totalRealizadoSemDefinicao()) }}
+              </button>
+            </th>
+            <th></th>
+          </tr>
+        }
+
         <tr>
           <th colspan="5" class="rotulo-rodape">TOTAIS</th>
 
@@ -295,36 +356,45 @@
                 <th class="celula-orc-real">
                   <div class="linha-real">
                     <span class="rotulo-real">Real.</span>
-                    <span class="valor-real">{{ formatarMoeda(totalRealizadoPorTipo()[tipo.chave]) }}</span>
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosTotais(tipo.chave)">
+                      {{ formatarMoeda(totalRealizadoPorTipoGeral()[tipo.chave]) }}
+                    </button>
                   </div>
                   <div class="linha-orc">
                     <span class="rotulo-orc">Orç.</span>
                     <span class="valor-orc">
-                      {{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave] + store.cache().totalsBdiByType[tipo.chave]) }}
+                      {{ formatarMoeda(totalOrcadoPorTipo()[tipo.chave]) }}
                     </span>
                   </div>
                 </th>
               }
+              <th class="celula-orc-real">
+                <div class="linha-real">
+                  <span class="rotulo-real">Real.</span>
+                  <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria()">
+                    {{ formatarMoeda(totalRealizadoSemCategoriaGeral()) }}
+                  </button>
+                </div>
+                <div class="linha-orc">
+                  <span class="rotulo-orc">Orç.</span>
+                  <span class="valor-orc atenuado">—</span>
+                </div>
+              </th>
             }
             <th class="celula-orc-real">
               <div class="linha-real">
                 <span class="rotulo-real">Real.</span>
-                <span class="valor-real">{{ formatarMoeda(totalRealizado()) }}</span>
+                <button type="button" class="link-realizado" (click)="abrirPagamentosTotais()">
+                  {{ formatarMoeda(totalRealizadoGeral()) }}
+                </button>
               </div>
               <div class="linha-orc">
                 <span class="rotulo-orc">Orç.</span>
-                <span class="valor-orc"><b>{{ formatarMoeda(store.cache().totalsWithBdi) }}</b></span>
+                <span class="valor-orc"><b>{{ formatarMoeda(totalOrcado()) }}</b></span>
               </div>
             </th>
           } @else {
             @if (store.ui().showUnit) {
-              @if (store.mostrarColunasTipo()) {
-                @for (tipo of store.tiposVisiveis(); track tipo.chave) { <th></th> }
-              }
-              <th></th>
-            }
-
-            @if (store.ui().showTotal) {
               @if (store.mostrarColunasTipo()) {
                 @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                   <th class="valor">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</th>
@@ -334,7 +404,6 @@
             }
 
             @if (store.ui().showBDI) {
-              <th></th>
               <th class="valor">{{ formatarMoeda(store.cache().totalsBdi) }}</th>
               <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
             }
@@ -349,15 +418,15 @@
   <!-- ============ Painéis inferiores ============ -->
   <div class="grade-inferior">
     <!-- Configuração do BDI -->
-    <div class="painel">
+    <div class="painel painel-bdi">
       <div class="painel-titulo">Aplicação do BDI</div>
 
       <div class="escolha-escopo">
-        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'global'"
+        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'global'" [disabled]="store.travada()"
                 (click)="mudarEscopoBdi('global')">Global</button>
-        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'category'"
+        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'category'" [disabled]="store.travada()"
                 (click)="mudarEscopoBdi('category')">Por categoria</button>
-        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'item'"
+        <button type="button" [class.ativo]="store.cabecalho().bdiScope === 'item'" [disabled]="store.travada()"
                 (click)="mudarEscopoBdi('item')">Por item</button>
       </div>
 
@@ -366,10 +435,10 @@
           <div class="linha-config">
             <span>BDI da obra</span>
             <span class="entrada">
-              <button type="button" class="alternar-bdi" (click)="alternarModoBdiGlobal()">
+              <button type="button" class="alternar-bdi" [disabled]="store.travada()" (click)="alternarModoBdiGlobal()">
                 {{ store.cabecalho().bdiMode === 'pct' ? '%' : 'R$' }}
               </button>
-              <input type="text" class="valor" [value]="valorBdiGlobal()"
+              <input type="text" class="valor" [value]="valorBdiGlobal()" [disabled]="store.travada()"
                      (change)="editarBdiGlobal($event)" />
             </span>
           </div>
@@ -388,10 +457,10 @@
             <div class="linha-config">
               <span>{{ tipo.rotulo }}</span>
               <span class="entrada">
-                <button type="button" class="alternar-bdi" (click)="alternarModoBdiTipo(tipo.chave)">
+                <button type="button" class="alternar-bdi" [disabled]="store.travada()" (click)="alternarModoBdiTipo(tipo.chave)">
                   {{ store.cabecalho().bdiByType[tipo.chave].mode === 'pct' ? '%' : 'R$' }}
                 </button>
-                <input type="text" class="valor" [value]="valorBdiTipo(tipo.chave)"
+                <input type="text" class="valor" [value]="valorBdiTipo(tipo.chave)" [disabled]="store.travada()"
                        (change)="editarBdiTipo(tipo.chave, $event)" />
               </span>
             </div>
@@ -409,7 +478,7 @@
     </div>
 
     <!-- Resumo por categoria -->
-    <div class="painel">
+    <div class="painel painel-resumo">
       <div class="painel-titulo">Resumo por categoria</div>
       <table class="tabela-resumo">
         <thead>
@@ -447,33 +516,112 @@
     </div>
   </div>
 
-  <!-- ============ Modal: pagamentos vinculados ao item ============ -->
-  @if (itemPagamentosAberto(); as item) {
+  <!-- ============ Modal: pagamentos vinculados ============ -->
+  @if (filtroPagamentosAberto(); as filtro) {
     <div class="modal">
       <div class="modal-fundo" (click)="fecharModalPagamentos()"></div>
 
       <div class="modal-cartao">
         <div class="modal-cabecalho">
-          <span class="modal-titulo">Pagamentos vinculados — {{ item.eap }} {{ item.desc }}</span>
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Pagamentos vinculados — {{ filtro.titulo }}</span>
+            <div class="modal-totais-empilhados">
+              <span>Total dos pagamentos: <b>{{ formatarMoeda(totalValorPagamentosPopup()) }}</b></span>
+              <span>Direcionado à etapa: <b>{{ formatarMoeda(totalValorDirecionadoPopup()) }}</b></span>
+            </div>
+          </div>
           <button type="button" (click)="fecharModalPagamentos()">✖</button>
         </div>
 
         <div class="modal-corpo">
-          @if (pagamentosVinculados(item).length) {
-            @for (p of pagamentosVinculados(item); track $index) {
-              <div class="linha-pagamento-vinculado">
-                <div>
-                  <div class="descricao-pagamento">{{ p.descricao || p.fornecedor || p.numeroPagamento }}</div>
-                  <div class="pequeno atenuado">
-                    {{ p.numeroPagamento }}
-                    @if (p.fornecedor) { · {{ p.fornecedor }} }
-                    @if (p.dataPagamento) { · {{ p.dataPagamento }} }
-                    @if (p.pendente) { · <span class="marca-pendente">pendente de confirmação</span> }
-                  </div>
-                </div>
-                <span class="valor"><b>{{ formatarMoeda(p.valor) }}</b></span>
-              </div>
-            }
+          <div class="modal-filtros">
+            <select (change)="mudarFiltroPopupBeneficiado($event)">
+              <option value="">Beneficiado: todos</option>
+              @for (beneficiado of beneficiariosPopupDisponiveis(); track beneficiado) {
+                <option [value]="beneficiado">{{ beneficiado }}</option>
+              }
+            </select>
+            <label class="campo-data-filtro">
+              <span>Solicitação de</span>
+              <input type="date" (change)="mudarFiltroPopupDataDe($event)" />
+            </label>
+            <label class="campo-data-filtro">
+              <span>até</span>
+              <input type="date" (change)="mudarFiltroPopupDataAte($event)" />
+            </label>
+          </div>
+
+          @if (pagamentosVinculados().length) {
+            <table class="tabela-pagamentos-vinculados">
+              <thead>
+                <tr>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('numeroPagamento')">
+                    Pagamento{{ setaOrdenacao(ordenacaoPagamentos(), 'numeroPagamento') }}
+                  </th>
+                  <th class="valor ordenavel" (click)="alternarOrdenacaoPagamentos('valorDirecionado')">
+                    Direcionado à etapa{{ setaOrdenacao(ordenacaoPagamentos(), 'valorDirecionado') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('fornecedor')">
+                    Beneficiado{{ setaOrdenacao(ordenacaoPagamentos(), 'fornecedor') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('dataSolicitacao')">
+                    Solicitação{{ setaOrdenacao(ordenacaoPagamentos(), 'dataSolicitacao') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('dataPagamento')">
+                    Pagamento{{ setaOrdenacao(ordenacaoPagamentos(), 'dataPagamento') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('descricao')">
+                    Descrição{{ setaOrdenacao(ordenacaoPagamentos(), 'descricao') }}
+                  </th>
+                  <th class="valor ordenavel" (click)="alternarOrdenacaoPagamentos('valorTotal')">
+                    Valor total{{ setaOrdenacao(ordenacaoPagamentos(), 'valorTotal') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of pagamentosVinculados(); track p.numeroPagamento) {
+                  <tr>
+                    <td>
+                      {{ p.numeroPagamento }}
+                      @if (p.pendente) { <span class="marca-pendente">pendente</span> }
+                    </td>
+                    <td class="valor">
+                      <span class="valor-direcionado-hover"
+                            (mouseenter)="ajustarPosicaoHover($event, p.itensDirecionados.length)">
+                        <b>{{ formatarMoeda(p.valorDirecionado) }}</b>
+                        <div class="detalhe-hover">
+                          <table class="tabela-detalhe-itens">
+                            <thead>
+                              <tr>
+                                <th>Item</th>
+                                <th>Tipo</th>
+                                <th>Etapa</th>
+                                <th class="valor">Valor</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (i of p.itensDirecionados; track $index) {
+                                <tr>
+                                  <td>{{ i.descricao }}</td>
+                                  <td>{{ rotuloTipo(i.tipo) }}</td>
+                                  <td>{{ i.etapa }}</td>
+                                  <td class="valor">{{ formatarMoeda(i.valor) }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </span>
+                    </td>
+                    <td>{{ p.fornecedor }}</td>
+                    <td>{{ formatarData(p.dataSolicitacao) }}</td>
+                    <td>{{ formatarData(p.dataPagamento) }}</td>
+                    <td>{{ p.descricao }}</td>
+                    <td class="valor">{{ formatarMoeda(p.valorTotal) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           } @else {
             <p class="atenuado pequeno">Nenhum pagamento vinculado a este item ainda.</p>
           }

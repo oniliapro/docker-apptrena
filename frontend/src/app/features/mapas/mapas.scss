@@ -2,6 +2,8 @@
 
 table { table-layout: auto; }
 
+.mono { font-family: var(--fonte-mono); font-size: 11.5px; }
+
 .cabecalho {
   display: flex;
   align-items: flex-end;

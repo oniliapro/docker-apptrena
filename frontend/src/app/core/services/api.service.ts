@@ -1,8 +1,10 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpEvent, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { Arquivo, ConteudoPasta, Pasta, RaizesPastas } from '../../features/arquivos/arquivos.models';
 import { environment } from '../../../environments/environment';
+import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
   EapPayload,
   Empreita,
@@ -211,5 +213,68 @@ export class ApiService {
   removerChave(chave: string): Observable<unknown> {
     const params = new HttpParams().set('key', chave);
     return this.http.delete(`${this.base}/storage`, { params });
+  }
+
+  // ---------------- Arquivos anexados (pastas + arquivos) ----------------
+  obterPastasRaizes(obraId: string): Observable<RaizesPastas> {
+    return this.http.get<RaizesPastas>(`${this.base}/obras/${obraId}/pastas/raizes`);
+  }
+
+  obterPasta(pastaId: string): Observable<ConteudoPasta> {
+    return this.http.get<ConteudoPasta>(`${this.base}/pastas/${pastaId}`);
+  }
+
+  criarSubpasta(pastaId: string, nome: string): Observable<Pasta> {
+    return this.http.post<Pasta>(`${this.base}/pastas/${pastaId}/subpastas`, { nome });
+  }
+
+  atualizarPasta(
+    pastaId: string,
+    dados: Partial<{ nome: string; parent_id: string }>,
+  ): Observable<Pasta> {
+    return this.http.put<Pasta>(`${this.base}/pastas/${pastaId}`, dados);
+  }
+
+  excluirPasta(pastaId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/pastas/${pastaId}`);
+  }
+
+  /**
+   * POST /pastas/{id}/arquivos — upload até 100MB, então usa
+   * `reportProgress` (a store expõe o progresso) e escapa do timeout
+   * padrão de 15s do interceptor via o contexto SEM_TIMEOUT_LONGO.
+   */
+  enviarArquivo(pastaId: string, arquivo: File): Observable<HttpEvent<Arquivo>> {
+    const dados = new FormData();
+    dados.append('arquivo', arquivo);
+    return this.http.post<Arquivo>(`${this.base}/pastas/${pastaId}/arquivos`, dados, {
+      reportProgress: true,
+      observe: 'events',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
+  }
+
+  atualizarArquivo(
+    arquivoId: string,
+    dados: Partial<{ nome_original: string; pasta_id: string }>,
+  ): Observable<Arquivo> {
+    return this.http.put<Arquivo>(`${this.base}/arquivos/${arquivoId}`, dados);
+  }
+
+  excluirArquivo(arquivoId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/arquivos/${arquivoId}`);
+  }
+
+  obterUrlPreviewArquivo(arquivoId: string): Observable<{ url: string; expira_em: string }> {
+    return this.http.get<{ url: string; expira_em: string }>(
+      `${this.base}/arquivos/${arquivoId}/preview-url`,
+    );
+  }
+
+  baixarArquivo(arquivoId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/arquivos/${arquivoId}/download`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
   }
 }

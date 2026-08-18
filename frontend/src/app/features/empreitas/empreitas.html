@@ -15,6 +15,23 @@
     <input type="checkbox" [checked]="mostrarPagamentos()" (change)="alternarPagamentos()" />
     Mostrar pagamentos
   </label>
+
+  <select (change)="mudarFiltroObra($event)">
+    <option value="">Obra: todas</option>
+    @for (obra of obrasDisponiveis(); track obra) {
+      <option [value]="obra">{{ obra }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroEmpreiteiro($event)">
+    <option value="">Empreiteiro: todos</option>
+    @for (empreiteiro of empreiteirosDisponiveis(); track empreiteiro) {
+      <option [value]="empreiteiro">{{ empreiteiro }}</option>
+    }
+  </select>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar obra, nº, descrição…" (input)="mudarBusca($event)" />
 </div>
 
 <div class="painel">
@@ -24,21 +41,21 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Obra</th>
-            <th class="centro">Nº</th>
-            <th>Descrição</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             @if (mostrarServicos()) { <th>Serviços</th> }
             @if (mostrarPagamentos()) { <th>Pagamentos</th> }
-            <th class="valor">Total</th>
-            <th class="valor">Pago</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
             <th class="centro">Medições</th>
           </tr>
         </thead>
         <tbody>
-          @for (empreita of empreitas(); track empreita.id) {
+          @for (empreita of listaOrdenada(); track empreita.id) {
             <tr>
               <td class="centro">{{ obra(empreita) }}</td>
               <td class="centro">{{ numero(empreita) }}</td>

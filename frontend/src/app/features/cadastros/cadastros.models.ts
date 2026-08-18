@@ -3,6 +3,16 @@
 export type TipoPessoa = 'PF' | 'PJ';
 
 /**
+ * Rótulo por extenso do tipo de pessoa — "Pessoa Física"/"Pessoa
+ * Jurídica", não só "Física"/"Jurídica" (19/08/2026, pedido do Lucas).
+ * Centralizado aqui porque aparece em Clientes, Empreiteiros,
+ * Fornecedores e em cada entrada de "Dados de recebimento".
+ */
+export function rotuloTipoPessoa(tipo: TipoPessoa): string {
+  return tipo === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física';
+}
+
+/**
  * Cliente da construtora.
  *
  * Pessoa física e jurídica compartilham a mesma estrutura, com campos
@@ -38,18 +48,42 @@ export interface Cliente {
 /** Responsável técnico por obras (engenheiro, técnico). */
 export interface Responsavel {
   id: string;
+  /** Código interno, ex.: "RESP-014" — gerado pelo sistema, não digitado. */
+  codigo: string;
   nome: string;
   /** CREA, CAU ou outro registro profissional. */
   registro: string;
+  /** Área de atuação (ex.: "Estrutural", "Elétrica", "Fiscalização"). */
+  atuacao: string;
   telefone: string;
   email: string;
   ativo: boolean;
   observacoes: string;
 }
 
+/**
+ * Um jeito de pagar um empreiteiro/fornecedor — banco/PIX de uma pessoa
+ * física ou jurídica (19/08/2026, pedido do Lucas). Um mesmo cadastro
+ * pode ter mais de um (ex.: recebe como CNPJ da empresa ou como CPF do
+ * sócio, dependendo do contrato), por isso é uma lista, não um campo só.
+ */
+export interface DadosRecebimento {
+  id: string;
+  tipo: TipoPessoa;
+  nomeTitular: string;
+  /** CPF ou CNPJ do titular, conforme `tipo`. */
+  documento: string;
+  banco: string;
+  agencia: string;
+  conta: string;
+  chavePix: string;
+}
+
 /** Empreiteiro que executa serviços. */
 export interface Empreiteiro {
   id: string;
+  /** Código interno, ex.: "EMP-014" — gerado pelo sistema, não digitado. */
+  codigo: string;
   nome: string;
   tipo: TipoPessoa;
   documento: string;
@@ -59,6 +93,7 @@ export interface Empreiteiro {
   especialidade: string;
   ativo: boolean;
   observacoes: string;
+  dadosRecebimento: DadosRecebimento[];
 }
 
 /** Contato de um fornecedor — pode ter mais de um (comercial, financeiro…). */
@@ -77,6 +112,8 @@ export interface ContatoFornecedor {
  */
 export interface Fornecedor {
   id: string;
+  /** Código interno, ex.: "FORN-014" — gerado pelo sistema, não digitado. */
+  codigo: string;
   nome: string;
   tipo: TipoPessoa;
   documento: string;
@@ -85,5 +122,6 @@ export interface Fornecedor {
   especialidade: string;
   observacoes: string;
   contatos: ContatoFornecedor[];
+  dadosRecebimento: DadosRecebimento[];
   ativo: boolean;
 }

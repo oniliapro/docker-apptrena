@@ -12,8 +12,26 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Este backend é só API — não existe rota nomeada "login" (não há
+        // tela de login servida pelo Laravel, quem faz isso é o Angular).
+        // Sem isso, o middleware `Authenticate` padrão tenta
+        // `route('login')` pra redirecionar qualquer requisição sem
+        // Accept: application/json que caia numa rota `auth:sanctum` sem
+        // sessão válida — e como a rota não existe, estoura
+        // RouteNotFoundException em vez de devolver um 401 limpo
+        // (descoberto 21/08/2026 testando a API com curl puro, sem
+        // header de Accept; o Angular manda Accept: application/json
+        // sempre, então nunca bateu nisso, mas qualquer outro cliente
+        // sem sessão válida bateria).
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Mesmo motivo do `redirectGuestsTo` acima, camada diferente: o
+        // Handler padrão do Laravel só devolve JSON em erro quando
+        // `$request->expectsJson()` é verdadeiro; senão tenta redirecionar
+        // pra `route('login')` (RedirectIfAuthenticated/unauthenticated()
+        // em Handler::unauthenticated), que não existe aqui. Esta app é
+        // 100% API — nenhuma rota HTML é servida pelo Laravel — então
+        // toda resposta de erro deve ser JSON, sem exceção.
+        $exceptions->shouldRenderJsonWhen(fn () => true);
     })->create();

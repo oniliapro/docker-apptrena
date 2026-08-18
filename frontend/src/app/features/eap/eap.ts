@@ -2,12 +2,22 @@ import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
 
-import { formatarMoeda } from '../../core/utils/formato';
+import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
+import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
 import { expandirItensPagamento, parsearBR } from '../pagamentos/pagamentos-calc';
+import { ItemPagamentoCalculado } from '../pagamentos/pagamentos.models';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { ehDescendente } from './eap-engine';
-import { criarVazioPorTipo } from './eap-normalize';
+import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
 import { EapStore } from './eap.store';
 import {
   ChaveTipo,
@@ -31,7 +41,7 @@ import {
  */
 @Component({
   selector: 'app-eap',
-  imports: [DecimalPipe, NavegacaoTabela],
+  imports: [DecimalPipe, NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea],
   providers: [EapStore, PagamentosStore],
   templateUrl: './eap.html',
   styleUrl: './eap.scss',
@@ -56,12 +66,20 @@ export class Eap implements OnInit {
 
   protected readonly tipos = TIPOS_CUSTO;
   protected readonly formatarMoeda = formatarMoeda;
+  protected readonly formatarData = formatarData;
 
   /**
-   * Item da EAP cujo modal de pagamentos vinculados está aberto — null
-   * quando o modal está fechado.
+   * Filtro do modal de pagamentos vinculados — null quando o modal está
+   * fechado. Guarda o título a mostrar e um predicado sobre o item de
+   * pagamento (`ItemPagamentoCalculado`), em vez de guardar separadamente
+   * "item da EAP" + "tipo" como antes (19/08/2026, pedido do Lucas): o
+   * rodapé de totais e as novas linhas/colunas "S/ Definição"/"S/
+   * Categoria" precisam abrir esse mesmo modal com critérios que não são
+   * "um item específico + um tipo específico" (ex.: todos os itens, ou
+   * "sem eapId nenhum") — um predicado cobre todos os casos com uma peça
+   * só, sem multiplicar sinais de estado.
    */
-  protected readonly itemPagamentosAberto = signal<ItemEap | null>(null);
+  protected readonly filtroPagamentosAberto = signal<FiltroPagamentosAberto | null>(null);
 
   /**
    * Soma do "Realizado" de cada item da EAP: o total já pago em itens de
@@ -114,6 +132,30 @@ export class Eap implements OnInit {
   });
 
   /**
+   * Contrapartida de `realizadoPorItemPorTipo`: soma, por item da EAP, dos
+   * itens de pagamento QUE TÊM etapa (eapId preenchido) mas cujo tipo não
+   * é nenhuma das 5 categorias padrão — antes esse valor era descartado
+   * em silêncio (ver comentário acima, "a soma das categorias pode ficar
+   * um pouco abaixo do total"); agora vira a coluna "S/ Categoria"
+   * (19/08/2026, pedido do Lucas).
+   */
+  protected readonly realizadoPorItemSemCategoria = computed(() => {
+    const mapa = new Map<string, number>();
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status === 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (!item.eapId) continue;
+        if (chaves.has(item.tipo as ChaveTipo)) continue;
+
+        mapa.set(item.eapId, (mapa.get(item.eapId) ?? 0) + item.valorCalculado);
+      }
+    }
+    return mapa;
+  });
+
+  /**
    * Soma do realizado só dos itens que ainda existem na EAP — um
    * pagamento vinculado a um item já excluído não entra no total do
    * rodapé (mas continua contando para a coluna daquele item, se ele
@@ -122,6 +164,53 @@ export class Eap implements OnInit {
   protected readonly totalRealizado = computed(() => {
     const mapa = this.realizadoPorItem();
     return this.store.itens().reduce((soma, item) => soma + (mapa.get(item.id) ?? 0), 0);
+  });
+
+  /**
+   * Pagamentos com item sem eapId nenhum — não direcionados a etapa
+   * alguma da EAP. Antes ficavam invisíveis (nem entravam no total do
+   * rodapé, nem apareciam em lugar nenhum); agora viram a linha "S/
+   * Definição" do rodapé (19/08/2026, pedido do Lucas), quebrada por
+   * categoria igual às linhas normais: um pagamento com tipo Material mas
+   * sem etapa cai em "S/ Definição" na coluna Material; sem tipo E sem
+   * etapa cai em "S/ Definição" na coluna "S/ Categoria".
+   */
+  protected readonly realizadoSemDefinicaoPorTipo = computed(() => {
+    const totais = criarVazioPorTipo();
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status === 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (item.eapId) continue;
+        const tipo = item.tipo as ChaveTipo;
+        if (!chaves.has(tipo)) continue;
+        totais[tipo] += item.valorCalculado;
+      }
+    }
+    return totais;
+  });
+
+  /** Contrapartida de `realizadoSemDefinicaoPorTipo`: sem etapa E sem categoria padrão. */
+  protected readonly realizadoSemDefinicaoSemCategoria = computed(() => {
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+    let soma = 0;
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status === 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (item.eapId) continue;
+        if (chaves.has(item.tipo as ChaveTipo)) continue;
+        soma += item.valorCalculado;
+      }
+    }
+    return soma;
+  });
+
+  /** Total da linha "S/ Definição" — soma de todas as categorias + "S/ Categoria" dela (mesma regra de qualquer Total). */
+  protected readonly totalRealizadoSemDefinicao = computed(() => {
+    const porTipo = this.realizadoSemDefinicaoPorTipo();
+    const semCategoria = this.realizadoSemDefinicaoSemCategoria();
+    return TIPOS_CUSTO.reduce((soma, t) => soma + porTipo[t.chave], semCategoria);
   });
 
   /** Mesmo total do rodapé, por categoria — usado no rodapé do bloco por categoria. */
@@ -136,21 +225,53 @@ export class Eap implements OnInit {
     return totais;
   });
 
+  /** Mesmo total do rodapé, para a coluna "S/ Categoria". */
+  protected readonly totalRealizadoSemCategoria = computed(() => {
+    const mapa = this.realizadoPorItemSemCategoria();
+    return this.store.itens().reduce((soma, item) => soma + (mapa.get(item.id) ?? 0), 0);
+  });
+
+  // ------------------------------------------------------------------
+  // Totais "gerais" da linha TOTAIS — somam também os valores sem etapa
+  // definida (linha "S/ Definição"), pra manter a regra de que o Total é
+  // sempre a soma das categorias + "S/ Categoria" (19/08/2026, pedido do
+  // Lucas: "o rodapé totais deve contabilizar os valores sem etapa
+  // definida também").
+  // ------------------------------------------------------------------
+  protected readonly totalRealizadoPorTipoGeral = computed(() => {
+    const porEtapa = this.totalRealizadoPorTipo();
+    const semDefinicao = this.realizadoSemDefinicaoPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const tipo of TIPOS_CUSTO) totais[tipo.chave] = porEtapa[tipo.chave] + semDefinicao[tipo.chave];
+    return totais;
+  });
+
+  protected readonly totalRealizadoSemCategoriaGeral = computed(
+    () => this.totalRealizadoSemCategoria() + this.realizadoSemDefinicaoSemCategoria(),
+  );
+
+  protected readonly totalRealizadoGeral = computed(
+    () => this.totalRealizado() + this.totalRealizadoSemDefinicao(),
+  );
+
   /** Número de colunas da tabela, para o colspan das linhas vazias. */
   protected readonly totalColunas = computed(() => {
     const ui = this.store.ui();
     const porTipo = this.store.mostrarColunasTipo() ? this.store.tiposVisiveis().length : 0;
 
-    let colunas = 5; // grupo, EAP, descrição, quantidade, unidade
+    let colunas = 5; // nível, EAP, descrição, quantidade, unidade
 
     if (this.store.cabecalho().isConfirmed) {
       // Bloco único "Totais (Orçado x Realizado)": uma coluna por
-      // categoria + Total (cada uma já com Real./Orç. empilhados dentro).
-      colunas += porTipo + 1;
+      // categoria + "S/ Categoria" (só quando as categorias estão
+      // detalhadas) + Total (cada uma já com Real./Orç. empilhados dentro).
+      colunas += porTipo + (porTipo ? 1 : 0) + 1;
     } else {
+      // Coluna única "Custo": uma por categoria + Total, cada uma já com
+      // Unit./Total empilhados dentro (mesmo padrão do bloco confirmado).
       if (ui.showUnit) colunas += porTipo + 1;
-      if (ui.showTotal) colunas += porTipo + 1;
-      if (ui.showBDI) colunas += 3;
+      // BDI: uma coluna com BDI do item/aplicado empilhados + uma de Total + BDI.
+      if (ui.showBDI) colunas += 2;
     }
     return colunas + 1; // ações
   });
@@ -202,7 +323,8 @@ export class Eap implements OnInit {
   // Linhas
   // ------------------------------------------------------------------
   protected editarTexto(item: ItemEap, campo: 'desc' | 'unid', evento: Event): void {
-    this.store.atualizarItem(item.id, { [campo]: (evento.target as HTMLInputElement).value });
+    const alvo = evento.target as HTMLInputElement | HTMLTextAreaElement;
+    this.store.atualizarItem(item.id, { [campo]: alvo.value });
   }
 
   protected editarQuantidade(item: ItemEap, evento: Event): void {
@@ -217,8 +339,16 @@ export class Eap implements OnInit {
     );
   }
 
-  protected alternarGrupo(item: ItemEap): void {
-    this.store.atualizarItem(item.id, { isGroup: !item.isGroup });
+  /**
+   * Nível (1-4) escolhido pelo usuário — decisão de 14/08/2026, substitui a
+   * inferência automática a partir do checkbox "Grupo" + posição na lista
+   * (ver `aplicarNumeracaoAutomatica` em `eap-normalize.ts`). Desde
+   * 15/08/2026 o próprio "ser grupo" também não é mais escolhido — vira
+   * automático assim que alguma linha ganha um nível maior logo abaixo.
+   */
+  protected mudarNivel(item: ItemEap, evento: Event): void {
+    const nivel = Number((evento.target as HTMLSelectElement).value) || 1;
+    this.store.atualizarItem(item.id, { nivel });
   }
 
   protected alternarModoBdiItem(item: ItemEap): void {
@@ -238,7 +368,7 @@ export class Eap implements OnInit {
 
   /** Shift + `+` na tabela: insere item logo abaixo da linha atual. */
   protected inserirAbaixo(indiceLinha: number): void {
-    this.store.adicionarItem(false, indiceLinha < 0 ? undefined : indiceLinha + 1);
+    this.store.adicionarItem(indiceLinha < 0 ? undefined : indiceLinha + 1);
   }
 
   /** Shift + `-` na tabela: remove a linha atual, sem confirmar. */
@@ -255,9 +385,58 @@ export class Eap implements OnInit {
   // ------------------------------------------------------------------
   // Leitura de valores calculados
   // ------------------------------------------------------------------
-  /** Nível de indentação: "1.2.3" recua dois níveis. */
-  protected nivel(item: ItemEap): number {
-    return Math.max(0, String(item.eap ?? '').split('.').filter(Boolean).length - 1);
+  /**
+   * Recuo visual da descrição: "1.2.3" recua dois níveis. Derivado do
+   * código EAP já calculado, não confundir com `item.nivel` (1-4, o nível
+   * escolhido pelo usuário que gera esse código).
+   */
+  protected recuo(item: ItemEap): number {
+    return recuoDoCodigoEap(item.eap);
+  }
+
+  // ------------------------------------------------------------------
+  // Recolher/expandir grupos (17/08/2026, pedido do Lucas)
+  // ------------------------------------------------------------------
+  /**
+   * Ids dos grupos recolhidos — estado de tela, não dado da EAP (como as
+   * travas do rateio do Mapa): reabrir a tela sempre começa com tudo
+   * expandido.
+   */
+  private readonly gruposColapsados = signal<Set<string>>(new Set());
+
+  /** Ids escondidos por causa de algum ancestral colapsado — ver `itensOcultosPorColapso`. */
+  protected readonly itensOcultos = computed(() =>
+    itensOcultosPorColapso(this.store.itens(), this.gruposColapsados()),
+  );
+
+  protected estaColapsado(item: ItemEap): boolean {
+    return this.gruposColapsados().has(item.id);
+  }
+
+  protected alternarColapso(item: ItemEap): void {
+    this.gruposColapsados.update((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(item.id)) novo.delete(item.id);
+      else novo.add(item.id);
+      return novo;
+    });
+  }
+
+  /** Se algum grupo está recolhido — decide o rótulo do botão "expandir/recolher tudo". */
+  protected readonly existeGrupoColapsado = computed(() => this.gruposColapsados().size > 0);
+
+  /**
+   * Um botão só, alternando entre os dois extremos (19/08/2026, pedido do
+   * Lucas): se algum grupo estiver recolhido, expande todos; senão,
+   * recolhe todos.
+   */
+  protected alternarTodosOsColapsos(): void {
+    if (this.existeGrupoColapsado()) {
+      this.gruposColapsados.set(new Set());
+      return;
+    }
+    const todosOsGrupos = this.store.itens().filter((i) => i.isGroup).map((i) => i.id);
+    this.gruposColapsados.set(new Set(todosOsGrupos));
   }
 
   protected custoDireto(indice: number, item: ItemEap): number {
@@ -320,16 +499,41 @@ export class Eap implements OnInit {
   // Orçado x Realizado
   // ------------------------------------------------------------------
   /**
-   * "Orçado" aqui é o total calculado ao vivo (custo direto + BDI), o
-   * mesmo valor da coluna Total + BDI — não um retrato congelado no
-   * momento da confirmação. O protótipo do Lucas (obracontrol.html)
-   * sugere um `orcado` separado do cálculo, possivelmente congelado; não
-   * implementei isso porque ainda não foi decidido com ele. Se for esse
-   * o comportamento desejado, é só passar a gravar aqui o valor do
-   * momento da confirmação em vez de recalcular sempre.
+   * "Orçado" do item. Enquanto a EAP nunca foi confirmada (ou foi
+   * reaberta), é o total calculado ao vivo — o mesmo valor da coluna
+   * Total + BDI. Depois de confirmada, é o snapshot gravado no momento da
+   * confirmação (`item.orcadoCongelado`, ver `EapStore.alternarConfirmacao`)
+   * — decisão tomada com o Lucas em 14/08/2026, pra não virar um alvo
+   * móvel se qtde/custo mudarem depois da confirmação.
    */
   protected orcadoDoItem(indice: number, item: ItemEap): number {
+    if (item.orcadoCongelado) {
+      return TIPOS_CUSTO.reduce((soma, t) => soma + (item.orcadoCongelado![t.chave] ?? 0), 0);
+    }
     return this.totalComBdi(indice, item);
+  }
+
+  /**
+   * Ids relevantes pro "Realizado" de um item: ele mesmo, e — se for
+   * grupo — também cada descendente-folha. Usado tanto pelo total
+   * (`realizadoDoItem`/`realizadoDoItemTipo`) quanto pela lista de
+   * pagamentos do modal (`pagamentosVinculados`), pra garantir que a
+   * soma mostrada e a lista detalhada sempre batem uma com a outra
+   * (17/08/2026, pedido do Lucas: clicar no Realizado de um grupo tinha
+   * que mostrar os pagamentos dos subitens também, não só os lançados
+   * direto nele).
+   */
+  private idsRealizadoDoItem(item: ItemEap): string[] {
+    if (!item.isGroup) return [item.id];
+
+    const eapGrupo = String(item.eap ?? '').trim();
+    if (!eapGrupo) return [item.id];
+
+    const ids = [item.id];
+    for (const filho of this.store.itens()) {
+      if (!filho.isGroup && ehDescendente(eapGrupo, filho.eap)) ids.push(filho.id);
+    }
+    return ids;
   }
 
   /**
@@ -340,22 +544,17 @@ export class Eap implements OnInit {
    * junto com a quebra por categoria (03/08/2026).
    */
   protected realizadoDoItem(item: ItemEap): number {
-    if (!item.isGroup) return this.realizadoPorItem().get(item.id) ?? 0;
-
-    const eapGrupo = String(item.eap ?? '').trim();
-    if (!eapGrupo) return 0;
-
     const mapa = this.realizadoPorItem();
-    let soma = 0;
-    for (const filho of this.store.itens()) {
-      if (filho.isGroup || !ehDescendente(eapGrupo, filho.eap)) continue;
-      soma += mapa.get(filho.id) ?? 0;
-    }
-    return soma;
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id) ?? 0), 0);
   }
 
-  /** Orçado (custo direto + BDI) de uma categoria — item ou soma do grupo. */
+  /**
+   * Orçado (custo direto + BDI) de uma categoria — item ou soma do grupo.
+   * Mesma regra de congelamento de `orcadoDoItem`.
+   */
   protected orcadoDoItemTipo(indice: number, item: ItemEap, tipo: ChaveTipo): number {
+    if (item.orcadoCongelado) return item.orcadoCongelado[tipo] ?? 0;
+
     if (item.isGroup) {
       const totais = this.store.totaisDoGrupo(indice);
       return (totais.directByType[tipo] ?? 0) + (totais.bdiByType[tipo] ?? 0);
@@ -364,63 +563,289 @@ export class Eap implements OnInit {
     return (cache.directByType[indice]?.[tipo] ?? 0) + (cache.bdiByType[indice]?.[tipo] ?? 0);
   }
 
+  /**
+   * Total do Orçado no rodapé — soma dos itens-base (não-grupo), mesma
+   * regra de não duplicar contagem que `store.cache().totalsWithBdi` já
+   * usa. Precisa existir à parte da cache porque, depois de confirmada,
+   * cada item pode estar lendo seu snapshot congelado em vez do valor ao
+   * vivo.
+   */
+  protected readonly totalOrcado = computed(() => {
+    let soma = 0;
+    this.store.itens().forEach((item, i) => {
+      if (item.isGroup) return;
+      soma += this.orcadoDoItem(i, item);
+    });
+    return soma;
+  });
+
+  /** Mesmo total do rodapé, por categoria. */
+  protected readonly totalOrcadoPorTipo = computed(() => {
+    const totais = criarVazioPorTipo();
+    this.store.itens().forEach((item, i) => {
+      if (item.isGroup) return;
+      for (const tipo of TIPOS_CUSTO) totais[tipo.chave] += this.orcadoDoItemTipo(i, item, tipo.chave);
+    });
+    return totais;
+  });
+
   /** Realizado de uma categoria — item ou soma do grupo (mesma ideia de `realizadoDoItem`). */
   protected realizadoDoItemTipo(item: ItemEap, tipo: ChaveTipo): number {
-    if (!item.isGroup) return this.realizadoPorItemPorTipo().get(item.id)?.[tipo] ?? 0;
-
-    const eapGrupo = String(item.eap ?? '').trim();
-    if (!eapGrupo) return 0;
-
     const mapa = this.realizadoPorItemPorTipo();
-    let soma = 0;
-    for (const filho of this.store.itens()) {
-      if (filho.isGroup || !ehDescendente(eapGrupo, filho.eap)) continue;
-      soma += mapa.get(filho.id)?.[tipo] ?? 0;
-    }
-    return soma;
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id)?.[tipo] ?? 0), 0);
   }
 
-  protected abrirPagamentosDoItem(item: ItemEap): void {
-    this.itemPagamentosAberto.set(item);
+  /** "S/ Categoria" de um item — item ou soma do grupo (mesma ideia de `realizadoDoItem`). */
+  protected realizadoSemCategoria(item: ItemEap): number {
+    const mapa = this.realizadoPorItemSemCategoria();
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id) ?? 0), 0);
+  }
+
+  // ------------------------------------------------------------------
+  // Modal de pagamentos vinculados — abertura pelos vários pontos de
+  // entrada (item, rodapé de totais, "S/ Categoria", "S/ Definição").
+  // Ver comentário de `filtroPagamentosAberto` sobre o desenho com
+  // predicado (19/08/2026, pedido do Lucas).
+  // ------------------------------------------------------------------
+  protected abrirPagamentosDoItem(item: ItemEap, tipo?: ChaveTipo): void {
+    const ids = new Set(this.idsRealizadoDoItem(item));
+    const titulo = `${item.eap} ${item.desc}` + (tipo ? ` · ${this.rotuloTipo(tipo)}` : '');
+    this.filtroPagamentosAberto.set({
+      titulo,
+      corresponde: (ip) => ids.has(ip.eapId) && (!tipo || ip.tipo === tipo),
+    });
+  }
+
+  /**
+   * Rodapé de totais — todos os itens da EAP, opcionalmente filtrados por
+   * categoria. Inclui também os pagamentos sem etapa definida (19/08/2026,
+   * pedido do Lucas: "o rodapé totais deve contabilizar os valores sem
+   * etapa definida também") — o valor mostrado na célula já soma os dois,
+   * então a lista do popup precisa bater com isso.
+   */
+  protected abrirPagamentosTotais(tipo?: ChaveTipo): void {
+    const idsValidos = new Set(this.store.itens().map((i) => i.id));
+    const titulo = 'Total geral' + (tipo ? ` · ${this.rotuloTipo(tipo)}` : '');
+    this.filtroPagamentosAberto.set({
+      titulo,
+      corresponde: (ip) => (!ip.eapId || idsValidos.has(ip.eapId)) && (!tipo || ip.tipo === tipo),
+    });
+  }
+
+  /**
+   * "S/ Categoria" — de um item específico (e descendentes) quando vem de
+   * uma linha da tabela, ou de todos os itens (com e sem etapa) quando
+   * vem do rodapé de totais (`item` omitido) — mesmo motivo de
+   * `abrirPagamentosTotais`.
+   */
+  protected abrirPagamentosSemCategoria(item?: ItemEap): void {
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+    const titulo = (item ? `${item.eap} ${item.desc}` : 'Total geral') + ' · S/ Categoria';
+
+    if (item) {
+      const ids = new Set(this.idsRealizadoDoItem(item));
+      this.filtroPagamentosAberto.set({
+        titulo,
+        corresponde: (ip) => ids.has(ip.eapId) && !chaves.has(ip.tipo as ChaveTipo),
+      });
+      return;
+    }
+
+    const idsValidos = new Set(this.store.itens().map((i) => i.id));
+    this.filtroPagamentosAberto.set({
+      titulo,
+      corresponde: (ip) => (!ip.eapId || idsValidos.has(ip.eapId)) && !chaves.has(ip.tipo as ChaveTipo),
+    });
+  }
+
+  /** "S/ Definição" — pagamentos cujo item não tem eapId nenhum (não direcionados a etapa alguma), opcionalmente filtrados por categoria. */
+  protected abrirPagamentosSemDefinicao(tipo?: ChaveTipo): void {
+    const titulo = 'S/ Definição' + (tipo ? ` · ${this.rotuloTipo(tipo)}` : '');
+    this.filtroPagamentosAberto.set({
+      titulo,
+      corresponde: (ip) => !ip.eapId && (!tipo || ip.tipo === tipo),
+    });
+  }
+
+  /** "S/ Definição" · "S/ Categoria" — sem etapa E sem categoria padrão. */
+  protected abrirPagamentosSemDefinicaoSemCategoria(): void {
+    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+    this.filtroPagamentosAberto.set({
+      titulo: 'S/ Definição · S/ Categoria',
+      corresponde: (ip) => !ip.eapId && !chaves.has(ip.tipo as ChaveTipo),
+    });
   }
 
   protected fecharModalPagamentos(): void {
-    this.itemPagamentosAberto.set(null);
+    this.filtroPagamentosAberto.set(null);
+    this.filtroPopupBeneficiado.set('');
+    this.filtroPopupDataDe.set('');
+    this.filtroPopupDataAte.set('');
   }
 
-  /** Pagamentos (já expandidos por item) vinculados ao item aberto no modal. */
-  protected pagamentosVinculados(item: ItemEap): Array<{
-    numeroPagamento: string;
-    fornecedor: string;
-    descricao: string;
-    dataPagamento: string;
-    valor: number;
-    pendente: boolean;
-  }> {
-    const lista: Array<{
-      numeroPagamento: string;
-      fornecedor: string;
-      descricao: string;
-      dataPagamento: string;
-      valor: number;
-      pendente: boolean;
-    }> = [];
+  /** Rótulo de uma categoria de custo (Material, Mão de obra…), para o detalhamento do hover. */
+  protected rotuloTipo(tipo: string): string {
+    return TIPOS_CUSTO.find((t) => t.chave === tipo)?.rotulo ?? tipo;
+  }
+
+  /**
+   * Decide se o detalhamento do hover abre pra baixo (padrão) ou pra cima
+   * — quando a linha está perto do fim do corpo rolável do modal e o
+   * detalhamento não caberia até o fim da tela visível (18/08/2026,
+   * pedido do Lucas). Estimativa de altura pelo número de itens (o
+   * elemento em si fica `display:none` até o hover, então não dá pra
+   * medir a altura real do DOM antes de abrir).
+   */
+  protected ajustarPosicaoHover(evento: MouseEvent, quantidadeItens: number): void {
+    const gatilho = evento.currentTarget as HTMLElement;
+    const corpoModal = gatilho.closest('.modal-corpo') as HTMLElement | null;
+    const limiteInferior = corpoModal?.getBoundingClientRect().bottom ?? window.innerHeight;
+    const alturaEstimada = 40 + quantidadeItens * 22 + 16;
+    const cabeAbaixo = gatilho.getBoundingClientRect().top + alturaEstimada <= limiteInferior;
+    gatilho.classList.toggle('abrir-para-cima', !cabeAbaixo);
+  }
+
+  // ------------------------------------------------------------------
+  // Ordenação da lista de pagamentos vinculados (18/08/2026, pedido do Lucas)
+  // ------------------------------------------------------------------
+  protected readonly ordenacaoPagamentos = signal<EstadoOrdenacao<ColunaPagamentoVinculado>>({
+    coluna: 'numeroPagamento',
+    direcao: 'asc',
+  });
+  protected readonly setaOrdenacao = setaOrdenacao;
+
+  protected alternarOrdenacaoPagamentos(coluna: ColunaPagamentoVinculado): void {
+    this.ordenacaoPagamentos.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
+  // ------------------------------------------------------------------
+  // Filtros da lista do popup — por beneficiado e por período
+  // (19/08/2026, pedido do Lucas).
+  // ------------------------------------------------------------------
+  protected readonly filtroPopupBeneficiado = signal('');
+  protected readonly filtroPopupDataDe = signal('');
+  protected readonly filtroPopupDataAte = signal('');
+
+  protected mudarFiltroPopupBeneficiado(evento: Event): void {
+    this.filtroPopupBeneficiado.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected mudarFiltroPopupDataDe(evento: Event): void {
+    this.filtroPopupDataDe.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroPopupDataAte(evento: Event): void {
+    this.filtroPopupDataAte.set((evento.target as HTMLInputElement).value);
+  }
+
+  /**
+   * Pagamentos que casam com o filtro aberto no modal — um por pagamento
+   * (18/08/2026, pedido do Lucas: antes repetia o mesmo pagamento uma vez
+   * por item da compra que caía na etapa, ficando poluído). `filtro` cobre
+   * tanto o caso "um item específico (+ descendentes, + categoria)" quanto
+   * os casos do rodapé — total geral, "S/ Categoria" e "S/ Definição"
+   * (19/08/2026). `itensDirecionados` é o detalhamento (descrição, tipo,
+   * etapa de destino e valor) só dos itens DAQUELE pagamento que casam com
+   * o filtro atual — mostrado no hover da soma direcionada, não na lista
+   * principal. Item sem descrição própria mostra "s/ descrição" (não
+   * repete a descrição do pagamento — antes ambíguo, parecia que o
+   * pagamento inteiro era só aquele item).
+   *
+   * Fica em duas etapas: `listaPagamentosBase` (só o filtro do
+   * item/categoria/etapa clicado, sem beneficiado/período) alimenta o
+   * dropdown de beneficiados disponíveis; `listaPagamentosFiltrada`
+   * aplica beneficiado/período por cima — assim o dropdown sempre lista
+   * quem de fato aparece nesse contexto, não todo fornecedor da obra.
+   */
+  private readonly listaPagamentosBase = computed(() => {
+    const filtro = this.filtroPagamentosAberto();
+    if (!filtro) return [] as PagamentoVinculado[];
+
+    const rotuloPorId = new Map(this.store.itens().map((i) => [i.id, i.eap]));
+    const lista: PagamentoVinculado[] = [];
 
     for (const pagamento of this.pagamentosStore.pagamentos()) {
-      for (const itemPag of expandirItensPagamento(pagamento)) {
-        if (itemPag.eapId !== item.id) continue;
-        lista.push({
-          numeroPagamento: pagamento.numeroPagamento,
-          fornecedor: pagamento.fornecedor,
-          descricao: itemPag.descricao || pagamento.descricao,
-          dataPagamento: pagamento.dataPagamento,
+      const itensDirecionados = expandirItensPagamento(pagamento)
+        .filter(filtro.corresponde)
+        .map((itemPag) => ({
+          descricao: itemPag.descricao || 's/ descrição',
+          tipo: itemPag.tipo,
+          etapa: itemPag.eapId ? (rotuloPorId.get(itemPag.eapId) ?? '') : 's/ etapa',
           valor: itemPag.valorCalculado,
-          // Listado para transparência, mas não entra na soma do
-          // "Realizado" enquanto não for confirmado na aba Pagamentos.
-          pendente: pagamento.status === 'pendente',
-        });
-      }
+        }));
+
+      if (!itensDirecionados.length) continue;
+
+      lista.push({
+        numeroPagamento: pagamento.numeroPagamento,
+        fornecedor: pagamento.fornecedor,
+        dataSolicitacao: pagamento.dataSolicitacao,
+        dataPagamento: pagamento.dataPagamento,
+        descricao: pagamento.descricao,
+        valorTotal: pagamento.valorTotal,
+        valorDirecionado: itensDirecionados.reduce((soma, i) => soma + i.valor, 0),
+        // Listado para transparência, mas não entra na soma do
+        // "Realizado" enquanto não for confirmado na aba Pagamentos.
+        pendente: pagamento.status === 'pendente',
+        itensDirecionados,
+      });
     }
+
     return lista;
-  }
+  });
+
+  protected readonly beneficiariosPopupDisponiveis = computed(() =>
+    valoresDistintos(this.listaPagamentosBase(), (p) => p.fornecedor),
+  );
+
+  private readonly listaPagamentosFiltrada = computed(() => {
+    const beneficiado = this.filtroPopupBeneficiado();
+    const de = this.filtroPopupDataDe();
+    const ate = this.filtroPopupDataAte();
+
+    return this.listaPagamentosBase().filter((p) => {
+      if (beneficiado && p.fornecedor !== beneficiado) return false;
+      return dataDentroDoIntervalo(p.dataSolicitacao, de, ate);
+    });
+  });
+
+  /** Soma do valor total dos pagamentos exibidos (após os filtros) — mostrada empilhada abaixo do nome da etapa. */
+  protected readonly totalValorPagamentosPopup = computed(() =>
+    this.listaPagamentosFiltrada().reduce((soma, p) => soma + p.valorTotal, 0),
+  );
+
+  /** Soma do valor direcionado ao filtro aberto, entre os pagamentos exibidos (após os filtros). */
+  protected readonly totalValorDirecionadoPopup = computed(() =>
+    this.listaPagamentosFiltrada().reduce((soma, p) => soma + p.valorDirecionado, 0),
+  );
+
+  protected readonly pagamentosVinculados = computed(() =>
+    ordenarPor(this.listaPagamentosFiltrada(), this.ordenacaoPagamentos(), (p, coluna) => p[coluna]),
+  );
+}
+
+type ColunaPagamentoVinculado =
+  | 'numeroPagamento'
+  | 'fornecedor'
+  | 'dataSolicitacao'
+  | 'dataPagamento'
+  | 'descricao'
+  | 'valorTotal'
+  | 'valorDirecionado';
+
+interface PagamentoVinculado {
+  numeroPagamento: string;
+  fornecedor: string;
+  dataSolicitacao: string;
+  dataPagamento: string;
+  descricao: string;
+  valorTotal: number;
+  valorDirecionado: number;
+  pendente: boolean;
+  itensDirecionados: Array<{ descricao: string; tipo: string; etapa: string; valor: number }>;
+}
+
+interface FiltroPagamentosAberto {
+  titulo: string;
+  corresponde: (itemPagamento: ItemPagamentoCalculado) => boolean;
 }

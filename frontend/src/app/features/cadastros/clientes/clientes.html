@@ -13,6 +13,12 @@
     <option value="inativos">Inativos</option>
   </select>
 
+  <select (change)="mudarFiltroTipo($event)">
+    <option value="">Tipo: todos</option>
+    <option value="PF">Pessoa física</option>
+    <option value="PJ">Pessoa jurídica</option>
+  </select>
+
   <span class="espacador"></span>
 
   @if (store.salvando()) {
@@ -30,15 +36,15 @@
     <div class="mensagem atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Código</th>
-            <th>Nome</th>
-            <th class="centro">Tipo</th>
-            <th>CPF / CNPJ</th>
-            <th>Telefone</th>
-            <th>Endereço</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('identificacao')">Código{{ store.setaOrdenacao(store.ordenacao(), 'identificacao') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('tipo')">Tipo{{ store.setaOrdenacao(store.ordenacao(), 'tipo') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('documento')">CPF / CNPJ{{ store.setaOrdenacao(store.ordenacao(), 'documento') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('telefone')">Telefone{{ store.setaOrdenacao(store.ordenacao(), 'telefone') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('endereco')">Endereço{{ store.setaOrdenacao(store.ordenacao(), 'endereco') }}</th>
             <th class="centro">Ativo</th>
             <th class="centro">Ações</th>
           </tr>
@@ -50,7 +56,7 @@
               <td class="nome">{{ cliente.nome }}</td>
               <td class="centro">
                 <span class="etiqueta" [class.pj]="cliente.tipo === 'PJ'">
-                  {{ cliente.tipo === 'PJ' ? 'Jurídica' : 'Física' }}
+                  {{ rotuloTipoPessoa(cliente.tipo) }}
                 </span>
               </td>
               <td class="mono">{{ rotuloDocumento(cliente) }}</td>

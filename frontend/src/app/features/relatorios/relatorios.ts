@@ -14,6 +14,7 @@ import {
 import { CabecalhoObra, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { calcularSomaItens, normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 
 /**
  * Relatórios — consolida o que já existe nos outros módulos.
@@ -29,7 +30,7 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
  */
 @Component({
   selector: 'app-relatorios',
-  imports: [RouterLink, DecimalPipe],
+  imports: [RouterLink, DecimalPipe, RedimensionarColunas],
   templateUrl: './relatorios.html',
   styleUrl: './relatorios.scss',
 })

@@ -37,15 +37,15 @@ import {
   normalizarPorTipo,
   somarEmPorTipo,
   somarPorTipo,
+  ehDescendente,
 } from './eap-normalize';
 
-/** "1.2" é descendente de "1"; "12" não é. O ponto evita o falso positivo. */
-export function ehDescendente(eapPai: string, eapFilho: string): boolean {
-  const pai = String(eapPai ?? '').trim();
-  const filho = String(eapFilho ?? '').trim();
-  if (!pai || !filho) return false;
-  return filho.startsWith(pai + '.');
-}
+// Reexportado por conveniência — vários módulos (Empreita, Cronograma de
+// Desembolso, o próprio componente da EAP) já importavam `ehDescendente`
+// daqui. A implementação mudou de lugar (`eap-normalize.ts`, que agora
+// também a usa pra derivar `isGroup`), mas o caminho de import antigo
+// continua funcionando.
+export { ehDescendente };
 
 /** Divisão que devolve 0 em vez de NaN/Infinity quando não há base. */
 export function percentualSeguro(numerador: unknown, denominador: unknown): number {
@@ -304,4 +304,30 @@ export function somarDescendentesDoGrupo(
     totalWithBdi: directTotal + bdiApplied,
     bdiPctApplied: percentualSeguro(bdiApplied, directTotal),
   };
+}
+
+/**
+ * Orçado (com BDI) de uma etapa da EAP, por categoria de custo — usado
+ * fora da própria EAP, no "saldo remanescente por etapa" do Mapa de
+ * Fornecedores (17/08/2026, pedido do Lucas). Aceita tanto um item-folha
+ * (usa o orçado dele direto) quanto um grupo (soma os descendentes,
+ * mesma regra do "Orçado" mostrado na linha de grupo da EAP) — o select
+ * de Etapa do Mapa permite escolher os dois.
+ */
+export function orcadoDaEtapa(etapaId: string, itens: ItemEap[], cache: CacheOrcado): PorTipo {
+  const indice = itens.findIndex((i) => i.id === etapaId);
+  if (indice < 0) return criarVazioPorTipo();
+
+  const total = criarVazioPorTipo();
+
+  if (!itens[indice].isGroup) {
+    somarEmPorTipo(total, cache.directByType[indice]);
+    somarEmPorTipo(total, cache.bdiByType[indice]);
+    return total;
+  }
+
+  const grupo = somarDescendentesDoGrupo(indice, itens, cache);
+  somarEmPorTipo(total, grupo.directByType);
+  somarEmPorTipo(total, grupo.bdiByType);
+  return total;
 }

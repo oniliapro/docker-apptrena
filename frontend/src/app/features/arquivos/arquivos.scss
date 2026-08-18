@@ -1,0 +1,265 @@
+:host {
+  display: block;
+  padding: 14px;
+}
+
+.atenuado { color: var(--cor-texto-suave); }
+.pequeno { font-size: 11.5px; }
+
+// ---- Alternância própria / compartilhada ----
+.raizes-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+
+  button {
+    padding: 6px 12px;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-superficie);
+    border-radius: var(--raio-md);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+
+    &.ativo { background: var(--cor-primaria); color: #fff; border-color: var(--cor-primaria); }
+    &:not(.ativo):hover { background: var(--cor-fundo-alt); }
+  }
+}
+
+// ---- Barra de ferramentas ----
+.barra-ferramentas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+
+  button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--cor-aco);
+    font-size: 12.5px;
+    padding: 2px 4px;
+
+    &:hover:not(:disabled) { text-decoration: underline; }
+    &:disabled { color: var(--cor-texto); font-weight: 600; cursor: default; }
+  }
+
+  .separador { color: var(--cor-texto-suave); }
+}
+
+.acoes-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.acoes-barra button,
+.botao-upload {
+  padding: 6px 12px;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  border-radius: var(--raio-md);
+  cursor: pointer;
+  font-size: 12.5px;
+
+  &:hover { background: var(--cor-fundo-alt); }
+}
+
+.botao-upload { display: inline-flex; align-items: center; }
+
+.seletor-modo {
+  padding: 6px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie);
+  font-size: 12.5px;
+}
+
+// ---- Nova pasta (form inline) ----
+.form-nova-pasta {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+
+  input {
+    padding: 6px 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-md);
+    font-size: 12.5px;
+    min-width: 220px;
+  }
+
+  button {
+    padding: 6px 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-md);
+    background: var(--cor-superficie);
+    cursor: pointer;
+    font-size: 12.5px;
+    &:hover { background: var(--cor-fundo-alt); }
+  }
+}
+
+// ---- Progresso de upload ----
+.uploads-progresso {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.linha-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+
+  .nome-upload { width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra-progresso { flex: 1; height: 6px; background: var(--cor-fundo-alt); border-radius: 3px; overflow: hidden; }
+  .barra-progresso-preenchida { height: 100%; background: var(--cor-aco); transition: width 0.15s; }
+}
+
+.pasta-vazia { padding: 30px 0; text-align: center; }
+
+// ---- Modo Detalhes (tabela) ----
+.tabela-detalhes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--cor-borda-forte);
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+  }
+
+  td { padding: 6px 8px; border-bottom: 1px solid var(--cor-fundo-alt); }
+
+  tr:hover td { background: var(--cor-fundo-alt); }
+
+  .celula-nome { cursor: pointer; }
+  .nome-pasta { font-weight: 600; }
+
+  .celula-acoes {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+
+    button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: var(--raio-sm);
+      color: var(--cor-texto-suave);
+      &:hover { background: var(--cor-borda); color: var(--cor-texto); }
+    }
+  }
+}
+
+// ---- Modo Lista e Ícones ----
+.grade-itens.grade-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.grade-itens:not(.grade-lista) {
+  display: grid;
+  gap: 10px;
+}
+
+.grade-icones-extra-grandes { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.grade-icones-grandes { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.grade-icones-medios { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.grade-icones-pequenos { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+
+// ---- Modal "Mover para..." (mesma estrutura do modal da EAP) ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo { position: absolute; inset: 0; background: rgba(16, 24, 40, 0.45); }
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 92vw);
+  max-height: 70vh;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+
+  button { border: none; background: transparent; cursor: pointer; font-size: 13px; color: var(--cor-texto-suave); }
+}
+
+.modal-titulo { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.modal-corpo { padding: 10px 14px; overflow: auto; }
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+
+  button {
+    padding: 6px 12px;
+    border-radius: var(--raio-sm);
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-superficie);
+    cursor: pointer;
+    font-size: 12.5px;
+    &:hover { background: var(--cor-fundo-alt); }
+  }
+}
+
+.lista-mover {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  button {
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: var(--raio-sm);
+    font-size: 12.5px;
+    &:hover { background: var(--cor-fundo-alt); }
+  }
+}

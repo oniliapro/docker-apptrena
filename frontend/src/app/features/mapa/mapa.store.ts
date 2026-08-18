@@ -1,28 +1,45 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, Subject, forkJoin, of } from 'rxjs';
-import { catchError, concatMap, switchMap, tap } from 'rxjs/operators';
+import { catchError, concatMap, finalize, switchMap, tap } from 'rxjs/operators';
 
-import { Obra } from '../../core/models/api.models';
+import { Mapa, Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
+import { formatarTelefone } from '../../core/utils/documento';
 import { hojeIso } from '../../core/utils/formato';
-import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
-import { gerarId } from '../eap/eap-normalize';
+import { calcularCacheOrcado, orcadoDaEtapa } from '../eap/eap-engine';
+import {
+  aplicarNumeracaoAutomatica,
+  cabecalhoVazio,
+  criarVazioPorTipo,
+  gerarId,
+  normalizarCabecalho,
+  normalizarItemEap,
+} from '../eap/eap-normalize';
+import { CabecalhoObra, ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import {
   gerarNumeroPagamento,
   normalizarPagamento,
   paraPayloadApi,
 } from '../pagamentos/pagamentos-calc';
-import { Pagamento } from '../pagamentos/pagamentos.models';
+import { ItemPagamento, Pagamento } from '../pagamentos/pagamentos.models';
 import {
   calcularBaseItem,
   calcularFracionado,
   calcularIntegral,
+  calcularNota,
   calcularNotasPorFornecedor,
+  calcularTotalCenario,
+  calcularTotalItem,
+  descontosAplicaveis,
   obterAlocacoes,
   obterAlocacoesAutomaticas,
+  ratearFreteiro,
+  rotuloFornecedor,
 } from './mapa-engine';
-import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
+import { proximoNumeroMapa } from './mapa-numero';
+import { ETAPA_SEM_NOME, obterRateiosDoItem } from './mapa-resumos';
+import { CabecalhoMapa, Fornecedor, ItemMapa, NotaFornecedor } from './mapa.models';
 
 /** Chave da ponte chave-valor onde o cadastro de Responsáveis é gravado. */
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
@@ -120,7 +137,9 @@ export class MapaStore {
    * predefinida). Mesma ponte chave-valor usada por Clientes/Responsáveis/
    * Empreiteiros — ver `features/cadastros/fornecedores`.
    */
-  private readonly fornecedoresCadastro = signal<{ nome: string; contatos: string[] }[]>([]);
+  private readonly fornecedoresCadastro = signal<
+    { nome: string; contatos: { nome: string; telefone: string }[] }[]
+  >([]);
 
   readonly nomesFornecedoresCadastrados = computed(() =>
     this.fornecedoresCadastro()
@@ -130,7 +149,19 @@ export class MapaStore {
   );
 
   contatosDoFornecedor(nome: string): string[] {
-    return this.fornecedoresCadastro().find((f) => f.nome === nome)?.contatos ?? [];
+    return (
+      this.fornecedoresCadastro()
+        .find((f) => f.nome === nome)
+        ?.contatos.map((c) => c.nome) ?? []
+    );
+  }
+
+  /** Telefone do contato, como cadastrado — exibido no cabeçalho do fornecedor, sem ser editável ali. */
+  telefoneDoContato(nomeFornecedor: string, nomeContato: string): string {
+    const contato = this.fornecedoresCadastro()
+      .find((f) => f.nome === nomeFornecedor)
+      ?.contatos.find((c) => c.nome === nomeContato);
+    return contato?.telefone ?? '';
   }
 
   /**
@@ -143,6 +174,18 @@ export class MapaStore {
    */
   readonly etapasDisponiveis = signal<{ id: string; rotulo: string }[]>([]);
 
+  /**
+   * Itens/cabeçalho da EAP da obra — usados só pra calcular o "Saldo
+   * remanescente por etapa" do Rateio (17/08/2026, pedido do Lucas), que
+   * compara o orçado de cada etapa com o que já foi realizado (outros
+   * mapas/pagamentos) mais o que este mapa está gastando.
+   */
+  private readonly itensEap = signal<ItemEap[]>([]);
+  private readonly cabecalhoEap = signal<CabecalhoObra>(cabecalhoVazio());
+
+  /** Pagamentos confirmados/pendentes da obra inteira — mesmo uso acima. */
+  private readonly pagamentosDaObra = signal<Pagamento[]>([]);
+
   readonly cabecalho = signal<CabecalhoMapa>({
     numeroMapa: '',
     descricao: '',
@@ -151,9 +194,14 @@ export class MapaStore {
     responsavelMapa: '',
     criadoEm: '',
     freteParticular: 0,
+    freteiroParticular: '',
+    lancarFreteComoItem: true,
+    freteEtapaId: '',
+    freteCategoriaTipo: '',
     modoManual: false,
     isConfirmed: false,
     confirmedAt: '',
+    ultimaFinalizacaoEm: '',
   });
 
   readonly fornecedores = signal<Fornecedor[]>([]);
@@ -162,13 +210,20 @@ export class MapaStore {
   readonly carregando = signal(true);
   readonly salvando = signal(false);
   readonly erro = signal<string | null>(null);
+  readonly duplicando = signal(false);
 
   readonly gerandoPagamento = signal(false);
   /** Mensagem do resultado da última tentativa de gerar pagamento — null limpa o aviso. */
   readonly resultadoGerarPagamento = signal<string | null>(null);
 
   // ---- Derivados dos cálculos ----
-  readonly alocacoes = computed(() =>
+  /**
+   * Alocação item a item (respeita a escolha manual, se ligada) — a base
+   * usada pelo cenário fracionado. Não usar diretamente fora daqui: quem
+   * precisa da alocação efetiva (a que o mapa recomenda) deve ler
+   * `alocacoes()`, que pode substituir isto pela compra integral.
+   */
+  private readonly alocacoesFracionadas = computed(() =>
     obterAlocacoes(this.itens(), this.fornecedores(), this.cabecalho().modoManual),
   );
 
@@ -176,19 +231,149 @@ export class MapaStore {
     obterAlocacoesAutomaticas(this.itens(), this.fornecedores()),
   );
 
-  /** Notas do cenário escolhido (manual ou automático). */
+  /**
+   * As cinco formas de fechar a compra — mesma lista do painel
+   * "Comparação de cenários". Fica no store (não só no componente) porque
+   * `alocacoes()`/`incluirFreteLoja()` precisam saber qual cenário venceu
+   * pra decidir a recomendação efetiva; manter uma cópia só aqui evita a
+   * tabela de cenários e as tabelas que consomem essa recomendação
+   * discordarem entre si (18/08/2026, pedido do Lucas).
+   *
+   * Com "Compra manual" ligada, a recomendação passa a valer só ENTRE as
+   * duas variantes manuais (frete das lojas x frete particular) — os três
+   * cenários automáticos continuam calculados e exibidos no painel, só
+   * pra referência/comparação, mas não competem pelo 🏆 nem decidem
+   * `alocacoes()`/`incluirFreteLoja()` enquanto o modo manual estiver
+   * ligado (18/08/2026, pedido do Lucas: "a preferência do relatório é
+   * com a compra manual ligada" — antes a integral ou o automático podiam
+   * vencer por baixo da escolha manual do usuário mesmo com o modo
+   * ligado, o que não fazia sentido pra quem tinha acabado de escolher
+   * fornecedor item a item de propósito).
+   */
+  readonly cenarios = computed(() => {
+    const itens = this.itens();
+    const fornecedores = this.fornecedores();
+    const freteParticular = Number(this.cabecalho().freteParticular) || 0;
+    const modoManual = this.cabecalho().modoManual;
+
+    const automaticas = this.alocacoesAutomaticas();
+    const manuais = modoManual ? obterAlocacoes(itens, fornecedores, true) : [];
+
+    const linhas = [
+      {
+        rotulo: 'Tudo em uma só loja',
+        valor: this.melhorIntegral(),
+        disponivel: !modoManual && this.melhorIntegral() > 0,
+      },
+      {
+        rotulo: 'Várias lojas e seus fretes',
+        valor: calcularTotalCenario(itens, fornecedores, automaticas, true, 0),
+        disponivel: !modoManual,
+      },
+      {
+        rotulo: 'Várias lojas e um frete particular',
+        valor: calcularTotalCenario(itens, fornecedores, automaticas, false, freteParticular),
+        disponivel: !modoManual && freteParticular > 0,
+      },
+      {
+        rotulo: 'Compra manual com frete das lojas',
+        valor: calcularTotalCenario(itens, fornecedores, manuais, true, 0),
+        disponivel: modoManual,
+      },
+      {
+        rotulo: 'Compra manual com frete particular',
+        valor: calcularTotalCenario(itens, fornecedores, manuais, false, freteParticular),
+        disponivel: modoManual && freteParticular > 0,
+      },
+    ];
+
+    const validos = linhas.filter((c) => c.disponivel && c.valor > 0);
+    const menor = validos.length ? Math.min(...validos.map((c) => c.valor)) : null;
+
+    return linhas.map((c) => ({ ...c, vencedor: c.disponivel && c.valor === menor }));
+  });
+
+  /** Se "Tudo em uma só loja" é o cenário vencedor — nunca é true em modo manual (ver `cenarios`). */
+  readonly cenarioVencedorIntegral = computed(() =>
+    this.cenarios().some((c) => c.vencedor && c.rotulo === 'Tudo em uma só loja'),
+  );
+
+  /**
+   * Se o cenário vencedor usa frete particular (dentro do grupo
+   * relevante: automático fora do modo manual, manual dentro dele).
+   * Substitui o antigo `!(freteParticular > 0)` como critério de
+   * `incluirFreteLoja` — digitar um frete particular sozinho não bastava
+   * mais pra decidir nada; agora é sempre a comparação que decide.
+   */
+  readonly freteParticularVencedor = computed(() =>
+    this.cenarios().some(
+      (c) =>
+        c.vencedor &&
+        (c.rotulo === 'Várias lojas e um frete particular' || c.rotulo === 'Compra manual com frete particular'),
+    ),
+  );
+
+  /**
+   * Alocação efetiva — a que "Rateio por etapa da obra", "Detalhe por
+   * fornecedor" e "Gerar Pagamento" usam: item a item, a menos que "Tudo
+   * em uma só loja" seja o cenário vencedor (o que só pode acontecer fora
+   * do modo manual — ver `cenarios`), caso em que todo item (com
+   * quantidade) vai para esse único fornecedor.
+   */
+  readonly alocacoes = computed(() => {
+    const fracionadas = this.alocacoesFracionadas();
+    if (!this.cenarioVencedorIntegral()) return fracionadas;
+
+    const melhor = this.melhorIntegral();
+    const si = this.integral().findIndex((valor) => valor === melhor);
+    if (si < 0) return fracionadas;
+
+    return this.itens()
+      .map((item, itemIndex) => ({ itemIndex, qtde: Number(item.qtde) || 0 }))
+      .filter((entrada) => entrada.qtde > 0)
+      .map(({ itemIndex }) => ({ itemIndex, supplierIndex: si }));
+  });
+
+  /**
+   * Com frete particular vencendo a comparação de cenários, o frete de
+   * cada loja sai da nota — cobrar os dois seria contar o frete em dobro,
+   * já que o freteiro vira um pagamento independente (17/08/2026, pedido
+   * do Lucas). Até 18/08/2026 isso era decidido só por
+   * `freteParticular > 0` (digitou um valor, já trocava, sem comparar) —
+   * agora segue `freteParticularVencedor()`, a mesma recomendação que
+   * decide `alocacoes()` e a geração de pagamento.
+   */
+  readonly incluirFreteLoja = computed(() => !this.freteParticularVencedor());
+
+  /**
+   * Notas da compra recomendada (`alocacoes()`) — usada por "Rateio por
+   * etapa da obra", "Detalhe por fornecedor" e pela própria geração de
+   * pagamento. O desconto só entra pra um fornecedor quando ele leva
+   * TODOS os itens desta alocação (`descontosAplicaveis`) — é um valor
+   * global negociado pra compra integral, então se a recomendação for
+   * fracionada (mesmo que "vencedora" entre os cenários) o desconto não
+   * se aplica a ninguém (19/08/2026, pedido do Lucas: "o desconto só é
+   * aplicado na compra integral"). Quando a recomendação É a compra
+   * integral, o único fornecedor "used" aqui é justamente quem leva tudo,
+   * então o desconto aparece normalmente.
+   */
   readonly notas = computed(() =>
     calcularNotasPorFornecedor(
       this.alocacoes(),
       this.itens(),
       this.fornecedores(),
-      true,
-      this.fornecedores().map(() => 0),
+      this.incluirFreteLoja(),
+      descontosAplicaveis(this.alocacoes(), this.itens(), this.fornecedores()),
     ),
   );
 
   readonly fracionado = computed(() =>
-    calcularFracionado(this.itens(), this.fornecedores(), this.cabecalho().modoManual),
+    calcularFracionado(
+      this.itens(),
+      this.fornecedores(),
+      this.cabecalho().modoManual,
+      this.incluirFreteLoja(),
+    ),
   );
 
   readonly integral = computed(() => calcularIntegral(this.itens(), this.fornecedores()));
@@ -203,10 +388,92 @@ export class MapaStore {
     return validos.length ? Math.min(...validos) : 0;
   });
 
-  /** Total do cenário fracionado, somando as notas e o frete particular. */
-  readonly totalFracionado = computed(
-    () => this.notas().totals.totalNota + (Number(this.cabecalho().freteParticular) || 0),
-  );
+  /**
+   * Saldo remanescente de cada etapa, por categoria de custo, depois da
+   * compra deste mapa — pedido do Lucas, 17/08/2026, pro Rateio por
+   * etapa: `orçado da etapa − já realizado por OUTROS mapas/pagamentos
+   * confirmados − o que este mapa está gastando agora` (lido ao vivo dos
+   * itens, não do que já foi eventualmente gerado como pagamento deste
+   * mesmo mapa — por isso os pagamentos deste mapa são excluídos do
+   * "realizado": senão a contribuição dele entraria contada duas vezes).
+   *
+   * Chave do mapa devolvido = a mesma `etapaKey` das células do Rateio
+   * (`item.eapId`, nunca `ETAPA_SEM_NOME` — sem etapa não tem orçado pra
+   * comparar).
+   */
+  readonly saldoPorEtapa = computed(() => {
+    const itensEap = this.itensEap();
+    const resultado = new Map<string, PorTipo>();
+    if (!itensEap.length) return resultado;
+
+    const cache = calcularCacheOrcado(itensEap, this.cabecalhoEap());
+    const itens = this.itens();
+    const fornecedores = this.fornecedores();
+    const alocacoes = this.alocacoes();
+
+    const etapasUsadas = new Set<string>();
+    for (const item of itens) {
+      for (const rateio of obterRateiosDoItem(item)) {
+        if (rateio.etapaKey !== ETAPA_SEM_NOME) etapasUsadas.add(rateio.etapaKey);
+      }
+    }
+    if (!etapasUsadas.size) return resultado;
+
+    const contribuicaoPorEtapa = new Map<string, PorTipo>();
+    for (const alocacao of alocacoes) {
+      const item = itens[alocacao.itemIndex];
+      if (!item?.tipo) continue;
+      const total = calcularTotalItem(item, alocacao.supplierIndex, fornecedores);
+      for (const rateio of obterRateiosDoItem(item)) {
+        if (rateio.etapaKey === ETAPA_SEM_NOME) continue;
+        if (!contribuicaoPorEtapa.has(rateio.etapaKey)) {
+          contribuicaoPorEtapa.set(rateio.etapaKey, criarVazioPorTipo());
+        }
+        const porTipo = contribuicaoPorEtapa.get(rateio.etapaKey)!;
+        porTipo[item.tipo as ChaveTipo] += total * rateio.fator;
+      }
+    }
+
+    const doMapaAtual = (p: Pagamento) => p.origem?.tipo === 'mapa' && p.origem?.refId === this.mapaId;
+    const realizadoPorEtapa = new Map<string, PorTipo>();
+    for (const pagamento of this.pagamentosDaObra()) {
+      if (pagamento.status === 'pendente' || doMapaAtual(pagamento)) continue;
+      for (const linha of pagamento.itens) {
+        if (!linha.eapId || !linha.tipo || !etapasUsadas.has(linha.eapId)) continue;
+        const valor =
+          linha.modoValor === 'percentual'
+            ? pagamento.valorTotal * ((Number(linha.valor) || 0) / 100)
+            : Number(linha.valor) || 0;
+        if (!realizadoPorEtapa.has(linha.eapId)) {
+          realizadoPorEtapa.set(linha.eapId, criarVazioPorTipo());
+        }
+        const porTipo = realizadoPorEtapa.get(linha.eapId)!;
+        porTipo[linha.tipo as ChaveTipo] += valor;
+      }
+    }
+
+    for (const etapaId of etapasUsadas) {
+      const orcado = orcadoDaEtapa(etapaId, itensEap, cache);
+      const contribuicao = contribuicaoPorEtapa.get(etapaId) ?? criarVazioPorTipo();
+      const realizado = realizadoPorEtapa.get(etapaId) ?? criarVazioPorTipo();
+      const saldo = criarVazioPorTipo();
+      TIPOS_CUSTO.forEach((t) => {
+        saldo[t.chave] = (orcado[t.chave] || 0) - (realizado[t.chave] || 0) - (contribuicao[t.chave] || 0);
+      });
+      resultado.set(etapaId, saldo);
+    }
+
+    return resultado;
+  });
+
+  /**
+   * Com o mapa finalizado, nenhum campo é editável — só "Reabrir mapa"
+   * volta a permitir mudanças (mesmo padrão de `EapStore.travada`, pedido
+   * do Lucas 16/08/2026). Checada em todo método que muda `cabecalho`,
+   * `fornecedores` ou `itens` (exceto a própria `alternarConfirmacao`,
+   * que é a única saída do estado travado).
+   */
+  readonly travada = computed(() => this.cabecalho().isConfirmed);
 
   // ------------------------------------------------------------------
   /**
@@ -243,6 +510,7 @@ export class MapaStore {
     // A EAP de etapas é sempre a da própria obra do mapa — não depende
     // mais de "achar a obra do cliente escolhido".
     this.carregarEapDaObra(obraId);
+    this.carregarPagamentosDaObra(obraId);
 
     this.armazenamento.ler(CHAVE_RESPONSAVEIS).subscribe({
       next: (bruto) => this.responsaveisAtivos.set(this.extrairResponsaveisAtivos(bruto)),
@@ -270,7 +538,9 @@ export class MapaStore {
     }
   }
 
-  private extrairFornecedoresAtivos(bruto: string | null): { nome: string; contatos: string[] }[] {
+  private extrairFornecedoresAtivos(
+    bruto: string | null,
+  ): { nome: string; contatos: { nome: string; telefone: string }[] }[] {
     if (!bruto) return [];
     try {
       const lista = JSON.parse(bruto);
@@ -280,8 +550,11 @@ export class MapaStore {
         .map((f: Record<string, unknown>) => ({
           nome: String(f?.['nome'] ?? '').trim(),
           contatos: (Array.isArray(f?.['contatos']) ? (f['contatos'] as Record<string, unknown>[]) : [])
-            .map((c) => String(c?.['nome'] ?? '').trim())
-            .filter((nome) => nome.length > 0),
+            .map((c) => ({
+              nome: String(c?.['nome'] ?? '').trim(),
+              telefone: formatarTelefone(c?.['telefone']),
+            }))
+            .filter((c) => c.nome.length > 0),
         }))
         .filter((f) => f.nome.length > 0);
     } catch {
@@ -325,8 +598,30 @@ export class MapaStore {
             .filter((e) => e.id && e.rotulo !== '-'),
         );
         this.casarEtapasAntigas();
+
+        // Orçado por etapa (Saldo remanescente do Rateio) — mesma
+        // normalização da EAP e de Relatórios, pra `isGroup`/`nivel`
+        // saírem certos.
+        this.itensEap.set(
+          aplicarNumeracaoAutomatica(
+            linhas.map((i) => normalizarItemEap(i as Record<string, unknown>)),
+          ),
+        );
+        this.cabecalhoEap.set(normalizarCabecalho(payload.header));
       },
       error: () => this.etapasDisponiveis.set([]),
+    });
+  }
+
+  /** Pagamentos da obra inteira — só pro "Saldo remanescente por etapa" do Rateio. */
+  private carregarPagamentosDaObra(obraId: string): void {
+    if (!obraId) return;
+
+    this.api.listarPagamentos({ obraId }).subscribe({
+      next: (lista) => {
+        this.pagamentosDaObra.set(lista.map((p) => normalizarPagamento(p as Record<string, unknown>)));
+      },
+      error: () => this.pagamentosDaObra.set([]),
     });
   }
 
@@ -366,9 +661,19 @@ export class MapaStore {
       // gravado por `alternarConfirmacao()` no momento de "Finalizar mapa".
       criadoEm: String(mapa['created_at'] ?? ''),
       freteParticular: Number(mapa['frete_particular']) || 0,
+      freteiroParticular: String(mapa['freteiro_particular'] ?? ''),
+      // Ausente (mapa salvo antes de 16/08/2026) cai em `true` — mesmo
+      // padrão do backend (coluna com `default(true)`), pra não mudar o
+      // comportamento de mapas antigos.
+      lancarFreteComoItem: mapa['lancar_frete_como_item'] === undefined
+        ? true
+        : Boolean(mapa['lancar_frete_como_item']),
+      freteEtapaId: mapa['frete_etapa_id'] ? String(mapa['frete_etapa_id']) : '',
+      freteCategoriaTipo: (mapa['frete_categoria_tipo'] as ChaveTipo) || '',
       modoManual: Boolean(mapa['modo_manual']),
       isConfirmed: Boolean(mapa['is_confirmed']),
       confirmedAt: String(mapa['confirmed_at'] ?? ''),
+      ultimaFinalizacaoEm: String(mapa['ultima_finalizacao_em'] ?? ''),
     });
 
     const fornecedoresBrutos = Array.isArray(mapa['fornecedores'])
@@ -440,9 +745,14 @@ export class MapaStore {
       responsavel_obra: cabecalho.responsavelObra,
       responsavel_mapa: cabecalho.responsavelMapa,
       frete_particular: cabecalho.freteParticular,
+      freteiro_particular: cabecalho.freteiroParticular || null,
+      lancar_frete_como_item: cabecalho.lancarFreteComoItem,
+      frete_etapa_id: cabecalho.freteEtapaId || null,
+      frete_categoria_tipo: cabecalho.freteCategoriaTipo || null,
       modo_manual: cabecalho.modoManual,
       is_confirmed: cabecalho.isConfirmed,
       confirmed_at: cabecalho.confirmedAt || null,
+      ultima_finalizacao_em: cabecalho.ultimaFinalizacaoEm || null,
       total_mapa: this.calcularTotalGeral(),
       fornecedores: fornecedores.map((f) => ({
         fornecedor: f.nome,
@@ -512,6 +822,7 @@ export class MapaStore {
   // Cabeçalho
   // ------------------------------------------------------------------
   atualizarCabecalho<K extends keyof CabecalhoMapa>(campo: K, valor: CabecalhoMapa[K]): void {
+    if (this.travada()) return;
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
   }
@@ -519,16 +830,106 @@ export class MapaStore {
   /**
    * Finaliza (ou reabre) o mapa — mesmo padrão de `EapStore.alternarConfirmacao()`.
    * Enquanto não finalizado, a tela permanece editável e os botões de
-   * Gerar PDF / Gerar Pagamento ficam desabilitados. `confirmedAt` guarda
-   * data E hora (04/08/2026) — antes só a data.
+   * Gerar PDF / Gerar Pagamento ficam desabilitados.
+   *
+   * `confirmedAt` ("Finalização do mapa") grava só a PRIMEIRA finalização
+   * e trava nesse valor pra sempre — reabrir e finalizar de novo não
+   * mexe nele (20/08/2026, pedido do Lucas: antes ele era regravado a
+   * cada finalização, perdendo a data original). `ultimaFinalizacaoEm`
+   * ("Última edição") é o par que acompanha toda finalização, inclusive
+   * a primeira — o backend reforça essa trava de novo por segurança (ver
+   * `MapaController::syncCompleto`), mas já não sobrescrever aqui evita
+   * mandar um valor errado na primeira tentativa.
    */
   alternarConfirmacao(): void {
-    this.cabecalho.update((c) => ({
-      ...c,
-      isConfirmed: !c.isConfirmed,
-      confirmedAt: !c.isConfirmed ? new Date().toISOString() : '',
-    }));
+    this.cabecalho.update((c) => {
+      const vaiFinalizar = !c.isConfirmed;
+      const agora = new Date().toISOString();
+      return {
+        ...c,
+        isConfirmed: vaiFinalizar,
+        confirmedAt: vaiFinalizar && !c.confirmedAt ? agora : c.confirmedAt,
+        ultimaFinalizacaoEm: vaiFinalizar ? agora : c.ultimaFinalizacaoEm,
+      };
+    });
     this.salvar();
+  }
+
+  /**
+   * Duplica este mapa (20/08/2026, pedido do Lucas): cria um mapa NOVO na
+   * mesma obra, copiando fornecedores/itens/preços e o cabeçalho —
+   * exceto os campos que o próprio sistema gera sozinho, que nascem
+   * frescos: `codigo` (o backend sempre gera um novo em `store()`),
+   * "Nº do mapa" (recalculado como o próximo da obra, não o do mapa
+   * copiado), "Responsável da obra" (relido da obra agora, não copiado
+   * do mapa de origem), datas de início/finalização/última edição
+   * (vazias) e status (nasce em edição, nunca finalizado).
+   *
+   * Encadeia com `listarMapas` porque o "Nº do mapa" novo depende de
+   * conhecer os mapas atuais da obra — não dá pra usar `this.mapas` (não
+   * existe aqui; quem lista os mapas da obra é a tela `MapasObra`, não
+   * este store).
+   */
+  duplicar(): Observable<Mapa> {
+    const cabecalho = this.cabecalho();
+    const fornecedores = this.fornecedores();
+    const itens = this.itens();
+    const obraId = this.obraIdDaRota;
+    const responsavelObraAtual = this.obraAtual()?.responsavel ?? '';
+    const totalCopiado = this.calcularTotalGeral();
+
+    this.duplicando.set(true);
+
+    return this.api.listarMapas(obraId).pipe(
+      switchMap((mapasDaObra) => {
+        const payload = {
+          obra_id: obraId,
+          numero_mapa: proximoNumeroMapa(mapasDaObra),
+          descricao: cabecalho.descricao,
+          cliente: cabecalho.cliente,
+          responsavel_obra: responsavelObraAtual,
+          responsavel_mapa: cabecalho.responsavelMapa,
+          frete_particular: cabecalho.freteParticular,
+          freteiro_particular: cabecalho.freteiroParticular || null,
+          lancar_frete_como_item: cabecalho.lancarFreteComoItem,
+          frete_etapa_id: cabecalho.freteEtapaId || null,
+          frete_categoria_tipo: cabecalho.freteCategoriaTipo || null,
+          modo_manual: cabecalho.modoManual,
+          is_confirmed: false,
+          confirmed_at: null,
+          ultima_finalizacao_em: null,
+          total_mapa: totalCopiado,
+          fornecedores: fornecedores.map((f) => ({
+            fornecedor: f.nome,
+            contato: f.contato,
+            ativo: f.ativo,
+            impostoPercent: f.imposto,
+            frete: f.frete,
+            desconto: f.desconto,
+          })),
+          // Sem `id` de propósito — são itens de um mapa DIFERENTE, então
+          // precisam nascer com id novo (reaproveitar o id do item de
+          // origem colidiria com a linha existente na tabela mapa_itens).
+          itens: itens.map((item) => ({
+            descricao: item.desc,
+            tipoCustoId: item.tipo ? ID_POR_CHAVE[item.tipo] : null,
+            quantidade: item.qtde,
+            unidade: item.unid,
+            etapa: item.etapa,
+            eapItemId: item.eapId || null,
+            fornecedorEscolhidoIndex: item.choice,
+            precos: item.unit.map((valorUnitario, fornecedorIndex) => ({
+              fornecedorIndex,
+              valorUnitario,
+              comprar: false,
+            })),
+          })),
+        };
+
+        return this.api.criarMapa(payload);
+      }),
+      finalize(() => this.duplicando.set(false)),
+    );
   }
 
   // ------------------------------------------------------------------
@@ -576,6 +977,7 @@ export class MapaStore {
 
         const numerosEmUso = [...pagamentos];
         const novos = this.montarPagamentosPorFornecedor(fornecedoresConfirmados, numerosEmUso, header);
+        novos.push(...this.montarPagamentoFreteiro(fornecedoresConfirmados, numerosEmUso, header));
 
         if (!novos.length) {
           this.gerandoPagamento.set(false);
@@ -618,9 +1020,25 @@ export class MapaStore {
 
   /**
    * Um Pagamento por fornecedor que ganhou algum item, pulando quem já
-   * tem pagamento confirmado deste mesmo mapa. `numerosEmUso` acumula os
-   * pagamentos já numerados (existentes + os recém-criados nesta mesma
-   * chamada) para não repetir número de sequência.
+   * tem pagamento confirmado deste mesmo mapa — seguindo a MESMA
+   * recomendação de `cenarios()`/`alocacoes()`/`incluirFreteLoja()` que
+   * "Rateio por etapa da obra" e "Detalhe por fornecedor" já mostram
+   * (18/08/2026, pedido do Lucas — antes "Gerar Pagamento" tinha sua
+   * própria comparação, mais restrita, que só considerava a compra
+   * integral fora do modo manual e sempre cobrava o frete de cada loja
+   * na nota mesmo quando o frete particular era a opção vencedora).
+   * Concretamente: **fora do modo manual**, se "Tudo em uma só loja" for
+   * o cenário vencedor, gera um pagamento único com a compra inteira
+   * daquele fornecedor; senão (fracionado, automático ou manual) gera um
+   * pagamento por fornecedor vencedor, com ou sem o frete de cada loja
+   * embutido na nota conforme `incluirFreteLoja()` — **com modo manual
+   * ligado**, a alocação é sempre a escolha manual item a item, e só o
+   * modo do frete (das lojas ou particular) é decidido pela comparação
+   * entre as duas variantes manuais.
+   *
+   * `numerosEmUso` acumula os pagamentos já numerados (existentes + os
+   * recém-criados nesta mesma chamada) para não repetir número de
+   * sequência.
    */
   private montarPagamentosPorFornecedor(
     fornecedoresConfirmados: Set<string>,
@@ -630,14 +1048,25 @@ export class MapaStore {
     const itens = this.itens();
     const fornecedores = this.fornecedores();
     const cabecalho = this.cabecalho();
-    const alocacoes = obterAlocacoes(itens, fornecedores, cabecalho.modoManual);
-    const notas = calcularNotasPorFornecedor(
-      alocacoes,
-      itens,
-      fornecedores,
-      true,
-      fornecedores.map((f) => f.desconto),
-    );
+
+    const fornecedorIntegral = this.decidirCompraIntegral();
+    if (fornecedorIntegral !== null) {
+      return this.montarPagamentoIntegral(
+        fornecedorIntegral,
+        itens,
+        fornecedores,
+        cabecalho,
+        fornecedoresConfirmados,
+        numerosEmUso,
+        header,
+      );
+    }
+
+    // `this.notas()` já é exatamente esta conta (alocação recomendada +
+    // desconto real) desde a correção de "Detalhe por fornecedor" —
+    // reaproveitar evita ter a fórmula duplicada em dois lugares.
+    const alocacoes = this.alocacoes();
+    const notas = this.notas();
 
     const itensPorFornecedor = new Map<number, ItemMapa[]>();
     for (const alocacao of alocacoes) {
@@ -652,39 +1081,16 @@ export class MapaStore {
     const descricaoBase = [cabecalho.numeroMapa, cabecalho.descricao].filter(Boolean).join(' — ');
     const resultado: Pagamento[] = [];
 
-    fornecedores.forEach((fornecedor, si) => {
+    fornecedores.forEach((_, si) => {
+      const rotulo = rotuloFornecedor(fornecedores, si);
       const itensDoFornecedor = itensPorFornecedor.get(si);
       if (!itensDoFornecedor?.length) return;
-      if (fornecedoresConfirmados.has(fornecedor.nome)) return;
+      if (fornecedoresConfirmados.has(rotulo)) return;
 
       const nota = notas.bySupplier[si];
       if (!nota?.used || !(nota.totalNota > 0)) return;
 
-      const linhas = itensDoFornecedor.map((item) => ({
-        id: gerarId(),
-        descricao: item.desc,
-        tipo: item.tipo || '',
-        eapId: item.eapId || '',
-        valor: calcularBaseItem(item, si),
-        modoValor: 'valor' as const,
-      }));
-
-      // Reconcilia com o total real da nota (imposto + frete − desconto),
-      // sem misturar isso no custo de cada item — assim a coluna
-      // "Realizado" da EAP recebe só o custo direto, comparável ao
-      // "Orçado" (que também é pré-imposto).
-      const somaLinhas = linhas.reduce((soma, l) => soma + l.valor, 0);
-      const ajuste = nota.totalNota - somaLinhas;
-      if (Math.abs(ajuste) > 0.005) {
-        linhas.push({
-          id: gerarId(),
-          descricao: 'Impostos, frete e desconto da nota',
-          tipo: '',
-          eapId: '',
-          valor: ajuste,
-          modoValor: 'valor' as const,
-        });
-      }
+      const linhas = this.construirLinhasDoFornecedor(itensDoFornecedor, si, nota, cabecalho);
 
       const pagamento: Pagamento = {
         id: gerarId(),
@@ -692,7 +1098,7 @@ export class MapaStore {
         obraNumber: String(header['obraNumber'] ?? ''),
         dataSolicitacao: hoje,
         dataPagamento: '',
-        fornecedor: fornecedor.nome,
+        fornecedor: rotulo,
         descricao: descricaoBase || `Mapa de fornecedores`,
         valorTotal: nota.totalNota,
         itens: linhas,
@@ -707,10 +1113,228 @@ export class MapaStore {
     return resultado;
   }
 
+  /**
+   * Decide se a geração deve seguir o cenário **integral** (tudo de um
+   * fornecedor só) — delega em `cenarioVencedorIntegral()`, a mesma
+   * decisão de `alocacoes()`, então nunca diverge do que "Rateio por
+   * etapa da obra"/"Detalhe por fornecedor" já mostram (18/08/2026).
+   * Só pode ser não-nulo fora do modo manual (ver `cenarios`).
+   */
+  private decidirCompraIntegral(): number | null {
+    if (!this.cenarioVencedorIntegral()) return null;
+    const melhor = this.melhorIntegral();
+    const si = this.integral().findIndex((valor) => valor === melhor);
+    return si >= 0 ? si : null;
+  }
+
+  /** Um único Pagamento com a compra inteira (todos os itens com quantidade) do fornecedor `si`. */
+  private montarPagamentoIntegral(
+    si: number,
+    itens: ItemMapa[],
+    fornecedores: Fornecedor[],
+    cabecalho: CabecalhoMapa,
+    fornecedoresConfirmados: Set<string>,
+    numerosEmUso: Pagamento[],
+    header: Record<string, unknown>,
+  ): Pagamento[] {
+    const fornecedor = fornecedores[si];
+    const rotulo = rotuloFornecedor(fornecedores, si);
+    if (!fornecedor || fornecedoresConfirmados.has(rotulo)) return [];
+
+    const itensComQtde = itens.filter((item) => (Number(item.qtde) || 0) > 0);
+    if (!itensComQtde.length) return [];
+
+    const itensBase = itensComQtde.reduce((soma, item) => soma + calcularBaseItem(item, si), 0);
+    const itensComImposto = itensComQtde.reduce(
+      (soma, item) => soma + calcularTotalItem(item, si, fornecedores),
+      0,
+    );
+    const notaCalc = calcularNota(
+      itensBase,
+      si,
+      fornecedores,
+      true,
+      Number(fornecedor.frete) || 0,
+      Number(fornecedor.desconto) || 0,
+    );
+    const nota: NotaFornecedor = {
+      used: true,
+      itensBase,
+      itensComImposto,
+      frete: Number(fornecedor.frete) || 0,
+      desconto: Number(fornecedor.desconto) || 0,
+      baseNota: notaCalc.baseNota,
+      impostoNota: notaCalc.impostoNota,
+      totalNota: notaCalc.totalNota,
+    };
+    if (!(nota.totalNota > 0)) return [];
+
+    const linhas = this.construirLinhasDoFornecedor(itensComQtde, si, nota, cabecalho);
+    const hoje = hojeIso();
+    const descricaoBase = [cabecalho.numeroMapa, cabecalho.descricao].filter(Boolean).join(' — ');
+
+    const pagamento: Pagamento = {
+      id: gerarId(),
+      numeroPagamento: gerarNumeroPagamento(numerosEmUso),
+      obraNumber: String(header['obraNumber'] ?? ''),
+      dataSolicitacao: hoje,
+      dataPagamento: '',
+      fornecedor: rotulo,
+      descricao: descricaoBase || 'Mapa de fornecedores (compra integral)',
+      valorTotal: nota.totalNota,
+      itens: linhas,
+      origem: { tipo: 'mapa', refId: this.mapaId },
+      status: 'pendente',
+    };
+
+    numerosEmUso.push(pagamento);
+    return [pagamento];
+  }
+
+  /**
+   * Monta as linhas do pagamento de um fornecedor: uma por item (custo
+   * base, sem imposto — comparável ao Orçado da EAP), mais o ajuste que
+   * fecha com o total real da nota.
+   *
+   * Com `lancarFreteComoItem` ligado (padrão, comportamento de sempre):
+   * imposto + frete + desconto viram uma linha só ("Impostos, frete e
+   * desconto da nota"), com a etapa escolhida em `cabecalho.freteEtapaId`
+   * quando houver, e a categoria de custo escolhida em
+   * `cabecalho.freteCategoriaTipo` (19/08/2026, pedido do Lucas — vazio
+   * cai em "S/ Categoria" na EAP, como sempre foi).
+   *
+   * Desligado (16/08/2026, pedido do Lucas): o frete sai dessa linha e é
+   * distribuído proporcionalmente entre os itens do próprio fornecedor
+   * (peso = valor de cada item na nota), embutido no valor de cada um —
+   * sem virar linha própria. Só imposto e desconto continuam como uma
+   * linha de ajuste à parte, sem etapa (como sempre foi para esses dois).
+   */
+  private construirLinhasDoFornecedor(
+    itensDoFornecedor: ItemMapa[],
+    si: number,
+    nota: NotaFornecedor,
+    cabecalho: CabecalhoMapa,
+  ): ItemPagamento[] {
+    const linhas: ItemPagamento[] = itensDoFornecedor.map((item) => ({
+      id: gerarId(),
+      descricao: item.desc,
+      tipo: item.tipo || '',
+      eapId: item.eapId || '',
+      valor: calcularBaseItem(item, si),
+      modoValor: 'valor' as const,
+    }));
+
+    const somaLinhas = linhas.reduce((soma, l) => soma + l.valor, 0);
+    const ajusteTotal = nota.totalNota - somaLinhas;
+
+    if (cabecalho.lancarFreteComoItem) {
+      if (Math.abs(ajusteTotal) > 0.005) {
+        linhas.push({
+          id: gerarId(),
+          descricao: 'Impostos, frete e desconto da nota',
+          tipo: cabecalho.freteCategoriaTipo || '',
+          eapId: cabecalho.freteEtapaId || '',
+          valor: ajusteTotal,
+          modoValor: 'valor' as const,
+        });
+      }
+      return linhas;
+    }
+
+    const frete = nota.frete > 0 && somaLinhas > 0 ? nota.frete : 0;
+    if (frete > 0) {
+      for (const linha of linhas) {
+        linha.valor += frete * (linha.valor / somaLinhas);
+      }
+    }
+
+    const ajusteSemFrete = ajusteTotal - frete;
+    if (Math.abs(ajusteSemFrete) > 0.005) {
+      linhas.push({
+        id: gerarId(),
+        descricao: 'Impostos e desconto da nota',
+        tipo: '',
+        eapId: '',
+        valor: ajusteSemFrete,
+        modoValor: 'valor' as const,
+      });
+    }
+
+    return linhas;
+  }
+
+  /**
+   * Pagamento pro freteiro do frete particular — ele "entra no rateio como
+   * se fosse um fornecedor" (17/08/2026, pedido do Lucas): uma linha por
+   * etapa, com o valor proporcional ao peso de cada etapa no mapa (ver
+   * `ratearFreteiro`). Só gera quando há frete particular e o freteiro
+   * está preenchido; usa o próprio nome do freteiro como chave de
+   * "fornecedor" pra dedupe com `fornecedoresConfirmados`, igual aos
+   * outros pagamentos deste mapa.
+   */
+  private montarPagamentoFreteiro(
+    fornecedoresConfirmados: Set<string>,
+    numerosEmUso: Pagamento[],
+    header: Record<string, unknown>,
+  ): Pagamento[] {
+    const cabecalho = this.cabecalho();
+    const freteParticular = Number(cabecalho.freteParticular) || 0;
+    const freteiro = cabecalho.freteiroParticular?.trim();
+    // Só gera o pagamento do freteiro quando o frete particular é de fato
+    // a opção vencedora — digitar um valor sozinho não basta (18/08/2026):
+    // senão o freteiro seria cobrado mesmo quando a recomendação decidiu
+    // usar o frete de cada loja, embutido na própria nota.
+    if (freteParticular <= 0 || !freteiro || !this.freteParticularVencedor()) return [];
+    if (fornecedoresConfirmados.has(freteiro)) return [];
+
+    const porEtapa = ratearFreteiro(this.itens(), this.fornecedores(), this.alocacoes(), freteParticular);
+    if (!porEtapa.size) return [];
+
+    const rotuloEtapa = (etapaKey: string) =>
+      etapaKey === ETAPA_SEM_NOME
+        ? 'Sem etapa'
+        : this.etapasDisponiveis().find((e) => e.id === etapaKey)?.rotulo || 'Sem etapa';
+
+    const itensPagamento: ItemPagamento[] = Array.from(porEtapa.entries())
+      .filter(([, valor]) => Math.abs(valor) > 0.005)
+      .map(([etapaKey, valor]) => ({
+        id: gerarId(),
+        descricao: `Frete particular — ${rotuloEtapa(etapaKey)}`,
+        tipo: '',
+        eapId: etapaKey === ETAPA_SEM_NOME ? '' : etapaKey,
+        valor,
+        modoValor: 'valor' as const,
+      }));
+    if (!itensPagamento.length) return [];
+
+    const hoje = hojeIso();
+    const descricaoBase = [cabecalho.numeroMapa, cabecalho.descricao].filter(Boolean).join(' — ');
+
+    const pagamento: Pagamento = {
+      id: gerarId(),
+      numeroPagamento: gerarNumeroPagamento(numerosEmUso),
+      obraNumber: String(header['obraNumber'] ?? ''),
+      dataSolicitacao: hoje,
+      dataPagamento: '',
+      fornecedor: freteiro,
+      descricao: descricaoBase
+        ? `${descricaoBase} — frete particular`
+        : 'Frete particular do mapa',
+      valorTotal: freteParticular,
+      itens: itensPagamento,
+      origem: { tipo: 'mapa', refId: this.mapaId },
+      status: 'pendente',
+    };
+
+    numerosEmUso.push(pagamento);
+    return [pagamento];
+  }
+
   // ------------------------------------------------------------------
   // Fornecedores
   // ------------------------------------------------------------------
   adicionarFornecedor(): void {
+    if (this.travada()) return;
     this.fornecedores.update((lista) => [
       ...lista,
       { nome: '', contato: '', ativo: true, imposto: 0, frete: 0, desconto: 0 },
@@ -721,6 +1345,7 @@ export class MapaStore {
   }
 
   atualizarFornecedor(indice: number, alteracao: Partial<Fornecedor>): void {
+    if (this.travada()) return;
     this.fornecedores.update((lista) =>
       lista.map((f, i) => (i === indice ? { ...f, ...alteracao } : f)),
     );
@@ -728,6 +1353,7 @@ export class MapaStore {
   }
 
   removerFornecedor(indice: number): void {
+    if (this.travada()) return;
     this.fornecedores.update((lista) => lista.filter((_, i) => i !== indice));
 
     this.itens.update((lista) =>
@@ -751,10 +1377,16 @@ export class MapaStore {
   // ------------------------------------------------------------------
   // Itens
   // ------------------------------------------------------------------
-  adicionarItem(): void {
-    this.itens.update((lista) => [
-      ...lista,
-      {
+  /**
+   * Insere um item. `posicao` permite inserir no meio da lista (usado
+   * pelo botão "+" da coluna de Ações, e por Shift + `+` — mesmo padrão
+   * de `EapStore.adicionarItem`, 17/08/2026, pedido do Lucas); omitida,
+   * acrescenta ao final.
+   */
+  adicionarItem(posicao?: number): void {
+    if (this.travada()) return;
+    this.itens.update((lista) => {
+      const novo: ItemMapa = {
         id: gerarId(),
         desc: '',
         qtde: 0,
@@ -764,17 +1396,25 @@ export class MapaStore {
         eapId: '',
         etapa: '',
         choice: null,
-      },
-    ]);
+      };
+      if (posicao === undefined || posicao < 0 || posicao > lista.length) {
+        return [...lista, novo];
+      }
+      const copia = [...lista];
+      copia.splice(posicao, 0, novo);
+      return copia;
+    });
     this.salvar();
   }
 
   atualizarItem(id: string, alteracao: Partial<ItemMapa>): void {
+    if (this.travada()) return;
     this.itens.update((lista) => lista.map((i) => (i.id === id ? { ...i, ...alteracao } : i)));
     this.salvar();
   }
 
   atualizarPreco(id: string, indiceFornecedor: number, valor: number): void {
+    if (this.travada()) return;
     this.itens.update((lista) =>
       lista.map((item) => {
         if (item.id !== id) return item;
@@ -788,6 +1428,7 @@ export class MapaStore {
   }
 
   escolherFornecedor(id: string, indiceFornecedor: number): void {
+    if (this.travada()) return;
     this.itens.update((lista) =>
       lista.map((item) =>
         item.id === id
@@ -798,8 +1439,36 @@ export class MapaStore {
     this.salvar();
   }
 
+  /**
+   * Limpa a escolha manual de todos os itens — chamado ao desligar
+   * "Compra manual" (17/08/2026, pedido do Lucas): sem isso, as escolhas
+   * antigas ficavam guardadas escondidas e continuavam valendo pros
+   * cenários "Compra manual com..." mesmo com o modo desligado na tela.
+   */
+  resetarEscolhasManuais(): void {
+    if (this.travada()) return;
+    this.itens.update((lista) => lista.map((item) => ({ ...item, choice: null })));
+    this.salvar();
+  }
+
   removerItem(id: string): void {
+    if (this.travada()) return;
     this.itens.update((lista) => lista.filter((i) => i.id !== id));
+    this.salvar();
+  }
+
+  /** Reordena um item — mesmo padrão de `EapStore.moverItem` (17/08/2026, pedido do Lucas). */
+  moverItem(id: string, direcao: -1 | 1): void {
+    if (this.travada()) return;
+    this.itens.update((lista) => {
+      const atual = lista.findIndex((i) => i.id === id);
+      const destino = atual + direcao;
+      if (atual < 0 || destino < 0 || destino >= lista.length) return lista;
+
+      const copia = [...lista];
+      [copia[atual], copia[destino]] = [copia[destino], copia[atual]];
+      return copia;
+    });
     this.salvar();
   }
 

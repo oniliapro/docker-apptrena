@@ -64,7 +64,6 @@ const abasDaObra: Routes = [
     data: { titulo: 'Mapa' },
     loadComponent: () => import('./features/mapa/mapa').then((m) => m.Mapa),
   },
-  reservada('compras', 'Compras'),
   {
     path: 'pagamentos',
     data: { titulo: 'Pagamentos da obra' },
@@ -76,7 +75,11 @@ const abasDaObra: Routes = [
     data: { titulo: 'Relatórios da obra' },
     loadComponent: () => import('./features/relatorios/relatorios').then((m) => m.Relatorios),
   },
-  reservada('arquivos', 'Arquivos anexados'),
+  {
+    path: 'arquivos',
+    data: { titulo: 'Arquivos anexados' },
+    loadComponent: () => import('./features/arquivos/arquivos').then((m) => m.Arquivos),
+  },
 ];
 
 export const routes: Routes = [

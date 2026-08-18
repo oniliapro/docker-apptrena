@@ -13,6 +13,19 @@
     <option value="inativos">Inativos</option>
   </select>
 
+  <select (change)="mudarFiltroTipo($event)">
+    <option value="">Tipo: todos</option>
+    <option value="PF">Pessoa física</option>
+    <option value="PJ">Pessoa jurídica</option>
+  </select>
+
+  <select (change)="mudarFiltroEspecialidade($event)">
+    <option value="">Especialidade: todas</option>
+    @for (especialidade of especialidadesDisponiveis(); track especialidade) {
+      <option [value]="especialidade">{{ especialidade }}</option>
+    }
+  </select>
+
   <span class="espacador"></span>
 
   @if (store.salvando()) {
@@ -30,14 +43,15 @@
     <div class="mensagem atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th>Nome</th>
-            <th>Especialidade</th>
-            <th class="centro">Tipo</th>
-            <th>CPF / CNPJ</th>
-            <th>Telefone</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('codigo')">Código{{ store.setaOrdenacao(store.ordenacao(), 'codigo') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('especialidade')">Especialidade{{ store.setaOrdenacao(store.ordenacao(), 'especialidade') }}</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('tipo')">Tipo{{ store.setaOrdenacao(store.ordenacao(), 'tipo') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('documento')">CPF / CNPJ{{ store.setaOrdenacao(store.ordenacao(), 'documento') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('telefone')">Telefone{{ store.setaOrdenacao(store.ordenacao(), 'telefone') }}</th>
             <th class="centro">Ativo</th>
             <th class="centro">Ações</th>
           </tr>
@@ -45,11 +59,12 @@
         <tbody>
           @for (registro of store.listaFiltrada(); track registro.id) {
             <tr [class.inativo]="!registro.ativo">
+              <td class="centro mono">{{ registro.codigo || '—' }}</td>
               <td class="nome">{{ registro.nome }}</td>
               <td>{{ registro.especialidade || '—' }}</td>
               <td class="centro">
                 <span class="etiqueta" [class.pj]="registro.tipo === 'PJ'">
-                  {{ registro.tipo === 'PJ' ? 'Jurídica' : 'Física' }}
+                  {{ rotuloTipoPessoa(registro.tipo) }}
                 </span>
               </td>
               <td class="mono">
@@ -70,7 +85,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="centro atenuado vazio">Nenhum empreiteiro cadastrado.</td>
+              <td colspan="8" class="centro atenuado vazio">Nenhum empreiteiro cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -91,62 +106,134 @@
         <button type="button" (click)="fechar()">✖</button>
       </div>
 
+      <div class="abas-cadastro">
+        <button type="button" [class.ativo]="abaAtiva() === 'geral'" (click)="abaAtiva.set('geral')">
+          Dados gerais
+        </button>
+        <button type="button" [class.ativo]="abaAtiva() === 'recebimento'" (click)="abaAtiva.set('recebimento')">
+          Dados de recebimento
+          @if (dadosRecebimento.length) { <span class="contagem-aba">{{ dadosRecebimento.length }}</span> }
+        </button>
+      </div>
+
       <div class="modal-corpo">
-        <div class="tipo-pessoa">
-          <button type="button" [class.ativo]="tipoAtual === 'PF'" (click)="mudarTipo('PF')">
-            Pessoa física
-          </button>
-          <button type="button" [class.ativo]="tipoAtual === 'PJ'" (click)="mudarTipo('PJ')">
-            Pessoa jurídica
-          </button>
-        </div>
+        @if (abaAtiva() === 'geral') {
+          <div class="tipo-pessoa">
+            <button type="button" [class.ativo]="tipoAtual === 'PF'" (click)="mudarTipo('PF')">
+              Pessoa física
+            </button>
+            <button type="button" [class.ativo]="tipoAtual === 'PJ'" (click)="mudarTipo('PJ')">
+              Pessoa jurídica
+            </button>
+          </div>
 
-        <div class="grade">
-          <label class="campo campo-total">
-            <span class="obrigatorio">
-              {{ tipoAtual === 'PJ' ? 'Razão social' : 'Nome completo' }}
-            </span>
-            <input type="text" formControlName="nome" />
-            @if (temErro('nome')) {
-              <small class="erro-campo">Informe o nome.</small>
+          <div class="grade">
+            <label class="campo">
+              <span>Código interno</span>
+              <input type="text" formControlName="codigo" readonly class="somente-leitura" />
+            </label>
+
+            <label class="campo campo-largo">
+              <span class="obrigatorio">
+                {{ tipoAtual === 'PJ' ? 'Razão social' : 'Nome completo' }}
+              </span>
+              <input type="text" formControlName="nome" />
+              @if (temErro('nome')) {
+                <small class="erro-campo">Informe o nome.</small>
+              }
+            </label>
+
+            <label class="campo">
+              <span>{{ tipoAtual === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
+              <input type="text" formControlName="documento" inputmode="numeric"
+                     [placeholder]="tipoAtual === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'"
+                     (input)="mascararDocumento($event)" />
+              @if (temErro('documento')) {
+                <small class="erro-campo">Documento inválido — confira os números.</small>
+              }
+            </label>
+
+            <label class="campo">
+              <span>Especialidade</span>
+              <input type="text" formControlName="especialidade"
+                     placeholder="Ex.: Alvenaria, Elétrica" />
+            </label>
+
+            <label class="campo">
+              <span>Telefone</span>
+              <input type="text" formControlName="telefone" inputmode="numeric"
+                     placeholder="(00) 00000-0000" (input)="mascararTelefone($event)" />
+            </label>
+
+            <label class="campo">
+              <span>E-mail</span>
+              <input type="email" formControlName="email" />
+              @if (temErro('email')) {
+                <small class="erro-campo">E-mail inválido.</small>
+              }
+            </label>
+
+            <label class="campo campo-total">
+              <span>Observações</span>
+              <input type="text" formControlName="observacoes" />
+            </label>
+          </div>
+        } @else {
+          <div class="secao-recebimento">
+            <div class="secao-cabecalho">
+              <span class="rotulo-secao">Dados de recebimento</span>
+              <button type="button" class="link-adicionar" (click)="adicionarRecebimento()">
+                + Adicionar dados de recebimento
+              </button>
+            </div>
+
+            @if (dadosRecebimento.length === 0) {
+              <div class="atenuado pequeno">Nenhum dado de recebimento adicionado.</div>
             }
-          </label>
 
-          <label class="campo">
-            <span>{{ tipoAtual === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
-            <input type="text" formControlName="documento" inputmode="numeric"
-                   [placeholder]="tipoAtual === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'"
-                   (input)="mascararDocumento($event)" />
-            @if (temErro('documento')) {
-              <small class="erro-campo">Documento inválido — confira os números.</small>
+            @for (grupo of dadosRecebimento.controls; track grupo; let i = $index) {
+              <div class="bloco-recebimento" [formGroup]="grupo">
+                <div class="linha-recebimento-topo">
+                  <div class="tipo-pessoa tipo-pessoa-compacto">
+                    <button type="button" [class.ativo]="grupo.controls.tipo.value === 'PF'"
+                            (click)="grupo.controls.tipo.setValue('PF')">Pessoa física</button>
+                    <button type="button" [class.ativo]="grupo.controls.tipo.value === 'PJ'"
+                            (click)="grupo.controls.tipo.setValue('PJ')">Pessoa jurídica</button>
+                  </div>
+                  <button type="button" title="Remover" (click)="removerRecebimento(i)">✖</button>
+                </div>
+
+                <div class="grade">
+                  <label class="campo campo-largo">
+                    <span>{{ grupo.controls.tipo.value === 'PJ' ? 'Razão social do titular' : 'Nome do titular' }}</span>
+                    <input type="text" formControlName="nomeTitular" />
+                  </label>
+                  <label class="campo">
+                    <span>{{ grupo.controls.tipo.value === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
+                    <input type="text" formControlName="documento" inputmode="numeric"
+                           (input)="mascararDocumentoRecebimento(i, $event)" />
+                  </label>
+                  <label class="campo">
+                    <span>Banco</span>
+                    <input type="text" formControlName="banco" />
+                  </label>
+                  <label class="campo">
+                    <span>Agência</span>
+                    <input type="text" formControlName="agencia" />
+                  </label>
+                  <label class="campo">
+                    <span>Conta</span>
+                    <input type="text" formControlName="conta" />
+                  </label>
+                  <label class="campo">
+                    <span>Chave PIX</span>
+                    <input type="text" formControlName="chavePix" />
+                  </label>
+                </div>
+              </div>
             }
-          </label>
-
-          <label class="campo">
-            <span>Especialidade</span>
-            <input type="text" formControlName="especialidade"
-                   placeholder="Ex.: Alvenaria, Elétrica" />
-          </label>
-
-          <label class="campo">
-            <span>Telefone</span>
-            <input type="text" formControlName="telefone" inputmode="numeric"
-                   placeholder="(00) 00000-0000" (input)="mascararTelefone($event)" />
-          </label>
-
-          <label class="campo">
-            <span>E-mail</span>
-            <input type="email" formControlName="email" />
-            @if (temErro('email')) {
-              <small class="erro-campo">E-mail inválido.</small>
-            }
-          </label>
-
-          <label class="campo campo-total">
-            <span>Observações</span>
-            <input type="text" formControlName="observacoes" />
-          </label>
-        </div>
+          </div>
+        }
       </div>
 
       <div class="modal-rodape">

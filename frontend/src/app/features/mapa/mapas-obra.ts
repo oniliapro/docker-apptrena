@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -8,6 +8,26 @@ import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
+import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
+import { proximoNumeroMapa } from './mapa-numero';
+
+type ColunaMapaObra =
+  | 'codigo'
+  | 'numero'
+  | 'descricao'
+  | 'status'
+  | 'inicio'
+  | 'finalizacao'
+  | 'responsavelMapa'
+  | 'total'
+  | 'pagamentos';
 
 /**
  * Lista de mapas de UMA obra, com criação de mapas novos.
@@ -20,7 +40,7 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
  */
 @Component({
   selector: 'app-mapas-obra',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   templateUrl: './mapas-obra.html',
   styleUrl: './mapas-obra.scss',
 })
@@ -45,21 +65,123 @@ export class MapasObra implements OnInit {
     numeroMapa: [''],
     descricao: ['', [Validators.required]],
     responsavelObra: [''],
-    responsavelMapa: [''],
+    responsavelMapa: ['', [Validators.required]],
   });
+
+  /**
+   * Responsável cadastrado na própria obra — fonte do preenchimento
+   * automático de "Responsável da obra" ao criar um mapa (20/08/2026,
+   * pedido do Lucas): antes era digitado à mão a cada mapa novo, agora
+   * vem direto do cadastro da obra, sem repetir digitação nem risco de
+   * inconsistência entre mapas da mesma obra.
+   */
+  private readonly obraResponsavel = signal('');
 
   ngOnInit(): void {
     this.carregar();
+    this.api.obterObra(this.obraId()).subscribe({
+      next: (obra) => this.obraResponsavel.set(obra.responsavel ?? ''),
+      error: () => {},
+    });
   }
 
   /**
    * Pagamentos gerados a partir de cada mapa desta obra —
-   * `mapaId -> Pagamento[]`. Mesma correção da lista geral de Mapas
-   * (04/08/2026): o campo `total_mapa` salvo no mapa vinha zerado em
-   * vários casos reais, então o Total passou a ser a soma dos pagamentos
-   * de verdade vinculados por `origem.refId`.
+   * `mapaId -> Pagamento[]`. Alimenta a coluna "Pagtos." (contagem +
+   * popup com a lista), no mesmo padrão da lista geral de Mapas. Até
+   * 19/08/2026 também alimentava o "Total" (soma dos pagamentos já
+   * gerados) — trocado pra `total_mapa` (ver `total()`), mesma correção
+   * já feita na lista geral em 16/08: um mapa sem "Gerar Pagamento" ainda
+   * ficava com Total zerado mesmo tendo itens e preços preenchidos.
    */
-  private readonly pagamentosPorMapa = signal<Map<string, Pagamento[]>>(new Map());
+  protected readonly pagamentosPorMapa = signal<Map<string, Pagamento[]>>(new Map());
+
+  /** Mapa cujo popup de pagamentos está aberto — null quando fechado. */
+  protected readonly popupMapa = signal<Mapa | null>(null);
+
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapaObra> | null>(null);
+  protected readonly setaOrdenacao = setaOrdenacao;
+  protected readonly busca = signal('');
+
+  /** Filtro por período de finalização — mesmo padrão da lista geral de Mapas (19/08/2026). */
+  protected readonly filtroFinalizacaoDe = signal('');
+  protected readonly filtroFinalizacaoAte = signal('');
+
+  /** Filtros novos (20/08/2026, pedido do Lucas) — Status, Início e Responsável da cotação. */
+  protected readonly filtroStatus = signal<'' | 'em_edicao' | 'finalizado'>('');
+  protected readonly filtroInicioDe = signal('');
+  protected readonly filtroInicioAte = signal('');
+  protected readonly filtroResponsavel = signal('');
+
+  protected readonly responsaveisDisponiveis = computed(() =>
+    valoresDistintos(this.mapas(), (mapa) => this.responsavelCotacao(mapa)),
+  );
+
+  protected alternarOrdenacaoColuna(coluna: ColunaMapaObra): void {
+    this.ordenacao.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
+  protected mudarBusca(evento: Event): void {
+    this.busca.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroFinalizacaoDe(evento: Event): void {
+    this.filtroFinalizacaoDe.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroFinalizacaoAte(evento: Event): void {
+    this.filtroFinalizacaoAte.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroStatus(evento: Event): void {
+    this.filtroStatus.set((evento.target as HTMLSelectElement).value as '' | 'em_edicao' | 'finalizado');
+  }
+
+  protected mudarFiltroInicioDe(evento: Event): void {
+    this.filtroInicioDe.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroInicioAte(evento: Event): void {
+    this.filtroInicioAte.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroResponsavel(evento: Event): void {
+    this.filtroResponsavel.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected readonly listaOrdenada = computed(() => {
+    const termo = this.busca().trim().toLowerCase();
+    const de = this.filtroFinalizacaoDe();
+    const ate = this.filtroFinalizacaoAte();
+    const status = this.filtroStatus();
+    const inicioDe = this.filtroInicioDe();
+    const inicioAte = this.filtroInicioAte();
+    const responsavel = this.filtroResponsavel();
+
+    const filtrada = this.mapas().filter((mapa) => {
+      if (!dataDentroDoIntervalo(mapa['confirmed_at'] as string | null, de, ate)) return false;
+      if (!dataDentroDoIntervalo(mapa['created_at'] as string | null, inicioDe, inicioAte)) return false;
+      if (status === 'finalizado' && !mapa['is_confirmed']) return false;
+      if (status === 'em_edicao' && mapa['is_confirmed']) return false;
+      if (responsavel && this.responsavelCotacao(mapa) !== responsavel) return false;
+      if (!termo) return true;
+      return [this.numero(mapa), this.descricao(mapa)].join(' ').toLowerCase().includes(termo);
+    });
+
+    return ordenarPor(filtrada, this.ordenacao(), (mapa, coluna) => {
+      switch (coluna) {
+        case 'codigo': return this.codigo(mapa);
+        case 'numero': return this.numero(mapa);
+        case 'descricao': return this.descricao(mapa);
+        case 'status': return this.statusMapa(mapa);
+        case 'inicio': return mapa['created_at'] as string | null;
+        case 'finalizacao': return mapa['confirmed_at'] as string | null;
+        case 'responsavelMapa': return this.responsavelCotacao(mapa);
+        case 'total': return this.total(mapa);
+        case 'pagamentos': return this.quantidadePagamentos(mapa);
+      }
+    });
+  });
 
   private carregar(): void {
     this.carregando.set(true);
@@ -93,6 +215,10 @@ export class MapasObra implements OnInit {
       });
   }
 
+  protected codigo(mapa: Mapa): string {
+    return String(mapa['codigo'] ?? '—');
+  }
+
   protected numero(mapa: Mapa): string {
     return String(mapa['numero_mapa'] ?? '—');
   }
@@ -101,8 +227,19 @@ export class MapasObra implements OnInit {
     return String(mapa['descricao'] ?? '—');
   }
 
-  protected cliente(mapa: Mapa): string {
-    return String(mapa['cliente'] ?? '—');
+  /** "Finalizado"/"Em edição" — mesmo rótulo já usado no editor do mapa (mapa.html). */
+  protected statusMapa(mapa: Mapa): string {
+    return mapa['is_confirmed'] ? 'Finalizado' : 'Em edição';
+  }
+
+  /** Coluna "Início" — `created_at`, o mesmo timestamp que já alimenta "Início do mapa" no editor. */
+  protected dataInicio(mapa: Mapa): string {
+    const bruto = mapa['created_at'];
+    return bruto ? formatarData(String(bruto)) : '—';
+  }
+
+  protected responsavelCotacao(mapa: Mapa): string {
+    return String(mapa['responsavel_mapa'] ?? '—');
   }
 
   /**
@@ -116,9 +253,37 @@ export class MapasObra implements OnInit {
     return bruto ? formatarData(String(bruto)) : '—';
   }
 
+  /**
+   * Valor efetivo total do mapa — `total_mapa`, calculado e gravado pelo
+   * editor a cada mudança. Mesma correção da lista geral de Mapas
+   * (16/08/2026): somar só pagamentos já gerados deixava a coluna zerada
+   * em qualquer mapa ainda sem "Gerar Pagamento".
+   */
   protected total(mapa: Mapa): number {
-    const lista = this.pagamentosPorMapa().get(mapa.id) ?? [];
-    return lista.reduce((soma, p) => soma + (Number(p.valorTotal) || 0), 0);
+    return Number(mapa['total_mapa']) || 0;
+  }
+
+  protected pagamentosDoMapa(mapa: Mapa): Pagamento[] {
+    return this.pagamentosPorMapa().get(mapa.id) ?? [];
+  }
+
+  protected quantidadePagamentos(mapa: Mapa): number {
+    return this.pagamentosDoMapa(mapa).length;
+  }
+
+  protected abrirPopupPagamentos(mapa: Mapa, evento: Event): void {
+    evento.stopPropagation();
+    if (!this.quantidadePagamentos(mapa)) return;
+    this.popupMapa.set(mapa);
+  }
+
+  protected fecharPopupPagamentos(): void {
+    this.popupMapa.set(null);
+  }
+
+  protected irParaPagamentos(): void {
+    this.fecharPopupPagamentos();
+    void this.router.navigate(['/obras', this.obraId(), 'pagamentos']);
   }
 
   protected abrir(mapa: Mapa): void {
@@ -139,7 +304,10 @@ export class MapasObra implements OnInit {
   // Formulário — Novo mapa
   // ------------------------------------------------------------------
   protected novo(): void {
-    this.formulario.reset();
+    this.formulario.reset({
+      numeroMapa: proximoNumeroMapa(this.mapas()),
+      responsavelObra: this.obraResponsavel(),
+    });
     this.formularioAberto.set(true);
   }
 

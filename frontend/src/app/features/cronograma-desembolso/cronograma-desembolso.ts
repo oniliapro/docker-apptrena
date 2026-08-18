@@ -1,12 +1,14 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { formatarMoeda } from '../../core/utils/formato';
 import { EapStore } from '../eap/eap.store';
 import { ehDescendente } from '../eap/eap-engine';
+import { itensOcultosPorColapso, recuoDoCodigoEap } from '../eap/eap-normalize';
 import { ItemEap } from '../eap/eap.models';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 
 interface ColunaPeriodo {
   /** Chave "AAAA-MM", usada para indexar a matriz e ordenar as colunas. */
@@ -45,6 +47,7 @@ const NOMES_MES = [
  */
 @Component({
   selector: 'app-cronograma-desembolso',
+  imports: [RedimensionarColunas],
   providers: [EapStore, PagamentosStore],
   templateUrl: './cronograma-desembolso.html',
   styleUrl: './cronograma-desembolso.scss',
@@ -196,5 +199,51 @@ export class CronogramaDesembolso implements OnInit {
 
   protected valorOuTraco(valor: number): string {
     return valor ? formatarMoeda(valor) : '—';
+  }
+
+  protected recuo(item: ItemEap): number {
+    return recuoDoCodigoEap(item.eap);
+  }
+
+  // ------------------------------------------------------------------
+  // Recolher/expandir grupos (17/08/2026, pedido do Lucas — mesmo padrão da EAP)
+  // ------------------------------------------------------------------
+  private readonly gruposColapsados = signal<Set<string>>(new Set());
+
+  protected readonly itensOcultos = computed(() =>
+    itensOcultosPorColapso(
+      this.linhas().map((l) => l.item),
+      this.gruposColapsados(),
+    ),
+  );
+
+  protected estaColapsado(item: ItemEap): boolean {
+    return this.gruposColapsados().has(item.id);
+  }
+
+  protected alternarColapso(item: ItemEap): void {
+    this.gruposColapsados.update((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(item.id)) novo.delete(item.id);
+      else novo.add(item.id);
+      return novo;
+    });
+  }
+
+  /** Se algum grupo está recolhido — decide o rótulo do botão "expandir/recolher tudo". */
+  protected readonly existeGrupoColapsado = computed(() => this.gruposColapsados().size > 0);
+
+  /**
+   * Um botão só, alternando entre os dois extremos (19/08/2026, pedido do
+   * Lucas, mesmo padrão da EAP): se algum grupo estiver recolhido,
+   * expande todos; senão, recolhe todos.
+   */
+  protected alternarTodosOsColapsos(): void {
+    if (this.existeGrupoColapsado()) {
+      this.gruposColapsados.set(new Set());
+      return;
+    }
+    const todosOsGrupos = this.linhas().map((l) => l.item).filter((i) => i.isGroup).map((i) => i.id);
+    this.gruposColapsados.set(new Set(todosOsGrupos));
   }
 }

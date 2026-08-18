@@ -6,6 +6,42 @@
   <button class="botao-novo" type="button" (click)="novo()">+ Novo mapa</button>
 </div>
 
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="">Status: todos</option>
+    <option value="em_edicao">Em edição</option>
+    <option value="finalizado">Finalizado</option>
+  </select>
+
+  <select (change)="mudarFiltroResponsavel($event)">
+    <option value="">Responsável: todos</option>
+    @for (nome of responsaveisDisponiveis(); track nome) {
+      <option [value]="nome">{{ nome }}</option>
+    }
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Início de</span>
+    <input type="date" (change)="mudarFiltroInicioDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroInicioAte($event)" />
+  </label>
+
+  <label class="campo-data-filtro">
+    <span>Finalização de</span>
+    <input type="date" (change)="mudarFiltroFinalizacaoDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroFinalizacaoAte($event)" />
+  </label>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar nº, descrição…" (input)="mudarBusca($event)" />
+</div>
+
 <div class="painel">
   @if (carregando()) {
     <div class="atenuado">Carregando…</div>
@@ -13,32 +49,52 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Nº</th>
-            <th>Descrição</th>
-            <th>Cliente</th>
-            <th class="centro">Finalização</th>
-            <th class="valor">Total</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('codigo')">Código{{ setaOrdenacao(ordenacao(), 'codigo') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('inicio')">Início{{ setaOrdenacao(ordenacao(), 'inicio') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('finalizacao')">Finalização{{ setaOrdenacao(ordenacao(), 'finalizacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('responsavelMapa')">Responsável{{ setaOrdenacao(ordenacao(), 'responsavelMapa') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('pagamentos')">Pagtos.{{ setaOrdenacao(ordenacao(), 'pagamentos') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (mapa of mapas(); track mapa.id) {
+          @for (mapa of listaOrdenada(); track mapa.id) {
             <tr class="linha-clicavel" (click)="abrir(mapa)">
+              <td class="centro mono">{{ codigo(mapa) }}</td>
               <td class="centro">{{ numero(mapa) }}</td>
               <td>{{ descricao(mapa) }}</td>
-              <td>{{ cliente(mapa) }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="!mapa['is_confirmed']">
+                  {{ statusMapa(mapa) }}
+                </span>
+              </td>
+              <td class="centro">{{ dataInicio(mapa) }}</td>
               <td class="centro">{{ dataFinalizacao(mapa) }}</td>
+              <td>{{ responsavelCotacao(mapa) }}</td>
               <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
+              <td class="centro">
+                @if (quantidadePagamentos(mapa)) {
+                  <button type="button" class="link-contagem" (click)="abrirPopupPagamentos(mapa, $event)">
+                    {{ quantidadePagamentos(mapa) }}
+                  </button>
+                } @else {
+                  <span class="atenuado">0</span>
+                }
+              </td>
               <td class="centro">
                 <button type="button" title="Excluir" (click)="remover(mapa, $event)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="centro atenuado">Nenhum mapa cadastrado nesta obra ainda.</td>
+              <td colspan="10" class="centro atenuado">Nenhum mapa cadastrado nesta obra ainda.</td>
             </tr>
           }
         </tbody>
@@ -62,7 +118,7 @@
         <div class="grade">
           <label class="campo">
             <span>Nº do mapa</span>
-            <input type="text" formControlName="numeroMapa" placeholder="Ex.: 07" />
+            <input type="text" formControlName="numeroMapa" readonly class="somente-leitura" />
           </label>
 
           <label class="campo campo-largo">
@@ -75,18 +131,23 @@
 
           <label class="campo">
             <span>Responsável da obra</span>
-            <input type="text" formControlName="responsavelObra" />
+            <input type="text" formControlName="responsavelObra" readonly class="somente-leitura"
+                   placeholder="— sem responsável cadastrado na obra —" />
           </label>
 
           <label class="campo">
-            <span>Responsável da cotação</span>
+            <span class="obrigatorio">Responsável da cotação</span>
             <input type="text" formControlName="responsavelMapa" />
+            @if (temErro('responsavelMapa')) {
+              <small class="erro-campo">Informe quem fez a cotação.</small>
+            }
           </label>
         </div>
 
         <p class="atenuado pequeno">
-          Cliente vem da obra automaticamente. Datas de início e finalização são
-          preenchidas pelo sistema.
+          Nº do mapa e Responsável da obra são preenchidos automaticamente pelo
+          sistema. Cliente vem da obra automaticamente. Datas de início e
+          finalização são preenchidas pelo sistema.
         </p>
       </div>
 
@@ -97,5 +158,50 @@
         </button>
       </div>
     </form>
+  </div>
+}
+
+<!-- ============ Popup de pagamentos vinculados ============ -->
+@if (popupMapa(); as mapa) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharPopupPagamentos()"></div>
+
+    <div class="modal-cartao estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Pagamentos gerados — {{ descricao(mapa) }}</span>
+        <button type="button" (click)="fecharPopupPagamentos()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <table class="tabela-popup" trenaRedimensionarColunas>
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Fornecedor</th>
+              <th class="valor">Total</th>
+              <th class="centro">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pagamento of pagamentosDoMapa(mapa); track pagamento.id) {
+              <tr>
+                <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
+                <td>{{ pagamento.fornecedor || '—' }}</td>
+                <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
+                <td class="centro">
+                  <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                    {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                  </span>
+                </td>
+                <td class="centro">
+                  <button type="button" class="link-medicoes" (click)="irParaPagamentos()">Ver</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 }

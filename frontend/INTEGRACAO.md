@@ -1,6 +1,19 @@
 # O que falta para ligar o Angular à API
 
-Situação de 28/07/2026.
+Situação de 28/07/2026, com as seções de status atualizadas em
+13/08/2026 (ver `docs/CONTEXTO.md`, que é a fonte de verdade sobre o
+estado atual — este arquivo mantém o histórico de decisões e
+implementações, mas pode ficar defasado no resumo do topo entre uma
+atualização e outra).
+
+> **Atualização 13/08/2026:** a migração da ponte chave-valor para os
+> endpoints relacionais, descrita como pendente nas seções abaixo, foi
+> concluída — Mapa, Empreita, Pagamentos e Relatórios também migraram
+> (não só a EAP). A ponte genérica chave-valor não é mais usada por
+> nenhuma dessas telas. As seções "O que já usa a API de verdade", "O
+> que ainda passa pela ponte chave-valor" e "Ordem sugerida" abaixo
+> descrevem o estado de 28/07 e ficaram desatualizadas nesse ponto — o
+> restante do histórico (decisões, arquivos alterados) continua válido.
 
 ---
 
@@ -30,6 +43,10 @@ Migrar de um para o outro é a integração que falta.
 | Lista de obras | `GET /obras` |
 | Página da obra | `GET /obras/{id}` |
 | **EAP** | `GET/PUT /obras/{id}/eap` (migrado 28/07/2026) |
+| **Mapa de Fornecedores** | `/mapas` (migrado — ver `docs/CONTEXTO.md`) |
+| **Empreita** | `/empreitas` (migrado — ver `docs/CONTEXTO.md`) |
+| **Pagamentos** | `/pagamentos` (migrado — ver `docs/CONTEXTO.md`) |
+| **Relatórios** | consome os endpoints relacionais (migrado — ver `docs/CONTEXTO.md`) |
 | Diário de Obra | `GET/POST/DELETE /diario` |
 | Histórico de medições | `GET /empreitas/{id}` |
 | Leitura de nota fiscal | `POST /pagamentos/ler-nota` |
@@ -38,21 +55,26 @@ Migrar de um para o outro é a integração que falta.
 
 ## O que ainda passa pela ponte chave-valor
 
-Desde a task "obra como contexto" (28/07/2026), as chaves abaixo são
-por obra (`...obra-{id}`) em vez de globais — mas ainda é a ponte
-chave-valor, não os endpoints relacionais.
+**Atualizado 13/08/2026: nenhuma tela de EAP/Mapa/Empreita/Pagamentos/
+Relatórios usa mais a ponte chave-valor** — todas migraram para os
+endpoints relacionais (ver tabela acima e `docs/CONTEXTO.md`). A seção
+abaixo descreve o estado de 28/07/2026, mantida como histórico de como
+era antes da migração.
 
-| Tela | Chave usada hoje | Endpoint que deveria usar |
+Desde a task "obra como contexto" (28/07/2026), as chaves abaixo eram
+por obra (`...obra-{id}`) em vez de globais — mas ainda pela ponte
+chave-valor, não pelos endpoints relacionais.
+
+| Tela | Chave usada em 28/07 | Endpoint usado hoje |
 |---|---|---|
 | Mapa de Fornecedores | `controleObra.mapa.v1.obra-{id}` | `/mapas` (CRUD) |
 | Empreita | `controleObra.empreita.v1.obra-{id}` | `/empreitas` (CRUD) + `/empreitas/{id}/registros` |
 | Pagamentos | `controleObra.pagamentos.v1.obra-{id}` | `/pagamentos` (CRUD) |
-| Relatórios (Pagamentos) | `controleObra.pagamentos.v1.obra-{id}` | consumiria os endpoints |
+| Relatórios (Pagamentos) | `controleObra.pagamentos.v1.obra-{id}` | consome os endpoints relacionais |
 
 A EAP saiu dessa lista em 28/07/2026 — ver "Feito: EAP migrada pra API
-relacional" mais abaixo. Empreita, Pagamentos e Relatórios ainda leem a
-EAP como referência, mas já pelo endpoint relacional (`GET /obras/{id}/eap`),
-não mais pela chave antiga.
+relacional" mais abaixo. Os cadastros de Clientes, Responsáveis e
+Empreiteiros continuam pela ponte (ver "Cadastros: falta backend").
 
 ---
 
@@ -110,6 +132,9 @@ compila limpo.
 
 ## Ordem sugerida
 
+**Atualizado 13/08/2026: todos os itens abaixo estão feitos.** Mantido
+como registro da ordem em que a migração foi planejada e executada.
+
 **1. Obra como contexto — feito (28/07/2026).** As abas recebem o id da
 obra e carregam os dados daquela obra, pela ponte chave-valor namespaced
 por obra. Falta ainda migrar da ponte chave-valor para os endpoints
@@ -117,19 +142,15 @@ relacionais — isso é o que os itens 2 a 4 abaixo cobrem.
 
 **2. EAP — feito (28/07/2026).** Migrada de `/storage` para
 `GET/PUT /obras/{id}/eap`. O formato era idêntico; mudou só de onde vem.
-Falta testar no ambiente real (Docker) antes de confiar — não deu pra
-validar num sandbox sem Docker.
 
-**3. Pagamentos** — para `/pagamentos`. Aqui aparece um ganho concreto:
-com os pagamentos em tabela, dá para reativar a coluna de **orçado x
-realizado** na EAP, que existia no app antigo e ficou de fora do port.
+**3. Pagamentos — feito.** Migrado para `/pagamentos`. Com os pagamentos
+em tabela, foi possível reativar a coluna de **orçado x realizado** na
+EAP (ver "Feito: Orçado x Realizado na EAP" mais abaixo).
 
-**4. Mapa e Empreita** — para `/mapas` e `/empreitas`. São os maiores,
-com relações aninhadas (fornecedores, itens, preços, medições).
+**4. Mapa e Empreita — feito.** Migrados para `/mapas` e `/empreitas`,
+incluindo as relações aninhadas (fornecedores, itens, preços, medições).
 
-**5. Relatórios** — passa a consumir os endpoints, e aí pode crescer:
-comparar obras entre si, evolução no tempo, coisas impossíveis com o
-formato de texto opaco.
+**5. Relatórios — feito.** Passou a consumir os endpoints relacionais.
 
 ---
 

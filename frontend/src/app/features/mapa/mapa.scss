@@ -78,6 +78,15 @@ button:disabled {
   }
 }
 
+.campo-com-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  input[type='text'] { flex: 1; min-width: 0; }
+  .checagem-inline { flex-shrink: 0; white-space: nowrap; }
+}
+
 // ---- Barra de ações ----
 .barra-ferramentas {
   display: flex;
@@ -99,10 +108,34 @@ button:disabled {
   input { width: auto; height: auto; }
 }
 
+// Rótulo + dropdown de categoria de custo do frete, ao lado da etapa
+// (19/08/2026, pedido do Lucas).
+.campo-categoria-frete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+
+  .rotulo-repetido { margin-bottom: 0; white-space: nowrap; }
+}
+
+// Rolagem vertical própria, com altura limitada — mesmo motivo da EAP
+// (ver comentário lá): faz o cabeçalho fixo (`.tabela-mapa thead th`
+// abaixo) funcionar de verdade, porque `overflow-x: auto` (herdado do
+// `.envoltoria` global, pra rolar quando uma coluna redimensionada não
+// cabe) por si só já impede `position: sticky` de grudar na janela.
+.envoltoria.sem-preenchimento {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
 // ---- Tabela ----
 .tabela-mapa {
   width: 100%;
-  border-collapse: collapse;
+  // `separate`, não `collapse` — mesma limitação do CSS documentada na
+  // EAP: bordas colapsadas não respeitam `position: sticky` direito.
+  border-collapse: separate;
+  border-spacing: 0;
 
   th { padding: 6px 5px; text-align: center; }
 
@@ -124,98 +157,346 @@ button:disabled {
   }
 
   input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
+
+  // Descrição em <textarea> (17/08/2026, mesmo padrão da EAP — ver o
+  // comentário lá): sempre mostra o texto completo, crescendo em altura
+  // quando não cabe numa linha só, em vez de cortar com reticências.
+  textarea.descricao {
+    display: block;
+    width: 100%;
+    min-height: 22px;
+    margin: 0;
+    padding: 2px 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    line-height: 1.35;
+    resize: none;
+    overflow: hidden;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+
+  // Cabeçalho fixo (16/08/2026, mesmo padrão da EAP — ver o comentário
+  // detalhado em `eap.scss`). A 1ª linha (bloco de cada fornecedor: nome,
+  // contato, ativo) é mais alta que a simples da EAP — a altura de 100px
+  // é uma estimativa; ajustar se sobrar/faltar espaço na prática.
+  thead th {
+    position: sticky;
+    z-index: 5;
+    background: var(--cor-fundo-alt);
+  }
+
+  thead tr:nth-child(1) { height: 100px; }
+  thead tr:nth-child(1) th { top: 0; }
+
+  thead tr:nth-child(2) { height: 28px; }
+  thead tr:nth-child(2) th { top: 100px; }
 }
 
+// #/Descrição/Tipo/Qtde/Un./Etapa/Ações ficavam com `rowspan="2"`, altos
+// como as 2 linhas do cabeçalho somadas (128px) — um rótulo curto de uma
+// linha só sobrava sozinho lá dentro, bem acima de "Preço"/"Comprar". A
+// pedido do Lucas (17/08/2026, correção do que eu tinha entendido errado
+// antes: reduzir só a fonte não resolvia, o pedido era a altura da caixa
+// mesmo), esses `<th>` passaram a ficar em branco na linha 1 e o rótulo
+// foi pra linha 2, do lado de "Preço"/"Comprar" — a caixa do rótulo agora
+// tem exatamente a mesma altura (28px) e a mesma fonte deles, sem
+// precisar de nenhuma regra especial de tamanho/alinhamento.
+
 .col-num { width: 36px; }
-.col-desc { min-width: 200px; }
-.col-tipo { width: 120px; }
-.col-qtde { width: 78px; }
+.col-desc { min-width: 130px; }
+.col-tipo { width: 128px; }
+.col-qtde { width: 56px; }
 .col-unid { width: 52px; }
 .col-etapa { min-width: 140px; }
-.col-acoes { width: 44px; }
+.col-acoes { width: 84px; }
+
+// "Assinatura" de origem do documento (17/08/2026, pedido do Lucas) —
+// empresa dona da conta + AppTrena, nas 6 primeiras colunas do
+// cabeçalho, que sobravam em branco. Sem logo de verdade cadastrado
+// ainda (nem da empresa, nem um arquivo de imagem do próprio AppTrena no
+// repositório) — o "logo" da empresa é um monograma com a inicial do
+// nome (mesmo recurso que apps como Slack/Notion usam até ter uma
+// imagem de verdade), e o do AppTrena reaproveita o quadrado
+// vazado/âmbar que já é a marca dele na barra lateral (`.quadrado` em
+// `app-shell.scss`), pra não inventar um símbolo novo.
+.assinatura-documento {
+  text-align: left;
+  vertical-align: middle;
+  padding: 0 10px;
+}
+
+.bloco-assinatura {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.marca-empresa, .marca-sistema {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.monograma-empresa {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--cor-primaria);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+// Mesmo desenho do "logo" do AppTrena na barra lateral — quadrado vazado
+// com miolo âmbar (`.quadrado` em `app-shell.scss`).
+.quadrado-sistema {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--cor-destaque);
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    background: var(--cor-destaque);
+  }
+}
+
+.nome-marca {
+  font-family: var(--fonte);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cor-texto);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.separador-assinatura {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+  flex-shrink: 0;
+}
 
 .indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
-.zebra td { background: #fafaf8; }
+.zebra td { background: var(--cor-zebra); }
 .vazio { padding: 34px 16px; }
+
+// Botão de excluir item — mesmo padrão da EAP (`.acoes-linha-conteudo`
+// em `eap.scss`): o `<td>` continua `display: table-cell` (o padrão),
+// quem vira flex é o `<div>` de dentro, pra não perder o
+// `vertical-align: middle` herdado da tabela (pedido do Lucas, 16/08/2026).
+.acoes-linha { white-space: nowrap; }
+
+.acoes-linha-conteudo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  button {
+    width: 22px;
+    padding: 2px 0;
+    font-size: 10px;
+    line-height: 1;
+    border-radius: 3px;
+  }
+}
+
+// ↑↓ empilhados + "+"/✖ empilhados ao lado, mesmo padrão da EAP (17/08/2026, pedido do Lucas).
+.acoes-mover, .acoes-inserir-excluir {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+// Fundo "+" azul claro, fundo "✖" vermelho (era só o texto — o pedido era
+// pintar o fundo do botão mesmo). O "✖" do teclado é visualmente maior
+// que o "+", então ganha uma fonte menor pra os dois parecerem do mesmo
+// tamanho (o "✖" lido como um "+" rotacionado).
+.acoes-inserir-excluir {
+  button:first-child {
+    background: #4a90d9;
+    border-color: #4a90d9;
+    color: #fff;
+    &:hover { background: #3a7dc4; }
+  }
+  button:last-child {
+    background: var(--cor-perigo);
+    border-color: var(--cor-perigo);
+    color: #fff;
+    font-size: 8px;
+    &:hover { background: #a83a26; }
+  }
+}
 
 // ---- Bloco de cabeçalho de cada fornecedor ----
 .cabecalho-fornecedor {
+  position: relative;
   background: var(--cor-primaria-clara);
   min-width: 260px;
-  padding: 8px !important;
-
-  &.inativo { opacity: 0.55; }
+  padding: 8px 26px 8px 8px !important; // espaço à direita pro botão remover
 }
 
+// Nome logo acima do contato (16/08/2026, pedido do Lucas — antes ficavam
+// lado a lado), cada um com o rótulo à esquerda do campo, não em cima.
 .bloco-fornecedor {
   display: flex;
-  gap: 5px;
+  flex-direction: column;
+  gap: 4px;
 
-  select { height: 24px; font-size: 11.5px; width: 100%; }
+  select, input { height: 24px; font-size: 11.5px; width: 100%; }
 }
 
 .campo-rotulado {
-  display: block;
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
   span {
-    display: block;
+    flex-shrink: 0;
+    width: 42px;
     font-family: var(--fonte-mono);
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--cor-texto-suave);
-    margin-bottom: 2px;
   }
 }
 
-.bloco-acoes {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 5px;
-
-  button {
-    width: 26px;
-    padding: 1px 0;
-    font-size: 11px;
-    line-height: 1;
-  }
+// "Fornecedor 01", "Fornecedor 02"... acima do Nome — só pra indicar a
+// ordem em que aparecem na tela (17/08/2026, pedido do Lucas).
+.rotulo-ordem-fornecedor {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
 }
 
-// ---- Agrupamento visual das três colunas de cada fornecedor ----
-// A borda escura à esquerda e à direita delimita cada fornecedor; as
-// internas são tracejadas, para o olho ler o bloco como uma unidade.
-.borda-esquerda {
-  border-left: 2px solid var(--cor-primaria-escura) !important;
-  border-right: 1px dashed var(--cor-borda-forte) !important;
+// Telefone do contato, como cadastrado — só exibição, não é campo de
+// edição (17/08/2026, pedido do Lucas).
+.telefone-contato {
+  display: block;
+  margin-left: 48px; // alinha embaixo do campo, não do rótulo "Contato"
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  color: var(--cor-texto-suave);
 }
 
-.borda-meio {
-  border-left: 1px dashed var(--cor-borda-forte) !important;
-  border-right: 1px dashed var(--cor-borda-forte) !important;
-  width: 62px;
+// Botão de remover fornecedor: "✖" (era 🗑) no canto superior direito do
+// bloco inteiro, não mais ao lado do "Ativo" (pedido do Lucas, 16/08/2026).
+.botao-remover-fornecedor {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  font-size: 11px;
+  border-radius: 3px;
+  z-index: 2;
 }
 
-.borda-direita {
-  border-left: 1px dashed var(--cor-borda-forte) !important;
-  border-right: 2px solid var(--cor-primaria-escura) !important;
-  min-width: 110px;
+// ---- Agrupamento visual das duas colunas de cada fornecedor ----
+// Antes eram três colunas (Unit./Comprar/Total), com uma borda escura
+// grossa delimitando cada bloco de fornecedor. Unit. e Total viraram uma
+// célula empilhada só (`.celula-preco`, mesmo padrão da EAP), sobrando
+// duas: Preço (esquerda) e Comprar (direita) — e a borda grossa saiu
+// (pedido do Lucas, 16/08/2026): o próprio fundo do cabeçalho já separa
+// visualmente cada fornecedor, a borda ficava pesada demais.
+.borda-esquerda { min-width: 120px; }
+.borda-direita { width: 62px; }
+
+// ---- Célula "Preço" (unitário x total empilhados) ----
+.celula-preco {
+  text-align: right;
+  vertical-align: middle;
 }
 
-// Vencedor: fundo verde sem apagar as bordas do bloco
+.linha-unit, .linha-total {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: baseline;
+  column-gap: 4px;
+  white-space: nowrap;
+}
+
+.linha-unit { margin-bottom: 2px; }
+.linha-unit input.valor { width: 100%; }
+
+.rotulo-preco {
+  font-family: var(--fonte-mono);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  text-align: right;
+}
+
+// Total maior e em negrito que o Unitário (pedido do Lucas, 16/08/2026) —
+// é o número que mais importa na hora de comparar propostas.
+.valor-preco {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  color: var(--cor-texto);
+  text-align: right;
+}
+
+.linha-total .valor-preco {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+// Vencedor (item mais barato): fundo sólido + texto branco, mesmo azul do
+// nível 3 de grupo da EAP (era verde — pedido do Lucas, 16/08/2026, pra
+// ficar na mesma linguagem visual das duas telas).
 .vencedor {
-  background: var(--cor-sucesso-bg) !important;
+  background: #2f5568 !important;
+  color: #fff;
   font-weight: 700;
 
-  input { font-weight: 700; }
+  input { color: #fff; font-weight: 700; }
+  .rotulo-preco { color: rgba(255, 255, 255, 0.75); }
+  .valor-preco { color: #fff; }
+
+  // Focado, o fundo vira branco (regra geral de `input:focus` da tabela)
+  // mas o texto continuava branco — some enquanto digita (bug visto pelo
+  // Lucas, 17/08/2026, mesma causa já corrigida na EAP).
+  input:focus {
+    background: #fff;
+    color: var(--cor-texto);
+  }
 }
 
 // ---- Rodapé ----
 .rotulo-rodape {
   text-align: right;
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 tfoot th {
@@ -236,33 +517,160 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   th:not(.rotulo-rodape) { padding: 3px 5px; }
 
   input {
-    width: 100%;
     height: 22px;
     text-align: right;
     font-family: var(--fonte-mono);
     font-size: 11.5px;
-    background: #fff;
-    border: 1px solid var(--cor-borda);
+    // `!important`: a regra geral `.tabela-mapa input:not([type=checkbox])`
+    // tem especificidade maior (por causa do `:not()`) e vencia essa aqui,
+    // deixando o campo parecendo texto solto em vez de input de verdade
+    // (bug visto pelo Lucas, 16/08/2026).
+    background: #fff !important;
+    border: 1px solid var(--cor-borda) !important;
     border-radius: 3px;
   }
 }
 
-.linha-rodape-editavel + .linha-rodape-editavel th { border-top: none; }
+// Imposto/Frete/Desconto e Itens mais baratos/Nota/Compra integral, cada
+// trio empilhado numa célula só por fornecedor (16/08/2026, pedido do
+// Lucas — antes eram 3 linhas separadas cada). O rótulo fica à esquerda
+// do campo (não em cima) dentro de cada linha da pilha.
+.pilha-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
-.linha-integral th {
-  background: var(--cor-primaria-clara);
-  font-weight: 700;
+.campo-pilha {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+
+  .rotulo-repetido { display: inline; margin-bottom: 0; flex-shrink: 0; }
+  input, .valor-pilha { flex: 1; min-width: 0; width: auto; }
+}
+
+// Frete/Desconto em "MODIFICADORES GLOBAIS DE COMPRA" ganham uma segunda
+// linha, embaixo do input, com o valor já com o BDI aplicado — o que de
+// fato entra na nota (18/08/2026, pedido do Lucas).
+.campo-pilha-com-final {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.valor-final-bdi {
+  align-self: flex-end;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  color: var(--cor-texto-suave);
+}
+
+// Checkbox "Considerar fornecedor na cotação" no início da pilha de
+// "Análise de compra individual" (17/08/2026, pedido do Lucas) — mesmo
+// tamanho/estilo de fonte dos rótulos ao redor (`.rotulo-repetido`: mono,
+// 8px, caixa alta), com quebra de linha liberada porque o texto é
+// comprido pra uma coluna estreita.
+.campo-pilha-checkbox {
+  justify-content: flex-start;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.pilha-rodape .checagem-inline {
+  flex: 1;
+  align-items: flex-start;
+  gap: 4px;
+  font-family: var(--fonte-mono);
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  white-space: normal;
+  text-align: left;
+
+  input { flex-shrink: 0; margin-top: 1px; }
+}
+
+// Mesma altura das 3 linhas empilhadas (Itens mais baratos/NOTA
+// FISCAL/Compra integral) que essa mensagem substitui quando o
+// fornecedor está desconsiderado (17/08/2026, pedido do Lucas) — sem
+// isso, desmarcar "Considerar" encolhia a célula e o checkbox acima dela
+// "pulava" de posição junto com o resto da linha da tabela.
+.bloco-desconsiderado {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+}
+
+.valor-pilha {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+// Imposto (%) / Frete / Desconto com a mesma largura e alinhados entre si
+// (pedido do Lucas, 17/08/2026) — sem isso, cada rótulo tinha um
+// comprimento de texto diferente e "empurrava" o input pra uma posição
+// diferente em cada uma das três linhas empilhadas. Fixando a largura do
+// rótulo, o espaço que sobra pro input (`flex: 1`) fica sempre igual.
+.linha-rodape-editavel .rotulo-repetido {
+  display: inline-block;
+  width: 64px;
+}
+
+// Rótulo repetido dentro da célula de cada fornecedor (16/08/2026, pedido
+// do Lucas): com muitos fornecedores a tabela rola bastante na horizontal,
+// e o rótulo da esquerda (colspan 6) some da vista — repetir por cima do
+// valor evita perder de vista qual linha é qual.
+.rotulo-repetido {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 2px;
+  white-space: normal;
+}
+
+.barra-relatorios {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
 }
 
 // ---- Painéis de comparação ----
+// Três lado a lado, nesta ordem (17/08/2026, pedido do Lucas): Comparação
+// de cenários (largura fixa, texto curto), Rateio por etapa (flexível —
+// cresce/encolhe com a quantidade de fornecedores, com rolagem própria
+// quando não cabe) e Detalhe por fornecedor (`auto` — a tabela já tem
+// largura fixa própria, ver `.tabela-largura-fixa`).
+//
+// Áreas nomeadas, não posição por ordem no DOM: com "Rateio por etapa"
+// escondido pela caixa de seleção (`mostrarRateio`), o painel some do
+// HTML — se a grade fosse só `grid-template-columns` (posição implícita),
+// "Detalhe por fornecedor" cairia na 2ª coluna (a flexível) no lugar dele
+// e esticaria, redimensionando errado (bug visto pelo Lucas, 17/08/2026).
+// Com área nomeada, cada painel fica preso à sua coluna sempre, esteja o
+// do meio presente ou não.
 .grade-inferior {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 300px minmax(320px, 1fr) auto;
+  grid-template-areas: "cenarios rateio detalhe";
   gap: 14px;
   align-items: start;
 }
 
-@media (max-width: 900px) {
+.painel-cenarios { grid-area: cenarios; }
+.painel-etapas { grid-area: rateio; }
+.painel-detalhe { grid-area: detalhe; }
+
+@media (max-width: 1200px) {
   .grade-inferior { grid-template-columns: 1fr; }
 }
 
@@ -271,40 +679,69 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 0;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--cor-fundo-alt);
   font-size: 12.5px;
 
   &:last-of-type { border-bottom: none; }
 
+  // Rótulo menor que o valor (17/08/2026, pedido do Lucas) — deixa a
+  // tabela mais estreita sem mudar o tamanho do número, que é o dado que
+  // importa. `justify-content: space-between` já mantém os rótulos
+  // colados à esquerda e os valores à direita, alinhados entre si.
+  span { font-size: 10.5px; }
   b { font-family: var(--fonte-mono); font-size: 13px; }
 
-  &.destaque {
-    margin-top: 6px;
-    padding-top: 10px;
-    border-top: 1px solid var(--cor-borda-forte);
-    border-bottom: none;
+  // Cenário mais barato entre os disponíveis — 🏆 no rótulo (17/08/2026,
+  // pedido do Lucas), reforçado com fundo sólido e texto branco (era fundo
+  // claro com texto verde — trocado a pedido do Lucas: fundo sólido dá
+  // mais contraste pro branco).
+  &.vencedor {
+    border-radius: 4px;
+    background: var(--cor-sucesso);
 
-    b { color: var(--cor-sucesso); font-size: 15px; }
+    // O rótulo também precisa ficar claro — fundo virou sólido, texto
+    // escuro padrão ficaria ilegível em cima dele.
+    span { color: #fff; }
+    b { color: #fff; font-size: 14px; }
   }
-
-  &.destaque.negativa b { color: var(--cor-perigo); }
 }
 
-.nota {
-  margin: 12px 0 0;
-  padding-top: 10px;
-  border-top: 1px dashed var(--cor-borda);
-  font-size: 10.5px;
-  line-height: 1.5;
-  color: var(--cor-texto-suave);
-}
-
+// Alinhada à direita (17/08/2026, pedido do Lucas) — mesmo padrão da
+// tabela "Resumo por categoria" da EAP: larguras fixas por coluna
+// (`data-largura-inicial`) em vez de `width: 100%`, e `margin-left: auto`
+// pra colar no canto direito do painel em vez de esticar.
 .tabela-resumo {
-  width: 100%;
+  margin-left: auto;
 
   th, td { padding: 5px 8px; font-size: 11.5px; }
-  tfoot th { border-top: 2px solid var(--cor-borda-forte); }
+  tfoot th { border-top: 2px solid var(--cor-borda-forte); vertical-align: top; }
+
+  // "TOTAL" da coluna Fornecedor, ao lado da pilha (Itens/Frete/BDI/Total)
+  // bem mais alta — centralizado na vertical, não em cima (17/08/2026,
+  // pedido do Lucas).
+  .rotulo-total-fornecedor { vertical-align: middle; }
+
+  .rotulo-repetido { display: inline-block; width: 50px; }
+}
+
+// Larguras fixas, sem redimensionar (17/08/2026, pedido do Lucas — tirou
+// a `trenaRedimensionarColunas` desta tabela de propósito). 25px cada,
+// valor pra testar — provavelmente vai precisar ajustar depois de ver.
+//
+// `width` explícito na própria `<table>` (2 colunas × 25px), não só nas
+// células: sem isso a tabela, mesmo com `table-layout: fixed`, ainda é
+// uma caixa de bloco comum e `width: auto` faz ela ocupar 100% do
+// painel — sobrava um espaço vazio enorme e a 1ª coluna (sem `width`
+// vencendo o conteúdo) esticava pra preencher (bug visto pelo Lucas,
+// 17/08/2026).
+.tabela-largura-fixa {
+  table-layout: fixed;
+  width: 300px;
+
+  th, td { overflow-wrap: break-word; }
+  th:first-child, td:first-child { width: 100px; }
+  th:last-child, td:last-child { width: 200px; }
 }
 
 // Dica de atalhos: presente mas discreta — quem já sabe não precisa ver.
@@ -328,6 +765,11 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
 
 // ---- Painel de rateio por etapa ----
 .painel-etapas {
+  // Item de grid precisa disso explícito — sem ele, o `min-width` padrão
+  // (`auto`) trava a coluna do meio na largura da tabela inteira e ela
+  // nunca encolhe pra caber ao lado dos outros dois painéis.
+  min-width: 0;
+
   .cabecalho-painel {
     display: flex;
     align-items: center;
@@ -355,7 +797,7 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   th { padding: 6px 5px; text-align: center; }
 
   td {
-    padding: 3px 5px;
+    padding: 2px 5px;
     text-align: center;
     font-size: 11.5px;
     border-bottom: 1px solid var(--cor-fundo-alt);
@@ -364,36 +806,89 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   input {
     border: 1px solid transparent;
     background: transparent;
-    height: 21px;
+    height: 17px;
     width: 54px;
     text-align: right;
     font-family: var(--fonte-mono);
-    font-size: 11px;
+    font-size: 10px;
 
     &:hover { border-color: var(--cor-borda); }
     &:focus { background: #fff; }
   }
 }
 
-.col-etapa-nome { min-width: 150px; text-align: left !important; }
+.col-etapa-nome { min-width: 140px; text-align: left !important; }
 .nome-etapa { text-align: left; font-weight: 600; }
 
 .cabecalho-forn {
   background: var(--cor-primaria-clara);
-  border-left: 2px solid var(--cor-primaria-escura);
 }
 
-.celula-pct {
-  white-space: nowrap;
+// Base/Frete/Desconto empilhados numa célula só por fornecedor
+// (17/08/2026, pedido do Lucas — mesmo padrão `.campo-pilha` do rodapé da
+// tabela principal). Rótulo com largura fixa, mesmo motivo de lá: sem
+// isso "Base"/"Frete"/"Desconto" têm comprimentos diferentes e cada
+// input nasce numa posição horizontal diferente. Fonte maior que o
+// padrão de `.rotulo-repetido` (8px) — Lucas achou pequeno demais pra
+// ler. Travada: fundo âmbar suave, pro olho achar de imediato o que foi
+// fixado à mão em meio ao que o sistema calculou.
+.tabela-etapas .rotulo-repetido {
+  display: inline-block;
+  width: 54px;
+  font-size: 9.5px;
+}
 
-  // Travada: fundo âmbar suave, para o olho achar de imediato o que foi
-  // fixado à mão em meio ao que o sistema calculou.
+// Altura fixa (17/08/2026, pedido do Lucas) — sem isso, uma célula sem
+// frete/desconto pra ratear (só mostra "—") ficava mais baixa que uma
+// com input+botões, e a borda de cima do "Total" saía desalinhada entre
+// fornecedores/etapas vizinhas. Com todas as linhas na mesma altura, a
+// borda fica sempre na mesma posição vertical em qualquer coluna.
+// Reduzida de 24px pra 19px (19/08/2026, pedido do Lucas) — com a linha
+// de Markup nova, a pilha ficou mais alta, e ele pediu pra compensar
+// deixando cada linha mais compacta verticalmente.
+.tabela-etapas .campo-pilha {
+  justify-content: flex-end;
+  height: 19px;
+
   &.travada {
     background: var(--cor-alerta-bg);
 
     input { font-weight: 700; color: var(--cor-alerta); }
   }
 }
+
+.tabela-etapas .valor-pilha { font-size: 10px; }
+
+// Total de cada fornecedor (Rateio por etapa e Detalhe por fornecedor) e
+// total da etapa — maiores e em negrito (17/08/2026, pedido do Lucas),
+// pra se destacar dos números de apoio ao redor. Precisa vencer o
+// `.valor-pilha` de cada tabela (mesma especificidade de 2 classes onde
+// há um) — por isso repete o escopo da tabela em vez de só
+// `.total-fornecedor`.
+.tabela-etapas .total-fornecedor, .tabela-resumo .total-fornecedor, .total-etapa {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+// Linha "Total" empilhada junto de Base/Frete/Desconto (17/08/2026,
+// pedido do Lucas — antes era uma coluna própria) — uma linha de
+// separação por cima, pra não se confundir com os números de apoio.
+.campo-pilha-total {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.total-etapa {
+  color: var(--cor-primaria-escura);
+}
+
+// Saldo remanescente por etapa/categoria (17/08/2026, pedido do Lucas):
+// vermelho se estourou o orçamento, azul médio se ainda sobra (era verde
+// — trocado a pedido do Lucas; `--cor-aco`, já usado noutras telas pra
+// esse mesmo tom de azul nem escuro nem muito claro).
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
 
 .trava {
   border: none;
@@ -406,29 +901,19 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   &:hover { background: transparent; filter: brightness(1.2); }
 }
 
-.frete-particular {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--cor-borda);
-}
+// Botão de trocar % ↔ R$ em cada célula de Frete/Desconto do rateio por
+// etapa (17/08/2026, pedido do Lucas).
+.alternar-unidade {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  padding: 1px 4px;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  flex-shrink: 0;
 
-.linhas-frete {
-  display: grid;
-  gap: 4px;
-  max-width: 420px;
-}
-
-.linha-frete {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 12px;
-  align-items: baseline;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--cor-fundo-alt);
-  font-size: 12px;
-
-  &:last-child { border-bottom: none; }
-
-  .pct { font-family: var(--fonte-mono); font-size: 10.5px; }
-  b { font-family: var(--fonte-mono); text-align: right; }
+  &:hover { background: var(--cor-primaria-clara); }
 }

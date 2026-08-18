@@ -44,6 +44,12 @@
   justify-content: center;
 }
 
+.linha-clicavel {
+  cursor: pointer;
+
+  &:hover { background: var(--cor-fundo-alt); }
+}
+
 .cabecalho {
   display: flex;
   align-items: flex-end;
@@ -151,6 +157,13 @@
   }
 
   input, select { height: 30px; font-size: 13px; padding: 4px 8px; }
+
+  input.somente-leitura {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+    font-family: var(--fonte-mono);
+    cursor: not-allowed;
+  }
 }
 
 .erro-campo {

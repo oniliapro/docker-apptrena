@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { ApiService } from '../../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../../core/utils/formato';
+import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 
 /** Uma medição já registrada de uma empreita. */
 interface RegistroMedicao {
@@ -34,7 +35,7 @@ interface EmpreitaComRegistros {
  */
 @Component({
   selector: 'app-medicoes',
-  imports: [RouterLink],
+  imports: [RouterLink, RedimensionarColunas],
   templateUrl: './medicoes.html',
   styleUrl: './medicoes.scss',
 })

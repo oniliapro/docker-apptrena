@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import {
   AbstractControl,
   FormArray,
@@ -18,7 +18,15 @@ import { RespostaLeituraFornecedor } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
-import { ContatoFornecedor, Fornecedor, TipoPessoa } from '../cadastros.models';
+import {
+  ContatoFornecedor,
+  DadosRecebimento,
+  Fornecedor,
+  TipoPessoa,
+  rotuloTipoPessoa,
+} from '../cadastros.models';
+import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
+import { valoresDistintos } from '../../../shared/filtros/filtros';
 
 const CHAVE = 'controleObra.fornecedores.v1';
 
@@ -45,7 +53,7 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-fornecedores',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   providers: [CadastroStore],
   templateUrl: './fornecedores.html',
   styleUrl: './fornecedores.scss',
@@ -60,6 +68,10 @@ export class Fornecedores implements OnInit {
 
   protected readonly formatarDocumento = formatarDocumento;
   protected readonly formatarTelefone = formatarTelefone;
+  protected readonly rotuloTipoPessoa = rotuloTipoPessoa;
+
+  /** Aba ativa no modal — "Dados de recebimento" é nova (19/08/2026, pedido do Lucas). */
+  protected readonly abaAtiva = signal<'geral' | 'recebimento'>('geral');
 
   // ---- Leitura de nota fiscal por foto (preenche o cadastro) ----
   protected readonly lendoNota = signal(false);
@@ -67,6 +79,7 @@ export class Fornecedores implements OnInit {
   private notaSelecionada: File | null = null;
 
   protected readonly formulario = this.fb.nonNullable.group({
+    codigo: [''],
     nome: ['', [Validators.required]],
     tipo: ['PF' as TipoPessoa],
     documento: ['', [documentoValido]],
@@ -74,6 +87,7 @@ export class Fornecedores implements OnInit {
     especialidade: [''],
     observacoes: [''],
     contatos: this.fb.array<ReturnType<typeof this.novoControleContato>>([]),
+    dadosRecebimento: this.fb.array<ReturnType<typeof this.novoControleRecebimento>>([]),
   });
 
   ngOnInit(): void {
@@ -81,6 +95,7 @@ export class Fornecedores implements OnInit {
       'nome',
       'especialidade',
       'documento',
+      'codigo',
     ]);
     this.store.carregar();
   }
@@ -88,9 +103,11 @@ export class Fornecedores implements OnInit {
   private normalizar(bruto: Record<string, unknown>): Fornecedor {
     const tipo = String(bruto['tipo'] ?? '').toUpperCase();
     const contatosBrutos = Array.isArray(bruto['contatos']) ? bruto['contatos'] : [];
+    const recebimentosBrutos = Array.isArray(bruto['dadosRecebimento']) ? bruto['dadosRecebimento'] : [];
 
     return {
       id: bruto['id'] ? String(bruto['id']) : gerarId(),
+      codigo: String(bruto['codigo'] ?? ''),
       nome: String(bruto['nome'] ?? ''),
       tipo: tipo === 'PJ' ? 'PJ' : 'PF',
       documento: apenasDigitos(bruto['documento']),
@@ -98,6 +115,7 @@ export class Fornecedores implements OnInit {
       especialidade: String(bruto['especialidade'] ?? ''),
       observacoes: String(bruto['observacoes'] ?? ''),
       contatos: contatosBrutos.map((c) => this.normalizarContato(c as Record<string, unknown>)),
+      dadosRecebimento: recebimentosBrutos.map((r) => this.normalizarRecebimento(r as Record<string, unknown>)),
       ativo: bruto['ativo'] !== false,
     };
   }
@@ -108,6 +126,69 @@ export class Fornecedores implements OnInit {
       nome: String(bruto['nome'] ?? ''),
       telefone: apenasDigitos(bruto['telefone']),
     };
+  }
+
+  private normalizarRecebimento(bruto: Record<string, unknown>): DadosRecebimento {
+    const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+    return {
+      id: bruto['id'] ? String(bruto['id']) : gerarId(),
+      tipo: tipo === 'PJ' ? 'PJ' : 'PF',
+      nomeTitular: String(bruto['nomeTitular'] ?? ''),
+      documento: apenasDigitos(bruto['documento']),
+      banco: String(bruto['banco'] ?? ''),
+      agencia: String(bruto['agencia'] ?? ''),
+      conta: String(bruto['conta'] ?? ''),
+      chavePix: String(bruto['chavePix'] ?? ''),
+    };
+  }
+
+  /**
+   * Código interno (ex.: "FORN-014") gerado pelo sistema — mesmo padrão
+   * do "CLI-NNN" dos Clientes (19/08/2026, pedido do Lucas).
+   */
+  private proximoCodigo(): string {
+    const maior = this.store.registros().reduce((max, fornecedor) => {
+      const combinacao = /^FORN-(\d+)$/.exec(fornecedor.codigo?.trim() ?? '');
+      const numero = combinacao ? Number(combinacao[1]) : 0;
+      return numero > max ? numero : max;
+    }, 0);
+    return `FORN-${String(maior + 1).padStart(3, '0')}`;
+  }
+
+  // ------------------------------------------------------------------
+  // Dados de recebimento (FormArray) — mais de um por cadastro
+  // (19/08/2026, pedido do Lucas).
+  // ------------------------------------------------------------------
+  private novoControleRecebimento(dados?: DadosRecebimento) {
+    return this.fb.nonNullable.group({
+      id: [dados?.id ?? gerarId()],
+      tipo: [(dados?.tipo ?? 'PF') as TipoPessoa],
+      nomeTitular: [dados?.nomeTitular ?? ''],
+      documento: [dados ? formatarDocumento(dados.documento) : ''],
+      banco: [dados?.banco ?? ''],
+      agencia: [dados?.agencia ?? ''],
+      conta: [dados?.conta ?? ''],
+      chavePix: [dados?.chavePix ?? ''],
+    });
+  }
+
+  protected get dadosRecebimento(): FormArray<ReturnType<typeof this.novoControleRecebimento>> {
+    return this.formulario.controls.dadosRecebimento;
+  }
+
+  protected adicionarRecebimento(): void {
+    this.dadosRecebimento.push(this.novoControleRecebimento());
+  }
+
+  protected removerRecebimento(indice: number): void {
+    this.dadosRecebimento.removeAt(indice);
+  }
+
+  protected mascararDocumentoRecebimento(indice: number, evento: Event): void {
+    const alvo = evento.target as HTMLInputElement;
+    const formatado = formatarDocumento(alvo.value);
+    alvo.value = formatado;
+    this.dadosRecebimento.at(indice).get('documento')?.setValue(formatado);
   }
 
   // ------------------------------------------------------------------
@@ -146,9 +227,11 @@ export class Fornecedores implements OnInit {
   protected novo(): void {
     this.editandoId.set(null);
     this.contatos.clear();
-    this.formulario.reset({ tipo: 'PF' });
+    this.dadosRecebimento.clear();
+    this.formulario.reset({ tipo: 'PF', codigo: this.proximoCodigo() });
     this.notaSelecionada = null;
     this.statusNota.set('');
+    this.abaAtiva.set('geral');
     this.formularioAberto.set(true);
   }
 
@@ -156,8 +239,11 @@ export class Fornecedores implements OnInit {
     this.editandoId.set(registro.id);
     this.contatos.clear();
     for (const contato of registro.contatos) this.contatos.push(this.novoControleContato(contato));
+    this.dadosRecebimento.clear();
+    for (const dados of registro.dadosRecebimento) this.dadosRecebimento.push(this.novoControleRecebimento(dados));
 
     this.formulario.reset({
+      codigo: registro.codigo,
       nome: registro.nome,
       tipo: registro.tipo,
       documento: formatarDocumento(registro.documento),
@@ -167,6 +253,7 @@ export class Fornecedores implements OnInit {
     });
     this.notaSelecionada = null;
     this.statusNota.set('');
+    this.abaAtiva.set('geral');
     this.formularioAberto.set(true);
   }
 
@@ -270,8 +357,22 @@ export class Fornecedores implements OnInit {
       .filter((c) => c.nome.trim() || c.telefone.trim())
       .map((c) => ({ id: c.id, nome: c.nome.trim(), telefone: apenasDigitos(c.telefone) }));
 
+    const dadosRecebimento: DadosRecebimento[] = valores.dadosRecebimento
+      .filter((r) => r.nomeTitular.trim() || r.documento.trim() || r.banco.trim() || r.chavePix.trim())
+      .map((r) => ({
+        id: r.id,
+        tipo: r.tipo,
+        nomeTitular: r.nomeTitular.trim(),
+        documento: apenasDigitos(r.documento),
+        banco: r.banco.trim(),
+        agencia: r.agencia.trim(),
+        conta: r.conta.trim(),
+        chavePix: r.chavePix.trim(),
+      }));
+
     this.store.gravar({
       id: id ?? '',
+      codigo: valores.codigo.trim() || this.proximoCodigo(),
       nome: valores.nome.trim(),
       tipo: valores.tipo,
       documento: apenasDigitos(valores.documento),
@@ -279,6 +380,7 @@ export class Fornecedores implements OnInit {
       especialidade: valores.especialidade.trim(),
       observacoes: valores.observacoes.trim(),
       contatos,
+      dadosRecebimento,
       ativo: id ? (this.store.obter(id)?.ativo ?? true) : true,
     });
 
@@ -317,5 +419,34 @@ export class Fornecedores implements OnInit {
     this.store.filtroAtivos.set(
       (evento.target as HTMLSelectElement).value as 'todos' | 'ativos' | 'inativos',
     );
+  }
+
+  protected readonly especialidadesDisponiveis = computed(() =>
+    valoresDistintos(this.store.registros(), (f) => f.especialidade),
+  );
+
+  private readonly filtroTipoAtual = signal<TipoPessoa | ''>('');
+  private readonly filtroEspecialidadeAtual = signal('');
+
+  private aplicarFiltroExtra(): void {
+    const tipo = this.filtroTipoAtual();
+    const especialidade = this.filtroEspecialidadeAtual();
+    if (!tipo && !especialidade) {
+      this.store.filtroExtra.set(null);
+      return;
+    }
+    this.store.filtroExtra.set(
+      (f) => (!tipo || f.tipo === tipo) && (!especialidade || f.especialidade === especialidade),
+    );
+  }
+
+  protected mudarFiltroTipo(evento: Event): void {
+    this.filtroTipoAtual.set((evento.target as HTMLSelectElement).value as TipoPessoa | '');
+    this.aplicarFiltroExtra();
+  }
+
+  protected mudarFiltroEspecialidade(evento: Event): void {
+    this.filtroEspecialidadeAtual.set((evento.target as HTMLSelectElement).value);
+    this.aplicarFiltroExtra();
   }
 }

@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-import { Obra, ObraPayload } from '../../../core/models/api.models';
+import { ChaveStatusObra, Obra, ObraPayload, STATUS_OBRA } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
 import { ArmazenamentoService } from '../../../core/services/armazenamento.service';
 import { Cliente, Responsavel } from '../../cadastros/cadastros.models';
@@ -18,7 +18,6 @@ const ABAS = [
   { caminho: 'medicoes', rotulo: 'Medições de Obra' },
   { caminho: 'empreitas', rotulo: 'Empreitas' },
   { caminho: 'mapas', rotulo: 'Mapas' },
-  { caminho: 'compras', rotulo: 'Compras' },
   { caminho: 'pagamentos', rotulo: 'Pagamentos' },
   { caminho: 'diarios', rotulo: 'Diários de Obra' },
   { caminho: 'relatorios', rotulo: 'Relatórios' },
@@ -75,6 +74,14 @@ export class ObraDetalhe implements OnInit {
   protected readonly clientesAtivos = signal<Cliente[]>([]);
   protected readonly responsaveisAtivos = signal<Responsavel[]>([]);
 
+  /**
+   * Editor de status movido pra cá (20/08/2026, pedido do Lucas): a
+   * troca inline na lista de Obras foi removida (a linha inteira virou
+   * clicável, sem dropdown nenhum na lista) — este cabeçalho, visível em
+   * todas as abas da obra, passa a ser o único lugar pra mudar o status.
+   */
+  protected readonly statusOpcoes = STATUS_OBRA;
+
   protected readonly formulario = this.fb.nonNullable.group({
     mapNumber: [''],
     obraNome: [''],
@@ -83,6 +90,7 @@ export class ObraDetalhe implements OnInit {
     dataBase: [''],
     localObra: [''],
     periodo: [''],
+    status: ['a_iniciar' as ChaveStatusObra],
     obs: [''],
   });
 
@@ -132,6 +140,7 @@ export class ObraDetalhe implements OnInit {
       dataBase: obra.data_base ?? '',
       localObra: obra.local_obra ?? '',
       periodo: obra.periodo ?? '',
+      status: obra.status ?? 'a_iniciar',
       obs: obra.obs ?? '',
     });
     if (obra.is_confirmed) this.formulario.disable();
@@ -170,7 +179,16 @@ export class ObraDetalhe implements OnInit {
 
   // ------------------------------------------------------------------
   protected editarCampo(
-    campo: 'mapNumber' | 'obraNome' | 'cliente' | 'responsavel' | 'dataBase' | 'localObra' | 'periodo' | 'obs',
+    campo:
+      | 'mapNumber'
+      | 'obraNome'
+      | 'cliente'
+      | 'responsavel'
+      | 'dataBase'
+      | 'localObra'
+      | 'periodo'
+      | 'status'
+      | 'obs',
     evento: Event,
   ): void {
     const valor = (evento.target as HTMLInputElement | HTMLSelectElement).value;
@@ -187,7 +205,7 @@ export class ObraDetalhe implements OnInit {
 
     // Payload completo (não parcial) — o backend já teve um efeito
     // colateral em PUTs parciais que apagavam campos não enviados (ver
-    // comentário em obras.ts#mudarStatusInline); manter essa defesa aqui.
+    // comentário em ObraController::validated()); manter essa defesa aqui.
     const payload: Partial<ObraPayload> = {
       map_number: v.mapNumber.trim() || null,
       obra_nome: v.obraNome.trim(),
@@ -203,7 +221,7 @@ export class ObraDetalhe implements OnInit {
       bdi_value: obraAtual.bdi_value ?? 0,
       is_confirmed: obraAtual.is_confirmed ?? false,
       confirmed_at: obraAtual.confirmed_at ?? null,
-      status: obraAtual.status ?? 'a_iniciar',
+      status: v.status,
     };
 
     this.api.atualizarObra(this.id(), payload).subscribe({
@@ -245,7 +263,7 @@ export class ObraDetalhe implements OnInit {
       bdi_value: obraAtual.bdi_value ?? 0,
       is_confirmed: vaiConfirmar,
       confirmed_at: vaiConfirmar ? new Date().toISOString() : null,
-      status: obraAtual.status ?? 'a_iniciar',
+      status: v.status,
     };
 
     this.api.atualizarObra(this.id(), payload).subscribe({

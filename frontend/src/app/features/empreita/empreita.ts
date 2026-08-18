@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, input } from '@angular/core';
 
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { ChaveTipo, ItemEap } from '../eap/eap.models';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
 import { EmpreitaStore } from './empreita.store';
@@ -22,7 +23,7 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreita } from './empreita.model
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela],
+  imports: [NavegacaoTabela, RedimensionarColunas],
   providers: [EmpreitaStore],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',

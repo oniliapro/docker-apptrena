@@ -29,39 +29,28 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Nº</th>
-            <th>Obra</th>
-            <th>Cliente</th>
-            <th>Responsável</th>
-            <th class="centro">Data base</th>
-            <th class="centro">Status</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('map_number')">Nº{{ setaOrdenacao(ordenacao(), 'map_number') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra_nome')">Obra{{ setaOrdenacao(ordenacao(), 'obra_nome') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('responsavel')">Responsável{{ setaOrdenacao(ordenacao(), 'responsavel') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('data_base')">Data base{{ setaOrdenacao(ordenacao(), 'data_base') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
             <th class="centro">EAP</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
           @for (obra of listaFiltrada(); track obra.id) {
-            <tr>
+            <tr class="linha-clicavel" (click)="acessar(obra)">
               <td class="centro">{{ obra.map_number || '—' }}</td>
               <td>{{ obra.obra_nome || '(sem nome)' }}</td>
               <td>{{ obra.cliente || '—' }}</td>
               <td>{{ obra.responsavel || '—' }}</td>
               <td class="centro">{{ formatarData(obra.data_base) || '—' }}</td>
-              <td class="centro">
-                <select
-                  class="select-status-inline"
-                  [value]="obra.status || 'a_iniciar'"
-                  (change)="mudarStatusInline(obra, $event)">
-                  @for (opcao of statusOpcoes; track opcao.chave) {
-                    <option [value]="opcao.chave" [selected]="opcao.chave === obra.status">
-                      {{ opcao.rotulo }}
-                    </option>
-                  }
-                </select>
-              </td>
+              <td class="centro">{{ rotuloStatusObra(obra.status) }}</td>
               <td class="centro">
                 @if (obra.is_confirmed) {
                   <span class="etiqueta confirmada">Confirmada</span>
@@ -70,8 +59,7 @@
                 }
               </td>
               <td class="centro acoes-linha">
-                <button type="button" (click)="acessar(obra)">Acessar obra</button>
-                <button type="button" title="Excluir" (click)="remover(obra)">✖</button>
+                <button type="button" title="Excluir" (click)="remover(obra, $event)">✖</button>
               </td>
             </tr>
           } @empty {
@@ -97,10 +85,21 @@
       </div>
 
       <div class="modal-corpo">
+        <datalist id="lista-clientes-obra">
+          @for (cliente of clientesAtivos(); track cliente.id) {
+            <option [value]="cliente.nome"></option>
+          }
+        </datalist>
+        <datalist id="lista-responsaveis-obra">
+          @for (responsavel of responsaveisAtivos(); track responsavel.id) {
+            <option [value]="responsavel.nome"></option>
+          }
+        </datalist>
+
         <div class="grade">
           <label class="campo">
-            <span>Código / nº do mapa</span>
-            <input type="text" formControlName="mapNumber" placeholder="Ex.: OBR-001" />
+            <span>Código</span>
+            <input type="text" formControlName="mapNumber" readonly class="somente-leitura" />
           </label>
 
           <label class="campo campo-largo">
@@ -112,16 +111,15 @@
           </label>
 
           <label class="campo campo-largo">
-            <span class="obrigatorio">Cliente</span>
-            <input type="text" formControlName="cliente" placeholder="Nome do cliente já cadastrado" />
-            @if (temErro('cliente')) {
-              <small class="erro-campo">Informe o cliente.</small>
-            }
+            <span>Cliente</span>
+            <input type="text" formControlName="cliente" list="lista-clientes-obra"
+                   placeholder="Buscar cliente cadastrado…" />
           </label>
 
           <label class="campo">
             <span>Responsável</span>
-            <input type="text" formControlName="responsavel" placeholder="Ex.: Eng. Paulo Reis" />
+            <input type="text" formControlName="responsavel" list="lista-responsaveis-obra"
+                   placeholder="Buscar responsável cadastrado…" />
           </label>
 
           <label class="campo">

@@ -1,0 +1,64 @@
+@let dados = item();
+
+<div
+  class="item"
+  [class.item-icone]="ehIcone()"
+  [class.item-lista]="!ehIcone()"
+  [attr.title]="dados.nome"
+  (dblclick)="abrir.emit()"
+>
+  <div class="item-visual">
+    @if (mostrarMiniatura()) {
+      <img class="miniatura" [src]="arquivo()!.thumbnail_url" [alt]="dados.nome" />
+    } @else if (ehAudioSemMiniatura()) {
+      <span class="icone-generico icone-audio-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l10-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="16" cy="16" r="3" /></svg>
+      </span>
+    } @else {
+      <span class="icone-generico" [class]="'icone-' + iconeGenerico()">
+        @switch (iconeGenerico()) {
+          @case ('pasta') {
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a1 1 0 0 1 1-1h6l2 2h8a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z" /></svg>
+          }
+          @case ('imagem') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5" /><circle cx="8.5" cy="9.5" r="1.7" /><path d="m3 17 5.5-5.5L13 16l3-3 5 5" /></svg>
+          }
+          @case ('video') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="5" width="14" height="14" rx="1.5" /><path d="m21 8-4.5 3 4.5 3V8Z" /></svg>
+          }
+          @case ('audio') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l10-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="16" cy="16" r="3" /></svg>
+          }
+          @case ('pdf') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v5h5" /><text x="7.5" y="17" font-size="6.5" fill="currentColor" stroke="none" font-weight="700">PDF</text></svg>
+          }
+          @case ('cad_bim') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="1.5" /><path d="M3 9h18M9 3v18" /></svg>
+          }
+          @case ('compactado') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v5h5" /><path d="M11 8v2m0 2v2m0 2v1" /></svg>
+          }
+          @default {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v5h5" /></svg>
+          }
+        }
+      </span>
+    }
+  </div>
+
+  <div class="item-info">
+    <span class="item-nome" (click)="abrir.emit()">{{ dados.nome }}</span>
+    @if (arquivo(); as arq) {
+      <span class="item-detalhe">{{ formatarTamanho(arq.tamanho_bytes) }}</span>
+    }
+  </div>
+
+  <div class="item-acoes">
+    @if (arquivo()) {
+      <button type="button" title="Baixar" (click)="baixar.emit()">⭳</button>
+    }
+    <button type="button" title="Mover" (click)="mover.emit()">⇄</button>
+    <button type="button" title="Renomear" (click)="renomear.emit()">✎</button>
+    <button type="button" title="Excluir" (click)="excluir.emit()">✖</button>
+  </div>
+</div>

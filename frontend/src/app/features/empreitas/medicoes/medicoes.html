@@ -15,7 +15,7 @@
 } @else {
 
   <div class="painel">
-    <table class="tabela-info">
+    <table class="tabela-info" trenaRedimensionarColunas>
       <tbody>
         <tr><th>Obra</th><td>{{ campo('obraNumber') }}</td></tr>
         <tr><th>Nº da empreita</th><td>{{ campo('numeroEmpreita') }}</td></tr>
@@ -26,7 +26,7 @@
 
   <div class="painel sem-preenchimento">
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
             <th class="centro">Data</th>

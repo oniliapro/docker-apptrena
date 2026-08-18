@@ -177,7 +177,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
-.zebra td { background: #fafaf8; }
+.zebra td { background: var(--cor-zebra); }
 .vazio { padding: 34px 16px; }
 
 // A reserva discricionária é o diferencial do produto — recebe destaque

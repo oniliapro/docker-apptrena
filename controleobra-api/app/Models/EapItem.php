@@ -17,12 +17,13 @@ class EapItem extends Model
     protected $table = 'eap_itens';
 
     protected $fillable = [
-        'id', 'obra_id', 'ordem', 'is_group', 'codigo_eap', 'descricao',
+        'id', 'obra_id', 'ordem', 'is_group', 'nivel', 'codigo_eap', 'descricao',
         'quantidade', 'unidade', 'bdi_mode', 'bdi_percent', 'bdi_value',
     ];
 
     protected $casts = [
         'is_group' => 'boolean',
+        'nivel' => 'integer',
         'quantidade' => 'float',
         'bdi_percent' => 'float',
         'bdi_value' => 'float',
@@ -36,5 +37,10 @@ class EapItem extends Model
     public function custosPorTipo(): HasMany
     {
         return $this->hasMany(EapItemCusto::class);
+    }
+
+    public function orcadosCongelados(): HasMany
+    {
+        return $this->hasMany(EapItemOrcadoCongelado::class);
     }
 }

@@ -16,6 +16,9 @@
         Valor desembolsado por item da EAP, mês a mês — só pagamentos já confirmados entram na conta.
       </div>
     </div>
+    <button type="button" (click)="alternarTodosOsColapsos()">
+      {{ existeGrupoColapsado() ? '⊞ Expandir tudo' : '⊟ Recolher tudo' }}
+    </button>
   </div>
 
   @if (periodos().length === 0) {
@@ -27,7 +30,7 @@
   } @else {
     <div class="painel sem-preenchimento">
       <div class="envoltoria">
-        <table class="tabela-cronograma">
+        <table class="tabela-cronograma" trenaRedimensionarColunas>
           <thead>
             <tr>
               <th class="col-eap">Item da EAP</th>
@@ -39,15 +42,26 @@
             </tr>
           </thead>
           <tbody>
-            @for (linha of linhas(); track linha.item.id) {
-              <tr [class.linha-grupo]="linha.item.isGroup">
-                <td class="col-eap">{{ rotuloEap(linha.item) }}</td>
+            @for (linha of linhas(); track linha.item.id; let i = $index) {
+              @if (!itensOcultos().has(linha.item.id)) {
+              <tr [class.linha-grupo]="linha.item.isGroup" [class.zebra]="!linha.item.isGroup && i % 2 === 1">
+                <td class="col-eap celula-eap">
+                  @if (linha.item.isGroup) {
+                    <button type="button" class="botao-colapsar" [style.left.px]="recuo(linha.item) * 14"
+                            [title]="estaColapsado(linha.item) ? 'Expandir' : 'Recolher'"
+                            (click)="alternarColapso(linha.item)">
+                      {{ estaColapsado(linha.item) ? '+' : '−' }}
+                    </button>
+                  }
+                  <span [style.padding-left.px]="recuo(linha.item) * 14 + (linha.item.isGroup ? 15 : 0)">{{ rotuloEap(linha.item) }}</span>
+                </td>
                 <td class="valor valor-orc">{{ valorOuTraco(linha.orcado) }}</td>
                 @for (periodo of periodos(); track periodo.chave) {
                   <td class="valor">{{ valorOuTraco(linha.porPeriodo[periodo.chave] ?? 0) }}</td>
                 }
                 <td class="valor valor-real total-realizado">{{ valorOuTraco(linha.totalRealizado) }}</td>
               </tr>
+              }
             } @empty {
               <tr>
                 <td [attr.colspan]="periodos().length + 3" class="centro atenuado">

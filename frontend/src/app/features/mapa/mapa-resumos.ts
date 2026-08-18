@@ -145,36 +145,3 @@ export function redistribuirPercentuaisPorEtapa(
 
   return resultado;
 }
-
-/**
- * Divide o frete particular entre os fornecedores, proporcional ao valor
- * comprado de cada um.
- *
- * Aqui não há travas: o frete particular é um custo único da compra, e a
- * divisão proporcional é a leitura natural. Sem base, divide igualmente.
- *
- * @returns novo mapa índice do fornecedor → percentual
- */
-export function redistribuirFreteParticular(
-  fornecedoresUsados: number[],
-  basePorFornecedor: Record<number, number>,
-): Record<number, number> {
-  const resultado: Record<number, number> = {};
-
-  const ativos = fornecedoresUsados.filter((si) => (basePorFornecedor[si] || 0) > 0);
-  if (!ativos.length) return resultado;
-
-  const somaBase = ativos.reduce((acc, si) => acc + (basePorFornecedor[si] || 0), 0);
-
-  if (somaBase <= 0) {
-    const cada = 100 / ativos.length;
-    for (const si of ativos) resultado[si] = cada;
-    return resultado;
-  }
-
-  for (const si of ativos) {
-    resultado[si] = ((Number(basePorFornecedor[si]) || 0) / somaBase) * 100;
-  }
-
-  return resultado;
-}

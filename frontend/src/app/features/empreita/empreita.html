@@ -96,6 +96,7 @@
   <div class="envoltoria painel sem-preenchimento">
     <table class="tabela-empreita"
            trenaNavegacaoTabela
+           trenaRedimensionarColunas
            (inserirLinha)="inserirLinha()"
            (removerLinha)="removerPorIndice($event)">
       <thead>
@@ -319,7 +320,7 @@
 
       <div class="painel">
         <div class="painel-titulo">Contrato x orçado</div>
-        <table class="tabela-resumo">
+        <table class="tabela-resumo" trenaRedimensionarColunas>
           <thead>
             <tr>
               <th>Serviço</th>

@@ -71,6 +71,15 @@
                  (change)="editarCampo('periodo', $event)" />
         </label>
 
+        <label class="campo">
+          <span>Status</span>
+          <select formControlName="status" (change)="editarCampo('status', $event)">
+            @for (opcao of statusOpcoes; track opcao.chave) {
+              <option [value]="opcao.chave">{{ opcao.rotulo }}</option>
+            }
+          </select>
+        </label>
+
         <label class="campo campo-largo">
           <span>Observações</span>
           <input type="text" formControlName="obs" (change)="editarCampo('obs', $event)" />

@@ -110,7 +110,7 @@ class ObraController extends Controller
     public function showEap(Obra $obra)
     {
         $tipos = TipoCusto::orderBy('ordem')->pluck('chave')->all();
-        $obra->load(['bdiPorTipo', 'uiConfig', 'tiposVisiveis', 'eapItens.custosPorTipo']);
+        $obra->load(['bdiPorTipo', 'uiConfig', 'tiposVisiveis', 'eapItens.custosPorTipo', 'eapItens.orcadosCongelados']);
 
         $bdiByType = [];
         foreach ($tipos as $chave) {
@@ -137,9 +137,22 @@ class ObraController extends Controller
                 $unit[$chave] = (float) ($custo->valor_unitario ?? 0);
             }
 
+            // Ausência de qualquer linha em orcadosCongelados = item nunca
+            // confirmado (ou EAP reaberta depois) — Orçado continua ao vivo.
+            $orcadoCongelado = null;
+            if ($item->orcadosCongelados->isNotEmpty()) {
+                $orcadoCongelado = [];
+                foreach ($tipos as $chave) {
+                    $tipoId = TipoCusto::where('chave', $chave)->value('id');
+                    $congelado = $item->orcadosCongelados->firstWhere('tipo_custo_id', $tipoId);
+                    $orcadoCongelado[$chave] = (float) ($congelado->valor ?? 0);
+                }
+            }
+
             return [
                 'id' => $item->id,
                 'isGroup' => (bool) $item->is_group,
+                'nivel' => (int) $item->nivel,
                 'eap' => $item->codigo_eap,
                 'desc' => $item->descricao,
                 'qtde' => (float) $item->quantidade,
@@ -148,6 +161,7 @@ class ObraController extends Controller
                 'bdiMode' => $item->bdi_mode,
                 'bdiPercent' => (float) $item->bdi_percent,
                 'bdiValue' => (float) $item->bdi_value,
+                'orcadoCongelado' => $orcadoCongelado,
             ];
         })->values();
 
@@ -260,6 +274,7 @@ class ObraController extends Controller
                         'obra_id' => $obra->id,
                         'ordem' => $ordem,
                         'is_group' => $raw['isGroup'] ?? false,
+                        'nivel' => $raw['nivel'] ?? 0,
                         'codigo_eap' => $raw['eap'] ?? '',
                         'descricao' => $raw['desc'] ?? '',
                         'quantidade' => $raw['qtde'] ?? 0,
@@ -276,6 +291,21 @@ class ObraController extends Controller
                         ['tipo_custo_id' => $tipoIds[$chave]],
                         ['valor_unitario' => $valor]
                     );
+                }
+
+                // Orçado congelado: presente (não-null) => grava/atualiza o
+                // snapshot; ausente => apaga (item foi reaberto/nunca
+                // confirmado, volta a recalcular ao vivo).
+                if (isset($raw['orcadoCongelado']) && is_array($raw['orcadoCongelado'])) {
+                    foreach ($raw['orcadoCongelado'] as $chave => $valor) {
+                        if (!isset($tipoIds[$chave])) continue;
+                        $item->orcadosCongelados()->updateOrCreate(
+                            ['tipo_custo_id' => $tipoIds[$chave]],
+                            ['valor' => $valor]
+                        );
+                    }
+                } else {
+                    $item->orcadosCongelados()->delete();
                 }
             }
 

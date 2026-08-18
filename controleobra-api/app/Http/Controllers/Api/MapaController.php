@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Mapa;
 use App\Models\MapaFornecedor;
 use App\Models\MapaItem;
+use App\Models\Obra;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -52,6 +53,28 @@ class MapaController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * Código interno único do mapa — "MAPA-{código da obra}-{nº do
+     * mapa}" (21/08/2026, pedido do Lucas — antes era "MAPA-NNN"
+     * sequencial no sistema inteiro, sem nenhuma relação com a obra).
+     * Só é gerado na criação, nunca reescrito depois (ver chamada
+     * abaixo). A composição já garante unicidade sozinha — o código da
+     * obra é único (`obras.map_number` tem UNIQUE) e o nº do mapa é
+     * único dentro da obra (`MapasObra`/`MapaStore.duplicar()` sempre
+     * geram o próximo sequencial da obra) — mas a coluna `codigo`
+     * continua com UNIQUE no banco como rede de segurança final: se duas
+     * requisições concorrentes gerarem o mesmo nº pro mesmo mapa, o
+     * segundo INSERT falha em vez de duplicar o código silenciosamente.
+     */
+    private function gerarCodigo(?string $obraId, string $numeroMapa): string
+    {
+        $codigoObra = $obraId ? Obra::find($obraId)?->map_number : null;
+        $codigoObra = $codigoObra ?: 'SEMOBRA';
+        $numero = $numeroMapa !== '' ? $numeroMapa : '00';
+
+        return "MAPA-{$codigoObra}-{$numero}";
+    }
+
     private function syncCompleto(Request $request, Mapa $mapa)
     {
         $data = $request->validate([
@@ -64,18 +87,28 @@ class MapaController extends Controller
             'data_finalizacao' => 'nullable|date',
             'data_necessidade' => 'nullable|date',
             'frete_particular' => 'nullable|numeric',
+            'freteiro_particular' => 'nullable|string|max:120',
+            'lancar_frete_como_item' => 'nullable|boolean',
+            'frete_etapa_id' => 'nullable|string|exists:eap_itens,id',
+            'frete_categoria_tipo' => 'nullable|string|in:material,maoDeObra,equipamento,outros,administracao',
             'modo_manual' => 'nullable|boolean',
             'is_confirmed' => 'nullable|boolean',
             'confirmed_at' => 'nullable|date',
+            'ultima_finalizacao_em' => 'nullable|date',
             'total_mapa' => 'nullable|numeric',
             'fornecedores' => 'nullable|array',
             'itens' => 'nullable|array',
         ]);
 
         DB::transaction(function () use ($data, $mapa, $request) {
+            $ehNovo = !$mapa->exists;
+            $obraIdFinal = $data['obra_id'] ?? $mapa->obra_id;
+            $numeroMapaFinal = $data['numero_mapa'] ?? '';
+
             $mapa->fill([
-                'obra_id' => $data['obra_id'] ?? $mapa->obra_id,
-                'numero_mapa' => $data['numero_mapa'] ?? '',
+                'codigo' => $ehNovo ? $this->gerarCodigo($obraIdFinal, $numeroMapaFinal) : $mapa->codigo,
+                'obra_id' => $obraIdFinal,
+                'numero_mapa' => $numeroMapaFinal,
                 'descricao' => $data['descricao'] ?? '',
                 'cliente' => $data['cliente'] ?? '',
                 'responsavel_mapa' => $data['responsavel_mapa'] ?? '',
@@ -83,9 +116,24 @@ class MapaController extends Controller
                 'data_finalizacao' => $data['data_finalizacao'] ?? null,
                 'data_necessidade' => $data['data_necessidade'] ?? null,
                 'frete_particular' => $data['frete_particular'] ?? 0,
+                'freteiro_particular' => $data['freteiro_particular'] ?? null,
+                'lancar_frete_como_item' => $data['lancar_frete_como_item'] ?? true,
+                'frete_etapa_id' => $data['frete_etapa_id'] ?? null,
+                'frete_categoria_tipo' => $data['frete_categoria_tipo'] ?? null,
                 'modo_manual' => $data['modo_manual'] ?? false,
                 'is_confirmed' => $data['is_confirmed'] ?? $mapa->is_confirmed ?? false,
-                'confirmed_at' => $data['confirmed_at'] ?? $mapa->confirmed_at ?? null,
+                // "Finalização do mapa" trava na PRIMEIRA finalização e nunca
+                // mais muda (20/08/2026, pedido do Lucas — antes era
+                // regravada a cada "Finalizar mapa", perdendo a data
+                // original sempre que o mapa era reaberto e finalizado de
+                // novo). Por isso a ordem aqui é invertida em relação aos
+                // outros campos: só aceita o valor do payload enquanto
+                // `$mapa->confirmed_at` ainda não existe.
+                'confirmed_at' => $mapa->confirmed_at ?? ($data['confirmed_at'] ?? null),
+                // "Última edição" é o par que acompanha toda finalização
+                // (inclusive a primeira) — grava livremente o que vier do
+                // frontend, sem a trava acima.
+                'ultima_finalizacao_em' => $data['ultima_finalizacao_em'] ?? $mapa->ultima_finalizacao_em,
                 'total_mapa' => $data['total_mapa'] ?? 0,
             ]);
             $mapa->save();

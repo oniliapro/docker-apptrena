@@ -91,6 +91,25 @@ export class AppShell {
   /** Ids dos grupos expandidos. Cadastros já abre aberto. */
   protected readonly gruposAbertos = signal<Set<string>>(new Set(['cadastros']));
 
+  /**
+   * Id do grupo com o popup flutuante aberto — só existe com a barra
+   * lateral recolhida (20/08/2026, pedido do Lucas). Recolhida, o
+   * submenu inline vira `display:none` (não tem espaço pro texto), então
+   * clicar em "Cadastros" não mostrava nada; agora abre um popup ao lado
+   * do ícone com as subopções por extenso. Null = nenhum popup aberto.
+   */
+  protected readonly popupGrupoAberto = signal<string | null>(null);
+
+  /**
+   * Posição vertical (viewport) do popup — `.nav` tem `overflow-y: auto`,
+   * o que faz o navegador também clipar overflow-x (regra do CSS: um dos
+   * eixos não-"visible" força o outro a "auto"), cortando um popup
+   * `position: absolute` que tentasse escapar pela lateral. `position:
+   * fixed` não sofre esse corte, mas precisa da posição calculada na
+   * hora do clique.
+   */
+  protected readonly popupGrupoTopoPx = signal(0);
+
   /** Nome da empresa para a trilha; cai para um rótulo genérico. */
   protected readonly empresa = computed(() => nomeDaEmpresa(this.usuario()) || 'Construtora');
 
@@ -111,12 +130,16 @@ export class AppShell {
       texto: 'Cadastros',
       filhos: [
         { rota: '/clientes', texto: 'Clientes' },
-        { rota: '/obras', texto: 'Obras' },
         { rota: '/responsaveis', texto: 'Responsáveis' },
         { rota: '/empreiteiros', texto: 'Empreiteiros' },
         { rota: '/fornecedores', texto: 'Fornecedores' },
       ],
     },
+    // Fora de Cadastros (19/08/2026, pedido do Lucas) — Obras é o ponto de
+    // entrada mais usado do sistema (todo o resto vive dentro de uma
+    // obra), não faz sentido ficar escondido num submenu que precisa
+    // abrir primeiro.
+    { id: 'obras', rota: '/obras', icone: 'predio', texto: 'Obras' },
     { id: 'mapas', rota: '/mapas', icone: 'camadas', texto: 'Mapas' },
     { id: 'empreitas', rota: '/empreitas', icone: 'ferramenta', texto: 'Empreitas' },
     { id: 'pagamentos', rota: '/pagamentos', icone: 'moeda', texto: 'Pagamentos' },
@@ -130,6 +153,21 @@ export class AppShell {
 
   protected alternarGrupo(id: string, evento: Event): void {
     evento.stopPropagation();
+
+    // Barra recolhida: não tem como expandir inline (o submenu fica
+    // escondido, sem espaço pro texto) — abre num popup ao lado do
+    // ícone, em vez do `gruposAbertos` normal.
+    if (this.recolhida()) {
+      if (this.popupGrupoAberto() === id) {
+        this.popupGrupoAberto.set(null);
+        return;
+      }
+      const alvo = evento.currentTarget as HTMLElement;
+      this.popupGrupoTopoPx.set(alvo.getBoundingClientRect().top);
+      this.popupGrupoAberto.set(id);
+      return;
+    }
+
     this.gruposAbertos.update((atual) => {
       const novo = new Set(atual);
       if (novo.has(id)) novo.delete(id);
@@ -153,6 +191,7 @@ export class AppShell {
   protected fecharMenus(): void {
     if (this.menuUsuarioAberto()) this.menuUsuarioAberto.set(false);
     if (this.menuLancarAberto()) this.menuLancarAberto.set(false);
+    if (this.popupGrupoAberto()) this.popupGrupoAberto.set(null);
   }
 
   protected alternarMenuUsuario(evento: Event): void {

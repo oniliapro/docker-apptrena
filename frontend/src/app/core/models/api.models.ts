@@ -97,6 +97,8 @@ export interface EapPayload {
 export interface EapItem {
   id?: string;
   isGroup: boolean;
+  /** Nível hierárquico (1-4) escolhido pelo usuário — ver `ItemEap.nivel`. */
+  nivel?: number;
   eap: string;
   desc: string;
   qtde: number;
@@ -105,6 +107,8 @@ export interface EapItem {
   bdiMode?: ModoBdi;
   bdiPercent?: number;
   bdiValue?: number;
+  /** Snapshot do Orçado por categoria, gravado na confirmação — ver `ItemEap.orcadoCongelado`. */
+  orcadoCongelado?: Partial<Record<ChaveTipoCusto, number>> | null;
   [extra: string]: unknown;
 }
 
