@@ -38,7 +38,18 @@ const abasDaObra: Routes = [
         (m) => m.CronogramaDesembolso,
       ),
   },
-  reservada('medicoes', 'Medições de Obra'),
+  {
+    // Lista de medições desta obra (23/08/2026, pedido do Lucas — mesmo
+    // padrão de mapas/empreitas: lista + editor em rotas irmãs).
+    path: 'medicoes',
+    data: { titulo: 'Medições da obra' },
+    loadComponent: () => import('./features/medicoes/medicoes-obra').then((m) => m.MedicoesObra),
+  },
+  {
+    path: 'medicoes/:medicaoId',
+    data: { titulo: 'Medição' },
+    loadComponent: () => import('./features/medicoes/medicao').then((m) => m.Medicao),
+  },
   {
     // Lista de empreitas desta obra (uma obra pode ter várias — task
     // "várias por obra", 31/07/2026). O editor de uma empreita
@@ -90,6 +101,58 @@ export const routes: Routes = [
   {
     path: 'cadastro',
     loadComponent: () => import('./features/auth/cadastro/cadastro').then((m) => m.Cadastro),
+  },
+  {
+    // Versão "para imprimir" do relatório Orçado x Realizado — SEM o
+    // AppShell (nada de menu lateral/cabeçalho) e SEM o authGuard
+    // (22/08/2026). Existe só para ser aberta pelo Chromium headless que
+    // o backend controla (RelatorioPdfController, via Browsershot) na
+    // geração do PDF — a autenticação vem de um token de vida curta na
+    // query string (`?token=...`), lido por RelatoriosImprimir e
+    // aplicado via AuthService.definirTokenParaImpressao. Não é uma tela
+    // pensada para uso manual: um humano abrindo esta URL sem o token
+    // certo só veria erros 401 da API, como qualquer sessão não
+    // autenticada.
+    path: 'imprimir/obras/:id/relatorios',
+    loadComponent: () =>
+      import('./features/relatorios/relatorios-imprimir').then((m) => m.RelatoriosImprimir),
+  },
+  {
+    // Versão "para imprimir" do Mapa de Fornecedores (22/08/2026) — mesma
+    // ideia da rota de relatórios acima: sem AppShell, sem authGuard,
+    // autenticada só pelo token de vida curta na query string. Ver
+    // MapaPdfController/MapaImprimir e docs/GERAR-PDF.md.
+    path: 'imprimir/obras/:id/mapas/:mapaId',
+    loadComponent: () => import('./features/mapa/mapa-imprimir').then((m) => m.MapaImprimir),
+  },
+  {
+    // Versão "para imprimir" do Cronograma de Desembolso (23/08/2026) —
+    // mesma ideia das rotas acima. Ver CronogramaPdfController.
+    path: 'imprimir/obras/:id/desembolso',
+    loadComponent: () =>
+      import('./features/cronograma-desembolso/cronograma-desembolso-imprimir').then(
+        (m) => m.CronogramaDesembolsoImprimir,
+      ),
+  },
+  {
+    // Versão "para imprimir" da EAP (23/08/2026) — mesma ideia das rotas
+    // acima. Ver EapPdfController.
+    path: 'imprimir/obras/:id/eap',
+    loadComponent: () => import('./features/eap/eap-imprimir').then((m) => m.EapImprimir),
+  },
+  {
+    // Versão "para imprimir" da Empreita (23/08/2026) — mesma ideia das
+    // rotas acima. Ver EmpreitaPdfController.
+    path: 'imprimir/obras/:id/empreitas/:empreitaId',
+    loadComponent: () =>
+      import('./features/empreita/empreita-imprimir').then((m) => m.EmpreitaImprimir),
+  },
+  {
+    // Versão "para imprimir" de uma Medição (24/08/2026) — mesma ideia das
+    // rotas acima. Ver MedicaoPdfController.
+    path: 'imprimir/obras/:id/medicoes/:medicaoId',
+    loadComponent: () =>
+      import('./features/medicoes/medicao-imprimir').then((m) => m.MedicaoImprimir),
   },
   {
     path: '',

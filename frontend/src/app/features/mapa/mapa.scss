@@ -124,8 +124,10 @@ button:disabled {
 // abaixo) funcionar de verdade, porque `overflow-x: auto` (herdado do
 // `.envoltoria` global, pra rolar quando uma coluna redimensionada não
 // cabe) por si só já impede `position: sticky` de grudar na janela.
+// Altura aumentada de 260px pra 180px em 23/08/2026 (mesmo pedido/motivo
+// da EAP — ver `eap.scss`).
 .envoltoria.sem-preenchimento {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
 

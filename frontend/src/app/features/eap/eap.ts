@@ -5,6 +5,8 @@ import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela'
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
 
+import { ApiService } from '../../core/services/api.service';
+import { Obra } from '../../core/models/api.models';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import {
   EstadoOrdenacao,
@@ -17,6 +19,7 @@ import { expandirItensPagamento, parsearBR } from '../pagamentos/pagamentos-calc
 import { ItemPagamentoCalculado } from '../pagamentos/pagamentos.models';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { ehDescendente } from './eap-engine';
+import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
 import { EapStore } from './eap.store';
 import {
@@ -48,6 +51,11 @@ import {
 })
 export class Eap implements OnInit {
   protected readonly store = inject(EapStore);
+  private readonly api = inject(ApiService);
+
+  /** Estado do botão "Baixar PDF" (23/08/2026) — ver EapPdfController. */
+  protected readonly gerandoPdf = signal(false);
+  protected readonly erroPdf = signal<string | null>(null);
 
   /**
    * Só para ler os pagamentos da obra e calcular o "Realizado" por item
@@ -382,6 +390,151 @@ export class Eap implements OnInit {
     this.store.limpar();
   }
 
+  /**
+   * Baixa o PDF da EAP (23/08/2026) — ver EapPdfController/eap-imprimir.ts.
+   * Mesmo padrão de `Mapa.baixarPdf()`.
+   */
+  protected baixarPdf(): void {
+    this.erroPdf.set(null);
+    this.gerandoPdf.set(true);
+
+    this.api.baixarEapPdf(this.obraId()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `eap-${this.obraId()}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoPdf.set(false);
+      },
+      error: () => {
+        this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoPdf.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Importação de planilha Excel (23/08/2026, pedido do Lucas) — ver
+  // eap-importar.ts pra análise/geração da planilha; a hierarquia
+  // (nível → código EAP → quem é grupo) só se resolve de verdade dentro
+  // de `EapStore.importarItens`, que roda `aplicarNumeracaoAutomatica`
+  // sobre a lista combinada.
+  // ------------------------------------------------------------------
+  protected readonly mostrarModalImportar = signal(false);
+  protected readonly resultadoImportacao = signal<ResultadoImportacao | null>(null);
+
+  protected abrirModalImportar(): void {
+    this.resultadoImportacao.set(null);
+    this.mostrarModalImportar.set(true);
+  }
+
+  protected fecharModalImportar(): void {
+    this.mostrarModalImportar.set(false);
+    this.resultadoImportacao.set(null);
+  }
+
+  protected async baixarModeloXlsx(): Promise<void> {
+    await gerarModeloXlsx();
+  }
+
+  protected async selecionarArquivo(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+    if (!arquivo) return;
+
+    const dados = await arquivo.arrayBuffer();
+    this.resultadoImportacao.set(await analisarPlanilha(dados));
+    // Limpa o input — sem isso, escolher o MESMO arquivo de novo (depois
+    // de corrigir e salvar por cima) não dispara outro `change`.
+    input.value = '';
+  }
+
+  protected confirmarImportacao(modo: 'adicionar' | 'substituir'): void {
+    const resultado = this.resultadoImportacao();
+    if (!resultado || resultado.erros.length || !resultado.itens.length) return;
+    this.store.importarItens(resultado.itens, modo);
+    this.fecharModalImportar();
+  }
+
+  // ------------------------------------------------------------------
+  // Copiar EAP de outra obra (23/08/2026, pedido do Lucas) — busca a EAP
+  // de uma obra escolhida num popup e substitui a EAP atual por ela.
+  // Nenhum endpoint novo: `GET obras/{id}/eap` (`ApiService.obterEap`)
+  // já traz os dados de qualquer obra, e a clonagem em si é só chamar o
+  // mesmo `EapStore.clonarDeOutraObra` que faz o merge certo (cabeçalho
+  // de orçamento vem de lá, identidade da obra atual fica intacta).
+  // ------------------------------------------------------------------
+  protected readonly mostrarModalCopiarEap = signal(false);
+  protected readonly buscaCopiarEap = signal('');
+  protected readonly obrasParaCopiar = signal<Obra[]>([]);
+  protected readonly carregandoObrasParaCopiar = signal(false);
+  protected readonly copiandoEap = signal(false);
+  protected readonly erroCopiarEap = signal<string | null>(null);
+
+  protected readonly obrasFiltradasParaCopiar = computed(() => {
+    const termo = this.buscaCopiarEap().trim().toLowerCase();
+    const lista = this.obrasParaCopiar().filter((obra) => obra.id !== this.obraId());
+    if (!termo) return lista;
+
+    return lista.filter((obra) =>
+      [obra.obra_nome, obra.cliente, obra.map_number].join(' ').toLowerCase().includes(termo),
+    );
+  });
+
+  protected abrirModalCopiarEap(): void {
+    this.erroCopiarEap.set(null);
+    this.buscaCopiarEap.set('');
+    this.mostrarModalCopiarEap.set(true);
+    this.carregandoObrasParaCopiar.set(true);
+
+    this.api.listarObras().subscribe({
+      next: (obras) => {
+        this.obrasParaCopiar.set(obras);
+        this.carregandoObrasParaCopiar.set(false);
+      },
+      error: () => {
+        this.erroCopiarEap.set('Não foi possível carregar a lista de obras.');
+        this.carregandoObrasParaCopiar.set(false);
+      },
+    });
+  }
+
+  protected fecharModalCopiarEap(): void {
+    this.mostrarModalCopiarEap.set(false);
+  }
+
+  protected mudarBuscaCopiarEap(evento: Event): void {
+    this.buscaCopiarEap.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected copiarEapDe(obraOrigem: Obra): void {
+    const nomeOrigem = obraOrigem.obra_nome || 'sem nome';
+    if (
+      !window.confirm(
+        `Copiar a EAP de "${nomeOrigem}" substitui TODOS os itens e a configuração de BDI da EAP atual. Continuar?`,
+      )
+    ) {
+      return;
+    }
+
+    this.copiandoEap.set(true);
+    this.erroCopiarEap.set(null);
+
+    this.api.obterEap(obraOrigem.id).subscribe({
+      next: (payload) => {
+        this.store.clonarDeOutraObra(payload.header, payload.eapItems);
+        this.copiandoEap.set(false);
+        this.fecharModalCopiarEap();
+      },
+      error: () => {
+        this.erroCopiarEap.set('Não foi possível carregar a EAP da obra escolhida.');
+        this.copiandoEap.set(false);
+      },
+    });
+  }
+
   // ------------------------------------------------------------------
   // Leitura de valores calculados
   // ------------------------------------------------------------------
@@ -599,6 +752,36 @@ export class Eap implements OnInit {
   protected realizadoSemCategoria(item: ItemEap): number {
     const mapa = this.realizadoPorItemSemCategoria();
     return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id) ?? 0), 0);
+  }
+
+  // ------------------------------------------------------------------
+  // Saldo (orçado − realizado) — modo alternativo de exibição da EAP
+  // confirmada (23/08/2026, pedido do Lucas: ver de relance se uma etapa
+  // vai estourar o planejamento, sem ter que calcular a diferença de
+  // cabeça a partir do Real./Orç. empilhados). Não é uma fonte de cálculo
+  // nova — só reaproveita os mesmos números que a tela já calcula acima.
+  // ------------------------------------------------------------------
+  protected saldoDoItemTipo(indice: number, item: ItemEap, tipo: ChaveTipo): number {
+    return this.orcadoDoItemTipo(indice, item, tipo) - this.realizadoDoItemTipo(item, tipo);
+  }
+
+  protected saldoDoItem(indice: number, item: ItemEap): number {
+    return this.orcadoDoItem(indice, item) - this.realizadoDoItem(item);
+  }
+
+  protected readonly saldoTotalPorTipo = computed(() => {
+    const orcado = this.totalOrcadoPorTipo();
+    const realizado = this.totalRealizadoPorTipoGeral();
+    const totais = criarVazioPorTipo();
+    for (const tipo of TIPOS_CUSTO) totais[tipo.chave] = orcado[tipo.chave] - realizado[tipo.chave];
+    return totais;
+  });
+
+  protected readonly saldoTotalGeral = computed(() => this.totalOrcado() - this.totalRealizadoGeral());
+
+  protected alternarModoTotais(): void {
+    const atual = this.store.ui().modoTotais;
+    this.store.atualizarUi('modoTotais', atual === 'saldo' ? 'detalhado' : 'saldo');
   }
 
   // ------------------------------------------------------------------

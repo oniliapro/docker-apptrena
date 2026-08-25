@@ -79,6 +79,7 @@ class ObraController extends Controller
             'obra_nome' => 'nullable|string|max:180',
             'cliente' => 'nullable|string|max:120',
             'data_base' => 'nullable|date',
+            'prazo_meses' => 'nullable|integer|min:1|max:600',
             'responsavel' => 'nullable|string|max:120',
             'local_obra' => 'nullable|string|max:180',
             'periodo' => 'nullable|string|max:80',

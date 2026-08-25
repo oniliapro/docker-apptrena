@@ -19,10 +19,10 @@ class PagamentoItem extends Model
 
     protected $fillable = [
         'id', 'pagamento_id', 'ordem', 'descricao', 'tipo_custo_id', 'eap_item_id',
-        'valor', 'modo_valor',
+        'valor', 'modo_valor', 'parcela_empreita', 'empreita_item_id', 'valor_referencia',
     ];
 
-    protected $casts = ['valor' => 'float'];
+    protected $casts = ['valor' => 'float', 'valor_referencia' => 'float'];
 
     public function pagamento(): BelongsTo
     {
@@ -37,5 +37,10 @@ class PagamentoItem extends Model
     public function eapItem(): BelongsTo
     {
         return $this->belongsTo(EapItem::class);
+    }
+
+    public function empreitaItem(): BelongsTo
+    {
+        return $this->belongsTo(EmpreitaItem::class);
     }
 }

@@ -17,6 +17,50 @@
   font-size: 11.5px;
 }
 
+// Resultado da importação de Excel (23/08/2026) — mesmo padrão de
+// mapa.scss/empreita.scss.
+.aviso-info {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 11.5px;
+}
+
+// Lista de obras do modal "Copiar EAP de outra obra" (23/08/2026).
+.lista-obras-copiar {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+}
+
+.item-obra-copiar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--cor-borda);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--cor-fundo-alt); }
+  &:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+li:last-child .item-obra-copiar { border-bottom: none; }
+
+.nome-obra-copiar { font-weight: 600; }
+
 // ---- Cabeçalho da obra ----
 .grade-cabecalho {
   display: grid;
@@ -100,11 +144,13 @@
 
 // Rolagem vertical própria, com altura limitada — é o que faz o
 // cabeçalho fixo (`.tabela-eap thead th` mais abaixo) funcionar de
-// verdade, ver o comentário lá. `100vh` menos uma folga generosa pro que
-// fica acima da tabela na página (barra de topo do app, abas da obra,
-// barra de ferramentas da EAP).
+// verdade, ver o comentário lá. `100vh` menos uma folga pro que fica
+// acima da tabela na página (barra de topo do app, abas da obra, barra
+// de ferramentas da EAP) — aumentada de 260px pra 180px em 23/08/2026
+// (pedido do Lucas: a janela ficava baixa demais, exigia rolar cedo
+// demais numa EAP grande).
 .envoltoria {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
 
@@ -281,6 +327,27 @@
   color: var(--cor-texto);
 }
 
+// ---- Bloco "Saldo (Orçado − Realizado)" por categoria (EAP confirmada,
+// alternativa ao bloco Real./Orç. acima — botão "Ver Saldo" na barra de
+// ferramentas, 23/08/2026, pedido do Lucas) — um valor só por célula, em
+// vez de duas linhas empilhadas, pra ver de relance se a etapa vai
+// estourar o planejamento.
+.celula-saldo {
+  min-width: 92px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.valor-saldo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+}
+
+// Mesmas classes/cores já usadas no Mapa (`saldoDaEtapa`, `mapa.scss`) —
+// vermelho quando o realizado já passou do orçado.
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
+
 // ---- Bloco "Custo (unitário x total)" por categoria (EAP em edição) ----
 // Mesmo padrão visual do bloco Orçado x Realizado: cada célula empilha
 // Unit. (editável) em cima e Total (calculado) embaixo, em vez de abrir
@@ -404,6 +471,10 @@
   .valor-real, .link-realizado { color: var(--cor-destaque); }
   .link-realizado:hover { color: #fff; }
   .valor-orc, .valor-custo { color: #fff; }
+  // Mesmo motivo do `.valor-real` acima: o azul-aço padrão do saldo
+  // positivo se perde no fundo escuro (mesma família de cor); o
+  // vermelho do negativo já contrasta bem, sem precisar mudar.
+  .saldo-positivo { color: var(--cor-destaque); }
 }
 
 .linha-grupo-fundo-claro {

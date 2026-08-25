@@ -56,6 +56,12 @@ export function normalizarItemPagamento(bruto: Partial<ItemPagamento> & Record<s
     eapId: String(bruto?.eapId ?? ''),
     valor: numeroSeguro(bruto?.valor),
     modoValor: normalizarModoValor(bruto?.modoValor),
+    parcela: bruto?.parcela === 'empreiteiro' || bruto?.parcela === 'reserva' ? bruto.parcela : null,
+    empreitaItemId: String(bruto?.empreitaItemId ?? ''),
+    valorReferencia:
+      bruto?.valorReferencia === null || bruto?.valorReferencia === undefined
+        ? null
+        : numeroSeguro(bruto.valorReferencia),
   };
 }
 
@@ -169,6 +175,9 @@ export function paraPayloadApi(pagamento: Pagamento, obraId: string): Record<str
       eapId: item.eapId || null,
       valor: item.valor,
       modoValor: item.modoValor,
+      parcela: item.parcela || null,
+      empreitaItemId: item.empreitaItemId || null,
+      valorReferencia: item.valorReferencia ?? null,
     })),
   };
 }

@@ -1,9 +1,20 @@
 :host { display: block; }
 
 .cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 18px;
 
   h1 { margin: 0 0 2px; }
+}
+
+.aviso-pdf {
+  margin-bottom: 14px;
+  color: var(--cor-perigo);
+  background: var(--cor-perigo-bg);
+  border-color: var(--cor-perigo);
 }
 
 .painel { margin-bottom: 14px; }

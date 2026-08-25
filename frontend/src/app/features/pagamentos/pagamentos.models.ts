@@ -19,6 +19,23 @@ export interface ItemPagamento {
   /** Interpretação depende de `modoValor`: reais ou % do total. */
   valor: number;
   modoValor: ModoValor;
+  /**
+   * Qual lado do contrato de uma Empreita este item representa — null pra
+   * item de Mapa/manual, que não têm esse eixo (25/08/2026, redesign da
+   * Empreita). Usado pra separar "Já pago" (Empreiteiro x Reserva) e pra
+   * calcular a Divergência (só o lado empreiteiro entra nessa conta).
+   */
+  parcela?: 'empreiteiro' | 'reserva' | null;
+  /** Id da linha de serviço da empreita (`ItemEmpreita.id`) que originou este item. */
+  empreitaItemId?: string;
+  /**
+   * Snapshot imutável do valor que a engine calculou como "devido" no
+   * momento em que este pagamento foi gerado (`pagarPorTipo`/
+   * `reservarPorTipo`) — não muda depois, mesmo que o contrato ou a
+   * medição mudem. É o "medido" da fórmula de Divergência: medido − o que
+   * foi de fato liberado (`valor`, acima).
+   */
+  valorReferencia?: number | null;
 }
 
 /** Item com o valor em reais já resolvido a partir do modo. */

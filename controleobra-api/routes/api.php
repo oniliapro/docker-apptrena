@@ -2,13 +2,21 @@
 
 use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CronogramaPdfController;
+use App\Http\Controllers\Api\CronogramaPlanejamentoController;
 use App\Http\Controllers\Api\DiarioObraController;
+use App\Http\Controllers\Api\EapPdfController;
 use App\Http\Controllers\Api\EmpreitaController;
+use App\Http\Controllers\Api\EmpreitaPdfController;
 use App\Http\Controllers\Api\MapaController;
+use App\Http\Controllers\Api\MapaPdfController;
+use App\Http\Controllers\Api\MedicaoController;
+use App\Http\Controllers\Api\MedicaoPdfController;
 use App\Http\Controllers\Api\NotaFiscalController;
 use App\Http\Controllers\Api\ObraController;
 use App\Http\Controllers\Api\PagamentoController;
 use App\Http\Controllers\Api\PastaController;
+use App\Http\Controllers\Api\RelatorioPdfController;
 use App\Http\Controllers\Api\StorageController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,15 +58,35 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('obras', ObraController::class);
     Route::get('obras/{obra}/eap', [ObraController::class, 'showEap']);
     Route::put('obras/{obra}/eap', [ObraController::class, 'syncEap']);
+    Route::get('obras/{obra}/eap/relatorio/pdf', [EapPdfController::class, 'relatorioEap']);
+    Route::get('obras/{obra}/desembolso/relatorio/pdf', [CronogramaPdfController::class, 'relatorioCronograma']);
+    Route::get('obras/{obra}/relatorio/pdf', [RelatorioPdfController::class, 'relatorioObra']);
+    Route::get('obras/{obra}/cronograma/planejamentos', [CronogramaPlanejamentoController::class, 'index']);
+    Route::put('obras/{obra}/cronograma/planejamentos', [CronogramaPlanejamentoController::class, 'store']);
+    Route::delete('obras/{obra}/cronograma/planejamentos', [CronogramaPlanejamentoController::class, 'destroy']);
+
+    Route::get('obras/{obra}/medicoes', [MedicaoController::class, 'index']);
+    Route::post('obras/{obra}/medicoes', [MedicaoController::class, 'store']);
+    Route::get('medicoes/{medicao}', [MedicaoController::class, 'show']);
+    Route::put('medicoes/{medicao}', [MedicaoController::class, 'update']);
+    Route::post('medicoes/{medicao}/aprovar', [MedicaoController::class, 'aprovar']);
+    Route::delete('medicoes/{medicao}', [MedicaoController::class, 'destroy']);
+    Route::get('medicoes/{medicao}/relatorio/pdf', [MedicaoPdfController::class, 'relatorioMedicao']);
 
     Route::get('diario', [DiarioObraController::class, 'index']);
     Route::post('diario', [DiarioObraController::class, 'store']);
     Route::delete('diario/{registro}', [DiarioObraController::class, 'destroy']);
 
     Route::apiResource('mapas', MapaController::class);
+    Route::get('mapas/{mapa}/relatorio/pdf', [MapaPdfController::class, 'relatorioMapa']);
 
+    // Precisa vir ANTES do apiResource abaixo — senão o route-model-binding
+    // de `{empreita}` tenta interpretar "resumo" como um id e nunca chega
+    // no controller certo (25/08/2026, ver EmpreitaController::resumoObra).
+    Route::get('empreitas/resumo', [EmpreitaController::class, 'resumoObra']);
     Route::apiResource('empreitas', EmpreitaController::class);
     Route::post('empreitas/{empreita}/registros', [EmpreitaController::class, 'registrarMedicao']);
+    Route::get('empreitas/{empreita}/relatorio/pdf', [EmpreitaPdfController::class, 'relatorioEmpreita']);
 
     Route::apiResource('pagamentos', PagamentoController::class);
     Route::post('pagamentos/ler-nota', [NotaFiscalController::class, 'ler']);

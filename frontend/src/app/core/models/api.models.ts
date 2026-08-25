@@ -60,6 +60,8 @@ export interface Obra {
   obra_nome?: string | null;
   cliente?: string | null;
   data_base?: string | null;
+  /** Prazo da obra em meses (24/08/2026) — usado pelo Cronograma de Desembolso pra limitar até quando gerar períodos. */
+  prazo_meses?: number | null;
   responsavel?: string | null;
   local_obra?: string | null;
   periodo?: string | null;
@@ -110,6 +112,55 @@ export interface EapItem {
   /** Snapshot do Orçado por categoria, gravado na confirmação — ver `ItemEap.orcadoCongelado`. */
   orcadoCongelado?: Partial<Record<ChaveTipoCusto, number>> | null;
   [extra: string]: unknown;
+}
+
+/**
+ * Resumo de uma medição — devolvido por `GET obras/{id}/medicoes` (lista,
+ * sem os itens) e como o "topo" do payload de `GET/PUT medicoes/{id}` e
+ * `POST medicoes/{id}/aprovar` (23/08/2026, ver `MedicaoController`).
+ */
+export interface MedicaoResumo {
+  id: string;
+  obraId: string;
+  sequencia: number;
+  dataMedicao: string | null;
+  status: 'rascunho' | 'aprovada';
+  aprovadoEm: string | null;
+}
+
+export interface ValorMedicaoItemTipo {
+  valor: number;
+  manual: boolean;
+}
+
+export interface MedicaoItemPayload {
+  eapItemId: string;
+  ordem: number;
+  valores: Partial<Record<ChaveTipoCusto, ValorMedicaoItemTipo>>;
+}
+
+/** Payload completo — `GET medicoes/{id}` e resposta de `PUT`/`aprovar`. */
+export interface MedicaoPayload extends MedicaoResumo {
+  itens: MedicaoItemPayload[];
+  /** Valores da última medição aprovada anterior — chave é o `eapItemId`. */
+  acumuladoAnterior: Record<string, Partial<Record<ChaveTipoCusto, number>>>;
+}
+
+/** Corpo de `PUT medicoes/{id}` e `POST medicoes/{id}/aprovar`. */
+export interface MedicaoSalvarPayload {
+  itens: Array<{
+    eapItemId: string;
+    valores: Partial<Record<ChaveTipoCusto, { valor: number; manual: boolean }>>;
+  }>;
+}
+
+/** Valor planejado de desembolso, discriminado por categoria — Cronograma de Desembolso (24/08/2026). */
+export interface PlanejamentoCronograma {
+  eapItemId: string;
+  /** Data de início do período em que foi planejado (ISO "AAAA-MM-DD"). */
+  periodoInicio: string;
+  tipo: ChaveTipoCusto;
+  valor: number;
 }
 
 export interface Mapa {

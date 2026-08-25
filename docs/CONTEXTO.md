@@ -1,7 +1,13 @@
 # Contexto do AppTrena
 
 Resumo para qualquer sessão do Claude (ou pessoa — Lucas incluído) que
-chegue aqui sem histórico da conversa. Atualizado em 13/08/2026.
+chegue aqui sem histórico da conversa. Atualizado em 13/08/2026 (nota
+pontual de 22/08/2026 abaixo, em "Pontos vivos" — o restante deste
+arquivo pode estar mais defasado do que a data no topo sugere: cadastros
+de Clientes/Responsáveis/Empreiteiros/Fornecedores, o módulo de Arquivos
+anexados, o cronograma de desembolso e o `restart: unless-stopped` no
+`docker-compose.yml` já existem no código, mas não estão descritos
+abaixo. Vale um refresh completo deste arquivo numa próxima sessão).
 
 **Se você é o Lucas (ou está no Cowork dele):** este arquivo é a memória
 do projeto. O Claude de cada pessoa não compartilha memória entre si —
@@ -79,6 +85,21 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (22/08/2026): geração de PDF de relatório.** O relatório
+  Orçado x Realizado (`/obras/{id}/relatorios`) ganhou um botão "Baixar
+  PDF" que gera um PDF de verdade (não `window.print()`) — o backend
+  (`RelatorioPdfController`) abre uma rota de impressão dedicada do
+  Angular (`/imprimir/obras/:id/relatorios`, sem menu/cabeçalho) dentro
+  de um Chromium headless (Browsershot) e converte pra PDF. Reaproveita
+  as mesmas funções de cálculo da tela normal, então os números nunca
+  divergem. Detalhes, arquitetura e passo a passo de preparação local em
+  `docs/GERAR-PDF.md`. **Ainda não testado no ambiente Docker real** (só
+  implementado) — próximo passo é rodar os comandos de preparação
+  (`composer require spatie/browsershot`, `npm install puppeteer-core`,
+  rebuild do `phpfpm`) e confirmar o download funcionando de ponta a
+  ponta. O botão "Gerar PDF" do Mapa continua usando `window.print()`
+  por enquanto — candidato natural a migrar pro mesmo mecanismo depois
+  que este primeiro caso for validado.
 - **Feito e em produção:** a EAP fala direto com
   `GET/PUT /obras/{id}/eap`, e Mapa, Empreita, Pagamentos e Relatórios
   também migraram para os endpoints relacionais próprios — a ponte
@@ -89,11 +110,11 @@ AppTrena/
   `docker-crtlobras` inteira (mysql, nginx, phpfpm, frontend, myadmin)
   ficou 2 dias fora do ar depois de um restart do VPS, sem ninguém notar
   — só o container `n8n` tinha política de restart automático. Resolvido
-  com `docker compose up -d` na pasta `backend-docker/`. **Risco que
-  continua existindo:** o `docker-compose.yml` ainda não tem `restart:`
-  definido pros serviços do AppTrena — se o VPS reiniciar de novo, a
-  stack não volta sozinha. Vale adicionar `restart: unless-stopped` em
-  cada serviço num próximo ajuste.
+  com `docker compose up -d` na pasta `backend-docker/`. O
+  `docker-compose.yml` deste projeto já tem `restart: unless-stopped` em
+  cada serviço (checado em 22/08/2026 — este risco específico já foi
+  corrigido, mesmo que a entrada abaixo, mais antiga, ainda descreva
+  como pendente).
 - **Credenciais de teste (produção):** usuário real
   `teste@apptrena.com.br`, senha `trena2026`; usuário de teste adicional
   `claude.teste@apptrena.local`, senha `trena2026`. O sistema é
@@ -174,6 +195,10 @@ AppTrena/
 - Telas que nunca existiram no protótipo original (Clientes, Responsáveis,
   Empreiteiros, Relatórios, e algumas abas como Cronograma e Compras)
   aparecem como "área reservada" no Angular — não é bug, é trabalho futuro.
+  **Nota de 22/08/2026:** Clientes, Responsáveis, Empreiteiros e
+  Fornecedores já ganharam telas de verdade desde então (ver pasta
+  `frontend/src/app/features/cadastros/`) — esta linha ficou desatualizada
+  nesse ponto específico, mantida até o refresh completo do arquivo.
 
 ## Histórico rápido
 

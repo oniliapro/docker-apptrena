@@ -1,0 +1,81 @@
+<div class="painel-titulo">Pagamentos registrados</div>
+
+@if (linhas().length) {
+  <table class="tabela-relatorio-pagamentos">
+    <thead>
+      <tr>
+        <th rowspan="2" class="col-num">Nº</th>
+        <th colspan="2" class="grupo-datas">Datas</th>
+        <th rowspan="2" class="col-valor">Valor pago</th>
+      </tr>
+      <tr>
+        <th class="grupo-datas">Solicitação</th>
+        <th class="grupo-datas">Pagamento</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (linha of linhas(); track linha.id) {
+        <tr>
+          <td class="centro">{{ linha.numeroPagamento || '—' }}</td>
+          <td class="centro">{{ formatarData(linha.dataSolicitacao) || '—' }}</td>
+          <td class="centro">{{ formatarData(linha.dataPagamento) || '—' }}</td>
+          <td class="celula-valor-pago">
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Contrato</span>
+              <span class="valor-empilhado">{{ formatarMoeda(contratoTotalEmpreita()) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Empreiteiro</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.empreiteiro) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Reserva</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.reserva) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Saldo empreita</span>
+              <span class="valor-empilhado"
+                    [class.saldo-positivo]="linha.saldoEmpreita >= 0"
+                    [class.saldo-negativo]="linha.saldoEmpreita < 0">
+                {{ formatarMoeda(linha.saldoEmpreita) }}
+              </span>
+            </div>
+            <div class="linha-empilhada destaque">
+              <span class="rotulo-empilhado">Total</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.total) }}</span>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="3" class="rotulo-rodape">TOTAIS</th>
+        <th class="celula-valor-pago">
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Empreiteiro</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalEmpreiteiro()) }}</span>
+          </div>
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Reserva</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalReserva()) }}</span>
+          </div>
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Saldo empreita</span>
+            <span class="valor-empilhado"
+                  [class.saldo-positivo]="saldoEmpreitaFinal() >= 0"
+                  [class.saldo-negativo]="saldoEmpreitaFinal() < 0">
+              {{ formatarMoeda(saldoEmpreitaFinal()) }}
+            </span>
+          </div>
+          <div class="linha-empilhada destaque">
+            <span class="rotulo-empilhado">Total</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalPago()) }}</span>
+          </div>
+        </th>
+      </tr>
+    </tfoot>
+  </table>
+} @else {
+  <p class="atenuado pequeno">Nenhum pagamento confirmado desta empreita ainda.</p>
+}

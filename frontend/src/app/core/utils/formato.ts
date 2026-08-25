@@ -7,7 +7,12 @@
 
 export function formatarMoeda(valor: unknown): string {
   const numero = Number(valor) || 0;
-  return 'R$ ' + numero.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  // `maximumFractionDigits` explícito (22/08/2026, achado gerando o PDF de
+  // teste — "R$ 1.574.414,411") — sem isso, `toLocaleString` só garante o
+  // MÍNIMO de 2 casas, e um valor com resto de ponto flutuante (comum em
+  // cálculos de BDI/rateio) aparecia com 3 casas decimais, não só no PDF:
+  // qualquer tela que já usasse este helper tinha o mesmo problema.
+  return 'R$ ' + numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Aceita "2026-07-25" ou ISO completo e devolve "25/07/2026". */

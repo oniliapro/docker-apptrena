@@ -1,0 +1,545 @@
+// Layout para papel (A4 paisagem — a tabela de comparação fica larga
+// demais em retrato com mais de 2-3 fornecedores), usado só pelo
+// Chromium headless que gera o PDF (ver MapaPdfController). 22/08/2026:
+// em vez de um design próprio (que tinha divergido visivelmente da tela
+// normal, a pedido do Lucas: "quero que fique o mais fiel possível"),
+// este arquivo importa o SCSS de verdade da tela normal (`mapa.scss`)
+// via `@use` — toda a linguagem visual da tabela (cabeçalho de
+// fornecedor, célula de preço empilhada, pilha do rodapé, destaque do
+// vencedor…) é compilada de novo aqui, isolada pelo encapsulamento de
+// estilo deste componente. `.painel`/`.painel-titulo`/`.envoltoria` nem
+// precisam disso — já são classes GLOBAIS (`_base.scss`).
+@use '../mapa/mapa.scss';
+
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 10mm 8mm;
+}
+
+// ---- Cabeçalho/rodapé do documento — só existem na versão impressa
+// (a tela normal usa o AppShell pra isso, que aqui não existe). ----
+.folha-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--cor-primaria);
+  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+}
+
+.logo-texto {
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+// Assinatura da empresa (23/08/2026, pedido do Lucas) — trocou de lugar
+// com o texto "Mapa de Cotações": antes vivia dentro da tabela (célula
+// `.assinatura-documento`, ver mapa.scss/mapa-imprimir.html), agora é
+// aqui no cabeçalho da folha que ela aparece — mesmo bloco reaproveitado
+// (`.bloco-assinatura`/`.marca-empresa`/`.marca-sistema`, todos vindos de
+// mapa.scss via `@use`), só com uma margem pra ficar embaixo do título.
+.subtitulo-assinatura {
+  margin-top: 3px;
+}
+
+.gerado-em {
+  font-size: 9.5px;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.folha-rodape {
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+// ---- Ajustes de papel sobre o que veio de mapa.scss ----
+
+// `position: sticky` no cabeçalho da tabela é pensado pra tela rolando
+// (o cabeçalho gruda no topo enquanto o corpo passa por baixo) — numa
+// página impressa, sem scroll nenhum, isso só atrapalha o
+// paginador do Chromium.
+.tabela-mapa thead th { position: static; }
+
+// mapa.scss trava a altura das 2 linhas do cabeçalho em 100px/28px — só
+// necessário na tela pra alinhar o `top` do `position: sticky` de cada
+// uma (irrelevante aqui, já neutralizado acima). No papel isso sobrava
+// como espaço em branco puro em cima do texto (24/08/2026, pedido do
+// Lucas — cabeçalho repetido em cada página ficando alto demais).
+.tabela-mapa thead tr:nth-child(1),
+.tabela-mapa thead tr:nth-child(2) {
+  height: auto;
+}
+
+// Célula que antes tinha a assinatura da empresa (agora no cabeçalho da
+// folha, ver `.subtitulo-assinatura` acima) virou só o texto "Mapa de
+// Cotações" (23/08/2026, pedido do Lucas) — um pouco de destaque pra não
+// ficar um texto qualquer perdido na tabela.
+.assinatura-documento {
+  font-family: var(--fonte-titulo);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+// Mesmo motivo — `max-height`/`overflow-y` de mapa.scss limitam a
+// tabela a uma altura de TELA (`100vh`) com rolagem própria; no PDF,
+// sem viewport de tela nenhuma, isso só cortaria a tabela. O conteúdo
+// deve fluir livre entre páginas, controlado só pelas regras de quebra
+// abaixo (`tr { page-break-inside: avoid }`, `thead { display:
+// table-header-group }`).
+.envoltoria.sem-preenchimento {
+  max-height: none;
+  overflow-y: visible;
+}
+
+// `table-layout: fixed` (22/08/2026, pedido do Lucas — "colunas
+// desiguais", "texto desalinhado", "tabela mudando de layout"): sem
+// isso, a largura de cada coluna vem do conteúdo de todas as células, e
+// muda de novo quando a tabela quebra entre páginas.
+.tabela-mapa, .tabela-etapas {
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.tabela-mapa {
+  // # / Quantidade / Un. em px fixo, não % (22/08/2026, pedido do Lucas —
+  // "muito largas" mesmo depois do `table-layout: fixed` acima, que só
+  // impede a largura de MUDAR, não escolhe uma largura enxuta sozinho).
+  // # cabe no máximo 3 algarismos, Quantidade no máximo "x.xxx", Un. no
+  // máximo uma palavra de 5 letras — o espaço liberado dessas 3 colunas
+  // sobra pras de fornecedor (sem `width` própria, ver comentário abaixo),
+  // ajudando também a observação 4 (texto sobreposto nos rodapés).
+  .col-num { width: 26px; }
+  .col-qtde { width: 42px; }
+  // 38px → 52px: achado gerando o PDF de teste (23/08/2026) — "Un." não é
+  // sempre uma sigla curta ("un", "m²"), também aparece por extenso
+  // ("semanas", "milheiro") e quebrava em 2-3 linhas. Mesmo tratamento de
+  // reticências de `td.etapa`/`td.tipo` abaixo, pro caso de um valor
+  // ainda mais comprido no futuro.
+  .col-unid { width: 52px; }
+  .col-desc { width: 15%; }
+  // Tipo alargada / Etapa encolhida (23/08/2026, pedido do Lucas —
+  // "tipo tá saindo com o texto quebrado... aumente um pouco a largura
+  // dessa coluna pra caber as palavras 'equipamento' e 'administração'"):
+  // 6% não cabia "ADMINISTRAÇÃO" (a maior das opções de Tipo) numa linha
+  // só; a Etapa já é cortada com reticências (ver `td.etapa` abaixo), tem
+  // folga pra ceder um pouco sem prejuízo.
+  .col-tipo { width: 9%; }
+  .col-etapa { width: 9%; }
+  // Colunas de fornecedor não têm `width` — dividem entre si o que
+  // sobra, em partes iguais, por causa do `table-layout: fixed` acima.
+
+  // Etapa de cada item (23/08/2026, pedido do Lucas — "mapa mais
+  // compacto na vertical"): o nome completo da etapa ("2.1 - Proteção de
+  // piso, esquadrias…") quebrava em várias linhas dentro da coluna
+  // estreita, esticando a altura de CADA linha da tabela principal — a
+  // que mais se repete no documento. Fonte menor + uma linha só, cortada
+  // com reticências quando não cabe (o dado completo já aparece por
+  // extenso no "Rateio por etapa da obra", perto dali), em vez de deixar
+  // o texto quebrar.
+  td.etapa {
+    font-size: 9.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Mesmo tratamento pra "Tipo" (observação 1, 23/08/2026) — mesmo com a
+  // coluna alargada acima, uma reticência de segurança pra nunca quebrar
+  // linha (o rótulo mais comprido, "Administração", já foi medido pra
+  // caber inteiro na largura nova; isso aqui só cobre um rótulo futuro
+  // ainda maior).
+  td.tipo {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  td.unidade {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // `min-width` de mapa.scss (`.cabecalho-fornecedor: 260px`,
+  // `.borda-esquerda: 120px`) foi pensado pra tela, que rola na
+  // horizontal quando não cabe — o PDF não rola, então com muitos
+  // fornecedores esse mínimo empurraria a tabela pra fora da página.
+  // `table-layout: fixed` já reparte o espaço de sobra igual entre eles;
+  // zerar o mínimo deixa essa divisão valer de verdade.
+  .cabecalho-fornecedor, .borda-esquerda { min-width: 0; }
+}
+
+// Cabeçalho de cada fornecedor mais compacto e centralizado (observação
+// 2, 23/08/2026) — mapa.scss reserva `padding: 8px 26px 8px 8px` (os
+// 26px à direita são pro botão de remover fornecedor da tela, que não
+// existe aqui) e alinha tudo à esquerda, pensado pro rótulo "Contato" ao
+// lado do campo. Removido o rótulo "Contato" no HTML (só o nome do
+// contato + telefone embaixo, como pedido) — sem rótulo nenhum pra
+// alinhar embaixo, dá pra centralizar tudo.
+.cabecalho-fornecedor {
+  // 5px → 3px (23/08/2026, pedido do Lucas — "cabeçalhos com as
+  // informações dos fornecedores tá muito grande, diminua o padding-top
+  // e padding-bottom").
+  padding: 3px 6px !important;
+  text-align: center;
+}
+
+.rotulo-ordem-fornecedor { margin-bottom: 2px; }
+
+.bloco-fornecedor {
+  align-items: center;
+  gap: 1px;
+}
+
+.valor-contato { text-align: center; }
+
+// `margin-left: 48px` de mapa.scss alinhava o telefone embaixo do CAMPO
+// (não do rótulo "Contato", 42px + 6px de gap) — sem o rótulo, e
+// centralizado, essa margem só empurrava o telefone pra fora do centro.
+.telefone-contato { margin-left: 0; text-align: center; }
+
+// Texto sobreposto nos rodapés "MODIFICADORES GLOBAIS DE COMPRA"/"ANÁLISE
+// DE COMPRA INDIVIDUAL" (observação 4, 22/08/2026, confirmado ampliando o
+// PDF de teste em alta resolução: "R$ 64,40" da 1ª coluna vazava por cima
+// de "ITENS MAIS BARATOS" da coluna seguinte) — causa dupla:
+// 1. mapa.scss tem `.campo-pilha .rotulo-repetido { flex-shrink: 0 }`,
+//    pensado pra tela (onde a coluna de fornecedor nunca fica abaixo de
+//    260px, ver `.cabecalho-fornecedor`) — no papel, com a coluna bem
+//    mais estreita, o rótulo ("MARKUP (%)", "MAIS BARATOS + FRETE"…)
+//    recusava encolher.
+// 2. `.valor-pilha` (mapa.scss) não define `white-space` próprio — herda
+//    `nowrap` de `.valor` (classe global, `_base.scss`, aplicada no
+//    `<th class="valor">` ancestral), então mesmo o VALOR ("R$ 64,40")
+//    também recusava quebrar.
+// Com os dois lados proibidos de encolher/quebrar, a linha toda vazava
+// da célula (que tem `overflow: visible` por padrão) por cima da coluna
+// vizinha. Liberando os dois pra quebrar/encolher resolve sem precisar
+// de mais largura.
+.tabela-mapa .campo-pilha {
+  .rotulo-repetido { flex-shrink: 1; min-width: 0; }
+  .valor-pilha { white-space: normal; }
+}
+
+// "ANÁLISE DE COMPRA INDIVIDUAL": valor embaixo do rótulo, não do lado
+// (23/08/2026, pedido do Lucas) — classe `.analise-individual` só nesta
+// linha do rodapé (ver mapa-imprimir.html), pra não afetar
+// "MODIFICADORES GLOBAIS DE COMPRA" logo acima, que usa a mesma
+// `.campo-pilha` e continua lado a lado.
+.analise-individual .campo-pilha {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+// Mesma família de bug da observação 4 — mensagem de fornecedor
+// desconsiderado ("Fornecedor foi desconsiderado da análise...") vazando
+// por cima da coluna vizinha. `width: 100%` explícito garante que o
+// parágrafo sempre quebra dentro da largura real da célula, em vez de
+// depender do encolhimento automático (`min-width: auto`) de item flex
+// dentro de `.pilha-rodape` (flex em coluna), que no papel — coluna bem
+// mais estreita que na tela — não bastava.
+.bloco-desconsiderado {
+  width: 100%;
+  min-width: 0;
+}
+
+.texto-desconsiderado {
+  width: 100%;
+}
+
+th, td { overflow-wrap: break-word; }
+
+// A descrição do item era um `<textarea>` editável na tela normal — aqui
+// vira um `<div>` (não precisa crescer sozinho, o navegador já quebra o
+// texto dentro da largura fixa da coluna), com o mesmo visual.
+.descricao {
+  text-align: left;
+  line-height: 1.35;
+}
+
+// Contato do fornecedor: era um `<input>` editável — trocado por um
+// `<span>` no HTML (22/08/2026, achado gerando o PDF de teste: um nome
+// de contato comprido ficava TRUNCADO dentro do input, porque input não
+// quebra linha; span quebra normal dentro da largura fixa da coluna).
+.valor-contato {
+  display: block;
+  font-size: 11.5px;
+  overflow-wrap: break-word;
+}
+
+// Campos do cabeçalho (Nº do mapa, Descrição, datas…) — mesmo tratamento:
+// sem caixa de input, só o valor.
+.grade-cabecalho input {
+  border: none !important;
+  background: transparent !important;
+  padding: 0;
+  height: auto;
+  font-size: 10.5px;
+  line-height: 1.3;
+
+  &:disabled { color: inherit; cursor: default; }
+}
+
+// Cabeçalho do mapa (Nº/Descrição/datas/Obra…) bem mais compacto
+// (23/08/2026, pedido do Lucas — "muito mais compacto, pra ocupar menos
+// espaço") — era pensado pra tela, com `input` de 26px de altura e rótulo
+// com margem embaixo; no papel isso é puro espaço em branco que nenhum
+// input real (nem borda) mais preenche. `painel-cabecalho-mapa` (classe
+// só do print, ver mapa-imprimir.html) escopa o ajuste sem afetar os
+// outros `.painel` do documento (cenários, rateio, detalhe).
+.painel-cabecalho-mapa {
+  padding: 8px 12px;
+}
+
+.painel-cabecalho-mapa .grade-cabecalho {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px 14px;
+
+  .campo span {
+    font-size: 7.5px;
+    margin-bottom: 1px;
+  }
+}
+
+// Painéis/tabelas curtas o bastante pra sempre caber inteiras numa
+// página, e o título de cada uma grudado no que vem depois (evita um
+// título ficar sozinho no fim de uma página com o conteúdo dele inteiro
+// na seguinte, visto gerando o PDF de teste, 22/08/2026).
+.painel-titulo { break-after: avoid-page; }
+.painel-detalhe { break-inside: avoid-page; }
+
+// Reordenação pedida pelo Lucas (23/08/2026): "Rateio por etapa da obra"
+// saiu de dentro de `.grade-inferior` (onde dividia a largura com
+// "Comparação de cenários" e "Detalhe por fornecedor", ver mapa.html) e
+// virou um `.painel` cheio, ocupando a largura toda do PDF, ANTES deste
+// grid — ver mapa-imprimir.html. `.grade-inferior` agora só tem os outros
+// dois painéis; mapa.scss tem `@media (max-width: 1200px) {
+// grid-template-columns: 1fr }`, pensada pra tela pequena, mas a página
+// A4 paisagem (≈1060px úteis) é mais ESTREITA que 1200px e disparava essa
+// regra também — redeclarado aqui sem `@media` pra sempre ficar em 2
+// colunas lado a lado. "Detalhe por fornecedor" usa sua própria largura
+// fixa (`.tabela-largura-fixa`, mapa.scss: 300px), por isso `auto` no
+// lugar dele; "Comparação de cenários" cresce no espaço restante.
+// `justify-content: space-between` (observação 5, 23/08/2026 — "Detalhe
+// por fornecedor... deslocada pra lateral direita, mantendo a mesma
+// posição do layout da página mapas"): na tela, a coluna do meio (que
+// aqui não existe mais, "Rateio por etapa" saiu pra virar um painel
+// cheio acima) empurrava "Detalhe por fornecedor" pra ponta direita —
+// sem largura própria pra empurrar, ela ficava colada em "Comparação de
+// cenários" à esquerda. `space-between` recria a mesma posição visual:
+// cenários na esquerda, detalhe na direita, com o vão entre os dois.
+.grade-inferior {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+// Largura fixa, não `flex: 1` (1ª tentativa) — sem "Rateio por etapa" no
+// meio pra ocupar o espaço de sobra, `flex: 1` esticava "Comparação de
+// cenários" a largura quase inteira da página, cada linha virando um
+// rótulo colado à esquerda e o valor solto lá longe à direita, cheio de
+// vazio no meio (achado gerando o PDF de teste, 23/08/2026). Largura
+// fixa igual à da tela (`mapa.scss`: 300px) mantém o cartão do mesmo
+// jeito compacto; o espaço de sobra fica em branco, sem esticar nada.
+.painel-cenarios { flex: 0 0 300px; }
+.painel-detalhe { flex: 0 0 auto; }
+
+// "Rateio por etapa" cheio (largura do PDF inteira) precisa de espaço até
+// o grid de baixo, que a grade de 3 colunas antiga ganhava de graça via
+// `gap`.
+.painel-etapas { margin-bottom: 14px; }
+
+// Mesmo motivo do `.tabela-mapa` acima — sem largura própria, todas as
+// colunas (nome da etapa, fornecedores, total, saldo) saíam do mesmo
+// tamanho, e o nome da etapa (o texto mais longo da tabela) espremia as
+// colunas de valor vizinhas. 24% → 18% (23/08/2026, pedido do Lucas —
+// "diminua a largura da coluna etapa para alargar as colunas dos
+// fornecedores"): o nome da etapa já quebra em várias linhas normalmente
+// (célula mais alta da linha de qualquer forma), então cede espaço bem —
+// as colunas de fornecedor é que precisavam de mais folga.
+.tabela-etapas .col-etapa-nome { width: 18%; }
+
+// Coluna mais estreita = nome da etapa quebra em mais linhas, o que pode
+// esticar a altura da linha inteira além da pilha Base/Frete/Desconto
+// (que já está bem compacta) — `line-height` mais apertado recupera
+// parte do espaço perdido com a coluna mais fina.
+.nome-etapa {
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+// "Total da etapa"/"SALDO APÓS MAPA" (22/08/2026, observações 7 e 8 do
+// Lucas): sem largura própria dividiam o espaço igualmente com as colunas
+// de fornecedor, estreito demais pro número em negrito de "Total da
+// etapa" (`.total-etapa b`) e pros rótulos de categoria ("EQUIPAMENTO",
+// "ADMINISTRAÇÃO") dentro de "SALDO APÓS MAPA".
+// Mais compacta horizontalmente (observação 3, 23/08/2026) — padding e
+// fonte de mapa.scss eram pensados pra tela, com bem mais espaço de
+// sobra; aqui cada px conta.
+.tabela-etapas {
+  th { padding: 4px 4px; font-size: 10.5px; }
+  td { padding: 1px 4px; font-size: 10.5px; }
+}
+
+.tabela-etapas .pilha-rodape { gap: 2px; }
+.tabela-etapas .campo-pilha { gap: 3px; }
+
+// Cores alternadas por linha (observação 3) — reaproveita a classe
+// `.zebra` que a tabela principal já usa (mapa.scss: `.zebra td {
+// background: var(--cor-zebra) }`), aplicada por linha em
+// mapa-imprimir.html (`[class.zebra]="i % 2 === 1"`). Só que
+// `--cor-zebra` (#f8f8f6) é sutil demais pra se notar aqui — no PDF de
+// teste praticamente não dava pra ver a alternância. `--cor-fundo-alt`
+// (o mesmo tom do cabeçalho da tabela) é bem mais visível sem destoar da
+// paleta.
+.tabela-etapas tr.zebra td { background: var(--cor-fundo-alt); }
+
+// Mais compacto verticalmente (observação 4, 23/08/2026 — "não faça uma
+// quebra de página entre as tabelas RATEIO POR ETAPA, COMPARAÇÃO DE
+// CENÁRIOS e DETALHE POR FORNECEDOR"): as três já ficam juntas num
+// wrapper com `break-inside: avoid` (ver `.quebra-antes` abaixo), mas
+// isso só é respeitado se o grupo INTEIRO couber numa página — "Detalhe
+// por fornecedor" (`.tabela-resumo`) e os painéis ao redor ainda tinham
+// o padding/fonte pensados pra tela, com espaço de sobra que empurrava o
+// grupo pra 2 páginas (achado gerando o PDF de teste).
+.painel-etapas, .painel-cenarios, .painel-detalhe {
+  padding: 6px 8px;
+}
+
+.painel-etapas { margin-bottom: 8px; }
+
+.tabela-resumo {
+  th, td { padding: 2px 5px; font-size: 9.5px; }
+}
+
+.tabela-resumo .pilha-rodape { gap: 1px; }
+.tabela-resumo .campo-pilha { gap: 3px; }
+
+.linha-cenario { padding: 4px 8px; }
+
+// Mesmo corte na pilha Base/Frete/Desconto/Markup/Total de cada célula
+// do rateio — ela se repete a cada linha × cada fornecedor, então cada
+// px de folga aqui é multiplicado várias vezes na altura final da
+// tabela.
+.tabela-etapas {
+  .pilha-rodape { gap: 1px; }
+  .campo-pilha { gap: 2px; }
+  // Fonte menor pra tudo — inclusive o rótulo da coluna do saldo
+  // (`.coluna-saldo`, mais abaixo): texto menor cabe até mais fácil na
+  // largura fixa que já foi calculada pra ele, não conflita.
+  .rotulo-repetido { font-size: 9px; }
+  .valor-pilha { font-size: 9.5px; }
+}
+
+.tabela-etapas {
+  .col-total-etapa { width: 11%; }
+  // 20% → 16% (23/08/2026, pedido do Lucas — "a largura do saldo após
+  // mapa tá muito grande, diminua só um pouco sem quebrar o texto dos
+  // tipos"): `.coluna-saldo .rotulo-repetido` mais abaixo já tem largura
+  // própria calculada pro pior caso ("Administração", 76px) — 16% ainda
+  // sobra o bastante pro rótulo + valor lado a lado sem quebrar.
+  .col-saldo-etapa { width: 16%; }
+
+  // TODO cabeçalho desta tabela pode quebrar linha (23/08/2026, pedido do
+  // Lucas — "os cabeçalhos... tenham quebra de texto caso o texto não
+  // caiba no campo"), não só "Total da etapa"/"SALDO APÓS MAPA": nomes de
+  // fornecedor compridos em `.cabecalho-forn` (sem `white-space` próprio,
+  // então também herdavam `nowrap` de `.valor` — mas só as colunas com
+  // classe `.valor`, `.cabecalho-forn` normalmente já quebrava; deixado
+  // explícito aqui pra não depender de herança).
+  thead th { white-space: normal; }
+
+  // Fonte reduzida (11px padrão → 9px) porque mesmo com `width` maior,
+  // "TOTAL DA ETAPA" maiúsculo ainda quebrava palavra no meio ("TOTA-L")
+  // dentro de `.col-total-etapa`, a mais estreita das colunas de valor.
+  th.col-total-etapa, th.col-saldo-etapa {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  // `.valor-pilha` (mapa.scss) não define `white-space` próprio — herda
+  // `nowrap` do `<td class="valor">` ancestral (classe global `.valor`,
+  // `_base.scss`). Rede aberta pra quebrar por segurança (rótulo +
+  // valor lado a lado numa coluna estreita o bastante, com muitos
+  // fornecedores) — as duas exceções abaixo (total da etapa, total por
+  // fornecedor) reafirmam `nowrap` por cima desta regra (mesma
+  // especificidade, declaradas depois → vencem).
+  .valor-pilha { white-space: normal; }
+
+  // Valor em negrito de "Total da etapa" estourava a célula por quebrar
+  // linha no meio de "R$ x.xxx,xx" (observação 8).
+  .total-etapa b { white-space: nowrap; }
+
+  // Mesmo problema, mas na pilha "Total" de cada fornecedor dentro do
+  // rateio (observação 8) — `.valor-pilha` de mapa.scss tem `flex: 1;
+  // min-width: 0`, pensado pra encolher na tela; no papel, sem espaço
+  // sobrando pra crescer, isso deixava o texto quebrar em vez de vazar.
+  .total-fornecedor { white-space: nowrap; }
+
+  // Rótulo na mesma linha do valor (23/08/2026, pedido do Lucas) — volta
+  // ao padrão de tela (`.campo-pilha` em linha, não empilhado). Só fazia
+  // sentido empilhar rótulo/valor quando esta tabela dividia a largura
+  // com "Comparação de cenários" e "Detalhe por fornecedor" — agora que
+  // ela ocupa o PDF inteiro (ver `.grade-inferior` acima), sobra largura
+  // de sobra pros dois lado a lado sem quebrar. Só o rótulo precisa poder
+  // encolher — o valor já não quebra por conta do `white-space: nowrap`
+  // acima.
+  .rotulo-repetido { flex-shrink: 1; min-width: 0; }
+
+  // Rótulo de categoria ("Equipamento", "Administração"…) quebrando
+  // dentro do "SALDO APÓS MAPA" (observação 3 — "mesma coisa que
+  // solicitei na obs1"): os 54px padrão de mapa.scss (pensados pro
+  // rótulo curto "Base"/"Frete"/"Desconto" das outras colunas — por isso
+  // o ajuste é só na coluna do saldo, `.coluna-saldo`, e não em
+  // `.rotulo-repetido` geral) não cabem "Administração" (13 letras,
+  // maiúsculo, fonte mono). Largura calculada pro pior caso, sem quebrar.
+  .coluna-saldo .rotulo-repetido {
+    width: 76px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+// Valor de "Comparação de cenários" quebrando em duas linhas — "R$" numa
+// linha, "x.xxx,xx" na de baixo (observação 5, 22/08/2026) — `.linha-
+// cenario` é flex com `justify-content: space-between`; sem
+// `white-space: nowrap` o `<b>` (valor) podia quebrar se o `<span>`
+// (rótulo) ao lado ocupasse espaço demais. `flex-shrink: 0` garante que é
+// o rótulo (menos crítico) que cede espaço primeiro, nunca o valor.
+.linha-cenario b {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// Sem quebra de página ENTRE "Rateio por etapa da obra", "Comparação de
+// cenários" e "Detalhe por fornecedor" (observação 4, 23/08/2026) — as
+// três já ficam dentro deste mesmo wrapper (`.quebra-antes`, ver
+// mapa-imprimir.html); `break-inside: avoid` mantém o grupo inteiro
+// junto numa página só (ele já começa em página nova por causa do
+// `break-before: page` abaixo, então normalmente cabe inteiro).
+.quebra-antes {
+  break-before: page;
+  break-inside: avoid;
+}
+
+tr { page-break-inside: avoid; }
+thead { display: table-header-group; }

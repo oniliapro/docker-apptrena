@@ -198,6 +198,7 @@ export function normalizarUi(bruto: Record<string, unknown> | null | undefined):
     showBDI: raw['showBDI'] !== false,
     showTypes: raw['showTypes'] !== false,
     orcRealMode: String(raw['orcRealMode'] ?? '').toLowerCase() === 'pct' ? 'pct' : 'value',
+    modoTotais: String(raw['modoTotais'] ?? '').toLowerCase() === 'saldo' ? 'saldo' : 'detalhado',
     visibleTypes: TIPOS_CUSTO.reduce((acc, t) => {
       acc[t.chave] = visiveis[t.chave] !== false;
       return acc;

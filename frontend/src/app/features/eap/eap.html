@@ -40,7 +40,29 @@
       <button type="button" class="primario" (click)="store.alternarConfirmacao()">
         {{ store.cabecalho().isConfirmed ? 'Reabrir EAP' : 'Confirmar EAP' }}
       </button>
+      @if (store.cabecalho().isConfirmed) {
+        <button type="button" (click)="alternarModoTotais()"
+                title="Alterna a tabela entre Orçado x Realizado e Saldo por categoria">
+          {{ store.ui().modoTotais === 'saldo' ? '📊 Ver Orçado x Realizado' : '📉 Ver Saldo' }}
+        </button>
+      }
+      <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
+              title="Gera e baixa o PDF da EAP">
+        {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+      </button>
+      <button type="button" [disabled]="store.travada()" (click)="abrirModalImportar()"
+              title="Importa itens de uma planilha Excel">
+        📥 Importar Excel
+      </button>
+      <button type="button" [disabled]="store.travada()" (click)="abrirModalCopiarEap()"
+              title="Substitui a EAP atual pela de outra obra">
+        📋 Copiar EAP de outra obra
+      </button>
     </div>
+
+    @if (erroPdf(); as mensagemPdf) {
+      <div class="aviso-erro">{{ mensagemPdf }}</div>
+    }
 
     <div class="linha-ferramentas">
       @if (!store.cabecalho().isConfirmed) {
@@ -57,7 +79,11 @@
         </label>
       } @else {
         <span class="pequeno atenuado">
-          EAP confirmada — mostrando Orçado x Realizado por categoria. Nada é editável até reabrir.
+          @if (store.ui().modoTotais === 'saldo') {
+            EAP confirmada — mostrando Saldo (Orçado − Realizado) por categoria. Nada é editável até reabrir.
+          } @else {
+            EAP confirmada — mostrando Orçado x Realizado por categoria. Nada é editável até reabrir.
+          }
         </span>
       }
 
@@ -95,7 +121,7 @@
           @if (store.cabecalho().isConfirmed) {
             <th class="grupo-orc-real"
                 [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 2 : 1">
-              Totais (Orçado x Realizado)
+              {{ store.ui().modoTotais === 'saldo' ? 'Saldo (Orçado − Realizado)' : 'Totais (Orçado x Realizado)' }}
             </th>
           } @else {
             @if (store.ui().showUnit) {
@@ -186,47 +212,72 @@
             </td>
 
             @if (store.cabecalho().isConfirmed) {
-              <!-- Totais (Orçado x Realizado), por categoria -->
-              @if (store.mostrarColunasTipo()) {
-                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+              @if (store.ui().modoTotais === 'saldo') {
+                <!-- Saldo (orçado − realizado), por categoria -->
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <td class="celula-saldo">
+                      <span class="valor-saldo"
+                            [class.saldo-positivo]="saldoDoItemTipo(i, item, tipo.chave) >= 0"
+                            [class.saldo-negativo]="saldoDoItemTipo(i, item, tipo.chave) < 0">
+                        {{ formatarMoeda(saldoDoItemTipo(i, item, tipo.chave)) }}
+                      </span>
+                    </td>
+                  }
+                  <td class="celula-saldo">
+                    <span class="valor-saldo atenuado">—</span>
+                  </td>
+                }
+                <td class="celula-saldo">
+                  <span class="valor-saldo"
+                        [class.saldo-positivo]="saldoDoItem(i, item) >= 0"
+                        [class.saldo-negativo]="saldoDoItem(i, item) < 0">
+                    <b>{{ formatarMoeda(saldoDoItem(i, item)) }}</b>
+                  </span>
+                </td>
+              } @else {
+                <!-- Totais (Orçado x Realizado), por categoria -->
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <td class="celula-orc-real">
+                      <div class="linha-real">
+                        <span class="rotulo-real">Real.</span>
+                        <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item, tipo.chave)">
+                          {{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}
+                        </button>
+                      </div>
+                      <div class="linha-orc">
+                        <span class="rotulo-orc">Orç.</span>
+                        <span class="valor-orc">{{ formatarMoeda(orcadoDoItemTipo(i, item, tipo.chave)) }}</span>
+                      </div>
+                    </td>
+                  }
                   <td class="celula-orc-real">
                     <div class="linha-real">
                       <span class="rotulo-real">Real.</span>
-                      <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item, tipo.chave)">
-                        {{ formatarMoeda(realizadoDoItemTipo(item, tipo.chave)) }}
+                      <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria(item)">
+                        {{ formatarMoeda(realizadoSemCategoria(item)) }}
                       </button>
                     </div>
                     <div class="linha-orc">
                       <span class="rotulo-orc">Orç.</span>
-                      <span class="valor-orc">{{ formatarMoeda(orcadoDoItemTipo(i, item, tipo.chave)) }}</span>
+                      <span class="valor-orc atenuado">—</span>
                     </div>
                   </td>
                 }
                 <td class="celula-orc-real">
                   <div class="linha-real">
                     <span class="rotulo-real">Real.</span>
-                    <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria(item)">
-                      {{ formatarMoeda(realizadoSemCategoria(item)) }}
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
+                      {{ formatarMoeda(realizadoDoItem(item)) }}
                     </button>
                   </div>
                   <div class="linha-orc">
                     <span class="rotulo-orc">Orç.</span>
-                    <span class="valor-orc atenuado">—</span>
+                    <span class="valor-orc"><b>{{ formatarMoeda(orcadoDoItem(i, item)) }}</b></span>
                   </div>
                 </td>
               }
-              <td class="celula-orc-real">
-                <div class="linha-real">
-                  <span class="rotulo-real">Real.</span>
-                  <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(item)">
-                    {{ formatarMoeda(realizadoDoItem(item)) }}
-                  </button>
-                </div>
-                <div class="linha-orc">
-                  <span class="rotulo-orc">Orç.</span>
-                  <span class="valor-orc"><b>{{ formatarMoeda(orcadoDoItem(i, item)) }}</b></span>
-                </div>
-              </td>
             } @else {
               <!-- Custo (unitário em cima, total embaixo — mesmo padrão da EAP confirmada) -->
               @if (store.ui().showUnit) {
@@ -351,48 +402,72 @@
           <th colspan="5" class="rotulo-rodape">TOTAIS</th>
 
           @if (store.cabecalho().isConfirmed) {
-            @if (store.mostrarColunasTipo()) {
-              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+            @if (store.ui().modoTotais === 'saldo') {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                  <th class="celula-saldo">
+                    <span class="valor-saldo"
+                          [class.saldo-positivo]="saldoTotalPorTipo()[tipo.chave] >= 0"
+                          [class.saldo-negativo]="saldoTotalPorTipo()[tipo.chave] < 0">
+                      {{ formatarMoeda(saldoTotalPorTipo()[tipo.chave]) }}
+                    </span>
+                  </th>
+                }
+                <th class="celula-saldo">
+                  <span class="valor-saldo atenuado">—</span>
+                </th>
+              }
+              <th class="celula-saldo">
+                <span class="valor-saldo"
+                      [class.saldo-positivo]="saldoTotalGeral() >= 0"
+                      [class.saldo-negativo]="saldoTotalGeral() < 0">
+                  <b>{{ formatarMoeda(saldoTotalGeral()) }}</b>
+                </span>
+              </th>
+            } @else {
+              @if (store.mostrarColunasTipo()) {
+                @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                  <th class="celula-orc-real">
+                    <div class="linha-real">
+                      <span class="rotulo-real">Real.</span>
+                      <button type="button" class="link-realizado" (click)="abrirPagamentosTotais(tipo.chave)">
+                        {{ formatarMoeda(totalRealizadoPorTipoGeral()[tipo.chave]) }}
+                      </button>
+                    </div>
+                    <div class="linha-orc">
+                      <span class="rotulo-orc">Orç.</span>
+                      <span class="valor-orc">
+                        {{ formatarMoeda(totalOrcadoPorTipo()[tipo.chave]) }}
+                      </span>
+                    </div>
+                  </th>
+                }
                 <th class="celula-orc-real">
                   <div class="linha-real">
                     <span class="rotulo-real">Real.</span>
-                    <button type="button" class="link-realizado" (click)="abrirPagamentosTotais(tipo.chave)">
-                      {{ formatarMoeda(totalRealizadoPorTipoGeral()[tipo.chave]) }}
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria()">
+                      {{ formatarMoeda(totalRealizadoSemCategoriaGeral()) }}
                     </button>
                   </div>
                   <div class="linha-orc">
                     <span class="rotulo-orc">Orç.</span>
-                    <span class="valor-orc">
-                      {{ formatarMoeda(totalOrcadoPorTipo()[tipo.chave]) }}
-                    </span>
+                    <span class="valor-orc atenuado">—</span>
                   </div>
                 </th>
               }
               <th class="celula-orc-real">
                 <div class="linha-real">
                   <span class="rotulo-real">Real.</span>
-                  <button type="button" class="link-realizado" (click)="abrirPagamentosSemCategoria()">
-                    {{ formatarMoeda(totalRealizadoSemCategoriaGeral()) }}
+                  <button type="button" class="link-realizado" (click)="abrirPagamentosTotais()">
+                    {{ formatarMoeda(totalRealizadoGeral()) }}
                   </button>
                 </div>
                 <div class="linha-orc">
                   <span class="rotulo-orc">Orç.</span>
-                  <span class="valor-orc atenuado">—</span>
+                  <span class="valor-orc"><b>{{ formatarMoeda(totalOrcado()) }}</b></span>
                 </div>
               </th>
             }
-            <th class="celula-orc-real">
-              <div class="linha-real">
-                <span class="rotulo-real">Real.</span>
-                <button type="button" class="link-realizado" (click)="abrirPagamentosTotais()">
-                  {{ formatarMoeda(totalRealizadoGeral()) }}
-                </button>
-              </div>
-              <div class="linha-orc">
-                <span class="rotulo-orc">Orç.</span>
-                <span class="valor-orc"><b>{{ formatarMoeda(totalOrcado()) }}</b></span>
-              </div>
-            </th>
           } @else {
             @if (store.ui().showUnit) {
               @if (store.mostrarColunasTipo()) {
@@ -629,6 +704,126 @@
 
         <div class="modal-rodape">
           <button type="button" (click)="fecharModalPagamentos()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============ Modal: importar Excel ============ -->
+  @if (mostrarModalImportar()) {
+    <div class="modal">
+      <div class="modal-fundo" (click)="fecharModalImportar()"></div>
+
+      <div class="modal-cartao">
+        <div class="modal-cabecalho">
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Importar itens de uma planilha Excel</span>
+          </div>
+          <button type="button" (click)="fecharModalImportar()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <p class="atenuado pequeno">
+            A planilha precisa ter uma coluna "Nível" (1 a 4) — ela decide sozinha a hierarquia:
+            uma linha vira grupo automaticamente quando alguma linha logo depois dela tem nível
+            maior.
+          </p>
+
+          <div class="linha-ferramentas">
+            <button type="button" (click)="baixarModeloXlsx()">⭳ Baixar planilha-modelo</button>
+            <input type="file" accept=".xlsx" (change)="selecionarArquivo($event)" />
+          </div>
+
+          @if (resultadoImportacao(); as resultado) {
+            @if (resultado.erros.length) {
+              <div class="aviso-erro">
+                <p><b>{{ resultado.erros.length }} linha(s) com problema — corrija a planilha e selecione de novo:</b></p>
+                <ul>
+                  @for (erro of resultado.erros; track erro.linha) {
+                    <li>Linha {{ erro.linha }}: {{ erro.motivo }}</li>
+                  }
+                </ul>
+              </div>
+            } @else if (!resultado.itens.length) {
+              <div class="aviso-erro">Nenhum item encontrado na planilha.</div>
+            } @else {
+              <div class="aviso-info">{{ resultado.itens.length }} item(ns) encontrado(s) na planilha.</div>
+            }
+          }
+        </div>
+
+        <div class="modal-rodape">
+          @if (resultadoImportacao(); as resultado) {
+            @if (!resultado.erros.length && resultado.itens.length) {
+              @if (store.itens().length) {
+                <button type="button" (click)="confirmarImportacao('adicionar')">
+                  Adicionar aos itens atuais
+                </button>
+              }
+              <button type="button" class="primario" (click)="confirmarImportacao('substituir')">
+                Substituir todos os itens atuais
+              </button>
+            }
+          }
+          <button type="button" (click)="fecharModalImportar()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============ Modal: Copiar EAP de outra obra ============ -->
+  @if (mostrarModalCopiarEap()) {
+    <div class="modal">
+      <div class="modal-fundo" (click)="fecharModalCopiarEap()"></div>
+
+      <div class="modal-cartao">
+        <div class="modal-cabecalho">
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Copiar EAP de outra obra</span>
+          </div>
+          <button type="button" (click)="fecharModalCopiarEap()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <p class="atenuado pequeno">
+            Escolha uma obra para copiar a EAP dela — substitui todos os itens e a configuração de
+            BDI da EAP atual. Nome, cliente e os outros dados de identidade desta obra não mudam.
+          </p>
+
+          <input type="search" class="busca" placeholder="Buscar obra, cliente…"
+                 [value]="buscaCopiarEap()" (input)="mudarBuscaCopiarEap($event)" />
+
+          @if (erroCopiarEap(); as mensagem) {
+            <div class="aviso-erro">{{ mensagem }}</div>
+          }
+
+          @if (carregandoObrasParaCopiar()) {
+            <p class="atenuado pequeno">Carregando obras…</p>
+          } @else {
+            <ul class="lista-obras-copiar">
+              @for (obra of obrasFiltradasParaCopiar(); track obra.id) {
+                <li>
+                  <button type="button" class="item-obra-copiar" [disabled]="copiandoEap()"
+                          (click)="copiarEapDe(obra)">
+                    <span class="nome-obra-copiar">{{ obra.obra_nome || 'Obra sem nome' }}</span>
+                    @if (obra.cliente) {
+                      <span class="pequeno atenuado">{{ obra.cliente }}</span>
+                    }
+                  </button>
+                </li>
+              } @empty {
+                <li class="atenuado pequeno">Nenhuma outra obra encontrada.</li>
+              }
+            </ul>
+          }
+
+          @if (copiandoEap()) {
+            <p class="atenuado pequeno">Copiando EAP…</p>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharModalCopiarEap()">Cancelar</button>
         </div>
       </div>
     </div>

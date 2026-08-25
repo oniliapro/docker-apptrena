@@ -114,6 +114,13 @@ class PagamentoController extends Controller
                     'eap_item_id' => $raw['eapId'] ?? null,
                     'valor' => $raw['valor'] ?? 0,
                     'modo_valor' => $raw['modoValor'] ?? 'valor',
+                    // 25/08/2026, redesign da Empreita: qual lado do
+                    // contrato este item representa (empreiteiro/reserva,
+                    // null pra itens de Mapa/manual) + o snapshot do valor
+                    // calculado no momento da geração, usado pra "Divergência".
+                    'parcela_empreita' => $raw['parcela'] ?? null,
+                    'empreita_item_id' => $raw['empreitaItemId'] ?? null,
+                    'valor_referencia' => $raw['valorReferencia'] ?? null,
                 ]);
             }
             $pagamento->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
@@ -150,6 +157,9 @@ class PagamentoController extends Controller
                 'eapId' => $item->eap_item_id ?? '',
                 'valor' => (float) $item->valor,
                 'modoValor' => $item->modo_valor ?? 'valor',
+                'parcela' => $item->parcela_empreita,
+                'empreitaItemId' => $item->empreita_item_id ?? '',
+                'valorReferencia' => $item->valor_referencia !== null ? (float) $item->valor_referencia : null,
             ])->values(),
             'origem' => ($pagamento->origem_tipo && $pagamento->origem_tipo !== 'manual')
                 ? ['tipo' => $pagamento->origem_tipo, 'refId' => $pagamento->origem_ref_id]

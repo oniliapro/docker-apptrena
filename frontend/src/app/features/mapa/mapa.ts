@@ -2,6 +2,7 @@ import { Component, OnInit, computed, effect, inject, input, signal } from '@ang
 import { Router } from '@angular/router';
 
 import { nomeDaEmpresa } from '../../core/models/api.models';
+import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
@@ -45,7 +46,12 @@ import { MapaStore } from './mapa.store';
 export class Mapa implements OnInit {
   protected readonly store = inject(MapaStore);
   private readonly auth = inject(AuthService);
+  private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+
+  /** Estado do botão "Baixar PDF" (22/08/2026) — ver MapaPdfController. */
+  protected readonly gerandoPdf = signal(false);
+  protected readonly erroPdf = signal<string | null>(null);
 
   /**
    * "Assinatura" do documento — nome da empresa dona da conta, pra deixar
@@ -164,9 +170,32 @@ export class Mapa implements OnInit {
     this.store.alternarConfirmacao();
   }
 
-  /** Impressão simples — o navegador oferece "Salvar como PDF" na janela de impressão. */
-  protected gerarPdf(): void {
-    window.print();
+  /**
+   * Baixa o PDF do mapa (22/08/2026) — gerado no backend renderizando a
+   * tela de impressão num Chromium headless (ver MapaPdfController).
+   * Substitui o antigo `window.print()`, que dependia do usuário
+   * escolher "Salvar como PDF" na caixa de diálogo do navegador. Mesmo
+   * padrão de `Relatorios.baixarPdf()`.
+   */
+  protected baixarPdf(): void {
+    this.erroPdf.set(null);
+    this.gerandoPdf.set(true);
+
+    this.api.baixarMapaPdf(this.mapaId()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `mapa-${this.mapaId()}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoPdf.set(false);
+      },
+      error: () => {
+        this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoPdf.set(false);
+      },
+    });
   }
 
   protected gerarPagamento(): void {

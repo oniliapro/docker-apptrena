@@ -67,6 +67,24 @@
 
 .espacador { flex: 1; }
 
+// Confirmar/reabrir empreita (25/08/2026, pedido do Lucas) — mesmo
+// padrão visual já usado na EAP (`eap.scss`).
+.etiqueta {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+
+  &.confirmada {
+    background: var(--cor-sucesso-bg);
+    color: var(--cor-sucesso);
+  }
+}
+
 .rotulo-grupo {
   font-family: var(--fonte-mono);
   font-size: 10px;
@@ -118,85 +136,129 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .col-num { width: 36px; }
 .col-desc { min-width: 190px; }
+.col-tipo { min-width: 110px; }
 .col-eap { min-width: 170px; }
 .col-valor { width: 100px; }
 .col-acoes { width: 40px; }
 
-// Cabeçalhos dos quatro grupos — cada um mantém colunas fixas
-// (Por tipo/Total, Empreiteiro/Reserva/Total, etc.); a discriminação por
-// categoria de custo fica em linhas dentro da célula, não em colunas
-// repetidas por categoria (revisão 31/07/2026, modelo do sistema antigo).
-.grupo-orcado, .grupo-contrato, .grupo-medicao, .grupo-pagamento {
+// Cabeçalho de cada um dos cinco blocos — uma coluna só por bloco
+// (redesenho 25/08/2026, pedido do Lucas: "quero manter só as colunas
+// Contrato/Medição de contrato/Já pago/Pagamento/Saldo após pagamento,
+// empilhe as outras colunas dentro dessas"). Os campos que antes eram
+// colunas próprias (Saldo disp./Empreiteiro/Reserva/Total, etc.) agora
+// são `.subcampo`s empilhados dentro da célula do bloco — ver abaixo.
+.grupo-contrato, .grupo-quantidades, .grupo-medicao, .grupo-ja-pago, .grupo-pagamento, .grupo-saldo-apos {
   background: var(--cor-primaria-clara);
-  min-width: 92px;
 }
 
-// ---- Célula com a discriminação por categoria empilhada ----
-.celula-tipos {
-  min-width: 92px;
-  padding: 4px 6px !important;
+// ---- Célula de bloco (Contrato/Medição/Já pago/Pagamento/Saldo após
+// pagamento) — empilha os campos que antes eram colunas próprias
+// (Saldo disp./Empreiteiro/Reserva/Total etc.), cada um com seu rótulo.
+// 25/08/2026, pedido do Lucas: sem cor de destaque na Reserva e sem linha
+// horizontal separando os campos empilhados — só o espaçamento vertical
+// (`margin-top`) já indica onde um campo termina e o outro começa.
+.celula-grupo {
+  min-width: 150px;
+  padding: 5px 8px !important;
   vertical-align: top;
+  text-align: left;
 }
 
-.linha-tipo {
+// Rótulo à esquerda, valor à direita, na mesma linha (25/08/2026, pedido
+// do Lucas: "quero que as labels apareçam alinhadas entre as colunas...
+// à esquerda dos campos") — `.rotulo-subcampo` tem largura fixa (mesma
+// pra todos os blocos), então o valor/input de todo campo, em toda
+// coluna, começa exatamente no mesmo x. Além disso `.subcampo` tem altura
+// fixa (`min-height`) e o mesmo espaçamento entre si em toda célula — os
+// cinco blocos têm exatamente 4 campos empilhados cada agora, então com
+// altura/espaçamento iguais as 4 linhas alinham entre si de coluna a
+// coluna, não só da esquerda pra direita dentro de uma célula (pedido do
+// Lucas: "essas linhas empilhadas estão desalinhadas... coloque todas
+// elas alinhadas entre as colunas").
+.subcampo {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  min-height: 22px;
   gap: 6px;
-  padding: 1px 0;
-
-  & + .linha-tipo { border-top: 1px dashed var(--cor-fundo-alt); }
-
-  &.invalida {
-    background: var(--cor-perigo-bg);
-
-    input { color: var(--cor-perigo); font-weight: 700; }
-  }
 }
 
-.rotulo-tipo {
+.subcampo + .subcampo { margin-top: 4px; }
+.destaque .rotulo-subcampo { color: var(--cor-primaria); }
+
+.rotulo-subcampo {
+  flex: 0 0 68px;
   font-family: var(--fonte-mono);
   font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  font-weight: 700;
   color: var(--cor-texto-suave);
   white-space: nowrap;
 }
 
-.valor-tipo {
+.valor-subcampo {
+  flex: 1;
+  min-width: 0;
   font-family: var(--fonte-mono);
-  font-size: 11px;
+  font-size: 12px;
   text-align: right;
 }
 
-.celula-tipos input {
-  width: 100%;
-  height: 19px;
+.celula-grupo input.valor {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
   text-align: right;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
 .zebra td { background: var(--cor-zebra); }
 .vazio { padding: 34px 16px; }
 
-// A reserva discricionária é o diferencial do produto — recebe destaque
-// próprio para não se perder entre as demais colunas de valor.
-.reserva {
-  background: var(--cor-alerta-bg) !important;
+// Saldo disp./Divergência/Saldo após pagamento (25/08/2026, pedido do
+// Lucas) — mesmo par de classes já usado no Mapa/EAP pra saldo orçado x
+// realizado: azul quando positivo, vermelho quando negativo.
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
 
-  &.col-valor { color: var(--cor-alerta); }
+// Toggle de 3 estados (R$ ⇄ % ⇄ Qtde) na Medição de contrato — mesmo
+// padrão visual do botão "alternar-unidade" já usado no Cronograma de
+// Desembolso, só que cicla 3 valores em vez de 2 (ver
+// `Empreita.alternarUnidadeMedicao`).
+.campo-com-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
 }
 
-.cor-reserva { color: var(--cor-alerta); }
+.campo-com-toggle .alternar-unidade {
+  flex-shrink: 0;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  font-size: 8.5px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover { background: #fff; }
+}
+
+.campo-com-toggle input.valor {
+  flex: 1;
+  min-width: 0;
+}
 
 // Medição que retrocedeu
-.invalida td { background: var(--cor-perigo-bg) !important; }
+.invalida td {
+  background: var(--cor-perigo-bg) !important;
 
-.celula-invalida input {
-  border-color: var(--cor-perigo) !important;
-  color: var(--cor-perigo);
-  font-weight: 700;
+  .celula-grupo input.valor { color: var(--cor-perigo); font-weight: 700; }
 }
 
 .rotulo-rodape { text-align: right; font-weight: 700; }
@@ -211,7 +273,44 @@ tfoot th {
   color: var(--cor-texto);
 }
 
+// Rodapé TOTAIS dos cinco blocos — sem discriminação por categoria (é
+// soma de todas), só o rótulo do campo e o valor lado a lado.
+.celula-grupo-rodape {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px !important;
+}
+
+// Mesma altura/espaçamento fixo do `.subcampo` do corpo da tabela — os
+// cinco blocos do rodapé também têm 4 linhas cada agora, alinhadas entre
+// si pelo mesmo motivo.
+.subcampo-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 22px;
+  gap: 8px;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+
+  b { font-family: var(--fonte-mono); font-size: 12px; text-transform: none; color: var(--cor-texto); }
+
+  &.destaque b { font-size: 13px; color: var(--cor-primaria); }
+}
+
+.subcampo-rodape + .subcampo-rodape { margin-top: 4px; }
+
 // ---- Painéis inferiores ----
+// Grade 2x2: "Medição deste período" em cima à esquerda, "Contrato x
+// orçado" em cima à direita, e o relatório "Pagamentos registrados"
+// (25/08/2026, pedido do Lucas: "coloquie ... no canto inferior direito")
+// embaixo à direita, alinhado por baixo do painel de contrato — por isso
+// a posição explícita em vez de deixar o auto-placement da grade decidir
+// (senão o terceiro painel cairia embaixo à ESQUERDA, voltando pra
+// coluna 1).
 .grade-inferior {
   display: grid;
   grid-template-columns: 340px 1fr;
@@ -219,8 +318,14 @@ tfoot th {
   align-items: start;
 }
 
+.painel-relatorio-pagamentos {
+  grid-column: 2;
+  grid-row: 2;
+}
+
 @media (max-width: 900px) {
   .grade-inferior { grid-template-columns: 1fr; }
+  .painel-relatorio-pagamentos { grid-column: 1; grid-row: auto; }
 }
 
 .linha-resumo {

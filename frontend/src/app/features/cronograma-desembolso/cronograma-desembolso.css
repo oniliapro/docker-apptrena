@@ -1,0 +1,139 @@
+:host {
+  display: block;
+}
+
+.painel {
+  margin-bottom: 14px;
+}
+
+.painel.sem-preenchimento {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.painel.vazio {
+  padding: 34px 16px;
+  text-align: center;
+}
+
+.aviso-erro {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.cabecalho-tela {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cabecalho-tela h2 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.pequeno {
+  font-size: 11px;
+}
+
+.envoltoria {
+  overflow-x: auto;
+}
+
+.tabela-cronograma {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+.tabela-cronograma th, .tabela-cronograma td {
+  padding: 7px 9px;
+  font-size: 12px;
+}
+.tabela-cronograma th {
+  text-align: right;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+.tabela-cronograma thead th.col-eap {
+  text-align: left;
+}
+.tabela-cronograma td.valor, .tabela-cronograma th.valor {
+  text-align: right;
+  font-family: var(--fonte-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.tabela-cronograma td.col-eap {
+  text-align: left;
+}
+.tabela-cronograma .valor-orc {
+  color: var(--cor-texto-suave);
+}
+.tabela-cronograma .valor-real {
+  color: var(--cor-aco);
+  font-weight: 700;
+}
+.tabela-cronograma .total-realizado {
+  border-left: 2px solid var(--cor-borda-forte);
+  font-weight: 700;
+}
+.tabela-cronograma .zebra td {
+  background: var(--cor-zebra);
+}
+.tabela-cronograma .linha-grupo td {
+  background: var(--cor-primaria-escura) !important;
+  color: #fff;
+  font-weight: 700;
+}
+.tabela-cronograma .linha-grupo td.valor-orc {
+  color: rgba(255, 255, 255, 0.7);
+}
+.tabela-cronograma .linha-grupo td.valor-real {
+  color: var(--cor-destaque);
+}
+.tabela-cronograma .linha-grupo td .botao-colapsar {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+.tabela-cronograma .linha-grupo td .botao-colapsar:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.tabela-cronograma .celula-eap {
+  position: relative;
+}
+.tabela-cronograma .botao-colapsar {
+  position: absolute;
+  top: 8px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+}
+.tabela-cronograma tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+  font-family: var(--fonte);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+}
+.tabela-cronograma .centro {
+  text-align: center;
+}
+
+.col-eap {
+  min-width: 220px;
+}/*# sourceMappingURL=cronograma-desembolso.css.map */

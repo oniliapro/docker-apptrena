@@ -1,7 +1,19 @@
 <div class="cabecalho">
-  <h1>Relatórios</h1>
-  <div class="atenuado">Orçado x realizado, cruzando a EAP com os pagamentos</div>
+  <div>
+    <h1>Relatórios</h1>
+    <div class="atenuado">Orçado x realizado, cruzando a EAP com os pagamentos</div>
+  </div>
+
+  @if (temDados()) {
+    <button type="button" class="primario" [disabled]="gerandoPdf()" (click)="baixarPdf()">
+      {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+    </button>
+  }
 </div>
+
+@if (erroPdf(); as mensagemPdf) {
+  <div class="painel aviso-pdf">{{ mensagemPdf }}</div>
+}
 
 @if (carregando()) {
   <div class="painel atenuado">Carregando…</div>

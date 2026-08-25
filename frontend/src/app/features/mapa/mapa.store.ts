@@ -38,6 +38,7 @@ import {
   rotuloFornecedor,
 } from './mapa-engine';
 import { proximoNumeroMapa } from './mapa-numero';
+import { ResumoEtapas } from './mapa-resumo-etapas';
 import { ETAPA_SEM_NOME, obterRateiosDoItem } from './mapa-resumos';
 import { CabecalhoMapa, Fornecedor, ItemMapa, NotaFornecedor } from './mapa.models';
 
@@ -389,6 +390,15 @@ export class MapaStore {
   });
 
   /**
+   * Instância "muda" do rateio (nunca trava nada) só pra chegar no total
+   * de verdade de cada etapa — ver `saldoPorEtapa` abaixo. É a mesma
+   * classe que `mapa.ts`/`mapa-imprimir.ts` usam pro "Rateio por etapa da
+   * obra" (com as travas do usuário); aqui não interessam travas, só o
+   * número que sai do cálculo proporcional padrão.
+   */
+  private readonly resumoEtapasParaSaldo = new ResumoEtapas();
+
+  /**
    * Saldo remanescente de cada etapa, por categoria de custo, depois da
    * compra deste mapa — pedido do Lucas, 17/08/2026, pro Rateio por
    * etapa: `orçado da etapa − já realizado por OUTROS mapas/pagamentos
@@ -397,9 +407,23 @@ export class MapaStore {
    * mesmo mapa — por isso os pagamentos deste mapa são excluídos do
    * "realizado": senão a contribuição dele entraria contada duas vezes).
    *
+   * "O que este mapa está gastando" de cada etapa (23/08/2026, correção
+   * de bug apontado pelo Lucas) é o TOTAL da etapa — base + parte do
+   * frete + parte do desconto + markup, exatamente o número que já
+   * aparece em "Total da etapa" no Rateio por etapa (`ResumoEtapas`,
+   * reaproveitada aqui) — não só a base dos itens como antes. Frete e
+   * desconto são da NOTA do fornecedor, não têm categoria própria, então
+   * o total da etapa é repartido entre os tipos de custo NA PROPORÇÃO do
+   * valor BASE de cada tipo dentro daquela etapa (ex.: se "Material" é
+   * 70% da base da etapa e "Equipamento" 30%, o total da etapa — já com
+   * frete/desconto/markup embutidos — é descontado nessa mesma proporção
+   * do saldo de cada um).
+   *
    * Chave do mapa devolvido = a mesma `etapaKey` das células do Rateio
-   * (`item.eapId`, nunca `ETAPA_SEM_NOME` — sem etapa não tem orçado pra
-   * comparar).
+   * (o RÓTULO da etapa, `item.etapa` — nunca `ETAPA_SEM_NOME`, sem etapa
+   * não tem orçado pra comparar). Ver `eapIdRealPorEtapaKey` logo abaixo:
+   * o id de verdade da EAP (`item.eapId`) só entra na hora de consultar
+   * orçado/realizado, não como chave deste mapa.
    */
   readonly saldoPorEtapa = computed(() => {
     const itensEap = this.itensEap();
@@ -419,18 +443,64 @@ export class MapaStore {
     }
     if (!etapasUsadas.size) return resultado;
 
-    const contribuicaoPorEtapa = new Map<string, PorTipo>();
+    /**
+     * `rateio.etapaKey` (usado como chave em toda esta função, pra bater
+     * com `linha.etapa` do Rateio por etapa) vem de `item.etapa` — que
+     * NÃO é o id real da EAP, é o RÓTULO ("2.4 - Aluguel de ferramenta
+     * e acessórios..."), gravado assim de propósito por
+     * `MapaEditor.editarEtapa()` (`{ eapId: etapa.id, etapa: etapa.rotulo
+     * }` — dois campos, o rótulo pro rateio/exibição, o id de verdade em
+     * `item.eapId`, usado hoje só pra gerar pagamento). `orcadoDaEtapa`
+     * (abaixo) espera um id real — comparando com um rótulo, nunca
+     * encontra o item e sempre devolve zero; pagamentos confirmados
+     * (`linha.eapId`, sempre um id de verdade) também nunca batiam contra
+     * `etapasUsadas` (cheio de rótulos) — os dois lados zerados ao mesmo
+     * tempo é o bug relatado pelo Lucas (23/08/2026): "como se todas as
+     * etapas estivessem com orçado=realizado", quando na verdade os dois
+     * simplesmente não eram encontrados. Esta tabela resolve rótulo → id
+     * real, então o cálculo abaixo consulta a EAP pelo id de verdade sem
+     * abrir mão do rótulo como chave externa (o Rateio por etapa e o
+     * template continuam indexando por rótulo).
+     */
+    const eapIdRealPorEtapaKey = new Map<string, string>();
+    for (const item of itens) {
+      if (!item.eapId) continue;
+      for (const rateio of obterRateiosDoItem(item)) {
+        if (rateio.etapaKey !== ETAPA_SEM_NOME) eapIdRealPorEtapaKey.set(rateio.etapaKey, item.eapId);
+      }
+    }
+    const etapaKeyPorEapIdReal = new Map<string, string>();
+    for (const [etapaKey, eapIdReal] of eapIdRealPorEtapaKey) {
+      etapaKeyPorEapIdReal.set(eapIdReal, etapaKey);
+    }
+
+    // Total de verdade de cada etapa (base + frete + desconto + markup),
+    // o mesmo número da coluna "Total da etapa" do Rateio.
+    const totalPorEtapa = new Map<string, number>();
+    for (const linha of this.resumoEtapasParaSaldo.calcular(
+      alocacoes,
+      itens,
+      fornecedores,
+      this.notas().bySupplier,
+    )) {
+      totalPorEtapa.set(linha.etapa, linha.total);
+    }
+
+    // Proporção de BASE por tipo de custo dentro de cada etapa — usada só
+    // pra ratear o total acima entre os tipos, nunca somada diretamente
+    // ao saldo (frete/desconto/markup não têm tipo próprio).
+    const basePorTipoPorEtapa = new Map<string, PorTipo>();
     for (const alocacao of alocacoes) {
       const item = itens[alocacao.itemIndex];
       if (!item?.tipo) continue;
-      const total = calcularTotalItem(item, alocacao.supplierIndex, fornecedores);
+      const base = calcularBaseItem(item, alocacao.supplierIndex);
       for (const rateio of obterRateiosDoItem(item)) {
         if (rateio.etapaKey === ETAPA_SEM_NOME) continue;
-        if (!contribuicaoPorEtapa.has(rateio.etapaKey)) {
-          contribuicaoPorEtapa.set(rateio.etapaKey, criarVazioPorTipo());
+        if (!basePorTipoPorEtapa.has(rateio.etapaKey)) {
+          basePorTipoPorEtapa.set(rateio.etapaKey, criarVazioPorTipo());
         }
-        const porTipo = contribuicaoPorEtapa.get(rateio.etapaKey)!;
-        porTipo[item.tipo as ChaveTipo] += total * rateio.fator;
+        const porTipo = basePorTipoPorEtapa.get(rateio.etapaKey)!;
+        porTipo[item.tipo as ChaveTipo] += base * rateio.fator;
       }
     }
 
@@ -439,26 +509,37 @@ export class MapaStore {
     for (const pagamento of this.pagamentosDaObra()) {
       if (pagamento.status === 'pendente' || doMapaAtual(pagamento)) continue;
       for (const linha of pagamento.itens) {
-        if (!linha.eapId || !linha.tipo || !etapasUsadas.has(linha.eapId)) continue;
+        if (!linha.eapId || !linha.tipo) continue;
+        // `linha.eapId` (de um pagamento já confirmado) é sempre um id
+        // real da EAP — resolve pra qual `etapaKey` (rótulo) este mapa
+        // usa antes de bater contra `etapasUsadas`, ver comentário acima.
+        const etapaKey = etapaKeyPorEapIdReal.get(linha.eapId);
+        if (!etapaKey || !etapasUsadas.has(etapaKey)) continue;
         const valor =
           linha.modoValor === 'percentual'
             ? pagamento.valorTotal * ((Number(linha.valor) || 0) / 100)
             : Number(linha.valor) || 0;
-        if (!realizadoPorEtapa.has(linha.eapId)) {
-          realizadoPorEtapa.set(linha.eapId, criarVazioPorTipo());
+        if (!realizadoPorEtapa.has(etapaKey)) {
+          realizadoPorEtapa.set(etapaKey, criarVazioPorTipo());
         }
-        const porTipo = realizadoPorEtapa.get(linha.eapId)!;
+        const porTipo = realizadoPorEtapa.get(etapaKey)!;
         porTipo[linha.tipo as ChaveTipo] += valor;
       }
     }
 
     for (const etapaId of etapasUsadas) {
-      const orcado = orcadoDaEtapa(etapaId, itensEap, cache);
-      const contribuicao = contribuicaoPorEtapa.get(etapaId) ?? criarVazioPorTipo();
+      const eapIdReal = eapIdRealPorEtapaKey.get(etapaId) ?? etapaId;
+      const orcado = orcadoDaEtapa(eapIdReal, itensEap, cache);
       const realizado = realizadoPorEtapa.get(etapaId) ?? criarVazioPorTipo();
+      const basePorTipo = basePorTipoPorEtapa.get(etapaId) ?? criarVazioPorTipo();
+      const totalEtapa = totalPorEtapa.get(etapaId) ?? 0;
+      const baseTotalEtapa = TIPOS_CUSTO.reduce((soma, t) => soma + (basePorTipo[t.chave] || 0), 0);
+
       const saldo = criarVazioPorTipo();
       TIPOS_CUSTO.forEach((t) => {
-        saldo[t.chave] = (orcado[t.chave] || 0) - (realizado[t.chave] || 0) - (contribuicao[t.chave] || 0);
+        const proporcao = baseTotalEtapa > 0 ? (basePorTipo[t.chave] || 0) / baseTotalEtapa : 0;
+        const contribuicaoTipo = totalEtapa * proporcao;
+        saldo[t.chave] = (orcado[t.chave] || 0) - (realizado[t.chave] || 0) - contribuicaoTipo;
       });
       resultado.set(etapaId, saldo);
     }

@@ -98,6 +98,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["angular"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "trenaapp-angular:build:production"

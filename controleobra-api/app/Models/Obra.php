@@ -29,13 +29,14 @@ class Obra extends Model
     ];
 
     protected $fillable = [
-        'id', 'empresa_id', 'map_number', 'obra_nome', 'cliente', 'data_base', 'responsavel',
+        'id', 'empresa_id', 'map_number', 'obra_nome', 'cliente', 'data_base', 'prazo_meses', 'responsavel',
         'local_obra', 'periodo', 'obs', 'bdi_scope', 'bdi_mode', 'bdi_percent',
         'bdi_value', 'is_confirmed', 'confirmed_at', 'status',
     ];
 
     protected $casts = [
         'data_base' => 'date',
+        'prazo_meses' => 'integer',
         'confirmed_at' => 'date',
         'is_confirmed' => 'boolean',
         'bdi_percent' => 'float',
@@ -75,5 +76,15 @@ class Obra extends Model
     public function pagamentos(): HasMany
     {
         return $this->hasMany(Pagamento::class);
+    }
+
+    public function medicoes(): HasMany
+    {
+        return $this->hasMany(Medicao::class)->orderBy('sequencia');
+    }
+
+    public function planejamentosCronograma(): HasMany
+    {
+        return $this->hasMany(CronogramaPlanejamento::class);
     }
 }

@@ -38,10 +38,13 @@
     </div>
   </div>
 
-  <!-- ============ Ações e categorias ============ -->
+  <!-- ============ Ações ============ -->
   <div class="painel barra-ferramentas">
     <div class="linha-ferramentas">
-      <button type="button" (click)="store.adicionarItem()">➕ Adicionar serviço</button>
+      <button type="button" [disabled]="store.travada()" (click)="store.adicionarItem()"
+              title="Desabilitado com a empreita confirmada">
+        ➕ Adicionar serviço
+      </button>
 
       <span class="espacador"></span>
 
@@ -49,36 +52,41 @@
         <span class="atenuado pequeno">salvando…</span>
       }
 
-      <button type="button"
-              [disabled]="store.temMedicaoInvalida() || store.totais().pagarEmp <= 0 || store.gerandoPagamento()"
-              (click)="gerarPagamento()"
-              title="Cria um pagamento pendente pro empreiteiro com o avanço medido, pra confirmar depois na aba Pagamentos">
-        {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
+      <span class="etiqueta" [class.confirmada]="store.travada()">
+        {{ store.travada() ? 'Confirmada' : 'Em edição' }}
+      </span>
+      <button type="button" class="primario" (click)="store.alternarConfirmacao()">
+        {{ store.travada() ? 'Reabrir empreita' : 'Confirmar empreita' }}
       </button>
 
-      <button type="button" class="primario"
-              [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0"
-              (click)="fecharPeriodo()">
-        ✅ Fechar período
+      @if (store.travada()) {
+        <button type="button"
+                [disabled]="store.temMedicaoInvalida() || store.totaisEstendidos().pagamentoDraftTotal <= 0 || store.gerandoPagamento()"
+                (click)="gerarPagamento()"
+                title="Cria um pagamento pendente com o rascunho de Pagamento deste período, pra confirmar depois na aba Pagamentos">
+          {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
+        </button>
+
+        <button type="button"
+                [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0"
+                (click)="fecharPeriodo()">
+          ✅ Fechar período
+        </button>
+      }
+      <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
+              title="Gera e baixa o PDF da empreita">
+        {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
       </button>
     </div>
 
     @if (store.resultadoGerarPagamento(); as mensagem) {
       <div class="aviso-info">{{ mensagem }}</div>
     }
+    @if (erroPdf(); as mensagemPdf) {
+      <div class="aviso-erro">{{ mensagemPdf }}</div>
+    }
 
     <div class="linha-ferramentas">
-      <span class="rotulo-grupo">Categorias medidas</span>
-      @for (tipo of store.tiposCusto; track tipo.chave) {
-        <label class="checagem-inline">
-          <input type="checkbox" [checked]="store.cabecalho().typesIncluded[tipo.chave]"
-                 (change)="store.alternarTipo(tipo.chave)" />
-          {{ tipo.rotulo }}
-        </label>
-      }
-      <span class="atenuado pequeno">nenhuma marcada = todas</span>
-
-      <span class="espacador"></span>
       <span class="dica atenuado pequeno" title="Atalhos disponíveis nas células da tabela">
         ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove
       </span>
@@ -101,28 +109,20 @@
            (removerLinha)="removerPorIndice($event)">
       <thead>
         <tr>
-          <th rowspan="2" class="col-num">#</th>
-          <th rowspan="2" class="col-desc">Serviço</th>
-          <th rowspan="2" class="col-eap">Etapa (EAP)</th>
-          <th colspan="2" class="grupo-orcado">Orçado (R$)</th>
-          <th colspan="3" class="grupo-contrato">Contrato (R$)</th>
-          <th colspan="3" class="grupo-medicao">Medição (%)</th>
-          <th colspan="3" class="grupo-pagamento">Pagamento do período (R$)</th>
-          <th rowspan="2" class="col-valor">Saldo (R$)</th>
-          <th rowspan="2" class="col-acoes"></th>
-        </tr>
-        <tr>
-          <th class="grupo-orcado">Por tipo</th>
-          <th class="grupo-orcado">Total</th>
-          <th class="grupo-contrato">Empreiteiro</th>
-          <th class="grupo-contrato reserva">Reserva</th>
-          <th class="grupo-contrato">Total</th>
-          <th class="grupo-medicao">Acum.</th>
-          <th class="grupo-medicao">Atual</th>
-          <th class="grupo-medicao">Avanço</th>
-          <th class="grupo-pagamento">Pagar</th>
-          <th class="grupo-pagamento reserva">Reservar</th>
-          <th class="grupo-pagamento">Total</th>
+          <th class="col-num">#</th>
+          <th class="col-desc">Serviço</th>
+          <th class="col-tipo">Tipo</th>
+          <th class="col-eap">Etapa (EAP)</th>
+          <th class="grupo-contrato">Contrato (R$)</th>
+          @if (!store.travada()) {
+            <th class="grupo-quantidades">Quantidades</th>
+          } @else {
+            <th class="grupo-medicao">Medição de contrato</th>
+            <th class="grupo-ja-pago">Já pago (R$)</th>
+            <th class="grupo-pagamento">Pagamento (R$)</th>
+            <th class="grupo-saldo-apos">Saldo após pagamento (R$)</th>
+          }
+          <th class="col-acoes"></th>
         </tr>
       </thead>
 
@@ -132,6 +132,13 @@
             <td class="centro indice">{{ i + 1 }}</td>
             <td>
               <input type="text" [value]="item.desc" (change)="editarTexto(item, $event)" />
+            </td>
+            <td>
+              <select [value]="item.tipo" (change)="editarTipo(item, $event)">
+                @for (tipo of tiposCusto; track tipo.chave) {
+                  <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
+                }
+              </select>
             </td>
             <td>
               @if (store.opcoesEap().length) {
@@ -146,112 +153,187 @@
               }
             </td>
 
-            <!-- Orçado: Por tipo (empilhado, referência) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo atenuado">{{ valorOrcadoPorTipo(i, tipo) }}</span>
-                </div>
-              }
-            </td>
-            <!-- Orçado: Total -->
-            <td class="valor atenuado">{{ moedaOuVazio(linha(i).orcadoTotal) }}</td>
-
-            <!-- Contrato: Empreiteiro (empilhado, editável) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <input type="text" class="valor" placeholder="R$ 0,00"
-                         [value]="valorContrato(item, 'contratoEmpPorTipo', tipo)"
-                         (change)="editarContrato(item, 'contratoEmpPorTipo', tipo, $event)" />
-                </div>
-              }
-            </td>
-            <!-- Contrato: Reserva (empilhado, editável) -->
-            <td class="celula-tipos reserva">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <input type="text" class="valor" placeholder="R$ 0,00"
-                         [value]="valorContrato(item, 'contratoReservaPorTipo', tipo)"
-                         (change)="editarContrato(item, 'contratoReservaPorTipo', tipo, $event)" />
-                </div>
-              }
-            </td>
-            <!-- Contrato: Total (empilhado, calculado) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo">{{ valorContratoTotalPorTipo(i, tipo) }}</span>
-                </div>
-              }
+            <!-- Contrato: Saldo disp. / Empreiteiro / Reserva / Total, empilhados numa célula só -->
+            <td class="celula-grupo">
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Saldo disp.</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="valorSaldoDisp(i) >= 0"
+                      [class.saldo-negativo]="valorSaldoDisp(i) < 0">
+                  {{ moedaOuVazio(valorSaldoDisp(i)) }}
+                </span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Empreiteiro</span>
+                <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                       [value]="valorContrato(item, 'contratoEmp')"
+                       (change)="editarContrato(item, 'contratoEmp', $event)" />
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Reserva</span>
+                <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                       [value]="valorContrato(item, 'contratoReserva')"
+                       (change)="editarContrato(item, 'contratoReserva', $event)" />
+              </div>
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Total</span>
+                <span class="valor-subcampo">{{ valorContratoTotal(i) }}</span>
+              </div>
             </td>
 
-            <!-- Medição: Acum. (empilhado, editável) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
+            @if (!store.travada()) {
+              <!-- Quantidades (só em edição): Qtde. EAP / Un. EAP / Qtde. disp. / Qtde. contrat., empilhados numa célula só -->
+              <td class="celula-grupo">
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Qtde. EAP</span>
+                  <span class="valor-subcampo">{{ valorQtdeEap(item) }}</span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Un. EAP</span>
+                  <span class="valor-subcampo">{{ valorUnidEap(item) }}</span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Qtde. disp.</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="numQtdeDisp(i) >= 0"
+                        [class.saldo-negativo]="numQtdeDisp(i) < 0">
+                    {{ valorQtdeDisp(i, item) }}
+                  </span>
+                </div>
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Qtde. contrat.</span>
                   <input type="text" class="valor" placeholder="0"
-                         [value]="valorMedicaoAcumulada(item, tipo)"
-                         (change)="editarMedicao(item, 'medicaoAcumByType', tipo, $event)" />
+                         [value]="valorQtdeContratadaExibida(item)"
+                         (change)="editarQtdeContratada(item, $event)" />
                 </div>
-              }
-            </td>
-            <!-- Medição: Atual (empilhado, editável) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo" [class.invalida]="linha(i).tiposInvalidos.includes(tipo)">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <input type="text" class="valor" placeholder="—"
-                         [value]="valorMedicaoAtual(item, tipo)"
-                         (change)="editarMedicao(item, 'medicaoAtualByType', tipo, $event)" />
+              </td>
+            } @else {
+              <!-- Medição de contrato: Qtde. contratada (travada) / Acumulado / Atual / Avanço, empilhados numa célula só -->
+              <td class="celula-grupo">
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Qtde. contrat.</span>
+                  <input type="text" class="valor" placeholder="0" [disabled]="store.travada()"
+                         [value]="valorQtdeContratadaExibida(item)"
+                         (change)="editarQtdeContratada(item, $event)" />
                 </div>
-              }
-            </td>
-            <!-- Medição: Avanço (empilhado, calculado) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo">{{ valorAvancoPorTipo(i, tipo) }}</span>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Acumulado</span>
+                  <div class="campo-com-toggle">
+                    <button type="button" class="alternar-unidade" (click)="alternarUnidadeMedicao(item.id)"
+                            [title]="'Alternar unidade — atual: ' + rotuloUnidadeMedicao(unidadeMedicaoDe(item.id))">
+                      {{ rotuloUnidadeMedicao(unidadeMedicaoDe(item.id)) }}
+                    </button>
+                    <input type="text" class="valor" placeholder="0"
+                           [value]="valorMedicaoAcumuladaExibida(i, item)"
+                           (change)="editarMedicao(i, item, 'medicaoAcum', $event)" />
+                  </div>
                 </div>
-              }
-            </td>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Atual</span>
+                  <div class="campo-com-toggle">
+                    <button type="button" class="alternar-unidade" (click)="alternarUnidadeMedicao(item.id)"
+                            [title]="'Alternar unidade — atual: ' + rotuloUnidadeMedicao(unidadeMedicaoDe(item.id))">
+                      {{ rotuloUnidadeMedicao(unidadeMedicaoDe(item.id)) }}
+                    </button>
+                    <input type="text" class="valor" placeholder="—"
+                           [value]="valorMedicaoAtualExibida(i, item)"
+                           (change)="editarMedicao(i, item, 'medicaoAtual', $event)" />
+                  </div>
+                </div>
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Avanço</span>
+                  <span class="valor-subcampo">{{ valorAvanco(i) }}</span>
+                </div>
+              </td>
 
-            <!-- Pagamento do período: Pagar (empilhado, calculado) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo">{{ valorPagarPorTipo(i, tipo) }}</span>
+              <!-- Já pago: Empreiteiro / Reserva / Divergência / Total, empilhados numa célula só -->
+              <td class="celula-grupo">
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <span class="valor-subcampo">{{ valorJaPagoEmpreiteiro(i) }}</span>
                 </div>
-              }
-            </td>
-            <!-- Pagamento do período: Reservar (empilhado, calculado) -->
-            <td class="celula-tipos reserva">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo">{{ valorReservarPorTipo(i, tipo) }}</span>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <span class="valor-subcampo">{{ valorJaPagoReserva(i) }}</span>
                 </div>
-              }
-            </td>
-            <!-- Pagamento do período: Total (empilhado, calculado) -->
-            <td class="celula-tipos">
-              @for (tipo of store.tipos(); track tipo) {
-                <div class="linha-tipo">
-                  <span class="rotulo-tipo">{{ rotuloAbrev(tipo) }}</span>
-                  <span class="valor-tipo">{{ valorPagamentoTotalPorTipo(i, tipo) }}</span>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Divergência</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="numDivergencia(i) >= 0"
+                        [class.saldo-negativo]="numDivergencia(i) < 0">
+                    {{ valorJaPagoDivergencia(i) }}
+                  </span>
                 </div>
-              }
-            </td>
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Total</span>
+                  <span class="valor-subcampo">{{ valorJaPagoTotal(i) }}</span>
+                </div>
+              </td>
 
-            <!-- Saldo: orçado − contratado, referência única (não por tipo) -->
-            <td class="valor">{{ moedaOuVazio(saldo(i)) }}</td>
+              <!-- Pagamento: Medido / Empreiteiro / Reserva / Total (rascunho editável), empilhados numa célula só -->
+              <td class="celula-grupo">
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Medido</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="numMedido(i) >= 0"
+                        [class.saldo-negativo]="numMedido(i) < 0">
+                    {{ valorMedido(i) }}
+                  </span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00"
+                         [value]="valorPagamentoDraftExibido(i, 'pagamentoEmpDraft')"
+                         (change)="editarPagamentoDraft(item, 'pagamentoEmp', $event)" />
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00"
+                         [value]="valorPagamentoDraftExibido(i, 'pagamentoReservaDraft')"
+                         (change)="editarPagamentoDraft(item, 'pagamentoReserva', $event)" />
+                </div>
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Total</span>
+                  <span class="valor-subcampo">{{ valorPagamentoDraftTotal(i) }}</span>
+                </div>
+              </td>
+
+              <!-- Saldo após pagamento: Etapa / Empreiteiro / Reserva / Total, empilhados numa célula só -->
+              <td class="celula-grupo">
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Etapa</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoEtapa(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoEtapa(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
+                  </span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
+                  </span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
+                  </span>
+                </div>
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Total</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoTotal(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoTotal(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoTotal(i)) }}
+                  </span>
+                </div>
+              </td>
+            }
 
             <td class="centro">
               <button type="button" title="Remover" (click)="remover(item)">✖</button>
@@ -270,21 +352,82 @@
       @if (store.itens().length) {
         <tfoot>
           <tr>
-            <th colspan="3" class="rotulo-rodape">TOTAIS</th>
-            <th class="valor">—</th>
-            <th class="valor">{{ formatarMoeda(store.totais().orcadoTotal) }}</th>
-            <th class="valor">{{ formatarMoeda(store.totais().valorEmp) }}</th>
-            <th class="valor reserva">{{ formatarMoeda(store.totais().valorReserva) }}</th>
-            <th class="valor">{{ formatarMoeda(store.totais().valorTotal) }}</th>
-            <th>—</th>
-            <th>—</th>
-            <th>—</th>
-            <th class="valor">{{ formatarMoeda(store.totais().pagarEmp) }}</th>
-            <th class="valor reserva">{{ formatarMoeda(store.totais().reservarPgto) }}</th>
-            <th class="valor">{{ formatarMoeda(store.totais().totalPeriodo) }}</th>
-            <th class="valor">
-              {{ formatarMoeda(store.totais().orcadoTotal - store.totais().valorTotal) }}
+            <th colspan="4" class="rotulo-rodape">TOTAIS</th>
+
+            <th class="celula-grupo-rodape">
+              <div class="subcampo-rodape">Saldo disp. <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totais().valorEmp) }}</b></div>
+              <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totais().valorReserva) }}</b></div>
+              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
             </th>
+
+            @if (!store.travada()) {
+              <th class="celula-grupo-rodape">
+                <div class="subcampo-rodape">Qtde. EAP <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape">Un. EAP <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape">Qtde. disp. <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape destaque">Qtde. contrat. <span class="atenuado">—</span></div>
+              </th>
+            } @else {
+              <th class="celula-grupo-rodape">
+                <div class="subcampo-rodape">Qtde. contrat. <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape">Acumulado <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape">Atual <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape destaque">Avanço <span class="atenuado">—</span></div>
+              </th>
+
+              <th class="celula-grupo-rodape">
+                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoEmpreiteiro) }}</b></div>
+                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoReserva) }}</b></div>
+                <div class="subcampo-rodape">
+                  Divergência
+                  <b [class.saldo-positivo]="store.totaisEstendidos().jaPagoDivergencia >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().jaPagoDivergencia < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().jaPagoDivergencia) }}
+                  </b>
+                </div>
+                <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoTotal) }}</b></div>
+              </th>
+
+              <th class="celula-grupo-rodape">
+                <div class="subcampo-rodape">
+                  Medido
+                  <b [class.saldo-positivo]="store.totaisEstendidos().medidoTotal >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().medidoTotal < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().medidoTotal) }}
+                  </b>
+                </div>
+                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftEmp) }}</b></div>
+                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftReserva) }}</b></div>
+                <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftTotal) }}</b></div>
+              </th>
+
+              <th class="celula-grupo-rodape">
+                <div class="subcampo-rodape">Etapa <span class="atenuado">—</span></div>
+                <div class="subcampo-rodape">
+                  Empreiteiro
+                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
+                  </b>
+                </div>
+                <div class="subcampo-rodape">
+                  Reserva
+                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
+                  </b>
+                </div>
+                <div class="subcampo-rodape destaque">
+                  Total
+                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoTotal >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoTotal < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoTotal) }}
+                  </b>
+                </div>
+              </th>
+            }
+
             <th></th>
           </tr>
         </tfoot>
@@ -292,7 +435,7 @@
     </table>
   </div>
 
-  <!-- ============ Resumo do período ============ -->
+  <!-- ============ Resumo do período + relatório de pagamentos ============ -->
   @if (store.itens().length) {
     <div class="grade-inferior">
       <div class="painel">
@@ -304,7 +447,7 @@
         </div>
         <div class="linha-resumo">
           <span>Reserva discricionária</span>
-          <b class="cor-reserva">{{ formatarMoeda(store.totais().reservarPgto) }}</b>
+          <b>{{ formatarMoeda(store.totais().reservarPgto) }}</b>
         </div>
         <div class="linha-resumo destaque">
           <span>Total do período</span>
@@ -333,12 +476,12 @@
             @for (item of store.itens(); track item.id; let i = $index) {
               <tr>
                 <td>{{ item.desc || '(sem descrição)' }}</td>
-                <td class="valor">{{ formatarMoeda(linha(i).orcadoTotal) }}</td>
+                <td class="valor">{{ formatarMoeda(linha(i).orcado) }}</td>
                 <td class="valor">{{ formatarMoeda(linha(i).valorTotal) }}</td>
                 <td class="valor"
-                    [class.acima]="linha(i).orcadoTotal > 0 && linha(i).valorTotal > linha(i).orcadoTotal">
-                  @if (linha(i).orcadoTotal > 0) {
-                    {{ formatarMoeda(linha(i).valorTotal - linha(i).orcadoTotal) }}
+                    [class.acima]="linha(i).orcado > 0 && linha(i).valorTotal > linha(i).orcado">
+                  @if (linha(i).orcado > 0) {
+                    {{ formatarMoeda(linha(i).valorTotal - linha(i).orcado) }}
                   } @else {
                     <span class="atenuado pequeno">sem orçado</span>
                   }
@@ -357,6 +500,12 @@
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      <div class="painel painel-relatorio-pagamentos">
+        <app-empreita-relatorio-pagamentos
+          [pagamentos]="store.pagamentosConfirmadosDaEmpreita()"
+          [contratoTotalEmpreita]="store.totais().valorTotal" />
       </div>
     </div>
   }

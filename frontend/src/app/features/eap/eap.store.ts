@@ -273,6 +273,60 @@ export class EapStore {
     this.salvar();
   }
 
+  /**
+   * Importa itens vindos da planilha Excel (23/08/2026, ver
+   * `eap-importar.ts::analisarPlanilha`) — `modo: 'adicionar'` acrescenta
+   * ao final da lista atual; `'substituir'` troca tudo. Só um `salvar()`
+   * no final, não um por item (`aplicarNumeracaoAutomatica` já resolve
+   * nível/código/grupo pra lista inteira de uma vez, igual à digitação
+   * manual).
+   */
+  importarItens(itensImportados: ItemEap[], modo: 'adicionar' | 'substituir'): void {
+    if (this.travada()) return;
+    this.itens.update((atual) => {
+      const combinados = modo === 'substituir' ? itensImportados : [...atual, ...itensImportados];
+      return aplicarNumeracaoAutomatica(combinados);
+    });
+    this.salvar();
+  }
+
+  /**
+   * Copia a EAP de outra obra (23/08/2026, pedido do Lucas: "copiar EAP
+   * de outra obra") — substitui todos os itens e a configuração de BDI
+   * pelos da obra de origem. `headerOrigemBruto`/`itensOrigemBrutos` vêm
+   * direto de `ApiService.obterEap(obraOrigemId)`, sem passar pelo store
+   * da obra de origem (só precisamos ler os dados dela uma vez).
+   *
+   * Só copia BDI (é "dados da EAP" no sentido de orçamento) — os campos
+   * de identidade da obra atual (nome, cliente, data base, responsável,
+   * local, período, observações, confirmação) **não** são tocados, e os
+   * itens ganham `id` novo (`normalizarItemEap` não reaproveita o `id` da
+   * obra de origem — ver `gerarId()` ali dentro) e nascem sem Orçado
+   * congelado, mesmo que a EAP de origem estivesse confirmada.
+   */
+  clonarDeOutraObra(headerOrigemBruto: Record<string, unknown>, itensOrigemBrutos: unknown[]): void {
+    if (this.travada()) return;
+
+    const headerOrigem = normalizarCabecalho(headerOrigemBruto);
+    this.cabecalho.update((atual) => ({
+      ...atual,
+      bdiScope: headerOrigem.bdiScope,
+      bdiMode: headerOrigem.bdiMode,
+      bdiPercent: headerOrigem.bdiPercent,
+      bdiValue: headerOrigem.bdiValue,
+      bdiByType: headerOrigem.bdiByType,
+    }));
+
+    const itens = (Array.isArray(itensOrigemBrutos) ? itensOrigemBrutos : []).map((i) => ({
+      ...normalizarItemEap(i as Record<string, unknown>),
+      id: gerarId(),
+      orcadoCongelado: null,
+    }));
+    this.itens.set(aplicarNumeracaoAutomatica(itens));
+
+    this.salvar();
+  }
+
   // ------------------------------------------------------------------
   totaisDoGrupo(indice: number) {
     return somarDescendentesDoGrupo(indice, this.itens(), this.cache());

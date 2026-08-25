@@ -128,9 +128,9 @@
     <button type="button" class="primario" (click)="alternarFinalizacao()">
       {{ store.cabecalho().isConfirmed ? 'Reabrir mapa' : 'Finalizar mapa' }}
     </button>
-    <button type="button" [disabled]="!store.cabecalho().isConfirmed" (click)="gerarPdf()"
-            title="Abre a impressão do navegador — salve como PDF por lá">
-      🖨 Gerar PDF
+    <button type="button" [disabled]="!store.cabecalho().isConfirmed || gerandoPdf()" (click)="baixarPdf()"
+            title="Gera e baixa o PDF do mapa">
+      {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
     </button>
     <button type="button" [disabled]="!store.cabecalho().isConfirmed || store.gerandoPagamento()"
             (click)="gerarPagamento()"
@@ -145,6 +145,10 @@
 
   @if (store.resultadoGerarPagamento(); as mensagem) {
     <div class="aviso-info">{{ mensagem }}</div>
+  }
+
+  @if (erroPdf(); as mensagemPdf) {
+    <div class="aviso-erro">{{ mensagemPdf }}</div>
   }
 
   <!-- Listas de sugestão compartilhadas (17/08/2026, pedido do Lucas) — os campos

@@ -1,0 +1,85 @@
+:host { display: block; }
+
+.painel-titulo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  margin-bottom: 8px;
+}
+
+// Mesmo par de classes de `mapa.scss`/`eap.scss` — duplicado aqui de
+// propósito: este componente não herda estilo de nenhum outro (é
+// reaproveitado tanto na tela normal quanto na impressão).
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
+
+.tabela-relatorio-pagamentos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+
+  th {
+    padding: 5px 6px;
+    text-align: center;
+    background: var(--cor-primaria-clara);
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+  }
+
+  td { padding: 4px 6px; vertical-align: top; border-bottom: 1px solid var(--cor-fundo-alt); }
+
+  tr:last-child td { border-bottom: none; }
+}
+
+.col-num { width: 60px; }
+.col-valor { min-width: 140px; }
+.centro { text-align: center; }
+
+.celula-valor-pago { padding: 4px 8px !important; }
+
+.linha-empilhada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+
+  & + .linha-empilhada { border-top: 1px dashed var(--cor-fundo-alt); }
+
+  &.destaque {
+    margin-top: 2px;
+    padding-top: 3px;
+    border-top: 1px solid var(--cor-borda-forte) !important;
+  }
+}
+
+.rotulo-empilhado {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.valor-empilhado {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.destaque .valor-empilhado { font-weight: 700; }
+
+.rotulo-rodape { text-align: right; font-weight: 700; }
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+}

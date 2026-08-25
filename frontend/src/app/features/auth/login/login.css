@@ -1,0 +1,220 @@
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  background: var(--cor-primaria-escura);
+}
+@media (max-width: 860px) {
+  .tela-login {
+    flex-direction: column;
+  }
+}
+
+.login-lado {
+  flex: 1.1;
+  background: linear-gradient(180deg, rgba(18, 38, 47, 0.2), rgba(18, 38, 47, 0.75)), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255, 255, 255, 0.045) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255, 255, 255, 0.045) 40px), var(--cor-primaria);
+  color: #edefea;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px;
+}
+@media (max-width: 860px) {
+  .login-lado {
+    padding: 32px 24px;
+  }
+}
+
+.marca-lado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.marca-lado .quadrado {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--cor-destaque);
+  position: relative;
+  flex-shrink: 0;
+}
+.marca-lado .quadrado::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  background: var(--cor-destaque);
+}
+.marca-lado span:last-child {
+  font-family: var(--fonte-titulo);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+}
+
+.discurso {
+  max-width: 420px;
+}
+.discurso .rotulo {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cor-destaque);
+  margin-bottom: 16px;
+}
+.discurso h1 {
+  font-size: 34px;
+  line-height: 1.18;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+.discurso p {
+  margin-top: 14px;
+  color: #b7c4c2;
+  font-size: 15px;
+  max-width: 380px;
+}
+
+.selo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  color: #7f9a98;
+  display: flex;
+  gap: 28px;
+}
+.selo span {
+  display: block;
+  color: #edefea;
+  font-size: 17px;
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+}
+@media (max-width: 860px) {
+  .selo {
+    display: none;
+  }
+}
+
+.login-form-lado {
+  flex: 0.9;
+  min-width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--cor-fundo);
+}
+
+.cartao-login {
+  width: 100%;
+  max-width: 360px;
+  background: var(--cor-superficie);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  padding: 28px 26px;
+}
+
+.marca {
+  font-family: var(--fonte-titulo);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--cor-destaque);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 21px;
+  margin: 0 0 4px;
+}
+
+.campo {
+  display: block;
+  margin-top: 16px;
+}
+.campo span {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 5px;
+}
+.campo input {
+  height: 34px;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.erro {
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 12px;
+}
+
+button[type=submit] {
+  width: 100%;
+  margin-top: 20px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+}
+button[type=submit]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  color: var(--cor-texto-suave);
+  font-size: 11px;
+}
+.separador::before, .separador::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--cor-borda);
+}
+
+.demonstracao {
+  width: 100%;
+  height: 34px;
+  font-size: 12.5px;
+}
+
+.nota {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.rodape {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 12px;
+}
+.rodape a {
+  font-weight: 600;
+}
+
+.aviso-revisao {
+  margin: 8px 0 0;
+  padding: 9px 11px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  border-left: 3px solid var(--cor-alerta);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.aviso-revisao b {
+  color: var(--cor-alerta);
+}/*# sourceMappingURL=login.css.map */
