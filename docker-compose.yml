@@ -21,7 +21,7 @@ services:
     volumes:
       - ./controleobra-api:/usr/share/nginx/controleobra-api
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
     working_dir: /usr/share/nginx/controleobra-api
 
   mysql:
