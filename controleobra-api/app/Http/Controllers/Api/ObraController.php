@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\EapItem;
 use App\Models\Obra;
+use App\Models\ObraAcesso;
 use App\Models\TipoCusto;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,9 +23,24 @@ use Illuminate\Support\Str;
  */
 class ObraController extends Controller
 {
-    public function index()
+    /**
+     * 31/08/2026, "Controle de permissões" — obra é "aberta por exceção":
+     * um usuário secundário vê toda obra, EXCETO as que têm uma linha
+     * explícita negando `pode_ver` (ver `PermissaoService::podeObra`).
+     * Pedido do Lucas: quem não acessa uma obra não pode nem enxergá-la
+     * na lista.
+     */
+    public function index(Request $request)
     {
-        return Obra::orderBy('obra_nome')->get();
+        $query = Obra::orderBy('obra_nome');
+
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('id', $obraIdsNegados);
+        }
+
+        return $query->get();
     }
 
     public function store(Request $request)
@@ -190,6 +207,7 @@ class ObraController extends Controller
                 'showBDI' => (bool) ($obra->uiConfig->show_bdi ?? true),
                 'showTypes' => (bool) ($obra->uiConfig->show_types ?? true),
                 'orcRealMode' => $obra->uiConfig->orc_real_mode ?? 'value',
+                'modoTotais' => $obra->uiConfig->modo_totais ?? 'detalhado',
                 'visibleTypes' => $visibleTypes,
             ],
             'eapItems' => $eapItems,
@@ -252,6 +270,7 @@ class ObraController extends Controller
                 'show_bdi' => $ui['showBDI'] ?? true,
                 'show_types' => $ui['showTypes'] ?? true,
                 'orc_real_mode' => $ui['orcRealMode'] ?? 'value',
+                'modo_totais' => $ui['modoTotais'] ?? 'detalhado',
             ]);
 
             foreach ((array) ($ui['visibleTypes'] ?? []) as $chave => $visivel) {
@@ -315,5 +334,70 @@ class ObraController extends Controller
         });
 
         return $this->showEap($obra);
+    }
+
+    /**
+     * GET /api/obras/{obra}/acessos (31/08/2026, "Controle de
+     * permissões") — todo usuário secundário da empresa, com
+     * `podeVer`/`podeLancar` NESTA obra. Sem linha em `obra_acessos` =
+     * acesso liberado por padrão (`true`) — o modelo é "aberto por
+     * exceção" (ver `PermissaoService::podeObra`): por padrão todo
+     * mundo acessa toda obra, só quem tem uma linha explícita fica
+     * restrito.
+     */
+    public function listarAcessos(Request $request, Obra $obra)
+    {
+        $this->garantirPodeGerenciar($request);
+
+        $acessos = $obra->acessos()->get()->keyBy('user_id');
+
+        return User::where('empresa_id', $obra->empresa_id)
+            ->where('papel', 'secundario')
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $usuario) use ($acessos) {
+                $acesso = $acessos->get($usuario->id);
+                return [
+                    'userId' => $usuario->id,
+                    'nome' => $usuario->name,
+                    'email' => $usuario->email,
+                    'podeVer' => $acesso ? (bool) $acesso->pode_ver : true,
+                    'podeLancar' => $acesso ? (bool) $acesso->pode_lancar : true,
+                ];
+            })
+            ->values();
+    }
+
+    /** PUT /api/obras/{obra}/acessos — grava em lote, upsert por usuário. */
+    public function syncAcessos(Request $request, Obra $obra)
+    {
+        $this->garantirPodeGerenciar($request);
+
+        $data = $request->validate([
+            'usuarios' => 'required|array',
+            'usuarios.*.userId' => 'required|integer|exists:users,id',
+            'usuarios.*.podeVer' => 'nullable|boolean',
+            'usuarios.*.podeLancar' => 'nullable|boolean',
+        ]);
+
+        foreach ($data['usuarios'] as $linha) {
+            ObraAcesso::updateOrCreate(
+                ['obra_id' => $obra->id, 'user_id' => $linha['userId']],
+                [
+                    'empresa_id' => $obra->empresa_id,
+                    'pode_ver' => $linha['podeVer'] ?? false,
+                    'pode_lancar' => $linha['podeLancar'] ?? false,
+                ],
+            );
+        }
+
+        return $this->listarAcessos($request, $obra);
+    }
+
+    private function garantirPodeGerenciar(Request $request): User
+    {
+        $ator = $request->user();
+        abort_unless($ator && ($ator->ehAdmin() || $ator->pode_gerenciar_permissoes), 403, 'Sem permissão para gerenciar acessos.');
+        return $ator;
     }
 }

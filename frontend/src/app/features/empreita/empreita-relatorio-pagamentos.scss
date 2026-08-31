@@ -41,6 +41,24 @@
 .col-num { width: 60px; }
 .col-valor { min-width: 140px; }
 .centro { text-align: center; }
+.atenuado { color: var(--cor-texto-suave); }
+
+// Pagamento recém-lançado, ainda pendente de confirmação na aba
+// Pagamentos (25/08/2026, pedido do Lucas: "o mesmo já deve aparecer nos
+// pagamentos registrados, exibindo que a data de pagamento ainda está em
+// aberto") — mesmo padrão de marca já usado no modal de pagamentos
+// vinculados da EAP.
+.marca-pendente {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
 
 .celula-valor-pago { padding: 4px 8px !important; }
 

@@ -2,9 +2,11 @@ import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { calcularCacheOrcado } from '../eap/eap-engine';
 import {
   aplicarNumeracaoAutomatica,
@@ -40,7 +42,7 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
  */
 @Component({
   selector: 'app-relatorios-imprimir',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, CabecalhoImpressao],
   templateUrl: './relatorios-imprimir.html',
   styleUrl: './relatorios-imprimir.scss',
 })
@@ -57,6 +59,7 @@ export class RelatoriosImprimir implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
   protected readonly geradoEm = new Date().toISOString();
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
   protected readonly carregando = signal(true);
   protected readonly erro = signal<string | null>(null);
@@ -127,6 +130,10 @@ export class RelatoriosImprimir implements OnInit {
 
   ngOnInit(): void {
     this.carregar(this.obraId());
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => {},
+    });
   }
 
   private carregar(obraId: string): void {

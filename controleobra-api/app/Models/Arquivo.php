@@ -38,6 +38,17 @@ class Arquivo extends Model
     }
 
     /**
+     * 31/08/2026, "Controle de permissões" — `Arquivo` não tem `obra_id`
+     * próprio (só via `Pasta`), mas o middleware `PermissaoObra` procura
+     * essa propriedade em qualquer model vinculado à rota; este acessor
+     * faz isso "só funcionar" sem precisar de um caso especial lá.
+     */
+    public function getObraIdAttribute(): ?string
+    {
+        return $this->pasta?->obra_id;
+    }
+
+    /**
      * URL assinada de curta duração (~10min) — só existe quando a miniatura
      * já foi gerada com sucesso. Assinar aqui, e não só no endpoint
      * previewUrl(), evita 1 requisição extra por tile visível na grade.

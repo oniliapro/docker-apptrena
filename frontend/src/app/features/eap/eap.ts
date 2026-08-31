@@ -780,8 +780,7 @@ export class Eap implements OnInit {
   protected readonly saldoTotalGeral = computed(() => this.totalOrcado() - this.totalRealizadoGeral());
 
   protected alternarModoTotais(): void {
-    const atual = this.store.ui().modoTotais;
-    this.store.atualizarUi('modoTotais', atual === 'saldo' ? 'detalhado' : 'saldo');
+    this.store.alternarModoTotais();
   }
 
   // ------------------------------------------------------------------

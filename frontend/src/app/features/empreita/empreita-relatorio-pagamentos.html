@@ -16,9 +16,20 @@
     <tbody>
       @for (linha of linhas(); track linha.id) {
         <tr>
-          <td class="centro">{{ linha.numeroPagamento || '—' }}</td>
+          <td class="centro">
+            {{ linha.numeroPagamento || '—' }}
+            @if (linha.status === 'pendente') {
+              <span class="marca-pendente" title="Ainda não confirmado na aba Pagamentos">pendente</span>
+            }
+          </td>
           <td class="centro">{{ formatarData(linha.dataSolicitacao) || '—' }}</td>
-          <td class="centro">{{ formatarData(linha.dataPagamento) || '—' }}</td>
+          <td class="centro">
+            @if (linha.dataPagamento) {
+              {{ formatarData(linha.dataPagamento) }}
+            } @else {
+              <span class="atenuado">Em aberto</span>
+            }
+          </td>
           <td class="celula-valor-pago">
             <div class="linha-empilhada">
               <span class="rotulo-empilhado">Contrato</span>
@@ -77,5 +88,5 @@
     </tfoot>
   </table>
 } @else {
-  <p class="atenuado pequeno">Nenhum pagamento confirmado desta empreita ainda.</p>
+  <p class="atenuado pequeno">Nenhum pagamento lançado desta empreita ainda.</p>
 }

@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -9,6 +10,8 @@ import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
+import { proximoNumeroMapa } from '../mapa/mapa-numero';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -40,12 +43,14 @@ type ColunaMapa =
  */
 @Component({
   selector: 'app-mapas',
-  imports: [RouterLink, RedimensionarColunas],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
   templateUrl: './mapas.html',
   styleUrl: './mapas.scss',
 })
 export class Mapas implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly mapas = signal<Mapa[]>([]);
   protected readonly carregando = signal(true);
@@ -182,6 +187,10 @@ export class Mapas implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    this.api.listarObras().subscribe({
+      next: (obras) => this.obras.set(obras),
+      error: () => {},
+    });
   }
 
   private carregar(): void {
@@ -197,6 +206,86 @@ export class Mapas implements OnInit {
       error: () => {
         this.erro.set('Não foi possível carregar os mapas.');
         this.carregando.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Formulário — Novo mapa (26/08/2026, pedido do Lucas: criar direto da
+  // lista geral, escolhendo a obra ali mesmo — mesmo formulário de
+  // `MapasObra`, com um seletor de obra a mais).
+  // ------------------------------------------------------------------
+  protected readonly obras = signal<Obra[]>([]);
+  protected readonly formularioAberto = signal(false);
+  protected readonly salvando = signal(false);
+  protected readonly obraSelecionadaId = signal('');
+
+  protected readonly formulario = this.fb.nonNullable.group({
+    numeroMapa: [''],
+    descricao: ['', [Validators.required]],
+    responsavelObra: [''],
+    responsavelMapa: ['', [Validators.required]],
+  });
+
+  protected novo(): void {
+    this.obraSelecionadaId.set('');
+    this.formulario.reset();
+    this.formularioAberto.set(true);
+  }
+
+  protected fecharFormulario(): void {
+    this.formularioAberto.set(false);
+  }
+
+  protected mudarObraSelecionada(obraId: string): void {
+    this.obraSelecionadaId.set(obraId);
+
+    const mapasDaObra = this.mapas().filter((m) => this.obraId(m) === obraId);
+    this.formulario.patchValue({ numeroMapa: proximoNumeroMapa(mapasDaObra) });
+
+    this.api.obterObra(obraId).subscribe({
+      next: (obra) => this.formulario.patchValue({ responsavelObra: obra.responsavel ?? '' }),
+      error: () => {},
+    });
+  }
+
+  protected temErroFormulario(campo: string): boolean {
+    const controle = this.formulario.get(campo);
+    return Boolean(controle?.invalid && (controle.dirty || controle.touched));
+  }
+
+  protected salvarNovo(): void {
+    if (!this.obraSelecionadaId()) {
+      window.alert('Escolha a obra antes de salvar.');
+      return;
+    }
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    const v = this.formulario.getRawValue();
+    const obraId = this.obraSelecionadaId();
+    const payload = {
+      obra_id: obraId,
+      numero_mapa: v.numeroMapa.trim(),
+      descricao: v.descricao.trim(),
+      responsavel_obra: v.responsavelObra.trim(),
+      responsavel_mapa: v.responsavelMapa.trim(),
+      frete_particular: 0,
+      modo_manual: false,
+    };
+
+    this.salvando.set(true);
+    this.api.criarMapa(payload).subscribe({
+      next: (mapa) => {
+        this.salvando.set(false);
+        this.fecharFormulario();
+        this.router.navigate(['/obras', obraId, 'mapas', mapa.id]);
+      },
+      error: () => {
+        this.salvando.set(false);
+        window.alert('Não foi possível criar o mapa.');
       },
     });
   }

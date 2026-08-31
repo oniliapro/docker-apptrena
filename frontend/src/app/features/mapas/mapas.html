@@ -3,7 +3,7 @@
     <h1>Mapas</h1>
     <div class="atenuado">Cotações de fornecedores já criadas</div>
   </div>
-  <a class="botao-novo" routerLink="/obras" title="Escolha a obra para criar o mapa">+ Novo mapa</a>
+  <button type="button" class="botao-novo" (click)="novo()">+ Novo mapa</button>
 </div>
 
 <div class="painel barra-ferramentas">
@@ -155,5 +155,61 @@
         </table>
       </div>
     </div>
+  </div>
+}
+
+<!-- ============ Formulário — Novo mapa ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Novo mapa</span>
+        <button type="button" (click)="fecharFormulario()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Obra</span>
+            <app-seletor-obra [obras]="obras()" [valor]="obraSelecionadaId()" (mudou)="mudarObraSelecionada($event)" />
+          </label>
+
+          <label class="campo">
+            <span>Nº do mapa</span>
+            <input type="text" formControlName="numeroMapa" readonly class="somente-leitura" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricao" placeholder="Ex.: Estrutura e alvenaria" />
+            @if (temErroFormulario('descricao')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Responsável da obra</span>
+            <input type="text" formControlName="responsavelObra" />
+          </label>
+
+          <label class="campo">
+            <span class="obrigatorio">Responsável do mapa</span>
+            <input type="text" formControlName="responsavelMapa" />
+            @if (temErroFormulario('responsavelMapa')) {
+              <small class="erro-campo">Informe o responsável.</small>
+            }
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharFormulario()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Criar mapa' }}
+        </button>
+      </div>
+    </form>
   </div>
 }

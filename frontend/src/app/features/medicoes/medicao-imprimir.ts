@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
-import { nomeDaEmpresa } from '../../core/models/api.models';
+import { PerfilEmpresa, nomeDaEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
+import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { formatarPercentual } from '../pagamentos/pagamentos-calc';
 import { recuoDoCodigoEap } from '../eap/eap-normalize';
 import { EapStore } from '../eap/eap.store';
@@ -26,6 +27,7 @@ import { MedicaoStore } from './medicao.store';
  */
 @Component({
   selector: 'app-medicao-imprimir',
+  imports: [CabecalhoImpressao],
   providers: [EapStore, MedicaoStore],
   templateUrl: './medicao-imprimir.html',
   styleUrl: './medicao-imprimir.scss',
@@ -46,6 +48,7 @@ export class MedicaoImprimir implements OnInit {
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly recuo = (item: ItemEap) => recuoDoCodigoEap(item.eap);
   protected readonly geradoEm = new Date().toISOString();
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
   protected readonly nomeEmpresa = computed(() => nomeDaEmpresa(this.auth.usuario()) || 'Sua empresa');
 
@@ -82,5 +85,9 @@ export class MedicaoImprimir implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.obraId(), this.medicaoId());
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => {},
+    });
   }
 }

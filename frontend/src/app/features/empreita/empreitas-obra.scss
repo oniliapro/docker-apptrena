@@ -125,3 +125,51 @@ table { table-layout: auto; }
   font-size: 10.5px;
   color: var(--cor-perigo);
 }
+
+// ---- Popup de pagamentos (26/08/2026) ----
+.valor-clicavel {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--cor-primaria);
+  cursor: pointer;
+  text-decoration: underline dotted;
+
+  &:hover { color: var(--cor-primaria-escura); }
+}
+
+.tabela-pagamentos-modal {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    padding: 5px 8px;
+    text-align: left;
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    background: var(--cor-fundo-alt);
+  }
+
+  td { padding: 6px 8px; border-top: 1px solid var(--cor-fundo-alt); }
+}
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+
+  &.pendente {
+    background: var(--cor-alerta-bg);
+    color: var(--cor-alerta);
+  }
+}

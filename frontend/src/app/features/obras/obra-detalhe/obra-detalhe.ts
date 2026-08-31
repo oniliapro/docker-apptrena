@@ -2,26 +2,37 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-import { ChaveStatusObra, Obra, ObraPayload, STATUS_OBRA } from '../../../core/models/api.models';
+import {
+  AcessoObraUsuario,
+  ChaveStatusObra,
+  Obra,
+  ObraPayload,
+  STATUS_OBRA,
+} from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
 import { ArmazenamentoService } from '../../../core/services/armazenamento.service';
+import { PermissoesService } from '../../../core/services/permissoes.service';
 import { Cliente, Responsavel } from '../../cadastros/cadastros.models';
 
 const CHAVE_CLIENTES = 'controleObra.clientes.v1';
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
 
-/** Abas da obra, na ordem do protótipo (obracontrol.html). */
+/**
+ * Abas da obra, na ordem do protótipo (obracontrol.html). `moduloChave`
+ * ausente (só a EAP) = sempre visível — exceção de "Controle de
+ * permissões" (31/08/2026): a EAP nunca some, mesmo sem `pode_usar`.
+ */
 const ABAS = [
   { caminho: 'eap', rotulo: 'EAP' },
-  { caminho: 'cronograma', rotulo: 'Cronograma' },
-  { caminho: 'desembolso', rotulo: 'Cronograma de desembolso' },
-  { caminho: 'medicoes', rotulo: 'Medições de Obra' },
-  { caminho: 'empreitas', rotulo: 'Empreitas' },
-  { caminho: 'mapas', rotulo: 'Mapas' },
-  { caminho: 'pagamentos', rotulo: 'Pagamentos' },
-  { caminho: 'diarios', rotulo: 'Diários de Obra' },
-  { caminho: 'relatorios', rotulo: 'Relatórios' },
-  { caminho: 'arquivos', rotulo: 'Arquivos Anexados' },
+  { caminho: 'cronograma', rotulo: 'Cronograma', moduloChave: 'cronograma' },
+  { caminho: 'desembolso', rotulo: 'Cronograma de desembolso', moduloChave: 'desembolso' },
+  { caminho: 'medicoes', rotulo: 'Medições de Obra', moduloChave: 'medicoes' },
+  { caminho: 'empreitas', rotulo: 'Empreitas', moduloChave: 'empreitas' },
+  { caminho: 'mapas', rotulo: 'Mapas', moduloChave: 'mapas' },
+  { caminho: 'pagamentos', rotulo: 'Pagamentos', moduloChave: 'pagamentos' },
+  { caminho: 'diarios', rotulo: 'Diários de Obra', moduloChave: 'diario_obra' },
+  { caminho: 'relatorios', rotulo: 'Relatórios', moduloChave: 'relatorios' },
+  { caminho: 'arquivos', rotulo: 'Arquivos Anexados', moduloChave: 'arquivos' },
 ] as const;
 
 /**
@@ -61,11 +72,15 @@ export class ObraDetalhe implements OnInit {
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
   private readonly fb = inject(FormBuilder);
+  protected readonly permissoes = inject(PermissoesService);
 
   /** Vem da rota via withComponentInputBinding(). */
   readonly id = input.required<string>();
 
-  protected readonly abas = ABAS;
+  /** "Controle de permissões" (31/08/2026) — some da navegação quem não tem `pode_usar`. */
+  protected readonly abas = computed(() =>
+    ABAS.filter((aba) => !('moduloChave' in aba) || this.permissoes.podeModulo(aba.moduloChave, 'usar')),
+  );
   protected readonly obra = signal<Obra | null>(null);
   protected readonly carregando = signal(true);
   protected readonly erro = signal<string | null>(null);
@@ -112,9 +127,67 @@ export class ObraDetalhe implements OnInit {
     return Boolean(nome) && !this.responsaveisAtivos().some((r) => r.nome === nome);
   }
 
+  // ------------------------------------------------------------------
+  // "Quem acessa esta obra" (31/08/2026, "Controle de permissões") —
+  // botão no cabeçalho abre um popup (mesmo padrão `.modal`/`.modal-
+  // cartao` do resto do app), em vez de ficar sempre visível na tela;
+  // visível só pra quem administra ou gerencia permissões, e só pode
+  // ser ABERTO com a obra ainda em edição (confirmar trava os acessos
+  // junto com o resto dos dados da obra — mesma lógica de "Confirmar
+  // obra" travar o formulário escalar).
+  // ------------------------------------------------------------------
+  protected readonly acessos = signal<AcessoObraUsuario[]>([]);
+  protected readonly carregandoAcessos = signal(false);
+  protected readonly salvandoAcessos = signal(false);
+  protected readonly acessosAberto = signal(false);
+  protected readonly podeVerAcessos = computed(
+    () => this.permissoes.ehAdmin() || this.permissoes.podeGerenciarPermissoes(),
+  );
+
   ngOnInit(): void {
     this.carregarObra();
     this.carregarClientesEResponsaveis();
+  }
+
+  protected abrirAcessos(): void {
+    if (this.confirmada()) return;
+
+    this.acessosAberto.set(true);
+    this.carregandoAcessos.set(true);
+    this.api.listarAcessosObra(this.id()).subscribe({
+      next: (usuarios) => {
+        this.acessos.set(usuarios);
+        this.carregandoAcessos.set(false);
+      },
+      error: () => {
+        this.carregandoAcessos.set(false);
+        window.alert('Não foi possível carregar os acessos desta obra.');
+      },
+    });
+  }
+
+  protected fecharAcessos(): void {
+    this.acessosAberto.set(false);
+  }
+
+  protected alternarAcesso(usuario: AcessoObraUsuario, campo: 'podeVer' | 'podeLancar'): void {
+    this.acessos.update((lista) =>
+      lista.map((u) => (u.userId === usuario.userId ? { ...u, [campo]: !u[campo] } : u)),
+    );
+  }
+
+  protected salvarAcessos(): void {
+    this.salvandoAcessos.set(true);
+    this.api.salvarAcessosObra(this.id(), this.acessos()).subscribe({
+      next: (usuarios) => {
+        this.acessos.set(usuarios);
+        this.salvandoAcessos.set(false);
+      },
+      error: () => {
+        this.salvandoAcessos.set(false);
+        window.alert('Não foi possível salvar os acessos desta obra.');
+      },
+    });
   }
 
   private carregarObra(): void {

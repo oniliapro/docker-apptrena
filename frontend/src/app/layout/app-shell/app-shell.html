@@ -14,7 +14,7 @@
     </div>
 
     <nav class="nav">
-      @for (item of itens; track item.id) {
+      @for (item of itens(); track item.id) {
         @if (item.filhos) {
           <!-- Grupo expansível -->
           <div class="item" [class.aberto]="grupoAberto(item.id)">
@@ -185,3 +185,7 @@
     <router-outlet />
   </main>
 </div>
+
+@if (configuracoesAberto()) {
+  <app-configuracoes (fechar)="fecharConfiguracoes()" />
+}

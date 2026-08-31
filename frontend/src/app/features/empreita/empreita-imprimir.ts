@@ -1,9 +1,11 @@
-import { Component, OnInit, inject, input } from '@angular/core';
+import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarDataHora, formatarMoeda } from '../../core/utils/formato';
+import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
@@ -19,7 +21,7 @@ import { ItemEmpreita, LinhaEmpreitaEstendida } from './empreita.models';
  */
 @Component({
   selector: 'app-empreita-imprimir',
-  imports: [EmpreitaRelatorioPagamentos],
+  imports: [EmpreitaRelatorioPagamentos, CabecalhoImpressao],
   providers: [EmpreitaStore],
   templateUrl: './empreita-imprimir.html',
   styleUrl: './empreita-imprimir.scss',
@@ -37,6 +39,7 @@ export class EmpreitaImprimir implements OnInit {
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly formatarData = formatarData;
   protected readonly geradoEm = new Date().toISOString();
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
   protected rotuloEap(itemEap: ItemEap): string {
     const eap = String(itemEap.eap ?? '').trim();
@@ -181,5 +184,9 @@ export class EmpreitaImprimir implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => {},
+    });
   }
 }

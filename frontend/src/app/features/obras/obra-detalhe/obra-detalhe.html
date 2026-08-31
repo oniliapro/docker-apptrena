@@ -18,6 +18,12 @@
         <span class="etiqueta" [class.confirmada]="confirmada()">
           {{ confirmada() ? 'Obra confirmada' : 'Em edição' }}
         </span>
+        @if (podeVerAcessos()) {
+          <button type="button" [disabled]="confirmada()" (click)="abrirAcessos()"
+                  title="Escolher quais usuários acessam esta obra (só com a obra em edição)">
+            Quem acessa esta obra
+          </button>
+        }
         <button type="button" class="primario" (click)="alternarConfirmacao()">
           {{ confirmada() ? 'Reabrir obra' : 'Confirmar obra' }}
         </button>
@@ -89,8 +95,68 @@
   }
 </div>
 
+@if (acessosAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharAcessos()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Quem acessa esta obra</span>
+        <button type="button" (click)="fecharAcessos()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno nota-acessos">
+          Por padrão, todo usuário tem acesso a todas as obras — só marque aqui quando quiser
+          restringir alguém especificamente a esta obra.
+        </p>
+
+        @if (carregandoAcessos()) {
+          <p class="atenuado pequeno">Carregando…</p>
+        } @else if (acessos().length) {
+          <div class="envoltoria">
+            <table class="tabela-acessos">
+              <thead>
+                <tr>
+                  <th>Usuário</th>
+                  <th class="centro">Vê a obra</th>
+                  <th class="centro">Lança/edita na obra</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (u of acessos(); track u.userId) {
+                  <tr>
+                    <td>{{ u.nome }} <span class="atenuado pequeno">({{ u.email }})</span></td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="u.podeVer" (change)="alternarAcesso(u, 'podeVer')" />
+                    </td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="u.podeLancar" (change)="alternarAcesso(u, 'podeLancar')" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="atenuado pequeno">Nenhum usuário secundário cadastrado ainda.</p>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharAcessos()">Fechar</button>
+        @if (acessos().length) {
+          <button type="button" class="primario" [disabled]="salvandoAcessos()" (click)="salvarAcessos()">
+            {{ salvandoAcessos() ? 'Salvando…' : 'Salvar acessos' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
 <nav class="abas">
-  @for (aba of abas; track aba.caminho) {
+  @for (aba of abas(); track aba.caminho) {
     <a [routerLink]="aba.caminho" routerLinkActive="ativa">{{ aba.rotulo }}</a>
   }
 </nav>

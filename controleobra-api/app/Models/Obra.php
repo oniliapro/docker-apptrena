@@ -87,4 +87,9 @@ class Obra extends Model
     {
         return $this->hasMany(CronogramaPlanejamento::class);
     }
+
+    public function acessos(): HasMany
+    {
+        return $this->hasMany(ObraAcesso::class);
+    }
 }

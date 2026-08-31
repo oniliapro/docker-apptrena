@@ -1,10 +1,19 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 
-import { Pagamento } from '../../core/models/api.models';
+import { Obra, Pagamento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
-import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
+import {
+  gerarId,
+  gerarNumeroPagamento,
+  normalizarPagamento,
+  paraPayloadApi,
+} from '../pagamentos/pagamentos-calc';
+import { Pagamento as PagamentoParaCriar } from '../pagamentos/pagamentos.models';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -37,12 +46,14 @@ type ColunaPagamentoGeral =
  */
 @Component({
   selector: 'app-pagamentos-geral',
-  imports: [RouterLink, RedimensionarColunas],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
   templateUrl: './pagamentos-geral.html',
   styleUrl: './pagamentos-geral.scss',
 })
 export class PagamentosGeral implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly pagamentos = signal<Pagamento[]>([]);
   protected readonly carregando = signal(true);
@@ -130,6 +141,10 @@ export class PagamentosGeral implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    this.api.listarObras().subscribe({
+      next: (obras) => this.obras.set(obras),
+      error: () => {},
+    });
   }
 
   private carregar(): void {
@@ -145,6 +160,98 @@ export class PagamentosGeral implements OnInit {
       error: () => {
         this.erro.set('Não foi possível carregar os pagamentos.');
         this.carregando.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Formulário — Novo pagamento (26/08/2026, pedido do Lucas: criar
+  // direto da lista geral, escolhendo a obra ali mesmo). Diferente de
+  // Mapa/Empreita, um pagamento exige pelo menos 1 item cujo valor bata
+  // com o total (`PagamentoController::syncCompleto`) — aqui a criação
+  // fica deliberadamente mínima (1 item, sem tipo/etapa ainda) e manda o
+  // usuário terminar de detalhar na aba Pagamentos da própria obra, que
+  // já tem o editor completo de itens.
+  // ------------------------------------------------------------------
+  protected readonly obras = signal<Obra[]>([]);
+  protected readonly formularioAberto = signal(false);
+  protected readonly salvando = signal(false);
+  protected readonly obraSelecionadaId = signal('');
+
+  protected readonly formulario = this.fb.nonNullable.group({
+    fornecedor: [''],
+    descricao: ['', [Validators.required]],
+    valorTotal: [0, [Validators.required, Validators.min(0.01)]],
+  });
+
+  protected novo(): void {
+    this.obraSelecionadaId.set('');
+    this.formulario.reset({ fornecedor: '', descricao: '', valorTotal: 0 });
+    this.formularioAberto.set(true);
+  }
+
+  protected fecharFormulario(): void {
+    this.formularioAberto.set(false);
+  }
+
+  protected mudarObraSelecionada(obraId: string): void {
+    this.obraSelecionadaId.set(obraId);
+  }
+
+  protected temErroFormulario(campo: string): boolean {
+    const controle = this.formulario.get(campo);
+    return Boolean(controle?.invalid && (controle.dirty || controle.touched));
+  }
+
+  protected salvarNovo(): void {
+    const obraId = this.obraSelecionadaId();
+    if (!obraId) {
+      window.alert('Escolha a obra antes de salvar.');
+      return;
+    }
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    const v = this.formulario.getRawValue();
+    const pagamentosDaObra = this.pagamentos()
+      .filter((p) => String(p['obraId'] ?? '') === obraId)
+      .map((p) => normalizarPagamento(p as Record<string, unknown>));
+
+    const novo: PagamentoParaCriar = {
+      id: gerarId(),
+      numeroPagamento: gerarNumeroPagamento(pagamentosDaObra),
+      obraNumber: '',
+      dataSolicitacao: hojeIso(),
+      dataPagamento: '',
+      fornecedor: v.fornecedor.trim(),
+      descricao: v.descricao.trim(),
+      valorTotal: v.valorTotal,
+      itens: [
+        {
+          id: gerarId(),
+          descricao: v.descricao.trim(),
+          tipo: '',
+          eapId: '',
+          valor: v.valorTotal,
+          modoValor: 'valor',
+        },
+      ],
+      origem: null,
+      status: 'confirmado',
+    };
+
+    this.salvando.set(true);
+    this.api.criarPagamento(paraPayloadApi(novo, obraId)).subscribe({
+      next: () => {
+        this.salvando.set(false);
+        this.fecharFormulario();
+        this.router.navigate(['/obras', obraId, 'pagamentos']);
+      },
+      error: () => {
+        this.salvando.set(false);
+        window.alert('Não foi possível criar o pagamento.');
       },
     });
   }

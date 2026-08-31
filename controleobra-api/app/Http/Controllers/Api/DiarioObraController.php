@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiarioFoto;
 use App\Models\DiarioRegistro;
 use App\Models\Obra;
+use App\Services\PermissaoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -27,7 +28,7 @@ class DiarioObraController extends Controller
      * Sem obra_id: retorna os registros mais recentes de TODAS as obras da
      * empresa (usado no dashboard inicial). Com obra_id: só dessa obra.
      */
-    public function index(Request $request)
+    public function index(Request $request, PermissaoService $permissoes)
     {
         $data = $request->validate([
             'obra_id' => 'nullable|string|exists:obras,id',
@@ -38,12 +39,24 @@ class DiarioObraController extends Controller
             ->orderByDesc('data')
             ->orderByDesc('created_at');
 
+        $usuario = $request->user();
+
         if (!empty($data['obra_id'])) {
             $obra = Obra::find($data['obra_id']);
             if (!$obra) {
                 abort(403, 'Obra não encontrada para esta empresa.');
             }
+            // 31/08/2026, "Controle de permissões" — mesma checagem que o
+            // middleware `permissaoObra` faria, feita aqui na mão porque
+            // esta rota também precisa funcionar SEM obra_id nenhum
+            // (resumo de todas as obras pro dashboard).
+            if ($usuario && !$permissoes->podeObra($usuario, $obra->id, 'ver')) {
+                abort(403, 'Sem acesso a esta obra.');
+            }
             $query->where('obra_id', $obra->id);
+        } elseif ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
         }
 
         return $query->limit($data['limite'] ?? 30)->get();

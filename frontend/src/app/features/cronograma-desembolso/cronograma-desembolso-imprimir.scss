@@ -24,34 +24,6 @@
 
 // ---- Cabeçalho/rodapé do documento — só existem na versão impressa
 // (a tela normal usa o AppShell pra isso, que aqui não existe). ----
-.folha-cabecalho {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  border-bottom: 2px solid var(--cor-primaria);
-  padding-bottom: 4mm;
-  margin-bottom: 5mm;
-}
-
-.logo-texto {
-  font-family: var(--fonte-titulo);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--cor-primaria);
-}
-
-.subtitulo {
-  font-size: 10.5px;
-  color: var(--cor-texto-suave);
-  margin-top: 2px;
-}
-
-.gerado-em {
-  font-size: 9.5px;
-  color: var(--cor-texto-suave);
-  white-space: nowrap;
-}
-
 .folha-rodape {
   margin-top: 6mm;
   padding-top: 3mm;

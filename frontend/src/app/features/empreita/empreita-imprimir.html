@@ -1,10 +1,4 @@
-<header class="folha-cabecalho">
-  <div>
-    <div class="logo-texto">AppTrena</div>
-    <div class="subtitulo">Empreita</div>
-  </div>
-  <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm) }}</div>
-</header>
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Empreita" [geradoEm]="geradoEm" />
 
 @if (store.carregando()) {
   <p class="atenuado">Carregando…</p>
@@ -391,7 +385,7 @@
 
     <div class="painel painel-relatorio-pagamentos">
       <app-empreita-relatorio-pagamentos
-        [pagamentos]="store.pagamentosConfirmadosDaEmpreita()"
+        [pagamentos]="store.pagamentosDaEmpreita()"
         [contratoTotalEmpreita]="store.totais().valorTotal" />
     </div>
   </div>

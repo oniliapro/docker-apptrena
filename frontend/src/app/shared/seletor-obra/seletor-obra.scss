@@ -1,0 +1,71 @@
+:host { display: block; }
+
+.seletor-obra { position: relative; }
+
+.campo-seletor {
+  display: block;
+  width: 100%;
+  height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+
+  &.vazio { color: var(--cor-texto-suave); }
+  &:hover { border-color: var(--cor-primaria); }
+}
+
+.dropdown-obras {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-md);
+  overflow: hidden;
+}
+
+.busca-obra {
+  height: 30px;
+  margin: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  font-size: 12.5px;
+}
+
+.lista-obras {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 6px;
+  overflow-y: auto;
+
+  button {
+    display: block;
+    width: 100%;
+    padding: 7px 8px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 12.5px;
+    border-radius: var(--raio-sm);
+    cursor: pointer;
+
+    &:hover { background: var(--cor-fundo-alt); }
+  }
+
+  li.vazio {
+    padding: 8px;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+  }
+}

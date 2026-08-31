@@ -146,6 +146,13 @@ export class Empreita implements OnInit {
     });
   }
 
+  /**
+   * Fecha o período e já gera o pagamento pendente deste ciclo em seguida
+   * (25/08/2026, pedido do Lucas: "apagar o botão gerar pagamento, o
+   * pagamento deve ser gerado automaticamente ao finalizar um período") —
+   * ver `EmpreitaStore.fecharPeriodo`, que absorveu a lógica que antes vivia
+   * num método `gerarPagamento()` separado.
+   */
   protected fecharPeriodo(): void {
     const totais = this.store.totais();
 
@@ -163,37 +170,11 @@ export class Empreita implements OnInit {
       `A pagar: ${formatarMoeda(totais.pagarEmp)}\n` +
       `Reserva: ${formatarMoeda(totais.reservarPgto)}\n` +
       `Total: ${formatarMoeda(totais.totalPeriodo)}\n\n` +
-      `As medições atuais passam a ser o acumulado.`;
+      `As medições atuais passam a ser o acumulado e um pagamento pendente é gerado automaticamente ` +
+      `(confirme depois na aba Pagamentos).`;
 
     if (!window.confirm(mensagem)) return;
     this.store.fecharPeriodo();
-  }
-
-  /**
-   * Gera o pagamento pendente do rascunho atual — precisa rodar ANTES de
-   * "Fechar período" (que zera o avanço usado pra calcular o rascunho
-   * padrão). Ver comentário em `EmpreitaStore.gerarPagamento`.
-   */
-  protected gerarPagamento(): void {
-    const totais = this.store.totaisEstendidos();
-
-    if (this.store.temMedicaoInvalida()) {
-      window.alert('Há medições menores que o acumulado. Corrija antes de gerar o pagamento.');
-      return;
-    }
-    if (totais.pagamentoDraftTotal <= 0) {
-      window.alert('Nenhum valor no rascunho de pagamento deste período.');
-      return;
-    }
-
-    const mensagem =
-      `Gerar pagamento com o rascunho deste período?\n\n` +
-      `Empreiteiro: ${formatarMoeda(totais.pagamentoDraftEmp)}\n` +
-      `Reserva: ${formatarMoeda(totais.pagamentoDraftReserva)}\n\n` +
-      `Cria um pagamento pendente, pra confirmar depois na aba Pagamentos.`;
-
-    if (!window.confirm(mensagem)) return;
-    this.store.gerarPagamento();
   }
 
   // ------------------------------------------------------------------
@@ -314,13 +295,14 @@ export class Empreita implements OnInit {
     return this.percentualOuVazio(this.linha(indice).avanco);
   }
 
-  /** Converte o texto digitado (na unidade ativa da linha) de volta pra percentual, antes de gravar. */
-  protected editarMedicao(
-    indice: number,
-    item: ItemEmpreita,
-    campo: 'medicaoAcum' | 'medicaoAtual',
-    evento: Event,
-  ): void {
+  /**
+   * Converte o texto digitado (na unidade ativa da linha) de volta pra
+   * percentual, antes de gravar. Só "Atual" — o "Acumulado" não é mais
+   * editável pelo usuário (25/08/2026, pedido do Lucas: "o sistema que
+   * preenche automaticamente" — vira o novo acumulado sozinho quando o
+   * período é fechado, ver `EmpreitaStore.avancarPeriodo`).
+   */
+  protected editarMedicao(indice: number, item: ItemEmpreita, campo: 'medicaoAtual', evento: Event): void {
     const bruto = (evento.target as HTMLInputElement).value.trim();
     if (bruto === '') {
       this.store.atualizarMedicao(item.id, campo, null);

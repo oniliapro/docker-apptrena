@@ -3,7 +3,11 @@
     <div class="logo-texto">Mapa de Cotação</div>
     <div class="bloco-assinatura subtitulo-assinatura">
       <div class="marca-empresa" [title]="nomeEmpresa()">
-        <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+        @if (logoEmpresaUrl(); as url) {
+          <img class="logo-marca-empresa" [src]="url" [alt]="nomeEmpresa()" />
+        } @else {
+          <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+        }
         <span class="nome-marca">{{ nomeEmpresa() }}</span>
       </div>
       <span class="separador-assinatura">gerado com</span>

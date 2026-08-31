@@ -307,6 +307,16 @@ export class Pagamentos implements OnInit {
     return Number.isNaN(data.getTime()) ? texto : data.toLocaleString('pt-BR');
   }
 
+  /**
+   * Só a parte `YYYY-MM-DD` de `dataPagamento` — necessário porque, desde
+   * 26/08/2026, `confirmar()` grava data+hora (`2026-08-26T14:23:00`), e um
+   * `<input type="date">` rejeita qualquer valor fora do formato de data
+   * pura (mostraria o campo em branco na edição).
+   */
+  protected somenteData(iso: string): string {
+    return String(iso ?? '').slice(0, 10);
+  }
+
   // ------------------------------------------------------------------
   // Modal
   // ------------------------------------------------------------------
@@ -436,10 +446,16 @@ export class Pagamentos implements OnInit {
   }
 
   /**
-   * Confirma um pagamento pendente (hoje, só os gerados pela aba Mapas) —
-   * a partir daqui ele passa a contar no "Realizado" da EAP.
+   * Confirma um pagamento pendente (hoje, só os gerados pela aba Mapas ou
+   * pelo fechamento de período de uma Empreita) — a partir daqui ele passa
+   * a contar no "Realizado" da EAP. 26/08/2026, pedido do Lucas: "o sistema
+   * puxa a data e hora do clique e já lança como data de pagamento" — o
+   * usuário ainda pode corrigir à mão depois pelo campo "Data do pagamento".
    */
   protected confirmar(pagamento: Pagamento): void {
-    this.store.inserirOuAtualizar({ ...pagamento, status: 'confirmado' }, pagamento.id);
+    this.store.inserirOuAtualizar(
+      { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
+      pagamento.id,
+    );
   }
 }

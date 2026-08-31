@@ -3,8 +3,9 @@ import { ActivatedRoute } from '@angular/router';
 
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
-import { Obra, PlanejamentoCronograma } from '../../core/models/api.models';
+import { Obra, PerfilEmpresa, PlanejamentoCronograma } from '../../core/models/api.models';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
+import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { EapStore } from '../eap/eap.store';
 import { ehDescendente } from '../eap/eap-engine';
 import { recuoDoCodigoEap } from '../eap/eap-normalize';
@@ -36,6 +37,7 @@ interface LinhaCronograma {
  */
 @Component({
   selector: 'app-cronograma-desembolso-imprimir',
+  imports: [CabecalhoImpressao],
   providers: [EapStore, PagamentosStore],
   templateUrl: './cronograma-desembolso-imprimir.html',
   styleUrl: './cronograma-desembolso-imprimir.scss',
@@ -55,6 +57,7 @@ export class CronogramaDesembolsoImprimir implements OnInit {
 
   protected readonly obra = signal<Obra | null>(null);
   protected readonly planejamentos = signal<PlanejamentoCronograma[]>([]);
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
   protected readonly carregando = computed(
     () => this.eap.carregando() || this.pagamentosStore.carregando(),
@@ -210,6 +213,10 @@ export class CronogramaDesembolsoImprimir implements OnInit {
     this.api.obterObra(this.obraId()).subscribe({ next: (o) => this.obra.set(o), error: () => {} });
     this.api.listarPlanejamentosCronograma(this.obraId()).subscribe({
       next: (lista) => this.planejamentos.set(lista),
+      error: () => {},
+    });
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
       error: () => {},
     });
   }

@@ -7,20 +7,26 @@ import { ResumoContratoEmpreita } from '../../features/empreita/empreita.models'
 import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
+  AcessoObraUsuario,
   EapPayload,
   Empreita,
   Mapa,
   MedicaoPayload,
   MedicaoResumo,
   MedicaoSalvarPayload,
+  MinhasPermissoes,
   Obra,
   ObraPayload,
   Pagamento,
+  PerfilEmpresa,
+  PermissaoModulo,
   PlanejamentoCronograma,
   RegistroDiario,
+  RepresentanteLegal,
   RespostaLeituraFornecedor,
   RespostaLeituraNota,
   RespostaMe,
+  UsuarioSecundario,
 } from '../models/api.models';
 
 /**
@@ -48,6 +54,18 @@ export class ApiService {
    */
   definirBaseParaImpressao(apiUrl: string): void {
     this.base = apiUrl;
+  }
+
+  /**
+   * Host por trás de uma URL relativa vinda da API (ex.: `logoUrl`/
+   * `papelTimbradoUrl` de `PerfilEmpresa`, que a API devolve como
+   * `/storage/...` de propósito — ver `Empresa::getLogoUrlAttribute()`).
+   * Mesma ideia de `definirBaseParaImpressao`: `this.base` já é o host
+   * certo pro contexto atual (navegador normal ou impressão), só falta
+   * tirar o sufixo `/api`.
+   */
+  baseStorage(): string {
+    return this.base.replace(/\/api\/?$/, '');
   }
 
   // ---------------- Sessão ----------------
@@ -424,5 +442,71 @@ export class ApiService {
       responseType: 'blob',
       context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
     });
+  }
+
+  // ---------------- Configurações — Dados da empresa ----------------
+  obterPerfilEmpresa(): Observable<PerfilEmpresa> {
+    return this.http.get<PerfilEmpresa>(`${this.base}/empresa/perfil`);
+  }
+
+  /** POST (não PUT) — precisa aceitar multipart pelos uploads de logo/papel timbrado. */
+  salvarPerfilEmpresa(dados: FormData): Observable<PerfilEmpresa> {
+    return this.http.post<PerfilEmpresa>(`${this.base}/empresa/perfil`, dados);
+  }
+
+  criarRepresentante(dados: Partial<RepresentanteLegal>): Observable<RepresentanteLegal> {
+    return this.http.post<RepresentanteLegal>(`${this.base}/empresa/representantes`, dados);
+  }
+
+  atualizarRepresentante(
+    id: string,
+    dados: Partial<RepresentanteLegal>,
+  ): Observable<RepresentanteLegal> {
+    return this.http.put<RepresentanteLegal>(`${this.base}/empresa/representantes/${id}`, dados);
+  }
+
+  excluirRepresentante(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/empresa/representantes/${id}`);
+  }
+
+  // ---------------- Configurações — Controle de permissões (31/08/2026) ----------------
+  obterMinhasPermissoes(): Observable<MinhasPermissoes> {
+    return this.http.get<MinhasPermissoes>(`${this.base}/me/permissoes`);
+  }
+
+  listarUsuarios(): Observable<UsuarioSecundario[]> {
+    return this.http.get<UsuarioSecundario[]>(`${this.base}/usuarios`);
+  }
+
+  criarUsuario(dados: {
+    name: string;
+    email: string;
+    password: string;
+  }): Observable<UsuarioSecundario> {
+    return this.http.post<UsuarioSecundario>(`${this.base}/usuarios`, dados);
+  }
+
+  /** Corpo em snake_case de propósito — é exatamente o que `UsuarioController::update` valida. */
+  atualizarUsuario(
+    id: number,
+    dados: Partial<{ name: string; email: string; ativo: boolean; pode_gerenciar_permissoes: boolean }>,
+  ): Observable<UsuarioSecundario> {
+    return this.http.put<UsuarioSecundario>(`${this.base}/usuarios/${id}`, dados);
+  }
+
+  obterPermissoesUsuario(id: number): Observable<PermissaoModulo[]> {
+    return this.http.get<PermissaoModulo[]>(`${this.base}/usuarios/${id}/permissoes`);
+  }
+
+  salvarPermissoesUsuario(id: number, modulos: PermissaoModulo[]): Observable<PermissaoModulo[]> {
+    return this.http.put<PermissaoModulo[]>(`${this.base}/usuarios/${id}/permissoes`, { modulos });
+  }
+
+  listarAcessosObra(obraId: string): Observable<AcessoObraUsuario[]> {
+    return this.http.get<AcessoObraUsuario[]>(`${this.base}/obras/${obraId}/acessos`);
+  }
+
+  salvarAcessosObra(obraId: string, usuarios: AcessoObraUsuario[]): Observable<AcessoObraUsuario[]> {
+    return this.http.put<AcessoObraUsuario[]>(`${this.base}/obras/${obraId}/acessos`, { usuarios });
   }
 }

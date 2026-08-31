@@ -33,6 +33,13 @@ class MedicaoController extends Controller
      * com uma linha por item da EAP atual (folha ou grupo). Só uma
      * medição em rascunho por obra por vez — a fila é estritamente
      * sequencial (ver a migration).
+     *
+     * Cada célula já nasce pré-preenchida com o valor da última medição
+     * aprovada (25/08/2026, pedido do Lucas: "os campos da nova medição
+     * tem que vir pré preenchido iguais ao campos da última medição") —
+     * como `valor_percentual` é o acumulado absoluto (não um delta do
+     * período), começar do zero forçaria redigitar tudo; começar do valor
+     * anterior deixa só o avanço do período a lançar.
      */
     public function store(Request $request, Obra $obra)
     {
@@ -52,12 +59,33 @@ class MedicaoController extends Controller
                 'status' => 'rascunho',
             ]);
 
+            $anterior = Medicao::where('obra_id', $obra->id)
+                ->where('status', 'aprovada')
+                ->orderByDesc('sequencia')
+                ->first();
+
+            $valoresAnterioresPorEap = [];
+            if ($anterior) {
+                $anterior->load('itens.valoresPorTipo');
+                foreach ($anterior->itens as $itemAnterior) {
+                    $valoresAnterioresPorEap[$itemAnterior->eap_item_id] = $itemAnterior->valoresPorTipo;
+                }
+            }
+
             foreach ($obra->eapItens()->orderBy('ordem')->get() as $ordem => $eapItem) {
-                MedicaoItem::create([
+                $novoItem = MedicaoItem::create([
                     'medicao_id' => $medicao->id,
                     'eap_item_id' => $eapItem->id,
                     'ordem' => $ordem,
                 ]);
+
+                foreach ($valoresAnterioresPorEap[$eapItem->id] ?? [] as $valorAnterior) {
+                    $novoItem->valoresPorTipo()->create([
+                        'tipo_custo_id' => $valorAnterior->tipo_custo_id,
+                        'valor_percentual' => $valorAnterior->valor_percentual,
+                        'manual' => $valorAnterior->manual,
+                    ]);
+                }
             }
 
             return $medicao;

@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
+import { permissaoModuloGuard } from './core/guards/permissao-modulo.guard';
+import { permissaoObraGuard } from './core/guards/permissao-obra.guard';
 import { AppShell } from './layout/app-shell/app-shell';
 
 /** Rota de tela ainda não construída, com o título exibido no cabeçalho. */
@@ -22,10 +24,14 @@ const reservada = (caminho: string, titulo: string) => ({
 const abasDaObra: Routes = [
   { path: '', redirectTo: 'eap', pathMatch: 'full' },
   {
+    // EAP — exceção de "Controle de permissões" (31/08/2026): sempre
+    // visível a quem tem acesso à obra (o guard de obra já roda no pai,
+    // `obras/:id`), sem `permissaoModuloGuard` — só a edição dentro da
+    // tela é que segue a regra normal de módulo.
     path: 'eap',
     loadComponent: () => import('./features/eap/eap').then((m) => m.Eap),
   },
-  reservada('cronograma', 'Cronograma'),
+  { ...reservada('cronograma', 'Cronograma'), canActivate: [permissaoModuloGuard('cronograma')] },
   {
     // Matriz EAP x período (item 3 do roteiro, 04/08/2026) — cruza os
     // itens da EAP com os pagamentos confirmados da obra, agrupados por
@@ -33,6 +39,7 @@ const abasDaObra: Routes = [
     // escopo tomadas na ausência da spec original.
     path: 'desembolso',
     data: { titulo: 'Cronograma de desembolso' },
+    canActivate: [permissaoModuloGuard('desembolso')],
     loadComponent: () =>
       import('./features/cronograma-desembolso/cronograma-desembolso').then(
         (m) => m.CronogramaDesembolso,
@@ -43,11 +50,13 @@ const abasDaObra: Routes = [
     // padrão de mapas/empreitas: lista + editor em rotas irmãs).
     path: 'medicoes',
     data: { titulo: 'Medições da obra' },
+    canActivate: [permissaoModuloGuard('medicoes')],
     loadComponent: () => import('./features/medicoes/medicoes-obra').then((m) => m.MedicoesObra),
   },
   {
     path: 'medicoes/:medicaoId',
     data: { titulo: 'Medição' },
+    canActivate: [permissaoModuloGuard('medicoes')],
     loadComponent: () => import('./features/medicoes/medicao').then((m) => m.Medicao),
   },
   {
@@ -56,39 +65,49 @@ const abasDaObra: Routes = [
     // específica vive em 'empreitas/:empreitaId', logo abaixo.
     path: 'empreitas',
     data: { titulo: 'Empreitas da obra' },
+    canActivate: [permissaoModuloGuard('empreitas')],
     loadComponent: () =>
       import('./features/empreita/empreitas-obra').then((m) => m.EmpreitasObra),
   },
   {
     path: 'empreitas/:empreitaId',
     data: { titulo: 'Empreita' },
+    canActivate: [permissaoModuloGuard('empreitas')],
     loadComponent: () => import('./features/empreita/empreita').then((m) => m.Empreita),
   },
   {
     // Lista de mapas desta obra (mesma ideia: várias por obra).
     path: 'mapas',
     data: { titulo: 'Mapas da obra' },
+    canActivate: [permissaoModuloGuard('mapas')],
     loadComponent: () => import('./features/mapa/mapas-obra').then((m) => m.MapasObra),
   },
   {
     path: 'mapas/:mapaId',
     data: { titulo: 'Mapa' },
+    canActivate: [permissaoModuloGuard('mapas')],
     loadComponent: () => import('./features/mapa/mapa').then((m) => m.Mapa),
   },
   {
     path: 'pagamentos',
     data: { titulo: 'Pagamentos da obra' },
+    canActivate: [permissaoModuloGuard('pagamentos')],
     loadComponent: () => import('./features/pagamentos/pagamentos').then((m) => m.Pagamentos),
   },
-  reservada('diarios', 'Diários desta obra'),
+  {
+    ...reservada('diarios', 'Diários desta obra'),
+    canActivate: [permissaoModuloGuard('diario_obra')],
+  },
   {
     path: 'relatorios',
     data: { titulo: 'Relatórios da obra' },
+    canActivate: [permissaoModuloGuard('relatorios')],
     loadComponent: () => import('./features/relatorios/relatorios').then((m) => m.Relatorios),
   },
   {
     path: 'arquivos',
     data: { titulo: 'Arquivos anexados' },
+    canActivate: [permissaoModuloGuard('arquivos')],
     loadComponent: () => import('./features/arquivos/arquivos').then((m) => m.Arquivos),
   },
 ];
@@ -177,11 +196,13 @@ export const routes: Routes = [
       {
         path: 'obras',
         data: { titulo: 'Obras' },
+        canActivate: [permissaoModuloGuard('obras')],
         loadComponent: () => import('./features/obras/obras').then((m) => m.Obras),
       },
       {
         path: 'obras/:id',
         data: { titulo: 'Obra' },
+        canActivate: [permissaoObraGuard()],
         loadComponent: () =>
           import('./features/obras/obra-detalhe/obra-detalhe').then((m) => m.ObraDetalhe),
         children: abasDaObra,
@@ -209,16 +230,19 @@ export const routes: Routes = [
       {
         path: 'mapas',
         data: { titulo: 'Mapas' },
+        canActivate: [permissaoModuloGuard('mapas')],
         loadComponent: () => import('./features/mapas/mapas').then((m) => m.Mapas),
       },
       {
         path: 'empreitas',
         data: { titulo: 'Empreitas' },
+        canActivate: [permissaoModuloGuard('empreitas')],
         loadComponent: () => import('./features/empreitas/empreitas').then((m) => m.Empreitas),
       },
       {
         path: 'empreitas/:id/medicoes',
         data: { titulo: 'Medições da empreita' },
+        canActivate: [permissaoModuloGuard('empreitas')],
         loadComponent: () =>
           import('./features/empreitas/medicoes/medicoes').then((m) => m.Medicoes),
       },
@@ -230,12 +254,14 @@ export const routes: Routes = [
       {
         path: 'pagamentos',
         data: { titulo: 'Pagamentos' },
+        canActivate: [permissaoModuloGuard('pagamentos')],
         loadComponent: () =>
           import('./features/pagamentos-geral/pagamentos-geral').then((m) => m.PagamentosGeral),
       },
       {
         path: 'diario-obra',
         data: { titulo: 'Diários de obra' },
+        canActivate: [permissaoModuloGuard('diario_obra')],
         loadComponent: () =>
           import('./features/diario-obra/diario-obra').then((m) => m.DiarioObra),
       },

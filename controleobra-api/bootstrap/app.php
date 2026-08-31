@@ -24,6 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // sempre, então nunca bateu nisso, mas qualquer outro cliente
         // sem sessão válida bateria).
         $middleware->redirectGuestsTo(fn () => null);
+
+        // Controle de permissões (31/08/2026) — ver PermissaoModulo/PermissaoObra.
+        $middleware->alias([
+            'permissaoModulo' => \App\Http\Middleware\PermissaoModulo::class,
+            'permissaoObra' => \App\Http\Middleware\PermissaoObra::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Mesmo motivo do `redirectGuestsTo` acima, camada diferente: o

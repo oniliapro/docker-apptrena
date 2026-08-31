@@ -1,7 +1,7 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
-import { nomeDaEmpresa } from '../../core/models/api.models';
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
@@ -61,6 +61,12 @@ export class MapaImprimir implements OnInit {
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly formatarPercentual = formatarPercentual;
   protected readonly geradoEm = new Date().toISOString();
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
+  /** `logoUrl` vem relativo (`/storage/...`) — ver `Empresa::getLogoUrlAttribute()`. */
+  protected readonly logoEmpresaUrl = computed(() => {
+    const caminho = this.perfilEmpresa()?.logoUrl;
+    return caminho ? this.api.baseStorage() + caminho : null;
+  });
 
   private readonly rotuloPorChaveTipo = new Map(TIPOS_CUSTO.map((t) => [t.chave, t.rotulo]));
 
@@ -68,7 +74,15 @@ export class MapaImprimir implements OnInit {
     return (chave && this.rotuloPorChaveTipo.get(chave)) || '—';
   }
 
-  protected readonly nomeEmpresa = computed(() => nomeDaEmpresa(this.auth.usuario()) || 'Sua empresa');
+  /**
+   * 28/08/2026, correção de bug achado ao aplicar a marca da empresa nos
+   * PDFs: `auth.usuario()` nunca é preenchido na sessão de impressão
+   * (autenticada só por um token Sanctum de vida curta), então o nome
+   * sempre caía no fallback genérico "Sua empresa". `perfilEmpresa` (via
+   * `ApiService.obterPerfilEmpresa()`) é buscado de propósito pra este
+   * contexto, então é a fonte confiável aqui.
+   */
+  protected readonly nomeEmpresa = computed(() => this.perfilEmpresa()?.nome || 'Sua empresa');
   protected readonly inicialEmpresa = computed(() => this.nomeEmpresa().charAt(0).toUpperCase());
 
   private readonly resumo = new ResumoEtapas();
@@ -224,5 +238,9 @@ export class MapaImprimir implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.mapaId(), this.obraId());
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => {},
+    });
   }
 }

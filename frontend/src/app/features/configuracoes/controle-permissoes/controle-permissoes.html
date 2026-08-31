@@ -1,0 +1,177 @@
+@if (carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+  <h2 class="titulo-secao">Usuários</h2>
+  <p class="atenuado pequeno">
+    Cadastre usuários secundários e defina o que cada um pode ver e fazer no sistema.
+    Quem acessa quais obras específicas se define na própria tela da obra.
+  </p>
+
+  <div class="envoltoria">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>E-mail</th>
+          <th class="centro">Ativo</th>
+          <th class="centro">Gerencia permissões</th>
+          <th class="centro">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of usuarios(); track u.id) {
+          <tr [class.inativo]="!u.ativo">
+            <td>{{ u.nome }}</td>
+            <td>{{ u.email }}</td>
+            <td class="centro">
+              <button type="button" class="chave" [class.ligada]="u.ativo"
+                      [disabled]="!podeEditarAlvo(u)"
+                      (click)="alternarAtivo(u)"
+                      [title]="u.ativo ? 'Inativar' : 'Ativar'"></button>
+            </td>
+            <td class="centro">
+              <button type="button" class="chave" [class.ligada]="u.podeGerenciarPermissoes"
+                      [disabled]="!permissoes.ehAdmin()"
+                      (click)="alternarGerente(u)"
+                      title="Só o administrador concede/revoga isto"></button>
+            </td>
+            <td class="centro acoes">
+              <button type="button" [disabled]="!podeEditarAlvo(u)" (click)="abrirMatriz(u)">
+                Permissões
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="centro atenuado">Nenhum usuário secundário cadastrado ainda.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <button type="button" class="botao-novo" (click)="novo()">+ Novo usuário</button>
+
+  @if (formularioAberto()) {
+    <div class="modal modal-interno">
+      <div class="modal-fundo" (click)="fechar()"></div>
+
+      <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">Novo usuário</span>
+          <button type="button" (click)="fechar()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <div class="grade">
+            <label class="campo campo-largo">
+              <span class="obrigatorio">Nome</span>
+              <input type="text" formControlName="name" />
+              @if (temErro('name')) {
+                <small class="erro-campo">Informe o nome.</small>
+              }
+            </label>
+
+            <label class="campo campo-largo">
+              <span class="obrigatorio">E-mail</span>
+              <input type="email" formControlName="email" />
+              @if (temErro('email')) {
+                <small class="erro-campo">Informe um e-mail válido.</small>
+              }
+            </label>
+
+            <label class="campo campo-largo">
+              <span class="obrigatorio">Senha</span>
+              <input type="password" formControlName="password" />
+              @if (temErro('password')) {
+                <small class="erro-campo">Mínimo de 8 caracteres.</small>
+              }
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fechar()">Cancelar</button>
+          <button class="primario" type="submit" [disabled]="salvando()">
+            {{ salvando() ? 'Salvando…' : 'Criar usuário' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (usuarioNaMatriz(); as usuario) {
+    <div class="modal modal-interno">
+      <div class="modal-fundo" (click)="fecharMatriz()"></div>
+
+      <div class="modal-cartao modal-cartao-larga">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">Permissões — {{ usuario.nome }}</span>
+          <button type="button" (click)="fecharMatriz()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <div class="envoltoria">
+            <table class="tabela-matriz">
+              <thead>
+                <tr>
+                  <th>Módulo</th>
+                  <th class="centro">Usar</th>
+                  <th class="centro">Criar</th>
+                  <th class="centro">Editar</th>
+                  <th class="centro">Excluir</th>
+                  <th class="centro">Reabrir</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of modulos; track m.chave) {
+                  <tr>
+                    <td>{{ m.rotulo }}</td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeUsar"
+                             (change)="alternarFlag(m.chave, 'podeUsar')" />
+                    </td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeCriar"
+                             [disabled]="!linhaDoModulo(m.chave).podeUsar"
+                             (change)="alternarFlag(m.chave, 'podeCriar')" />
+                    </td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeEditar"
+                             [disabled]="!linhaDoModulo(m.chave).podeUsar"
+                             (change)="alternarFlag(m.chave, 'podeEditar')" />
+                    </td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeExcluir"
+                             [disabled]="!linhaDoModulo(m.chave).podeUsar"
+                             (change)="alternarFlag(m.chave, 'podeExcluir')" />
+                    </td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeReabrir"
+                             [disabled]="!linhaDoModulo(m.chave).podeUsar"
+                             (change)="alternarFlag(m.chave, 'podeReabrir')" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="atenuado pequeno nota-matriz">
+            "EAP" é sempre visível pra quem acessa a obra, mesmo sem "Usar" marcado aqui — só a edição
+            respeita a permissão. Hoje, "Usar/Criar/Editar/Excluir/Reabrir" só bloqueiam de verdade em
+            Mapas e EAP — os demais módulos ainda dependem só do filtro do menu.
+          </p>
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharMatriz()">Fechar</button>
+          <button class="primario" type="button" [disabled]="salvandoMatriz()" (click)="salvarMatriz()">
+            {{ salvandoMatriz() ? 'Salvando…' : 'Salvar permissões' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+}

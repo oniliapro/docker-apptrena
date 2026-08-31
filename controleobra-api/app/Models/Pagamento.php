@@ -26,7 +26,9 @@ class Pagamento extends Model
 
     protected $casts = [
         'data_solicitacao' => 'date',
-        'data_pagamento' => 'date',
+        // `datetime`, não `date` — 26/08/2026, confirmar um pagamento grava
+        // a data E a hora do clique (ver `PagamentoController::confirmar`).
+        'data_pagamento' => 'datetime',
         'valor_total' => 'float',
     ];
 

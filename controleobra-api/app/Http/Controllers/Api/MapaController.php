@@ -29,6 +29,19 @@ class MapaController extends Controller
         if ($request->filled('obra_id')) {
             $query->where('obra_id', $request->query('obra_id'));
         }
+
+        // 31/08/2026, "Controle de permissões" — o middleware de rota só
+        // protege `permissaoModulo` aqui (essa listagem cruza várias
+        // obras, não dá pra checar `permissaoObra` de uma vez só). Acesso
+        // por obra é "aberto por exceção" (ver `PermissaoService::podeObra`):
+        // um usuário secundário enxerga mapas de toda obra, EXCETO as que
+        // têm uma linha explícita negando `pode_ver` — admin nunca filtra.
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
+        }
+
         return $query->get();
     }
 

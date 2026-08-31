@@ -381,7 +381,8 @@ export class EmpreitaStore {
     this.salvar();
   }
 
-  atualizarMedicao(id: string, campo: 'medicaoAcum' | 'medicaoAtual', valor: number | null): void {
+  /** Só "Atual" — "Acumulado" é preenchido pelo sistema em `avancarPeriodo()`, nunca pelo usuário. */
+  atualizarMedicao(id: string, campo: 'medicaoAtual', valor: number | null): void {
     this.itens.update((lista) => lista.map((item) => (item.id === id ? { ...item, [campo]: valor } : item)));
     this.salvar();
   }
@@ -417,52 +418,23 @@ export class EmpreitaStore {
   }
 
   /**
-   * Fecha o período: o que foi medido agora vira o novo acumulado, e a
-   * medição atual é zerada para o próximo ciclo.
+   * Fecha o período (25/08/2026, pedido do Lucas: "apagar o botão gerar
+   * pagamento, o pagamento deve ser gerado automaticamente ao finalizar
+   * um período") — o que antes eram duas ações separadas ("Gerar
+   * pagamento" + "Fechar período", nessa ordem obrigatória) virou uma só:
+   * gera o pagamento pendente do rascunho atual e, só depois de gravar
+   * com sucesso, avança o período (medição atual vira o novo acumulado, e
+   * o rascunho de Pagamento é zerado pro próximo ciclo). Se não houver
+   * nada no rascunho pra pagar, avança direto, sem gerar pagamento vazio.
+   * Se a gravação do pagamento falhar, o período NÃO avança — evita
+   * perder o avanço medido sem deixar rastro do pagamento correspondente.
    */
   fecharPeriodo(): void {
-    this.itens.update((lista) =>
-      lista.map((item) => {
-        const atual = item.medicaoAtual;
-        const novoAcumulado = atual !== null && atual !== undefined ? atual : item.medicaoAcum;
-        return { ...item, medicaoAcum: novoAcumulado, medicaoAtual: null };
-      }),
-    );
-    this.salvar();
-  }
-
-  // ------------------------------------------------------------------
-  // Gerar Pagamento
-  // ------------------------------------------------------------------
-  /**
-   * Cria um Pagamento pendente pro empreiteiro com o rascunho de
-   * "Pagamento" atual (item 6, 04/08/2026; reescrito 25/08/2026 pro
-   * redesign da tela) — mesmo princípio do "Gerar Pagamento" do Mapa
-   * (`MapaStore.gerarPagamentos`), adaptado: aqui só existe um
-   * "fornecedor" (o empreiteiro da empreita), então nasce só 1 pagamento,
-   * com até dois itens por serviço (Empreiteiro e Reserva, marcados via
-   * `parcela`) para todo valor não-zero no rascunho — o rascunho já é o
-   * valor calculado pela engine, a menos que o Lucas tenha sobrescrito na
-   * tela.
-   *
-   * Diferente do Mapa, NÃO é idempotente: cada clique gera um pagamento
-   * novo, porque uma empreita pode ter várias medições ao longo do tempo
-   * (o Mapa é cotação única). Rodar de novo sem rascunho pendente não gera
-   * nada (fica tudo zerado). Chame ANTES de `fecharPeriodo()` — o cálculo
-   * usa o avanço (atual − acumulado), que `fecharPeriodo()` zera.
-   *
-   * Depois de gerar com sucesso, o rascunho volta a herdar o calculado
-   * (`pagamentoEmp`/`pagamentoReserva` voltam a `null`) — reset em "Gerar
-   * pagamento" e não em "Fechar período" de propósito, pra não acoplar
-   * ainda mais as duas ações (já é frágil a ordem entre elas).
-   */
-  gerarPagamento(): void {
     if (!this.empreitaId || !this.obraIdAtual) return;
 
+    const obraId = this.obraIdAtual;
     this.gerandoPagamento.set(true);
     this.resultadoGerarPagamento.set(null);
-
-    const obraId = this.obraIdAtual;
 
     this.api.listarPagamentos({ obraId }).subscribe({
       next: (brutos) => {
@@ -471,9 +443,7 @@ export class EmpreitaStore {
 
         if (!novo) {
           this.gerandoPagamento.set(false);
-          this.resultadoGerarPagamento.set(
-            'Nenhum valor no rascunho de pagamento — lance a medição atual antes.',
-          );
+          this.avancarPeriodo();
           return;
         }
 
@@ -481,22 +451,36 @@ export class EmpreitaStore {
           next: () => {
             this.gerandoPagamento.set(false);
             this.resultadoGerarPagamento.set(
-              'Pagamento gerado — confira na aba Pagamentos da obra.',
+              'Pagamento gerado — confira em "Pagamentos registrados" ou na aba Pagamentos da obra.',
             );
-            this.zerarRascunhoPagamento();
             this.carregarPagamentos(obraId, this.empreitaId);
+            this.avancarPeriodo();
           },
           error: () => {
             this.gerandoPagamento.set(false);
-            this.resultadoGerarPagamento.set('Não foi possível gravar o pagamento.');
+            this.resultadoGerarPagamento.set('Não foi possível gravar o pagamento — período não fechado.');
           },
         });
       },
       error: () => {
         this.gerandoPagamento.set(false);
-        this.resultadoGerarPagamento.set('Não foi possível ler os pagamentos existentes desta obra.');
+        this.resultadoGerarPagamento.set(
+          'Não foi possível ler os pagamentos existentes desta obra — período não fechado.',
+        );
       },
     });
+  }
+
+  /** A medição atual vira o novo acumulado, e os rascunhos de medição/pagamento zeram pro próximo ciclo. */
+  private avancarPeriodo(): void {
+    this.itens.update((lista) =>
+      lista.map((item) => {
+        const atual = item.medicaoAtual;
+        const novoAcumulado = atual !== null && atual !== undefined ? atual : item.medicaoAcum;
+        return { ...item, medicaoAcum: novoAcumulado, medicaoAtual: null, pagamentoEmp: null, pagamentoReserva: null };
+      }),
+    );
+    this.salvar();
   }
 
   /** Um item Empreiteiro + um item Reserva por serviço, pro valor efetivo do rascunho (calculado ou sobrescrito). */
@@ -565,11 +549,5 @@ export class EmpreitaStore {
       origem: { tipo: 'empreita', refId: this.empreitaId },
       status: 'pendente',
     };
-  }
-
-  /** Depois de gerar o pagamento, o rascunho volta a herdar o calculado da engine. */
-  private zerarRascunhoPagamento(): void {
-    this.itens.update((lista) => lista.map((item) => ({ ...item, pagamentoEmp: null, pagamentoReserva: null })));
-    this.salvar();
   }
 }

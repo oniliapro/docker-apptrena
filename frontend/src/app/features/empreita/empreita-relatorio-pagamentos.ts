@@ -2,13 +2,14 @@ import { Component, computed, input } from '@angular/core';
 
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
-import { Pagamento } from '../pagamentos/pagamentos.models';
+import { Pagamento, StatusPagamento } from '../pagamentos/pagamentos.models';
 
 interface LinhaRelatorioPagamento {
   id: string;
   numeroPagamento: string;
   dataSolicitacao: string;
   dataPagamento: string;
+  status: StatusPagamento;
   empreiteiro: number;
   reserva: number;
   total: number;
@@ -23,17 +24,23 @@ interface LinhaRelatorioPagamento {
  * impressão (`empreita-imprimir.html`), sem duplicar a lógica de cálculo
  * nos dois lugares.
  *
- * `pagamentos` já deve vir filtrado pelo chamador (só os CONFIRMADOS desta
- * empreita — `EmpreitaStore.pagamentosConfirmadosDaEmpreita()`); este
- * componente só ordena por data e calcula o saldo corrido.
+ * `pagamentos` agora recebe TODOS os pagamentos desta empreita, pendentes
+ * inclusive (25/08/2026, pedido do Lucas: "ao lançar um pagamento... o
+ * mesmo já deve aparecer nos pagamentos registrados, exibindo que a data
+ * de pagamento ainda está em aberto") — antes só mostrava confirmados, e
+ * um pagamento recém-gerado (sempre nasce pendente) só aparecia aqui
+ * depois de alguém confirmá-lo manualmente na aba Pagamentos. A data de
+ * pagamento em branco mostra "Em aberto" em vez de "—".
  *
  * "Saldo empreita" (confirmado com o Lucas, 24/08/2026) é o saldo da
  * empreita ESPECÍFICA, não da obra toda: `Contrato Total desta empreita
- * − soma paga (Empreiteiro+Reserva) até este pagamento, inclusive`. Uma
- * linha vinda de um pagamento gerado pelo código antigo (antes de
- * `parcela` existir) aparece com Empreiteiro/Reserva zerados — não dá
- * pra saber retroativamente qual lado do contrato aquele valor era (ver
- * nota de migração no plano) —, mas a data continua visível.
+ * − soma paga (Empreiteiro+Reserva) até este pagamento, inclusive` — soma
+ * pendentes e confirmados igual, porque um pagamento pendente já
+ * representa dinheiro comprometido, mesmo antes de confirmado. Uma linha
+ * vinda de um pagamento gerado pelo código antigo (antes de `parcela`
+ * existir) aparece com Empreiteiro/Reserva zerados — não dá pra saber
+ * retroativamente qual lado do contrato aquele valor era (ver nota de
+ * migração no plano) —, mas a data continua visível.
  */
 @Component({
   selector: 'app-empreita-relatorio-pagamentos',
@@ -71,6 +78,7 @@ export class EmpreitaRelatorioPagamentos {
         numeroPagamento: pagamento.numeroPagamento,
         dataSolicitacao: pagamento.dataSolicitacao,
         dataPagamento: pagamento.dataPagamento,
+        status: pagamento.status,
         empreiteiro,
         reserva,
         total,

@@ -61,16 +61,10 @@
 
       @if (store.travada()) {
         <button type="button"
-                [disabled]="store.temMedicaoInvalida() || store.totaisEstendidos().pagamentoDraftTotal <= 0 || store.gerandoPagamento()"
-                (click)="gerarPagamento()"
-                title="Cria um pagamento pendente com o rascunho de Pagamento deste período, pra confirmar depois na aba Pagamentos">
-          {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
-        </button>
-
-        <button type="button"
-                [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0"
-                (click)="fecharPeriodo()">
-          ✅ Fechar período
+                [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0 || store.gerandoPagamento()"
+                (click)="fecharPeriodo()"
+                title="Fecha o período e já gera o pagamento deste ciclo automaticamente">
+          {{ store.gerandoPagamento() ? 'Fechando…' : '✅ Fechar período' }}
         </button>
       }
       <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
@@ -223,9 +217,9 @@
                             [title]="'Alternar unidade — atual: ' + rotuloUnidadeMedicao(unidadeMedicaoDe(item.id))">
                       {{ rotuloUnidadeMedicao(unidadeMedicaoDe(item.id)) }}
                     </button>
-                    <input type="text" class="valor" placeholder="0"
-                           [value]="valorMedicaoAcumuladaExibida(i, item)"
-                           (change)="editarMedicao(i, item, 'medicaoAcum', $event)" />
+                    <span class="valor-subcampo valor-acumulado" title="Preenchido automaticamente ao fechar o período — não é editável.">
+                      {{ valorMedicaoAcumuladaExibida(i, item) }}
+                    </span>
                   </div>
                 </div>
                 <div class="subcampo">
@@ -504,7 +498,7 @@
 
       <div class="painel painel-relatorio-pagamentos">
         <app-empreita-relatorio-pagamentos
-          [pagamentos]="store.pagamentosConfirmadosDaEmpreita()"
+          [pagamentos]="store.pagamentosDaEmpreita()"
           [contratoTotalEmpreita]="store.totais().valorTotal" />
       </div>
     </div>

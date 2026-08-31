@@ -28,6 +28,15 @@ class PagamentoController extends Controller
             $query->where('obra_id', $request->string('obra_id'));
         }
 
+        // 31/08/2026, "Controle de permissões" — mesmo raciocínio de
+        // EmpreitaController::index: listagem cruza várias obras, filtro
+        // por obra roda aqui (acesso "aberto por exceção").
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
+        }
+
         return $query->get()->map(fn (Pagamento $p) => $this->paraFrontend($p))->values();
     }
 
@@ -146,7 +155,9 @@ class PagamentoController extends Controller
             'obraId' => $pagamento->obra_id,
             'obraNumber' => $pagamento->obra_number ?? '',
             'dataSolicitacao' => optional($pagamento->data_solicitacao)->format('Y-m-d') ?? '',
-            'dataPagamento' => optional($pagamento->data_pagamento)->format('Y-m-d') ?? '',
+            // Datetime, não só data (26/08/2026) — `confirmar()` no
+            // frontend grava a hora do clique junto com a data.
+            'dataPagamento' => optional($pagamento->data_pagamento)->toIso8601String() ?? '',
             'fornecedor' => $pagamento->fornecedor ?? '',
             'descricao' => $pagamento->descricao ?? '',
             'valorTotal' => (float) $pagamento->valor_total,

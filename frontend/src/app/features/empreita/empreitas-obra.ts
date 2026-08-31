@@ -1,10 +1,11 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 import { Empreita } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
-import { formatarMoeda } from '../../core/utils/formato';
+import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import {
   EstadoOrdenacao,
@@ -12,8 +13,17 @@ import {
   ordenarPor,
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
+import { ResumoContratoEmpreita } from './empreita.models';
+import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
+import { Pagamento } from '../pagamentos/pagamentos.models';
 
-type ColunaEmpreitaObra = 'numero' | 'descricao' | 'empreiteiro' | 'total' | 'totalPago';
+type ColunaEmpreitaObra =
+  | 'numero'
+  | 'descricao'
+  | 'empreiteiro'
+  | 'total'
+  | 'totalPago'
+  | 'ultimaSolicitacao';
 
 /**
  * Lista de empreitas de UMA obra, com criação de empreitas novas.
@@ -43,6 +53,58 @@ export class EmpreitasObra implements OnInit {
   protected readonly erro = signal<string | null>(null);
 
   protected readonly formatarMoeda = formatarMoeda;
+  protected readonly formatarData = formatarData;
+
+  /** `resumo()`/pagamentos desta obra, usados só pra derivar Total/Pago/Última solicitação por empreita. */
+  private readonly resumoContrato = signal<ResumoContratoEmpreita[]>([]);
+  private readonly pagamentosPorEmpreita = signal<Map<string, Pagamento[]>>(new Map());
+
+  /**
+   * 26/08/2026, pedido do Lucas: "não está aparecendo o valor total da
+   * empreita e nem o valor pago" — `total_empreita`/`total_pago` nunca são
+   * gravados no banco (campos mortos), então precisam ser calculados aqui:
+   * Total = soma do contrato (Empreiteiro + Reserva) de cada item, via
+   * `resumoObra`; Pago = soma dos pagamentos já CONFIRMADOS desta empreita
+   * (mesma semântica de "Realizado" usada em EAP/Mapa — pendente não conta).
+   */
+  private readonly totalPorEmpreita = computed(() => {
+    const mapa = new Map<string, number>();
+    for (const r of this.resumoContrato()) {
+      const soma = r.itens.reduce((s, it) => s + (it.contratoEmp || 0) + (it.contratoReserva || 0), 0);
+      mapa.set(r.id, soma);
+    }
+    return mapa;
+  });
+
+  private readonly pagoPorEmpreita = computed(() => {
+    const mapa = new Map<string, number>();
+    for (const [id, lista] of this.pagamentosPorEmpreita()) {
+      mapa.set(
+        id,
+        lista.filter((p) => p.status === 'confirmado').reduce((s, p) => s + p.valorTotal, 0),
+      );
+    }
+    return mapa;
+  });
+
+  /** Data do pagamento mais recentemente SOLICITADO (pendente ou confirmado), pra coluna "Última solicitação". */
+  private readonly ultimaSolicitacaoPorEmpreita = computed(() => {
+    const mapa = new Map<string, string>();
+    for (const [id, lista] of this.pagamentosPorEmpreita()) {
+      const datas = lista.map((p) => p.dataSolicitacao).filter(Boolean).sort();
+      if (datas.length) mapa.set(id, datas[datas.length - 1]);
+    }
+    return mapa;
+  });
+
+  protected readonly pagamentosModalEmpreita = signal<Empreita | null>(null);
+  protected readonly pagamentosModalLista = computed(() => {
+    const empreita = this.pagamentosModalEmpreita();
+    if (!empreita) return [];
+    return [...(this.pagamentosPorEmpreita().get(empreita.id) ?? [])].sort((a, b) =>
+      (b.dataSolicitacao || '').localeCompare(a.dataSolicitacao || ''),
+    );
+  });
 
   protected readonly formularioAberto = signal(false);
   protected readonly salvando = signal(false);
@@ -82,6 +144,7 @@ export class EmpreitasObra implements OnInit {
         case 'empreiteiro': return this.empreiteiro(e);
         case 'total': return this.total(e);
         case 'totalPago': return this.totalPago(e);
+        case 'ultimaSolicitacao': return this.ultimaSolicitacao(e);
       }
     }),
   );
@@ -94,9 +157,26 @@ export class EmpreitasObra implements OnInit {
     this.carregando.set(true);
     this.erro.set(null);
 
-    this.api.listarEmpreitas(this.obraId()).subscribe({
-      next: (empreitas) => {
+    forkJoin({
+      empreitas: this.api.listarEmpreitas(this.obraId()),
+      resumo: this.api.obterResumoContratoEmpreitas(this.obraId()),
+      pagamentosBrutos: this.api.listarPagamentos({ obraId: this.obraId(), origemTipo: 'empreita' }),
+    }).subscribe({
+      next: ({ empreitas, resumo, pagamentosBrutos }) => {
         this.empreitas.set(empreitas);
+        this.resumoContrato.set(resumo);
+
+        const porEmpreita = new Map<string, Pagamento[]>();
+        for (const bruto of pagamentosBrutos) {
+          const pagamento = normalizarPagamento(bruto as Record<string, unknown>);
+          const empreitaId = pagamento.origem?.tipo === 'empreita' ? pagamento.origem.refId : null;
+          if (!empreitaId) continue;
+          const lista = porEmpreita.get(empreitaId) ?? [];
+          lista.push(pagamento);
+          porEmpreita.set(empreitaId, lista);
+        }
+        this.pagamentosPorEmpreita.set(porEmpreita);
+
         this.carregando.set(false);
       },
       error: () => {
@@ -119,15 +199,29 @@ export class EmpreitasObra implements OnInit {
   }
 
   protected total(empreita: Empreita): number {
-    return Number(empreita['total_empreita'] ?? 0);
+    return this.totalPorEmpreita().get(empreita.id) ?? 0;
   }
 
   protected totalPago(empreita: Empreita): number {
-    return Number(empreita['total_pago'] ?? 0);
+    return this.pagoPorEmpreita().get(empreita.id) ?? 0;
+  }
+
+  protected ultimaSolicitacao(empreita: Empreita): string {
+    return this.ultimaSolicitacaoPorEmpreita().get(empreita.id) ?? '';
   }
 
   protected abrir(empreita: Empreita): void {
     void this.router.navigate(['/obras', this.obraId(), 'empreitas', empreita.id]);
+  }
+
+  /** 26/08/2026, pedido do Lucas: clicar no valor "Pago" mostra a lista de pagamentos desta empreita. */
+  protected abrirPagamentos(empreita: Empreita, evento: Event): void {
+    evento.stopPropagation();
+    this.pagamentosModalEmpreita.set(empreita);
+  }
+
+  protected fecharPagamentos(): void {
+    this.pagamentosModalEmpreita.set(null);
   }
 
   protected remover(empreita: Empreita, evento: Event): void {

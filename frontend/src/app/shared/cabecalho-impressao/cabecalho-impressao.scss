@@ -1,0 +1,52 @@
+:host { display: block; }
+
+.faixa-papel-timbrado {
+  display: block;
+  width: 100%;
+  max-height: 25mm;
+  object-fit: cover;
+  margin-bottom: 4mm;
+}
+
+.folha-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--cor-primaria);
+  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+}
+
+// Logo (quando cadastrada) + nome fantasia lado a lado — 28/08/2026,
+// pedido do Lucas: mostrar o nome da empresa também, não só a logo.
+.identidade-empresa {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+}
+
+.logo-texto {
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+.logo-imagem {
+  display: block;
+  max-height: 12mm;
+  max-width: 40mm;
+  object-fit: contain;
+}
+
+.subtitulo {
+  font-size: 10.5px;
+  color: var(--cor-texto-suave);
+  margin-top: 2px;
+}
+
+.gerado-em {
+  font-size: 9.5px;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}

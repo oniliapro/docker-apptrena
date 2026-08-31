@@ -1,10 +1,5 @@
-<header class="folha-cabecalho">
-  <div>
-    <div class="logo-texto">AppTrena</div>
-    <div class="subtitulo">Relatório de obra — Orçado x Realizado</div>
-  </div>
-  <div class="gerado-em">Gerado em {{ formatarData(geradoEm) }}</div>
-</header>
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Relatório de obra — Orçado x Realizado"
+                         [geradoEm]="geradoEm" />
 
 @if (carregando()) {
   <p class="atenuado">Carregando…</p>

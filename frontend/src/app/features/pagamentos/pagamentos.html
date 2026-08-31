@@ -163,7 +163,7 @@
           </label>
           <label class="campo">
             <span>Data do pagamento</span>
-            <input type="date" [value]="p.dataPagamento"
+            <input type="date" [value]="somenteData(p.dataPagamento)"
                    (change)="atualizarCampo('dataPagamento', $event)" />
           </label>
           <label class="campo">

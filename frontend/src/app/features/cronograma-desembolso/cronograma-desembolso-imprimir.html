@@ -1,10 +1,5 @@
-<header class="folha-cabecalho">
-  <div>
-    <div class="logo-texto">AppTrena</div>
-    <div class="subtitulo">Cronograma de desembolso</div>
-  </div>
-  <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm) }}</div>
-</header>
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Cronograma de desembolso"
+                         [geradoEm]="geradoEm" />
 
 @if (carregando()) {
   <p class="atenuado">Carregando…</p>

@@ -95,82 +95,66 @@
 // resultados da medição") — mesmos números do rodapé "TOTAIS" da
 // tabela, só que num painel compacto acima, pra ver de relance sem
 // precisar rolar até o fim.
-.dashboard-medicao {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px 16px;
-}
+// Tabela compacta — uma linha por categoria + "Geral" no rodapé (era 6
+// blocos empilhados, cada um com 5 cards de 3 linhas; 26/08/2026, pedido
+// do Lucas: "melhorar a visualização... está ocupando muito espaço").
+.tabela-dashboard-medicao {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
 
-// Um grupo por categoria visível + "Geral" por último (pedido do Lucas,
-// 24/08/2026: "coloque o geral no final e os descriminados antes").
-.grupo-dashboard {
-  padding-top: 8px;
+  th {
+    padding: 5px 12px;
+    text-align: right;
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+    background: var(--cor-fundo-alt);
+  }
 
-  & + & {
+  td {
+    padding: 6px 12px;
+    text-align: right;
     border-top: 1px solid var(--cor-fundo-alt);
+    white-space: nowrap;
   }
 }
 
-.grupo-dashboard-titulo {
-  display: block;
-  margin-bottom: 6px;
-  font-family: var(--fonte-mono);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+.col-categoria {
+  text-align: left !important;
+  font-weight: 600;
   color: var(--cor-primaria);
 }
 
-.linha-dashboard {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 18px;
-}
+.col-progresso { width: 180px; }
 
-.stat-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 110px;
-}
-
-.stat-tile-barra {
-  flex: 1;
-  min-width: 220px;
-  justify-content: center;
-}
-
-.stat-rotulo {
+.valor-dash {
   font-family: var(--fonte-mono);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--cor-texto-suave);
-}
-
-.stat-valor {
-  font-family: var(--fonte-mono);
-  font-size: 16px;
   font-weight: 700;
   color: var(--cor-texto);
 }
 
-.stat-percentual {
-  font-family: var(--fonte-mono);
-  font-size: 11px;
+.pct-dash {
+  margin-left: 5px;
+  font-weight: 400;
   color: var(--cor-texto-suave);
+  font-size: 10.5px;
 }
 
-// Depois de `.stat-valor`/`.stat-percentual` de propósito — precisa
-// vencer os dois quando combinada (`class="stat-percentual stat-avanco"`).
-.stat-avanco { color: var(--cor-sucesso); }
+// Depois de `.valor-dash`/`.pct-dash` de propósito — precisa vencer os
+// dois quando combinada (`class="valor-dash stat-avanco"`).
+.stat-avanco { color: var(--cor-sucesso) !important; }
 
-.stat-tile-barra .barra {
-  height: 22px;
+.linha-geral td {
+  border-top: 2px solid var(--cor-borda-forte);
+  background: var(--cor-fundo-alt);
+  font-weight: 700;
 }
+
+.barra-compacta { height: 14px; }
 
 table {
   width: 100%;

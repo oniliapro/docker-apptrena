@@ -1,9 +1,11 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
+import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { ehDescendente } from './eap-engine';
@@ -27,6 +29,7 @@ import { ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from './eap.models';
  */
 @Component({
   selector: 'app-eap-imprimir',
+  imports: [CabecalhoImpressao],
   providers: [EapStore, PagamentosStore],
   templateUrl: './eap-imprimir.html',
   styleUrl: './eap-imprimir.scss',
@@ -44,6 +47,7 @@ export class EapImprimir implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly geradoEm = new Date().toISOString();
+  protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
   protected readonly carregando = computed(
     () => this.store.carregando() || this.pagamentosStore.carregando(),
@@ -305,5 +309,9 @@ export class EapImprimir implements OnInit {
   ngOnInit(): void {
     this.store.carregar(this.obraId());
     this.pagamentosStore.carregar(this.obraId());
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => {},
+    });
   }
 }

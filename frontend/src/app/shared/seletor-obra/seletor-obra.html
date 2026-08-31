@@ -1,0 +1,21 @@
+<div class="seletor-obra">
+  <button type="button" class="campo-seletor" [class.vazio]="!obraSelecionada()" (click)="alternar($event)">
+    {{ obraSelecionada()?.obra_nome || 'Selecione a obra…' }}
+  </button>
+
+  @if (aberto()) {
+    <div class="dropdown-obras" (click)="manterAberto($event)">
+      <input type="search" class="busca-obra" placeholder="Buscar obra…"
+             [value]="busca()" (input)="mudarBusca($event)" />
+      <ul class="lista-obras">
+        @for (obra of filtradas(); track obra.id) {
+          <li>
+            <button type="button" (click)="selecionar(obra)">{{ obra.obra_nome || '(sem nome)' }}</button>
+          </li>
+        } @empty {
+          <li class="vazio">Nenhuma obra encontrada.</li>
+        }
+      </ul>
+    </div>
+  }
+</div>

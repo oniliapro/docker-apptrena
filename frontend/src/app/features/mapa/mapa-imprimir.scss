@@ -44,6 +44,16 @@
   color: var(--cor-primaria);
 }
 
+// Logomarca da empresa no lugar do monograma (26/08/2026) — só aparece
+// quando a empresa cadastrou uma logo em Configurações; sem ela, cai pro
+// monograma de sempre (`.monograma-empresa`, definido em mapa.scss).
+.logo-marca-empresa {
+  height: 14px;
+  max-width: 44px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 // Assinatura da empresa (23/08/2026, pedido do Lucas) — trocou de lugar
 // com o texto "Mapa de Cotações": antes vivia dentro da tabela (célula
 // `.assinatura-documento`, ver mapa.scss/mapa-imprimir.html), agora é

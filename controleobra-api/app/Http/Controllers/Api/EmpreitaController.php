@@ -33,6 +33,18 @@ class EmpreitaController extends Controller
         if ($request->filled('obra_id')) {
             $query->where('obra_id', $request->query('obra_id'));
         }
+
+        // 31/08/2026, "Controle de permissões" — essa listagem cruza
+        // várias obras (o middleware de rota só protege `permissaoModulo`
+        // aqui), então o filtro por obra roda no controller: acesso é
+        // "aberto por exceção" — um secundário vê tudo, exceto obra com
+        // linha explícita negando `pode_ver` (ver `PermissaoService`).
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
+        }
+
         return $query->get();
     }
 

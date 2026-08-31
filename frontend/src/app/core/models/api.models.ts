@@ -207,6 +207,10 @@ export interface UsuarioAutenticado {
   name?: string;
   email?: string;
   empresa_id?: number | string | null;
+  /** 'admin' (dono da empresa) ou 'secundario' — ver "Controle de permissões" (31/08/2026). */
+  papel?: string;
+  /** Só é relevante pra papel 'secundario' — ver PermissoesService. */
+  podeGerenciarPermissoes?: boolean;
 
   /**
    * Vem em dois formatos, dependendo do endpoint:
@@ -222,6 +226,46 @@ export interface UsuarioAutenticado {
   empresa?: Empresa | string | null;
 }
 
+/**
+ * "Controle de permissões" (31/08/2026, pedido do Lucas) — ver
+ * `PermissoesService` (fonte única consultada por `app-shell` e pelos
+ * guards de rota) e `UsuarioController`/`AuthController::minhasPermissoes`
+ * no backend.
+ */
+export interface PermissaoModulo {
+  modulo: string;
+  podeUsar: boolean;
+  podeCriar: boolean;
+  podeEditar: boolean;
+  podeExcluir: boolean;
+  podeReabrir: boolean;
+}
+
+export interface UsuarioSecundario {
+  id: number;
+  nome: string;
+  email: string;
+  papel: string;
+  ativo: boolean;
+  podeGerenciarPermissoes: boolean;
+}
+
+export interface AcessoObraUsuario {
+  userId: number;
+  nome: string;
+  email: string;
+  podeVer: boolean;
+  podeLancar: boolean;
+}
+
+/** GET /me/permissoes. */
+export interface MinhasPermissoes {
+  ehAdmin: boolean;
+  podeGerenciarPermissoes: boolean;
+  modulos: Record<string, Omit<PermissaoModulo, 'modulo'>>;
+  obras: Record<string, { podeVer: boolean; podeLancar: boolean }>;
+}
+
 /** Extrai o objeto da empresa, ignorando quando vier só o nome. */
 export function dadosDaEmpresa(usuario: UsuarioAutenticado | null | undefined): Empresa | null {
   const empresa = usuario?.empresa;
@@ -235,10 +279,11 @@ export function nomeDaEmpresa(usuario: UsuarioAutenticado | null | undefined): s
   return typeof empresa === 'string' ? empresa : (empresa.nome ?? '');
 }
 
-/** Dados de assinatura exibidos no KPI do dashboard. */
+/** Dados de assinatura exibidos no KPI do dashboard e na aba "Plano" das Configurações. */
 export interface Empresa {
   id?: number | string;
   nome?: string | null;
+  plano?: string | null;
   assinatura_status?: string | null;
   assinatura_valida_ate?: string | null;
 }
@@ -282,4 +327,34 @@ export interface RespostaLeituraFornecedor {
     endereco?: string | null;
     especialidade?: string | null;
   };
+}
+
+/**
+ * Aba "Dados da empresa" do popup de Configurações (26/08/2026) —
+ * `GET/POST /api/empresa/perfil`.
+ */
+export interface RepresentanteLegal {
+  id: string;
+  nome: string;
+  cargo: string;
+  cpf: string;
+  email: string;
+  telefone: string;
+  ativo: boolean;
+}
+
+export interface PerfilEmpresa {
+  nome: string;
+  razaoSocial: string;
+  cnpj: string;
+  inscricaoEstadual: string;
+  endereco: string;
+  telefone: string;
+  emailContato: string;
+  corPrimaria: string;
+  corSecundaria: string;
+  fonte: string;
+  logoUrl: string | null;
+  papelTimbradoUrl: string | null;
+  representantes: RepresentanteLegal[];
 }
