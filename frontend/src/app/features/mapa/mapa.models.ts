@@ -37,6 +37,15 @@ export interface ItemMapa {
   choice: number | null;
 }
 
+/**
+ * Coluna alvo de um "colar com quebra de linha" (31/08/2026, pedido do
+ * Lucas): cada linha do texto colado vira uma linha da tabela, na MESMA
+ * coluna onde o colar aconteceu — ver `MapaStore.colarEmColuna`.
+ */
+export type ColunaMapaColavel =
+  | { tipo: 'desc' | 'unid' | 'qtde' | 'tipoCusto' | 'etapa' }
+  | { tipo: 'preco'; fornecedorIndice: number };
+
 /** Item vencedor de uma linha: qual fornecedor e por quanto. */
 export interface Vencedor {
   indice: number;

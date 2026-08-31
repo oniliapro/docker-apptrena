@@ -19,7 +19,7 @@ import {
   rotuloFornecedor,
 } from './mapa-engine';
 import { ResumoEtapas } from './mapa-resumo-etapas';
-import { CabecalhoMapa, Fornecedor, ItemMapa } from './mapa.models';
+import { CabecalhoMapa, ColunaMapaColavel, Fornecedor, ItemMapa } from './mapa.models';
 import { MapaStore } from './mapa.store';
 
 /**
@@ -432,6 +432,47 @@ export class Mapa implements OnInit {
    */
   protected inserirAbaixo(indiceLinha: number): void {
     this.store.adicionarItem(indiceLinha < 0 ? undefined : indiceLinha + 1);
+  }
+
+  /**
+   * Quantidade de colunas FOCÁVEIS (as que `trenaNavegacaoTabela` navega —
+   * ver `NavegacaoTabela.camposDaLinha`, que ignora a coluna "#" e as
+   * caixas de "Comprar") antes das colunas de preço por fornecedor: desc,
+   * tipo, qtde, unid, etapa. Não confundir com `COLUNAS_FIXAS` acima, que
+   * conta a coluna "#" (usada só pra colspan do cabeçalho).
+   */
+  private readonly COLUNAS_FOCAVEIS_FIXAS = 5;
+
+  /**
+   * "Colar com quebra de linha" (31/08/2026, pedido do Lucas): descobre a
+   * partir da coluna focável em que o colar aconteceu qual campo do item
+   * ela representa, e delega a distribuição das linhas pro store.
+   */
+  protected colarQuebraDeLinha(evento: { linha: number; coluna: number; linhas: string[] }): void {
+    const item = this.store.itens()[evento.linha];
+    if (!item) return;
+
+    const coluna = this.resolverColunaColavel(evento.coluna);
+    if (!coluna) return;
+
+    this.store.colarEmColuna(item.id, coluna, evento.linhas);
+  }
+
+  private resolverColunaColavel(coluna: number): ColunaMapaColavel | null {
+    switch (coluna) {
+      case 0: return { tipo: 'desc' };
+      case 1: return { tipo: 'tipoCusto' };
+      case 2: return { tipo: 'qtde' };
+      case 3: return { tipo: 'unid' };
+      case 4: return { tipo: 'etapa' };
+      default: {
+        const fornecedorIndice = coluna - this.COLUNAS_FOCAVEIS_FIXAS;
+        if (fornecedorIndice >= 0 && fornecedorIndice < this.store.fornecedores().length) {
+          return { tipo: 'preco', fornecedorIndice };
+        }
+        return null;
+      }
+    }
   }
 
   /** Shift + `-`: remove a linha atual, sem confirmar. */

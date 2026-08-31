@@ -173,7 +173,8 @@
            trenaNavegacaoTabela
            trenaRedimensionarColunas
            (inserirLinha)="inserirAbaixo($event)"
-           (removerLinha)="removerPorIndice($event)">
+           (removerLinha)="removerPorIndice($event)"
+           (colarMultiplasLinhas)="colarQuebraDeLinha($event)">
       <thead>
         <!-- Linha 1: as 6 primeiras colunas (Ações fica de fora — muito estreita
              pra caber qualquer coisa legível) viram uma assinatura só, de quem

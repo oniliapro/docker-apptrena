@@ -21,6 +21,7 @@ import {
   gerarNumeroPagamento,
   normalizarPagamento,
   paraPayloadApi,
+  parsearBR,
 } from '../pagamentos/pagamentos-calc';
 import { ItemPagamento, Pagamento } from '../pagamentos/pagamentos.models';
 import {
@@ -40,7 +41,7 @@ import {
 import { proximoNumeroMapa } from './mapa-numero';
 import { ResumoEtapas } from './mapa-resumo-etapas';
 import { ETAPA_SEM_NOME, obterRateiosDoItem } from './mapa-resumos';
-import { CabecalhoMapa, Fornecedor, ItemMapa, NotaFornecedor } from './mapa.models';
+import { CabecalhoMapa, ColunaMapaColavel, Fornecedor, ItemMapa, NotaFornecedor } from './mapa.models';
 
 /** Chave da ponte chave-valor onde o cadastro de Responsáveis é gravado. */
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
@@ -1486,6 +1487,78 @@ export class MapaStore {
       return copia;
     });
     this.salvar();
+  }
+
+  /**
+   * "Colar com quebra de linha" (31/08/2026, pedido do Lucas): ao colar um
+   * texto com várias linhas numa célula da tabela de itens, cada linha
+   * vira o valor da MESMA coluna nas linhas seguintes — criando itens
+   * novos no final da lista se não houver linhas suficientes abaixo.
+   * `itemId` é a linha onde o colar começou; `linhas` já vem sem as
+   * quebras (uma entrada por linha colada).
+   */
+  colarEmColuna(itemId: string, coluna: ColunaMapaColavel, linhas: string[]): void {
+    if (this.travada() || !linhas.length) return;
+
+    this.itens.update((lista) => {
+      const indiceInicial = lista.findIndex((i) => i.id === itemId);
+      if (indiceInicial < 0) return lista;
+
+      const copia = [...lista];
+      const faltam = indiceInicial + linhas.length - copia.length;
+      for (let i = 0; i < faltam; i++) {
+        copia.push({
+          id: gerarId(),
+          desc: '',
+          qtde: 0,
+          unid: '',
+          unit: this.fornecedores().map(() => 0),
+          tipo: '',
+          eapId: '',
+          etapa: '',
+          choice: null,
+        });
+      }
+
+      linhas.forEach((texto, deslocamento) => {
+        const indice = indiceInicial + deslocamento;
+        copia[indice] = this.aplicarValorNaColuna(copia[indice], coluna, texto.trim());
+      });
+
+      return copia;
+    });
+
+    this.salvar();
+  }
+
+  private aplicarValorNaColuna(item: ItemMapa, coluna: ColunaMapaColavel, valor: string): ItemMapa {
+    switch (coluna.tipo) {
+      case 'desc':
+        return { ...item, desc: valor };
+      case 'unid':
+        return { ...item, unid: valor };
+      case 'qtde':
+        return { ...item, qtde: parsearBR(valor) };
+      case 'tipoCusto': {
+        if (!valor) return { ...item, tipo: '' };
+        const alvo = valor.toLowerCase();
+        const tipo = TIPOS_CUSTO.find(
+          (t) => t.chave.toLowerCase() === alvo || t.rotulo.toLowerCase() === alvo,
+        );
+        return tipo ? { ...item, tipo: tipo.chave } : item;
+      }
+      case 'etapa': {
+        if (!valor) return { ...item, eapId: '', etapa: '' };
+        const etapa = this.etapasDisponiveis().find((e) => e.rotulo.toLowerCase() === valor.toLowerCase());
+        return etapa ? { ...item, eapId: etapa.id, etapa: etapa.rotulo } : item;
+      }
+      case 'preco': {
+        const unit = [...item.unit];
+        while (unit.length < this.fornecedores().length) unit.push(0);
+        unit[coluna.fornecedorIndice] = parsearBR(valor);
+        return { ...item, unit };
+      }
+    }
   }
 
   atualizarItem(id: string, alteracao: Partial<ItemMapa>): void {
