@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
@@ -79,6 +79,18 @@ export class Empreita implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
+  }
+
+  /**
+   * Avisa antes de fechar/recarregar a aba com gravações pendentes — mesmo
+   * motivo de `Mapa.aoTentarFecharAba` (31/08/2026): editar vários itens em
+   * sequência enfileira uma gravação por edição, e fechar a aba antes da
+   * fila esvaziar cancela as que ainda não saíram.
+   */
+  @HostListener('window:beforeunload', ['$event'])
+  protected aoTentarFecharAba(evento: BeforeUnloadEvent): void {
+    if (!this.store.salvando()) return;
+    evento.preventDefault();
   }
 
   // ------------------------------------------------------------------
@@ -175,6 +187,25 @@ export class Empreita implements OnInit {
 
     if (!window.confirm(mensagem)) return;
     this.store.fecharPeriodo();
+  }
+
+  /**
+   * "Resetar" (31/08/2026, pedido do Lucas): zera o % acumulado de todos
+   * os serviços — útil pra recomeçar a medição de uma empreita (ex.:
+   * contrato remedido do zero). Não desfaz pagamentos já gerados na aba
+   * Pagamentos, só a contagem de % medido daqui pra frente — por isso o
+   * aviso explícito antes de confirmar.
+   */
+  protected resetarAcumulado(): void {
+    if (
+      !window.confirm(
+        'Zerar o % acumulado de TODOS os serviços desta empreita?\n\n' +
+          'A medição volta a começar do zero. Pagamentos já gerados na aba Pagamentos não são desfeitos.',
+      )
+    ) {
+      return;
+    }
+    this.store.resetarAcumulado();
   }
 
   // ------------------------------------------------------------------

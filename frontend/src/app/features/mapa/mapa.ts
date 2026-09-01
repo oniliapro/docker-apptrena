@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { nomeDaEmpresa } from '../../core/models/api.models';
@@ -154,6 +154,22 @@ export class Mapa implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.mapaId(), this.obraId());
+  }
+
+  /**
+   * Avisa antes de fechar/recarregar a aba com gravações pendentes
+   * (31/08/2026, investigação do Lucas sobre Tipo sumindo depois de
+   * finalizar um mapa grande) — um mapa com muitos itens editados em
+   * sequência pode levar alguns segundos pra terminar de gravar tudo
+   * (cada edição é uma gravação própria, em fila); fechar a aba nesse meio
+   * tempo cancela as gravações que ainda não saíram, perdendo essas
+   * edições de vez. Não cobre navegação DENTRO do próprio app (SPA) — só
+   * fechar a aba, recarregar ou digitar outra URL.
+   */
+  @HostListener('window:beforeunload', ['$event'])
+  protected aoTentarFecharAba(evento: BeforeUnloadEvent): void {
+    if (!this.store.salvando()) return;
+    evento.preventDefault();
   }
 
   // ------------------------------------------------------------------

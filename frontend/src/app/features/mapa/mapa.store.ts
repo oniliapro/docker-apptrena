@@ -210,7 +210,21 @@ export class MapaStore {
   readonly itens = signal<ItemMapa[]>([]);
 
   readonly carregando = signal(true);
-  readonly salvando = signal(false);
+
+  /**
+   * Quantas gravações estão pendentes na fila (enfileiradas + a que está
+   * em voo agora) — não só "a última está em andamento". Antes,
+   * `salvando` virava `false` assim que UM PUT terminava, mesmo com vários
+   * outros ainda esperando a vez no `concatMap` (ex.: usuário definiu o
+   * Tipo de 40 itens em sequência — cada edição é uma gravação própria).
+   * Isso fazia o aviso "salvando…" sumir da tela bem antes de tudo ter
+   * sido gravado de verdade, dando a falsa impressão de que já era seguro
+   * sair da página (31/08/2026, investigação do Lucas sobre Tipo sumindo
+   * depois de finalizar um mapa grande).
+   */
+  private readonly pendentes = signal(0);
+  readonly salvando = computed(() => this.pendentes() > 0);
+
   readonly erro = signal<string | null>(null);
   readonly duplicando = signal(false);
 
@@ -811,7 +825,7 @@ export class MapaStore {
 
   salvar(): void {
     if (!this.mapaId) return;
-    this.salvando.set(true);
+    this.pendentes.update((n) => n + 1);
     this.salvarSubject.next();
   }
 
@@ -875,8 +889,8 @@ export class MapaStore {
     // usavam sem esse problema.
     return this.api.atualizarMapa(this.mapaId, payload).pipe(
       tap({
-        next: () => this.salvando.set(false),
-        error: () => this.salvando.set(false),
+        next: () => this.pendentes.update((n) => Math.max(0, n - 1)),
+        error: () => this.pendentes.update((n) => Math.max(0, n - 1)),
       }),
     );
   }

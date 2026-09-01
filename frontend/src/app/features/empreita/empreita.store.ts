@@ -117,7 +117,19 @@ export class EmpreitaStore {
   readonly cabecalhoEap = signal<CabecalhoEapSnapshot | null>(null);
 
   readonly carregando = signal(true);
-  readonly salvando = signal(false);
+
+  /**
+   * Quantas gravações estão pendentes na fila (enfileiradas + a que está
+   * em voo agora) — não só "a última está em andamento". Mesmo ajuste de
+   * `MapaStore.pendentes` (31/08/2026): editar vários itens em sequência
+   * (cada edição é uma gravação própria) fazia `salvando` virar `false`
+   * assim que UM PUT terminava, mesmo com outros ainda esperando a vez no
+   * `concatMap` — dava a falsa impressão de que já era seguro sair da
+   * página antes de tudo ter sido gravado de verdade.
+   */
+  private readonly pendentes = signal(0);
+  readonly salvando = computed(() => this.pendentes() > 0);
+
   readonly erro = signal<string | null>(null);
 
   readonly gerandoPagamento = signal(false);
@@ -316,7 +328,7 @@ export class EmpreitaStore {
 
   salvar(): void {
     if (!this.empreitaId) return;
-    this.salvando.set(true);
+    this.pendentes.update((n) => n + 1);
     this.salvarSubject.next();
   }
 
@@ -358,8 +370,8 @@ export class EmpreitaStore {
 
     return this.api.atualizarEmpreita(this.empreitaId, payload).pipe(
       tap({
-        next: () => this.salvando.set(false),
-        error: () => this.salvando.set(false),
+        next: () => this.pendentes.update((n) => Math.max(0, n - 1)),
+        error: () => this.pendentes.update((n) => Math.max(0, n - 1)),
       }),
     );
   }
@@ -504,6 +516,29 @@ export class EmpreitaStore {
         );
       },
     });
+  }
+
+  /**
+   * "Resetar" (31/08/2026, pedido do Lucas) — zera o % acumulado de TODOS
+   * os serviços da empreita, junto com o rascunho de medição/pagamento do
+   * período atual (mesma limpeza de `avancarPeriodo()`, só que o acumulado
+   * volta a zero em vez de herdar o medido). Não mexe em pagamentos já
+   * gerados/confirmados na aba Pagamentos — só na contagem de % medido
+   * daqui pra frente, pra empreiteiro que precisa recomeçar a medição
+   * (ex.: contrato remedido, erro de lançamento acumulado ao longo de
+   * vários períodos).
+   */
+  resetarAcumulado(): void {
+    this.itens.update((lista) =>
+      lista.map((item) => ({
+        ...item,
+        medicaoAcum: 0,
+        medicaoAtual: null,
+        pagamentoEmp: null,
+        pagamentoReserva: null,
+      })),
+    );
+    this.salvar();
   }
 
   /** A medição atual vira o novo acumulado, e os rascunhos de medição/pagamento zeram pro próximo ciclo. */

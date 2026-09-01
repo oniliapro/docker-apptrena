@@ -66,6 +66,10 @@
                 title="Fecha o período e já gera o pagamento deste ciclo automaticamente">
           {{ store.gerandoPagamento() ? 'Fechando…' : '✅ Fechar período' }}
         </button>
+        <button type="button" class="perigo" (click)="resetarAcumulado()"
+                title="Zera o % acumulado de todos os serviços — a medição recomeça do zero">
+          ↺ Resetar
+        </button>
       }
       <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
               title="Gera e baixa o PDF da empreita">
