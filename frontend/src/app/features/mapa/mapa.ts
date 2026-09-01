@@ -458,6 +458,21 @@ export class Mapa implements OnInit {
     this.store.colarEmColuna(item.id, coluna, evento.linhas);
   }
 
+  /**
+   * "Preencher pra baixo" — Ctrl/Cmd + D (31/08/2026, pedido do Lucas: em
+   * mapas gigantes, o Tipo costuma ser o mesmo pra todos os itens). Copia
+   * o valor da célula focada pra todas as linhas abaixo, na mesma coluna.
+   */
+  protected aoPreencherParaBaixo(evento: { linha: number; coluna: number }): void {
+    const item = this.store.itens()[evento.linha];
+    if (!item) return;
+
+    const coluna = this.resolverColunaColavel(evento.coluna);
+    if (!coluna) return;
+
+    this.store.preencherParaBaixo(item.id, coluna);
+  }
+
   private resolverColunaColavel(coluna: number): ColunaMapaColavel | null {
     switch (coluna) {
       case 0: return { tipo: 'desc' };

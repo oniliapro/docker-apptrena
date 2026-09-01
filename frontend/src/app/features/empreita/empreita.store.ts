@@ -1,4 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Subject, of } from 'rxjs';
+import { catchError, concatMap, tap } from 'rxjs/operators';
 
 import { ApiService } from '../../core/services/api.service';
 import { hojeIso } from '../../core/utils/formato';
@@ -69,6 +71,27 @@ export class EmpreitaStore {
   private obraIdAtual = '';
   /** `created_at` da empreita atual, ISO — usado por `calcularSaldoDisponivelPorEap` pra decidir quem "chegou antes". */
   private criadoEmAtual = '';
+
+  /**
+   * Fila de gravações (31/08/2026, investigação do Lucas: "quando preencho
+   * rápido o sistema não capta o campo anterior, meio que reseta") — mesmo
+   * problema e mesma solução de `MapaStore`: sem sequenciar, duas edições
+   * próximas no tempo geram dois PUTs concorrentes, e se o servidor
+   * responder fora de ordem o mais antigo (com um snapshot desatualizado)
+   * pode chegar por último e regravar por cima de uma edição mais nova.
+   * `concatMap` garante que cada PUT só começa depois do anterior
+   * terminar, e como cada execução lê o estado atual dos signals no
+   * momento em que roda (não no momento em que foi enfileirada), o último
+   * PUT da fila sempre carrega o estado mais recente de verdade.
+   */
+  private readonly salvarSubject = new Subject<void>();
+  private readonly salvar$ = this.salvarSubject.pipe(
+    concatMap(() => this.executarSalvar().pipe(catchError(() => of(null)))),
+  );
+
+  constructor() {
+    this.salvar$.subscribe();
+  }
 
   readonly cabecalho = signal<CabecalhoEmpreita>({
     numeroEmpreita: '',
@@ -294,7 +317,20 @@ export class EmpreitaStore {
   salvar(): void {
     if (!this.empreitaId) return;
     this.salvando.set(true);
+    this.salvarSubject.next();
+  }
 
+  /**
+   * Execução de fato do PUT — sempre lê o estado mais atual dos signals
+   * (ver comentário de `salvarSubject` acima). Não reaplica a resposta do
+   * servidor sobre `itens`/`cabecalho`: é sempre um eco do que acabou de
+   * ser enviado (nenhum campo é computado só no backend), e reaplicar
+   * sobrescreveria uma edição feita DEPOIS deste PUT ter partido mas ANTES
+   * dele responder — exatamente o bug do "campo reseta" ao digitar rápido.
+   * Mesmo padrão (não reaplicar) que `EapStore.salvar()`/`MedicaoStore` já
+   * usavam sem esse problema.
+   */
+  private executarSalvar() {
     const cabecalho = this.cabecalho();
 
     const payload = {
@@ -320,13 +356,12 @@ export class EmpreitaStore {
       })),
     };
 
-    this.api.atualizarEmpreita(this.empreitaId, payload).subscribe({
-      next: (empreita) => {
-        this.aplicar(empreita as Record<string, unknown>);
-        this.salvando.set(false);
-      },
-      error: () => this.salvando.set(false),
-    });
+    return this.api.atualizarEmpreita(this.empreitaId, payload).pipe(
+      tap({
+        next: () => this.salvando.set(false),
+        error: () => this.salvando.set(false),
+      }),
+    );
   }
 
   // ------------------------------------------------------------------

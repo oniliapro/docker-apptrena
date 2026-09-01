@@ -861,16 +861,21 @@ export class MapaStore {
       })),
     };
 
+    // 31/08/2026, investigação do Lucas ("quando preencho rápido o sistema
+    // não capta o campo anterior, meio que reseta"): até aqui, a resposta
+    // deste PUT era reaplicada em cima de `itens`/`fornecedores`/
+    // `cabecalho` via `aplicar()`. Como o backend sempre grava a `ordem`
+    // de fornecedores/itens pela POSIÇÃO do array recebido (não por um id
+    // que precisasse voltar pra alinhar de novo — ver
+    // `MapaController::syncCompleto`), essa resposta é sempre só um ECO do
+    // que acabou de ser enviado, nunca traz nada computado só no servidor.
+    // Reaplicar sobrescrevia qualquer edição feita DEPOIS deste PUT ter
+    // partido mas ANTES dele responder — exatamente o bug relatado. Mesmo
+    // padrão (não reaplicar) que `EapStore.salvar()`/`MedicaoStore` já
+    // usavam sem esse problema.
     return this.api.atualizarMapa(this.mapaId, payload).pipe(
       tap({
-        next: (mapa) => {
-          // Fornecedores/itens recém-criados só ganham id de verdade na
-          // resposta — reaplica pra manter os índices corretos na próxima
-          // gravação (ex.: fornecedorEscolhidoIndex depende de ordem estável,
-          // não de id, então isso é só higiene, não corrige um bug).
-          this.aplicar(mapa as Record<string, unknown>);
-          this.salvando.set(false);
-        },
+        next: () => this.salvando.set(false),
         error: () => this.salvando.set(false),
       }),
     );
@@ -1529,6 +1534,53 @@ export class MapaStore {
     });
 
     this.salvar();
+  }
+
+  /**
+   * "Preencher pra baixo" (Ctrl/Cmd + D, 31/08/2026, pedido do Lucas: mapas
+   * gigantes onde o mesmo Tipo vale pra todos os itens) — copia o valor da
+   * célula focada (`itemId`/`coluna`) pra todas as linhas ABAIXO dela, na
+   * mesma coluna. Diferente de `colarEmColuna`, não passa pelo texto: pega
+   * o valor já tipado do item de origem direto (evita, por exemplo, ter
+   * que re-achar o Tipo pelo rótulo — aqui já se tem a chave certa).
+   */
+  preencherParaBaixo(itemId: string, coluna: ColunaMapaColavel): void {
+    if (this.travada()) return;
+
+    this.itens.update((lista) => {
+      const indice = lista.findIndex((i) => i.id === itemId);
+      if (indice < 0 || indice >= lista.length - 1) return lista;
+
+      const origem = lista[indice];
+      const copia = [...lista];
+      for (let i = indice + 1; i < copia.length; i++) {
+        copia[i] = this.copiarValorDeColuna(origem, copia[i], coluna);
+      }
+      return copia;
+    });
+
+    this.salvar();
+  }
+
+  private copiarValorDeColuna(origem: ItemMapa, destino: ItemMapa, coluna: ColunaMapaColavel): ItemMapa {
+    switch (coluna.tipo) {
+      case 'desc':
+        return { ...destino, desc: origem.desc };
+      case 'unid':
+        return { ...destino, unid: origem.unid };
+      case 'qtde':
+        return { ...destino, qtde: origem.qtde };
+      case 'tipoCusto':
+        return { ...destino, tipo: origem.tipo };
+      case 'etapa':
+        return { ...destino, eapId: origem.eapId, etapa: origem.etapa };
+      case 'preco': {
+        const unit = [...destino.unit];
+        while (unit.length < this.fornecedores().length) unit.push(0);
+        unit[coluna.fornecedorIndice] = origem.unit[coluna.fornecedorIndice] ?? 0;
+        return { ...destino, unit };
+      }
+    }
   }
 
   private aplicarValorNaColuna(item: ItemMapa, coluna: ColunaMapaColavel, valor: string): ItemMapa {

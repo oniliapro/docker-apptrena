@@ -119,7 +119,8 @@
     }
 
     <span class="dica atenuado pequeno" title="Atalhos disponíveis nas células da tabela">
-      ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove
+      ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove ·
+      Ctrl + <kbd>D</kbd> preenche a coluna pra baixo · colar com quebra de linha preenche várias linhas
     </span>
 
     <span class="etiqueta" [class.confirmada]="store.cabecalho().isConfirmed">
@@ -174,7 +175,8 @@
            trenaRedimensionarColunas
            (inserirLinha)="inserirAbaixo($event)"
            (removerLinha)="removerPorIndice($event)"
-           (colarMultiplasLinhas)="colarQuebraDeLinha($event)">
+           (colarMultiplasLinhas)="colarQuebraDeLinha($event)"
+           (preencherParaBaixo)="aoPreencherParaBaixo($event)">
       <thead>
         <!-- Linha 1: as 6 primeiras colunas (Ações fica de fora — muito estreita
              pra caber qualquer coisa legível) viram uma assinatura só, de quem
