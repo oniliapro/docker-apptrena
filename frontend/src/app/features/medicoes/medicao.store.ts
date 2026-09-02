@@ -7,6 +7,13 @@ import { criarVazioPorTipo } from '../eap/eap-normalize';
 import { ehDescendente } from '../eap/eap-engine';
 import { EapStore } from '../eap/eap.store';
 import {
+  gerarId,
+  gerarNumeroRecebimento,
+  normalizarRecebimento,
+  paraPayloadApi,
+} from '../recebimentos/recebimentos-calc';
+import { Recebimento } from '../recebimentos/recebimentos.models';
+import {
   EntradaMedicao,
   ValorGravado,
   montarEntradas,
@@ -365,6 +372,93 @@ export class MedicaoStore {
         this.salvando.set(false);
       },
       error: () => this.salvando.set(false),
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Gerar Recebimento (01/09/2026, pedido do Lucas) — mirror simplificado
+  // de `EmpreitaStore.fecharPeriodo()`/`MapaStore.gerarPagamentos()`: sem
+  // split Empreiteiro/Reserva (não existe esse eixo em Medição), um item
+  // por (etapa da EAP × categoria de custo) com avanço não-zero nesta
+  // medição — mesma granularidade que os outros dois já dão pros
+  // pagamentos que geram.
+  // ------------------------------------------------------------------
+  readonly gerandoRecebimento = signal(false);
+  /** Mensagem do resultado da última tentativa de gerar recebimento — null limpa o aviso. */
+  readonly resultadoGerarRecebimento = signal<string | null>(null);
+
+  gerarRecebimento(): void {
+    if (!this.aprovada()) return;
+    const obraId = this.payload()?.obraId;
+    if (!obraId) return;
+
+    const descricaoPorId = new Map(
+      this.eap.itens().map((i) => [i.id, `${i.eap} - ${i.desc}`.trim()]),
+    );
+
+    const itens: Recebimento['itens'] = [];
+    for (const entrada of this.entradas()) {
+      for (const tipo of TIPOS_CUSTO) {
+        const avanco = this.avancoDoItemTipoRS(entrada.eapItemId, tipo.chave);
+        if (Math.abs(avanco) < 0.005) continue;
+        itens.push({
+          id: gerarId(),
+          descricao: descricaoPorId.get(entrada.eapItemId) || tipo.rotulo,
+          tipo: tipo.chave,
+          eapId: entrada.eapItemId,
+          valor: avanco,
+          modoValor: 'valor',
+        });
+      }
+    }
+
+    if (!itens.length) {
+      this.resultadoGerarRecebimento.set('Nenhum avanço medido nesta medição.');
+      return;
+    }
+
+    const valorTotal = itens.reduce((soma, item) => soma + item.valor, 0);
+
+    this.gerandoRecebimento.set(true);
+    this.resultadoGerarRecebimento.set(null);
+
+    this.api.listarRecebimentos({ obraId }).subscribe({
+      next: (existentes) => {
+        const numero = gerarNumeroRecebimento(
+          existentes.map((r) => normalizarRecebimento(r as Record<string, unknown>)),
+        );
+
+        const novo: Recebimento = {
+          id: gerarId(),
+          numeroRecebimento: numero,
+          obraNumber: '',
+          dataSolicitacao: new Date().toISOString().slice(0, 10),
+          dataRecebimento: '',
+          cliente: '',
+          descricao: `Medição nº ${this.payload()?.sequencia ?? ''}`.trim(),
+          valorTotal,
+          itens,
+          origem: { tipo: 'medicao', refId: this.medicaoId },
+          status: 'pendente',
+        };
+
+        this.api.criarRecebimento(paraPayloadApi(novo, obraId)).subscribe({
+          next: () => {
+            this.gerandoRecebimento.set(false);
+            this.resultadoGerarRecebimento.set(
+              'Recebimento gerado — confira na aba Recebimentos da obra.',
+            );
+          },
+          error: () => {
+            this.gerandoRecebimento.set(false);
+            this.resultadoGerarRecebimento.set('Não foi possível gravar o recebimento.');
+          },
+        });
+      },
+      error: () => {
+        this.gerandoRecebimento.set(false);
+        this.resultadoGerarRecebimento.set('Não foi possível ler os recebimentos existentes desta obra.');
+      },
     });
   }
 }

@@ -178,6 +178,11 @@ export interface Pagamento {
   [campo: string]: unknown;
 }
 
+export interface Recebimento {
+  id: string;
+  [campo: string]: unknown;
+}
+
 export interface FotoDiario {
   id?: string;
   url: string;

@@ -39,6 +39,14 @@ class EmpreitaPdfController extends Controller
             . '?token=' . urlencode($tokenTemporario->plainTextToken)
             . '&apiUrl=' . urlencode($baseApi);
 
+        // "Simplificar" (01/09/2026, pedido do Lucas) — esconde Empreiteiro/
+        // Reserva no relatório, mostra só o Total. Repassado como query
+        // param até `EmpreitaImprimir`, sem persistir nada (mesmo mecanismo
+        // stateless de `token`/`apiUrl`).
+        if ($request->boolean('simplificado')) {
+            $url .= '&simplificado=1';
+        }
+
         try {
             $pdf = Browsershot::url($url)
                 ->setChromePath((string) config('pdf.chrome_path'))

@@ -200,6 +200,9 @@ export class MapaStore {
     lancarFreteComoItem: true,
     freteEtapaId: '',
     freteCategoriaTipo: '',
+    lancarImpostoDescontoComoItem: true,
+    impostoDescontoEtapaId: '',
+    impostoDescontoCategoriaTipo: '',
     modoManual: false,
     isConfirmed: false,
     confirmedAt: '',
@@ -766,6 +769,14 @@ export class MapaStore {
         : Boolean(mapa['lancar_frete_como_item']),
       freteEtapaId: mapa['frete_etapa_id'] ? String(mapa['frete_etapa_id']) : '',
       freteCategoriaTipo: (mapa['frete_categoria_tipo'] as ChaveTipo) || '',
+      // Mesma regra de compatibilidade acima — mapa salvo antes de
+      // 01/09/2026 cai em `true` (comportamento de sempre: imposto e
+      // desconto sempre viraram item).
+      lancarImpostoDescontoComoItem: mapa['lancar_imposto_desconto_como_item'] === undefined
+        ? true
+        : Boolean(mapa['lancar_imposto_desconto_como_item']),
+      impostoDescontoEtapaId: mapa['imposto_desconto_etapa_id'] ? String(mapa['imposto_desconto_etapa_id']) : '',
+      impostoDescontoCategoriaTipo: (mapa['imposto_desconto_categoria_tipo'] as ChaveTipo) || '',
       modoManual: Boolean(mapa['modo_manual']),
       isConfirmed: Boolean(mapa['is_confirmed']),
       confirmedAt: String(mapa['confirmed_at'] ?? ''),
@@ -845,6 +856,9 @@ export class MapaStore {
       lancar_frete_como_item: cabecalho.lancarFreteComoItem,
       frete_etapa_id: cabecalho.freteEtapaId || null,
       frete_categoria_tipo: cabecalho.freteCategoriaTipo || null,
+      lancar_imposto_desconto_como_item: cabecalho.lancarImpostoDescontoComoItem,
+      imposto_desconto_etapa_id: cabecalho.impostoDescontoEtapaId || null,
+      imposto_desconto_categoria_tipo: cabecalho.impostoDescontoCategoriaTipo || null,
       modo_manual: cabecalho.modoManual,
       is_confirmed: cabecalho.isConfirmed,
       confirmed_at: cabecalho.confirmedAt || null,
@@ -896,27 +910,38 @@ export class MapaStore {
   }
 
   /**
-   * Total do mapa (a nota fracionada, com o frete particular somado) —
-   * gravado em `total_mapa` só pra alimentar a coluna "Total" da lista de
-   * mapas da obra (`MapasObra`). Até 03/08/2026 esse campo nunca era
-   * enviado, então a coluna sempre mostrava R$ 0,00 mesmo em mapas com
-   * itens e preços preenchidos. Mesma conta de `montarPagamentosPorFornecedor`
-   * — desconto real de cada fornecedor, não o zero usado no computed
-   * `notas` (que é de propósito, para a tabela de comparação de cenários).
+   * Total do mapa — gravado em `total_mapa` só pra alimentar a coluna
+   * "Total" da lista de mapas da obra (`MapasObra`).
+   *
+   * 01/09/2026 (bug relatado pelo Lucas: mapa mostrando um total diferente
+   * do que a própria tela recomenda): esta função tinha uma fórmula
+   * PRÓPRIA, desatualizada em relação a `notas()`/`cenarios()` — sempre
+   * embutia o frete de cada loja (`incluirFreteLoja=true` fixo) E ainda
+   * somava o frete particular por cima incondicionalmente (dobrava a
+   * conta sempre que havia frete particular cadastrado), nunca verificava
+   * se "Tudo em uma só loja" tinha vencido a comparação de cenários, e
+   * aplicava o desconto de TODOS os fornecedores, mesmo os que não
+   * levaram a compra inteira (o comentário antigo desta função dizia
+   * "desconto real, não o zero usado em notas" — isso refletia o
+   * `notas()` de ANTES da correção de 19/08/2026, que já passou a aplicar
+   * desconto só a quem venceu a compra inteira; esta função nunca foi
+   * atualizada depois disso). Agora usa exatamente a mesma composição que
+   * a tela usa pra mostrar/recomendar o total (`notas()` +
+   * `incluirFreteLoja()` + `freteParticularVencedor()`), então os dois
+   * números nunca mais divergem.
    */
   private calcularTotalGeral(): number {
-    const itens = this.itens();
-    const fornecedores = this.fornecedores();
-    const cabecalho = this.cabecalho();
-    const alocacoes = obterAlocacoes(itens, fornecedores, cabecalho.modoManual);
     const notas = calcularNotasPorFornecedor(
-      alocacoes,
-      itens,
-      fornecedores,
-      true,
-      fornecedores.map((f) => f.desconto),
+      this.alocacoes(),
+      this.itens(),
+      this.fornecedores(),
+      this.incluirFreteLoja(),
+      descontosAplicaveis(this.alocacoes(), this.itens(), this.fornecedores()),
     );
-    return notas.totals.totalNota + (Number(cabecalho.freteParticular) || 0);
+    return (
+      notas.totals.totalNota +
+      (this.freteParticularVencedor() ? Number(this.cabecalho().freteParticular) || 0 : 0)
+    );
   }
 
   // ------------------------------------------------------------------
@@ -995,6 +1020,9 @@ export class MapaStore {
           lancar_frete_como_item: cabecalho.lancarFreteComoItem,
           frete_etapa_id: cabecalho.freteEtapaId || null,
           frete_categoria_tipo: cabecalho.freteCategoriaTipo || null,
+          lancar_imposto_desconto_como_item: cabecalho.lancarImpostoDescontoComoItem,
+          imposto_desconto_etapa_id: cabecalho.impostoDescontoEtapaId || null,
+          imposto_desconto_categoria_tipo: cabecalho.impostoDescontoCategoriaTipo || null,
           modo_manual: cabecalho.modoManual,
           is_confirmed: false,
           confirmed_at: null,
@@ -1294,21 +1322,21 @@ export class MapaStore {
 
   /**
    * Monta as linhas do pagamento de um fornecedor: uma por item (custo
-   * base, sem imposto — comparável ao Orçado da EAP), mais o ajuste que
-   * fecha com o total real da nota.
+   * base, sem imposto — comparável ao Orçado da EAP), mais frete e
+   * imposto/desconto, cada um por SEU PRÓPRIO toggle independente
+   * (01/09/2026, pedido do Lucas: imposto/desconto ganhou o mesmo
+   * controle que o frete já tinha desde 16-19/08/2026) —
+   * `cabecalho.lancarFreteComoItem` e `cabecalho.lancarImpostoDescontoComoItem`
+   * podem estar ligados/desligados em qualquer combinação:
    *
-   * Com `lancarFreteComoItem` ligado (padrão, comportamento de sempre):
-   * imposto + frete + desconto viram uma linha só ("Impostos, frete e
-   * desconto da nota"), com a etapa escolhida em `cabecalho.freteEtapaId`
-   * quando houver, e a categoria de custo escolhida em
-   * `cabecalho.freteCategoriaTipo` (19/08/2026, pedido do Lucas — vazio
-   * cai em "S/ Categoria" na EAP, como sempre foi).
-   *
-   * Desligado (16/08/2026, pedido do Lucas): o frete sai dessa linha e é
-   * distribuído proporcionalmente entre os itens do próprio fornecedor
-   * (peso = valor de cada item na nota), embutido no valor de cada um —
-   * sem virar linha própria. Só imposto e desconto continuam como uma
-   * linha de ajuste à parte, sem etapa (como sempre foi para esses dois).
+   *  - **Ligado**: vira uma linha própria no pagamento, com a etapa/
+   *    categoria escolhida nos campos correspondentes (vazio cai em
+   *    "S/ Categoria" na EAP, como sempre foi).
+   *  - **Desligado**: é distribuído proporcionalmente entre os itens do
+   *    próprio fornecedor (peso = valor BASE de cada item, antes de
+   *    qualquer embutimento — os dois embutimentos são independentes
+   *    entre si, nunca um distorce o peso do outro), sem virar linha
+   *    própria.
    */
   private construirLinhasDoFornecedor(
     itensDoFornecedor: ItemMapa[],
@@ -1325,43 +1353,84 @@ export class MapaStore {
       modoValor: 'valor' as const,
     }));
 
-    const somaLinhas = linhas.reduce((soma, l) => soma + l.valor, 0);
-    const ajusteTotal = nota.totalNota - somaLinhas;
+    // Peso de cada linha pro rateio proporcional — capturado ANTES de
+    // qualquer embutimento, pra frete e imposto/desconto ficarem
+    // independentes um do outro (nenhum distorce a base do outro).
+    // `quantidadeItens` trava o rateio só nas linhas de ITEM originais —
+    // sem isso, distribuir o imposto/desconto DEPOIS de já ter empurrado
+    // a linha própria de frete (quando só o frete está "como item")
+    // iterava também sobre essa linha nova, mas lendo `pesos[i]` fora dos
+    // limites do array original (`undefined`), virando `NaN`.
+    const quantidadeItens = linhas.length;
+    const pesos = linhas.map((linha) => linha.valor);
+    const somaLinhas = pesos.reduce((soma, peso) => soma + peso, 0);
+
+    const ajusteTotal = nota.totalNota - somaLinhas; // frete + imposto − desconto, todos juntos
+    const frete = nota.frete > 0 ? nota.frete : 0;
+    const impostoDesconto = ajusteTotal - frete; // imposto − desconto, isolado do frete
+
+    const distribuirProporcional = (valor: number) => {
+      if (somaLinhas <= 0) return;
+      for (let i = 0; i < quantidadeItens; i++) {
+        linhas[i].valor += valor * (pesos[i] / somaLinhas);
+      }
+    };
 
     if (cabecalho.lancarFreteComoItem) {
-      if (Math.abs(ajusteTotal) > 0.005) {
+      if (Math.abs(frete) > 0.005) {
         linhas.push({
           id: gerarId(),
-          descricao: 'Impostos, frete e desconto da nota',
+          descricao: 'Frete da nota',
           tipo: cabecalho.freteCategoriaTipo || '',
           eapId: cabecalho.freteEtapaId || '',
-          valor: ajusteTotal,
+          valor: frete,
           modoValor: 'valor' as const,
         });
       }
-      return linhas;
+    } else if (frete > 0) {
+      distribuirProporcional(frete);
     }
 
-    const frete = nota.frete > 0 && somaLinhas > 0 ? nota.frete : 0;
-    if (frete > 0) {
-      for (const linha of linhas) {
-        linha.valor += frete * (linha.valor / somaLinhas);
+    if (cabecalho.lancarImpostoDescontoComoItem) {
+      if (Math.abs(impostoDesconto) > 0.005) {
+        linhas.push({
+          id: gerarId(),
+          descricao: 'Impostos e desconto da nota',
+          tipo: cabecalho.impostoDescontoCategoriaTipo || '',
+          eapId: cabecalho.impostoDescontoEtapaId || '',
+          valor: impostoDesconto,
+          modoValor: 'valor' as const,
+        });
       }
+    } else if (impostoDesconto !== 0) {
+      distribuirProporcional(impostoDesconto);
     }
 
-    const ajusteSemFrete = ajusteTotal - frete;
-    if (Math.abs(ajusteSemFrete) > 0.005) {
-      linhas.push({
-        id: gerarId(),
-        descricao: 'Impostos e desconto da nota',
-        tipo: '',
-        eapId: '',
-        valor: ajusteSemFrete,
-        modoValor: 'valor' as const,
-      });
+    return this.arredondarLinhasParaTotal(linhas, nota.totalNota);
+  }
+
+  /**
+   * Arredonda cada linha a centavos e absorve a sobra (a diferença entre
+   * a soma já arredondada e o total real, que arredondar célula a célula
+   * pode introduzir) na ÚLTIMA linha — garante que a soma dos itens do
+   * pagamento bate exatamente com o total, mesmo depois de cada valor
+   * virar uma coluna `decimal` de 2 casas no banco (01/09/2026, pedido do
+   * Lucas: "o sistema deve tentar resolver pequenas divergências de
+   * arredondamento" ao distribuir frete/imposto/desconto nos itens).
+   */
+  private arredondarLinhasParaTotal(linhas: ItemPagamento[], totalNota: number): ItemPagamento[] {
+    if (!linhas.length) return linhas;
+
+    const arredondadas = linhas.map((linha) => ({ ...linha, valor: Math.round(linha.valor * 100) / 100 }));
+    const somaArredondada = arredondadas.reduce((soma, linha) => soma + linha.valor, 0);
+    const residuo = Math.round((totalNota - somaArredondada) * 100) / 100;
+
+    if (residuo !== 0) {
+      const ultima = arredondadas[arredondadas.length - 1];
+      ultima.valor = Math.round((ultima.valor + residuo) * 100) / 100;
     }
 
-    return linhas;
+    return arredondadas;
   }
 
   /**

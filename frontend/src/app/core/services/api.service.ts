@@ -21,6 +21,7 @@ import {
   PerfilEmpresa,
   PermissaoModulo,
   PlanejamentoCronograma,
+  Recebimento,
   RegistroDiario,
   RepresentanteLegal,
   RespostaLeituraFornecedor,
@@ -239,6 +240,34 @@ export class ApiService {
   }
 
   /**
+   * Recebimentos (01/09/2026, pedido do Lucas: "funciona exatamente como
+   * os pagamentos") — mirror dos 4 métodos acima.
+   */
+  listarRecebimentos(filtros?: {
+    obraId?: string;
+    origemTipo?: string;
+    origemRefId?: string;
+  }): Observable<Recebimento[]> {
+    let params = new HttpParams();
+    if (filtros?.obraId) params = params.set('obra_id', filtros.obraId);
+    if (filtros?.origemTipo) params = params.set('origem_tipo', filtros.origemTipo);
+    if (filtros?.origemRefId) params = params.set('origem_ref_id', filtros.origemRefId);
+    return this.http.get<Recebimento[]>(`${this.base}/recebimentos`, { params });
+  }
+
+  criarRecebimento(dados: Partial<Recebimento>): Observable<Recebimento> {
+    return this.http.post<Recebimento>(`${this.base}/recebimentos`, dados);
+  }
+
+  atualizarRecebimento(id: string, dados: Partial<Recebimento>): Observable<Recebimento> {
+    return this.http.put<Recebimento>(`${this.base}/recebimentos/${id}`, dados);
+  }
+
+  excluirRecebimento(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/recebimentos/${id}`);
+  }
+
+  /**
    * POST /pagamentos/ler-nota — extrai os dados de uma foto de nota
    * fiscal ou recibo. Recebe FormData porque envia a imagem.
    */
@@ -324,11 +353,17 @@ export class ApiService {
   /**
    * GET /empreitas/{id}/relatorio/pdf — mesmo mecanismo acima, aplicado à
    * Empreita (23/08/2026, ver EmpreitaPdfController).
+   *
+   * `simplificado` (01/09/2026, pedido do Lucas): esconde Empreiteiro/
+   * Reserva no relatório, mostrando só o Total — repassado como query
+   * param até `EmpreitaImprimir` (mesmo mecanismo de `token`/`apiUrl`,
+   * sem persistir nada).
    */
-  baixarEmpreitaPdf(empreitaId: string): Observable<Blob> {
+  baixarEmpreitaPdf(empreitaId: string, simplificado = false): Observable<Blob> {
     return this.http.get(`${this.base}/empreitas/${empreitaId}/relatorio/pdf`, {
       responseType: 'blob',
       context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: simplificado ? { simplificado: '1' } : {},
     });
   }
 

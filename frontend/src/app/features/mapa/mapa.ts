@@ -18,6 +18,7 @@ import {
   ratearFreteiro,
   rotuloFornecedor,
 } from './mapa-engine';
+import { exportarMapaXlsx } from './mapa-exportar';
 import { ResumoEtapas } from './mapa-resumo-etapas';
 import { CabecalhoMapa, ColunaMapaColavel, Fornecedor, ItemMapa } from './mapa.models';
 import { MapaStore } from './mapa.store';
@@ -214,6 +215,31 @@ export class Mapa implements OnInit {
     });
   }
 
+  /**
+   * Exporta itens/preços/resumo do mapa pra planilha Excel (31/08/2026,
+   * pedido do Lucas) — ver `mapa-exportar.ts`. Roda no navegador, sem
+   * chamada à API.
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      await exportarMapaXlsx(
+        this.store.itens(),
+        this.store.fornecedores(),
+        this.store.notas(),
+        this.store.cabecalho().modoManual,
+        this.store.cenarios(),
+        this.mapaId(),
+      );
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
+    }
+  }
+
   protected gerarPagamento(): void {
     if (!this.store.cabecalho().isConfirmed) return;
     if (
@@ -314,6 +340,24 @@ export class Mapa implements OnInit {
   protected editarFreteCategoriaTipo(evento: Event): void {
     this.store.atualizarCabecalho(
       'freteCategoriaTipo',
+      (evento.target as HTMLSelectElement).value as ChaveTipo | '',
+    );
+  }
+
+  protected alternarLancarImpostoDescontoComoItem(): void {
+    this.store.atualizarCabecalho(
+      'lancarImpostoDescontoComoItem',
+      !this.store.cabecalho().lancarImpostoDescontoComoItem,
+    );
+  }
+
+  protected editarImpostoDescontoEtapa(evento: Event): void {
+    this.store.atualizarCabecalho('impostoDescontoEtapaId', (evento.target as HTMLSelectElement).value);
+  }
+
+  protected editarImpostoDescontoCategoriaTipo(evento: Event): void {
+    this.store.atualizarCabecalho(
+      'impostoDescontoCategoriaTipo',
       (evento.target as HTMLSelectElement).value as ChaveTipo | '',
     );
   }

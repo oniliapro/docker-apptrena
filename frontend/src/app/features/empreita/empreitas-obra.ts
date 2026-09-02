@@ -76,6 +76,34 @@ export class EmpreitasObra implements OnInit {
     return mapa;
   });
 
+  /**
+   * "% Medida" (01/09/2026, pedido do Lucas) — um percentual só por
+   * empreita, ponderado pelo valor do contrato do EMPREITEIRO de cada
+   * item (não soma a Reserva: ela é uma retenção discricionária,
+   * desvinculada do avanço físico — ponderar por ela distorceria "quanto
+   * do serviço já foi de fato executado"). `medicaoAtual` herda o
+   * acumulado quando nulo (mesma regra de sempre — ver
+   * `ItemEmpreita.medicaoAtual`). Itens sem contrato lançado saem do
+   * cálculo (dividir por zero); sem nenhum item com contrato, `null`
+   * (a tela mostra "—").
+   */
+  private readonly percentualMedidoPorEmpreita = computed(() => {
+    const mapa = new Map<string, number | null>();
+    for (const r of this.resumoContrato()) {
+      let somaPonderada = 0;
+      let somaContrato = 0;
+      for (const item of r.itens) {
+        const contrato = item.contratoEmp || 0;
+        if (contrato <= 0) continue;
+        const medido = item.medicaoAtual ?? item.medicaoAcum ?? 0;
+        somaPonderada += medido * contrato;
+        somaContrato += contrato;
+      }
+      mapa.set(r.id, somaContrato > 0 ? somaPonderada / somaContrato : null);
+    }
+    return mapa;
+  });
+
   private readonly pagoPorEmpreita = computed(() => {
     const mapa = new Map<string, number>();
     for (const [id, lista] of this.pagamentosPorEmpreita()) {
@@ -200,6 +228,13 @@ export class EmpreitasObra implements OnInit {
 
   protected total(empreita: Empreita): number {
     return this.totalPorEmpreita().get(empreita.id) ?? 0;
+  }
+
+  /** Texto pronto pra célula "% Medida" — "—" quando não há contrato lançado ainda. */
+  protected percentualMedidoTexto(empreita: Empreita): string {
+    const percentual = this.percentualMedidoPorEmpreita().get(empreita.id);
+    if (percentual === null || percentual === undefined) return '—';
+    return `${percentual.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
   }
 
   protected totalPago(empreita: Empreita): number {

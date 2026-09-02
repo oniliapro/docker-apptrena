@@ -154,6 +154,21 @@ export interface CabecalhoMapa {
    * nasce sem tipo definido).
    */
   freteCategoriaTipo: ChaveTipo | '';
+  /**
+   * Mesma ideia de `lancarFreteComoItem`, só que pro imposto+desconto da
+   * nota (01/09/2026, pedido do Lucas) — os dois sempre andaram juntos
+   * numa linha só ("Impostos e desconto da nota"/parte de "Impostos,
+   * frete e desconto da nota"), então ganham UM toggle só, independente
+   * do de frete: ligado, viram uma linha própria no pagamento gerado
+   * (com etapa/categoria opcionais); desligado, ficam embutidos
+   * proporcionalmente no valor dos itens de cada fornecedor — mesmo
+   * comportamento de sempre, agora dá pra desligar.
+   */
+  lancarImpostoDescontoComoItem: boolean;
+  /** Etapa da linha de imposto/desconto no pagamento — só usada quando `lancarImpostoDescontoComoItem` está ligado. */
+  impostoDescontoEtapaId: string;
+  /** Categoria de custo da linha de imposto/desconto no pagamento gerado — só usada quando `lancarImpostoDescontoComoItem` está ligado. */
+  impostoDescontoCategoriaTipo: ChaveTipo | '';
   /** Quando ligado, o usuário escolhe o fornecedor de cada item. */
   modoManual: boolean;
   /** Mapa finalizado: trava edição e libera Gerar PDF / Gerar Pagamento. */

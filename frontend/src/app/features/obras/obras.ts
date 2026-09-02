@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData } from '../../core/utils/formato';
 import { Cliente, Responsavel } from '../cadastros/cadastros.models';
+import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import {
   EstadoOrdenacao,
@@ -103,6 +104,44 @@ export class Obras implements OnInit {
       coluna === 'status' ? rotuloStatusObra(obra.status) : obra[coluna],
     );
   });
+
+  /**
+   * Exporta a lista JÁ FILTRADA/ordenada pra planilha Excel (31/08/2026,
+   * pedido do Lucas).
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      await exportarTabelaXlsx(
+        'Obras',
+        [
+          { header: 'Nº', key: 'numero', width: 10 },
+          { header: 'Obra', key: 'nome', width: 34 },
+          { header: 'Cliente', key: 'cliente', width: 24 },
+          { header: 'Responsável', key: 'responsavel', width: 22 },
+          { header: 'Data base', key: 'dataBase', width: 14 },
+          { header: 'Status', key: 'status', width: 16 },
+          { header: 'EAP', key: 'eap', width: 14 },
+        ],
+        this.listaFiltrada().map((obra) => ({
+          numero: obra.map_number || '',
+          nome: obra.obra_nome || '(sem nome)',
+          cliente: obra.cliente || '',
+          responsavel: obra.responsavel || '',
+          dataBase: this.formatarData(obra.data_base) || '',
+          status: rotuloStatusObra(obra.status),
+          eap: obra.is_confirmed ? 'Confirmada' : 'Em aberto',
+        })),
+        'obras.xlsx',
+      );
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
+    }
+  }
 
   ngOnInit(): void {
     this.carregar();

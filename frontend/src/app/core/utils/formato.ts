@@ -15,27 +15,79 @@ export function formatarMoeda(valor: unknown): string {
   return 'R$ ' + numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Aceita "2026-07-25" ou ISO completo e devolve "25/07/2026". */
+/**
+ * Fuso horário usado em toda exibição de data/hora do sistema (01/09/2026,
+ * relatado pelo Lucas: "as datas não fazem sentido"). Fixo em Brasília por
+ * enquanto — uma aba em Configurações pra escolher outro fuso por empresa
+ * fica pra uma rodada futura (exige um serviço central de data injetável
+ * em vez de funções puras; ver docs/CONTEXTO.md).
+ */
+const FUSO_PADRAO = 'America/Sao_Paulo';
+
+function formatarDataComFuso(data: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: FUSO_PADRAO,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(data);
+}
+
+/**
+ * Aceita "2026-07-25" (só data) ou um ISO completo com hora (ex.:
+ * "2026-07-25T23:30:00Z") e devolve "25/07/2026".
+ *
+ * As duas entradas exigem tratamento OPOSTO (bug corrigido em 01/09/2026):
+ * uma string SÓ COM DATA já é o dia certo, literal — interpretá-la como um
+ * instante e projetar num fuso horário na verdade CORROMPE o resultado
+ * (`new Date("2026-07-25")` vira meia-noite UTC, que em Brasília — UTC-3 —
+ * já é 21h do dia 24; formatar isso com fuso de Brasília mostraria "24/07"
+ * em vez de "25/07"). Já um ISO COM HORA é um instante de verdade,
+ * normalmente gravado em UTC (`new Date().toISOString()` no momento de um
+ * clique) — esse sim precisa ser projetado no fuso de Brasília antes de
+ * ler o dia, senão qualquer confirmação feita à noite (entre ~21h e
+ * 23h59, quando UTC já virou o dia seguinte) mostra o dia errado.
+ */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '';
-  const [ano, mes, dia] = String(iso).slice(0, 10).split('-');
-  if (!ano || !mes || !dia) return '';
-  return `${dia}/${mes}/${ano}`;
+  const texto = String(iso);
+
+  if (!texto.includes('T') && !texto.includes(' ')) {
+    const [ano, mes, dia] = texto.slice(0, 10).split('-');
+    if (!ano || !mes || !dia) return '';
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  const data = new Date(texto);
+  if (Number.isNaN(data.getTime())) return '';
+  return formatarDataComFuso(data);
 }
 
-/** Data de hoje no formato aceito por <input type="date">. */
+/** Data de hoje, no fuso de Brasília, no formato aceito por <input type="date">. */
 export function hojeIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Locale en-CA formata como AAAA-MM-DD — mesmo formato de <input type="date">.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: FUSO_PADRAO,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
-/** Aceita ISO completo (com hora) e devolve "25/07/2026 14:30", no fuso local do navegador. */
+/** Aceita um ISO completo (com hora) e devolve "25/07/2026 14:30", sempre no fuso de Brasília. */
 export function formatarDataHora(iso: string | null | undefined): string {
   if (!iso) return '';
   const data = new Date(iso);
   if (Number.isNaN(data.getTime())) return '';
-  const horas = String(data.getHours()).padStart(2, '0');
-  const minutos = String(data.getMinutes()).padStart(2, '0');
-  return `${formatarData(iso)} ${horas}:${minutos}`;
+
+  const hora = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: FUSO_PADRAO,
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(data);
+
+  return `${formatarDataComFuso(data)} ${hora}`;
 }
 
 /**

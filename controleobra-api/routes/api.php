@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\MedicaoPdfController;
 use App\Http\Controllers\Api\NotaFiscalController;
 use App\Http\Controllers\Api\ObraController;
 use App\Http\Controllers\Api\PagamentoController;
+use App\Http\Controllers\Api\RecebimentoController;
 use App\Http\Controllers\Api\PastaController;
 use App\Http\Controllers\Api\RelatorioPdfController;
 use App\Http\Controllers\Api\StorageController;
@@ -197,6 +198,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // de permissões" — sem backend relacional próprio), não Pagamentos —
     // fica sem gate de propósito.
     Route::post('fornecedores/ler-nota', [NotaFiscalController::class, 'lerFornecedor']);
+
+    // Recebimentos (01/09/2026, pedido do Lucas) — mirror exato do bloco
+    // de Pagamentos acima, ver RecebimentoController.
+    Route::apiResource('recebimentos', RecebimentoController::class)
+        ->middlewareFor('index', 'permissaoModulo:recebimentos,usar')
+        ->middlewareFor('show', ['permissaoModulo:recebimentos,usar', 'permissaoObra:ver'])
+        ->middlewareFor('store', ['permissaoModulo:recebimentos,criar', 'permissaoObra:lancar'])
+        ->middlewareFor('update', ['permissaoModulo:recebimentos,editar', 'permissaoObra:lancar'])
+        ->middlewareFor('destroy', ['permissaoModulo:recebimentos,excluir', 'permissaoObra:lancar']);
 
     Route::get('storage', [StorageController::class, 'get']);
     Route::post('storage', [StorageController::class, 'set']);

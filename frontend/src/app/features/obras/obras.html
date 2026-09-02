@@ -3,6 +3,10 @@
     <h1>Obras</h1>
     <div class="atenuado">Obras às quais você tem acesso</div>
   </div>
+  <button type="button" [disabled]="!listaFiltrada().length || exportandoXlsx()" (click)="exportarXlsx()"
+          title="Exporta as obras filtradas abaixo pra uma planilha Excel">
+    {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+  </button>
   <button class="botao-novo" type="button" (click)="novo()">+ Nova obra</button>
 </div>
 

@@ -172,6 +172,13 @@ export class AppShell {
       moduloChave: 'pagamentos',
     },
     {
+      id: 'recebimentos',
+      rota: '/recebimentos',
+      icone: 'moeda',
+      texto: 'Recebimentos',
+      moduloChave: 'recebimentos',
+    },
+    {
       id: 'diarios',
       rota: '/diario-obra',
       icone: 'caderno',

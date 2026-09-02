@@ -85,6 +85,36 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (01-02/09/2026): lote de 11 pedidos — bugs de Mapa/datas +
+  módulo Recebimentos.** Numa sessão só: (1) corrigido o total errado na
+  lista de Mapas (fórmula própria desatualizada dobrava o frete
+  particular); (2) blindado o arredondamento ao distribuir frete/imposto/
+  desconto num pagamento gerado por Mapa, pra soma dos itens nunca
+  divergir do total; (3) corrigida a causa raiz de "datas não fazem
+  sentido" (`formatarData`/`formatarDataHora` agora sempre resolvem no
+  fuso de Brasília, em vez de misturar corte de string cru com hora local
+  do navegador) — **uma aba de Configurações pra ESCOLHER outro fuso
+  continua pendente** (é trabalho de vários dias: serviço central de data
+  injetável, migrar ~14 call sites, validar ~20 telas — não faz parte
+  desta rodada); (4) Mapa ganhou um segundo toggle independente do de
+  frete, "Lançar imposto/desconto como item"; (5-6) lista de Pagamentos da
+  obra não mostra mais a coluna "Itens" e a coluna "Etapas" agora soma por
+  etapa em vez de uma linha por item; (7) exportação Excel da EAP ganhou
+  colunas de Realizado; (8) exportação do Mapa ganhou aba "Comparação de
+  cenários"; (9) Empreita ganhou o toggle "Simplificar" (esconde
+  Empreiteiro/Reserva, só o Total — vale na tela e no PDF); (10) lista de
+  Empreitas ganhou coluna "% Medida" (ponderada pelo contrato do
+  empreiteiro); (11) **módulo novo "Recebimentos"**, espelhando Pagamentos
+  ponto a ponto (migration, models, controller, rotas com RBAC, store,
+  telas de obra e geral, menu lateral, exportação Excel) — sem "ler nota
+  fiscal" (não se aplica a dinheiro entrando) e sem split Empreiteiro/
+  Reserva; a Medição ganhou o botão "Gerar recebimento" (só quando
+  aprovada), criando um recebimento pendente com um item por etapa ×
+  categoria com avanço não-zero. RBAC testado ponta a ponta numa empresa
+  descartável (zero permissão bloqueia, `podeUsar` sem `podeCriar`
+  bloqueia só a escrita). Um bug real foi pego e corrigido durante a
+  verificação do item 4 (rateio proporcional de imposto/desconto virava
+  `NaN` quando o frete já tinha virado linha própria antes dele).
 - **Feito (22/08/2026): geração de PDF de relatório.** O relatório
   Orçado x Realizado (`/obras/{id}/relatorios`) ganhou um botão "Baixar
   PDF" que gera um PDF de verdade (não `window.print()`) — o backend

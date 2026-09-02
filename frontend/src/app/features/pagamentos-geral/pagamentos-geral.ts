@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Obra, Pagamento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
+import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
 import {
@@ -294,6 +295,47 @@ export class PagamentosGeral implements OnInit {
     if (tipo === 'mapa') return 'Mapa';
     if (tipo === 'empreita') return 'Empreita';
     return 'Manual';
+  }
+
+  /**
+   * Exporta a lista JÁ FILTRADA/ordenada pra planilha Excel (31/08/2026,
+   * pedido do Lucas) — reflete os mesmos filtros aplicados na tela
+   * (`listaOrdenada`), não a lista inteira sem filtro nenhum.
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      await exportarTabelaXlsx(
+        'Pagamentos',
+        [
+          { header: 'Obra', key: 'obra', width: 14 },
+          { header: 'Nº', key: 'numero', width: 12 },
+          { header: 'Solicitação', key: 'dataSolicitacao', width: 14 },
+          { header: 'Fornecedor', key: 'fornecedor', width: 24 },
+          { header: 'Descrição', key: 'descricao', width: 34 },
+          { header: 'Origem', key: 'origem', width: 12 },
+          { header: 'Total (R$)', key: 'total', width: 16 },
+          { header: 'Status', key: 'status', width: 12 },
+        ],
+        this.listaOrdenada().map((p) => ({
+          obra: this.obraNumber(p),
+          numero: this.numero(p),
+          dataSolicitacao: this.dataSolicitacao(p),
+          fornecedor: this.fornecedor(p),
+          descricao: this.descricao(p),
+          origem: this.origemRotulo(p),
+          total: this.valorTotal(p),
+          status: this.pendente(p) ? 'Pendente' : 'Confirmado',
+        })),
+        'pagamentos.xlsx',
+      );
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
+    }
   }
 
   /**

@@ -48,6 +48,11 @@
 
       <span class="espacador"></span>
 
+      <label class="checagem-inline" title="Esconde Empreiteiro/Reserva (tela e PDF), mostra só o Total — pra relatório sem detalhar a divisão do contrato">
+        <input type="checkbox" [checked]="simplificado()" (change)="alternarSimplificado()" />
+        Simplificar
+      </label>
+
       @if (store.salvando()) {
         <span class="atenuado pequeno">salvando…</span>
       }
@@ -74,6 +79,10 @@
       <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
               title="Gera e baixa o PDF da empreita">
         {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+      </button>
+      <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
+              title="Exporta os serviços e os totais calculados (contrato, medição, já pago) pra uma planilha Excel">
+        {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
       </button>
     </div>
 
@@ -161,18 +170,20 @@
                   {{ moedaOuVazio(valorSaldoDisp(i)) }}
                 </span>
               </div>
-              <div class="subcampo">
-                <span class="rotulo-subcampo">Empreiteiro</span>
-                <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
-                       [value]="valorContrato(item, 'contratoEmp')"
-                       (change)="editarContrato(item, 'contratoEmp', $event)" />
-              </div>
-              <div class="subcampo">
-                <span class="rotulo-subcampo">Reserva</span>
-                <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
-                       [value]="valorContrato(item, 'contratoReserva')"
-                       (change)="editarContrato(item, 'contratoReserva', $event)" />
-              </div>
+              @if (!simplificado()) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                         [value]="valorContrato(item, 'contratoEmp')"
+                         (change)="editarContrato(item, 'contratoEmp', $event)" />
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                         [value]="valorContrato(item, 'contratoReserva')"
+                         (change)="editarContrato(item, 'contratoReserva', $event)" />
+                </div>
+              }
               <div class="subcampo destaque">
                 <span class="rotulo-subcampo">Total</span>
                 <span class="valor-subcampo">{{ valorContratoTotal(i) }}</span>
@@ -246,14 +257,16 @@
 
               <!-- Já pago: Empreiteiro / Reserva / Divergência / Total, empilhados numa célula só -->
               <td class="celula-grupo">
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Empreiteiro</span>
-                  <span class="valor-subcampo">{{ valorJaPagoEmpreiteiro(i) }}</span>
-                </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Reserva</span>
-                  <span class="valor-subcampo">{{ valorJaPagoReserva(i) }}</span>
-                </div>
+                @if (!simplificado()) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Empreiteiro</span>
+                    <span class="valor-subcampo">{{ valorJaPagoEmpreiteiro(i) }}</span>
+                  </div>
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Reserva</span>
+                    <span class="valor-subcampo">{{ valorJaPagoReserva(i) }}</span>
+                  </div>
+                }
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Divergência</span>
                   <span class="valor-subcampo"
@@ -278,18 +291,20 @@
                     {{ valorMedido(i) }}
                   </span>
                 </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Empreiteiro</span>
-                  <input type="text" class="valor" placeholder="R$ 0,00"
-                         [value]="valorPagamentoDraftExibido(i, 'pagamentoEmpDraft')"
-                         (change)="editarPagamentoDraft(item, 'pagamentoEmp', $event)" />
-                </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Reserva</span>
-                  <input type="text" class="valor" placeholder="R$ 0,00"
-                         [value]="valorPagamentoDraftExibido(i, 'pagamentoReservaDraft')"
-                         (change)="editarPagamentoDraft(item, 'pagamentoReserva', $event)" />
-                </div>
+                @if (!simplificado()) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Empreiteiro</span>
+                    <input type="text" class="valor" placeholder="R$ 0,00"
+                           [value]="valorPagamentoDraftExibido(i, 'pagamentoEmpDraft')"
+                           (change)="editarPagamentoDraft(item, 'pagamentoEmp', $event)" />
+                  </div>
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Reserva</span>
+                    <input type="text" class="valor" placeholder="R$ 0,00"
+                           [value]="valorPagamentoDraftExibido(i, 'pagamentoReservaDraft')"
+                           (change)="editarPagamentoDraft(item, 'pagamentoReserva', $event)" />
+                  </div>
+                }
                 <div class="subcampo destaque">
                   <span class="rotulo-subcampo">Total</span>
                   <span class="valor-subcampo">{{ valorPagamentoDraftTotal(i) }}</span>
@@ -306,22 +321,24 @@
                     {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
                   </span>
                 </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Empreiteiro</span>
-                  <span class="valor-subcampo"
-                        [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
-                        [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
-                  </span>
-                </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Reserva</span>
-                  <span class="valor-subcampo"
-                        [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
-                        [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
-                  </span>
-                </div>
+                @if (!simplificado()) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Empreiteiro</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
+                    </span>
+                  </div>
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Reserva</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
+                    </span>
+                  </div>
+                }
                 <div class="subcampo destaque">
                   <span class="rotulo-subcampo">Total</span>
                   <span class="valor-subcampo"
@@ -354,8 +371,10 @@
 
             <th class="celula-grupo-rodape">
               <div class="subcampo-rodape">Saldo disp. <span class="atenuado">—</span></div>
-              <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totais().valorEmp) }}</b></div>
-              <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totais().valorReserva) }}</b></div>
+              @if (!simplificado()) {
+                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totais().valorEmp) }}</b></div>
+                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totais().valorReserva) }}</b></div>
+              }
               <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
             </th>
 
@@ -375,8 +394,10 @@
               </th>
 
               <th class="celula-grupo-rodape">
-                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoEmpreiteiro) }}</b></div>
-                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoReserva) }}</b></div>
+                @if (!simplificado()) {
+                  <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoEmpreiteiro) }}</b></div>
+                  <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoReserva) }}</b></div>
+                }
                 <div class="subcampo-rodape">
                   Divergência
                   <b [class.saldo-positivo]="store.totaisEstendidos().jaPagoDivergencia >= 0"
@@ -395,27 +416,31 @@
                     {{ formatarMoeda(store.totaisEstendidos().medidoTotal) }}
                   </b>
                 </div>
-                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftEmp) }}</b></div>
-                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftReserva) }}</b></div>
+                @if (!simplificado()) {
+                  <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftEmp) }}</b></div>
+                  <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftReserva) }}</b></div>
+                }
                 <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftTotal) }}</b></div>
               </th>
 
               <th class="celula-grupo-rodape">
                 <div class="subcampo-rodape">Etapa <span class="atenuado">—</span></div>
-                <div class="subcampo-rodape">
-                  Empreiteiro
-                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
-                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
-                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
-                  </b>
-                </div>
-                <div class="subcampo-rodape">
-                  Reserva
-                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
-                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
-                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
-                  </b>
-                </div>
+                @if (!simplificado()) {
+                  <div class="subcampo-rodape">
+                    Empreiteiro
+                    <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
+                       [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
+                      {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
+                    </b>
+                  </div>
+                  <div class="subcampo-rodape">
+                    Reserva
+                    <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
+                       [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
+                      {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
+                    </b>
+                  </div>
+                }
                 <div class="subcampo-rodape destaque">
                   Total
                   <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoTotal >= 0"

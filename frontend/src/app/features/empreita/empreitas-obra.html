@@ -26,6 +26,7 @@
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('empreiteiro')">Empreiteiro{{ setaOrdenacao(ordenacao(), 'empreiteiro') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
+            <th class="centro" title="Percentual medido, ponderado pelo valor do contrato de cada serviço">% Medida</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
             <th class="centro">Ações</th>
           </tr>
@@ -43,6 +44,7 @@
                   {{ formatarMoeda(totalPago(empreita)) }}
                 </button>
               </td>
+              <td class="centro">{{ percentualMedidoTexto(empreita) }}</td>
               <td class="centro">{{ formatarData(ultimaSolicitacao(empreita)) || '—' }}</td>
               <td class="centro">
                 <button type="button" title="Excluir" (click)="remover(empreita, $event)">✖</button>
@@ -50,7 +52,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
+              <td colspan="8" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
             </tr>
           }
         </tbody>

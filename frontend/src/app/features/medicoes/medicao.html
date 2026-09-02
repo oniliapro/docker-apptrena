@@ -37,9 +37,19 @@
                 (click)="store.aprovar()">
           ✓ Aprovar medição
         </button>
+      } @else {
+        <button type="button" [disabled]="store.gerandoRecebimento()"
+                title="Gera um recebimento pendente com o avanço desta medição, pra confirmar depois na aba Recebimentos"
+                (click)="gerarRecebimento()">
+          {{ store.gerandoRecebimento() ? 'Gerando…' : '💳 Gerar recebimento' }}
+        </button>
       }
     </div>
   </div>
+
+  @if (store.resultadoGerarRecebimento(); as mensagemRecebimento) {
+    <div class="aviso-info">{{ mensagemRecebimento }}</div>
+  }
 
   @if (erroPdf(); as mensagemPdf) {
     <div class="aviso-erro">{{ mensagemPdf }}</div>

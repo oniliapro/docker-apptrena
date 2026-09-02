@@ -141,6 +141,10 @@ export interface ResumoContratoEmpreita {
     qtdeContratada: number;
     contratoEmp: number;
     contratoReserva: number;
+    /** Percentual já medido em períodos anteriores (01/09/2026, "% medida" na lista de empreitas). */
+    medicaoAcum: number;
+    /** Percentual medido neste período. Null herda o acumulado. */
+    medicaoAtual: number | null;
   }>;
 }
 

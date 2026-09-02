@@ -13,6 +13,7 @@ import {
   qtdeParaPct,
   valorContratoParaPct,
 } from './empreita-engine';
+import { exportarEmpreitaXlsx, LinhaExportEmpreita } from './empreita-exportar';
 import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
 import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao } from './empreita.models';
@@ -56,6 +57,19 @@ export class Empreita implements OnInit {
   /** Estado do botão "Baixar PDF" (23/08/2026) — ver EmpreitaPdfController. */
   protected readonly gerandoPdf = signal(false);
   protected readonly erroPdf = signal<string | null>(null);
+
+  /**
+   * "Simplificar" (01/09/2026, pedido do Lucas) — esconde as colunas
+   * Empreiteiro/Reserva de todos os blocos (Contrato, Já pago, Pagamento,
+   * Saldo após pagamento) e mostra só o Total, tanto na tela ao vivo
+   * quanto no PDF gerado (`baixarPdf()` repassa como query param). Não
+   * persiste nada — vale só pra esta visita/geração.
+   */
+  protected readonly simplificado = signal(false);
+
+  protected alternarSimplificado(): void {
+    this.simplificado.update((v) => !v);
+  }
 
   /**
    * Id da obra — vem do param `:id` da rota avó (/obras/:id), herdado
@@ -141,7 +155,7 @@ export class Empreita implements OnInit {
     this.erroPdf.set(null);
     this.gerandoPdf.set(true);
 
-    this.api.baixarEmpreitaPdf(this.empreitaId()).subscribe({
+    this.api.baixarEmpreitaPdf(this.empreitaId(), this.simplificado()).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -206,6 +220,47 @@ export class Empreita implements OnInit {
       return;
     }
     this.store.resetarAcumulado();
+  }
+
+  /**
+   * Exporta os serviços e os totais calculados pra planilha Excel
+   * (31/08/2026, pedido do Lucas) — ver `empreita-exportar.ts`. Usa a
+   * MESMA fonte que a tela (`store.linhasEstendidas()`), então a
+   * planilha bate exatamente com o que está sendo exibido.
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      const linhas: LinhaExportEmpreita[] = this.store.itens().map((item, i) => {
+        const linha = this.store.linhasEstendidas()[i];
+        const itemEap = this.itemEapDoServico(item);
+        return {
+          desc: item.desc,
+          tipo: this.tiposCusto.find((t) => t.chave === item.tipo)?.rotulo ?? '',
+          etapa: itemEap ? this.rotuloEap(itemEap) : '',
+          qtdeContratada: item.qtdeContratada,
+          contratoEmp: item.contratoEmp,
+          contratoReserva: item.contratoReserva,
+          orcado: linha.orcado,
+          acumulado: linha.acumulado,
+          atual: linha.atual,
+          avanco: linha.avanco,
+          pagar: linha.pagar,
+          reservar: linha.reservar,
+          jaPagoEmpreiteiro: linha.jaPago.empreiteiro,
+          jaPagoReserva: linha.jaPago.reserva,
+          jaPagoDivergencia: linha.jaPago.divergencia,
+          medido: linha.medido,
+        };
+      });
+      await exportarEmpreitaXlsx(linhas, this.store.totaisEstendidos(), this.empreitaId());
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
+    }
   }
 
   // ------------------------------------------------------------------

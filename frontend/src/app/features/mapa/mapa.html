@@ -112,6 +112,32 @@
       </label>
     }
 
+    <label class="checagem-inline" title="Ligado: imposto e desconto viram uma linha própria no pagamento gerado. Desligado: ficam embutidos proporcionalmente no valor dos itens de cada fornecedor.">
+      <input type="checkbox" [checked]="store.cabecalho().lancarImpostoDescontoComoItem" [disabled]="store.travada()"
+             (change)="alternarLancarImpostoDescontoComoItem()" />
+      Lançar imposto/desconto como item
+    </label>
+    @if (store.cabecalho().lancarImpostoDescontoComoItem) {
+      <select class="select-etapa-frete" [value]="store.cabecalho().impostoDescontoEtapaId" [disabled]="store.travada()"
+              (change)="editarImpostoDescontoEtapa($event)" title="Etapa da linha de imposto/desconto no pagamento (opcional)">
+        <option value="">Etapa do imposto/desconto (opcional)</option>
+        @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+          <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().impostoDescontoEtapaId">{{ etapa.rotulo }}</option>
+        }
+      </select>
+
+      <label class="campo-categoria-frete" title="Categoria de custo da linha de imposto/desconto no pagamento gerado">
+        <span class="rotulo-repetido">CATEGORIA IMPOSTO/DESC.</span>
+        <select class="select-etapa-frete" [value]="store.cabecalho().impostoDescontoCategoriaTipo" [disabled]="store.travada()"
+                (change)="editarImpostoDescontoCategoriaTipo($event)">
+          @for (tipo of store.tiposCusto; track tipo.chave) {
+            <option [value]="tipo.chave" [selected]="tipo.chave === store.cabecalho().impostoDescontoCategoriaTipo">{{ tipo.rotulo }}</option>
+          }
+          <option value="" [selected]="!store.cabecalho().impostoDescontoCategoriaTipo">S/ categoria</option>
+        </select>
+      </label>
+    }
+
     <span class="espacador"></span>
 
     @if (store.salvando()) {
@@ -132,6 +158,10 @@
     <button type="button" [disabled]="!store.cabecalho().isConfirmed || gerandoPdf()" (click)="baixarPdf()"
             title="Gera e baixa o PDF do mapa">
       {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+    </button>
+    <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
+            title="Exporta os itens, preços por fornecedor e o resumo da compra pra uma planilha Excel">
+      {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
     </button>
     <button type="button" [disabled]="!store.cabecalho().isConfirmed || store.gerandoPagamento()"
             (click)="gerarPagamento()"

@@ -96,6 +96,22 @@ export class Medicao implements OnInit {
     void this.router.navigate(['/obras', this.obraId(), 'medicoes']);
   }
 
+  /**
+   * Gera um recebimento pendente a partir do avanço desta medição
+   * (01/09/2026, pedido do Lucas) — mesmo padrão de confirmação de
+   * `Empreita.fecharPeriodo()` antes de chamar o store.
+   */
+  protected gerarRecebimento(): void {
+    if (
+      !window.confirm(
+        'Gerar um recebimento a partir do avanço desta medição? Cria um recebimento pendente, pra confirmar depois na aba Recebimentos.',
+      )
+    ) {
+      return;
+    }
+    this.store.gerarRecebimento();
+  }
+
   // ------------------------------------------------------------------
   // Alternância %/R$ por célula — não persiste, só conveniência de
   // digitação (mesmo padrão de `ResumoEtapas.unidadeFrete` no Mapa): o

@@ -3,6 +3,10 @@
     <h1>Pagamentos</h1>
     <div class="atenuado">Todos os lançamentos, de todas as obras</div>
   </div>
+  <button type="button" [disabled]="!listaOrdenada().length || exportandoXlsx()" (click)="exportarXlsx()"
+          title="Exporta os pagamentos filtrados abaixo pra uma planilha Excel">
+    {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+  </button>
   <button type="button" class="botao-novo" (click)="novo()">+ Novo pagamento</button>
 </div>
 

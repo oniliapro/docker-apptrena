@@ -41,6 +41,9 @@ export class EmpreitaImprimir implements OnInit {
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
+  /** "Simplificar" (01/09/2026) — lido da query string, mesmo mecanismo de `token`/`apiUrl`. */
+  protected readonly simplificado = signal(false);
+
   protected rotuloEap(itemEap: ItemEap): string {
     const eap = String(itemEap.eap ?? '').trim();
     const desc = String(itemEap.desc ?? '').trim();
@@ -180,6 +183,8 @@ export class EmpreitaImprimir implements OnInit {
 
     const apiUrl = this.route.snapshot.queryParamMap.get('apiUrl');
     if (apiUrl) this.api.definirBaseParaImpressao(apiUrl);
+
+    this.simplificado.set(this.route.snapshot.queryParamMap.get('simplificado') === '1');
   }
 
   ngOnInit(): void {

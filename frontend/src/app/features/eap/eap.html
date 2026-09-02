@@ -50,6 +50,10 @@
               title="Gera e baixa o PDF da EAP">
         {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
       </button>
+      <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
+              title="Exporta os itens e os totais calculados (Direto, BDI, Total c/ BDI) para uma planilha Excel">
+        {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+      </button>
       <button type="button" [disabled]="store.travada()" (click)="abrirModalImportar()"
               title="Importa itens de uma planilha Excel">
         📥 Importar Excel

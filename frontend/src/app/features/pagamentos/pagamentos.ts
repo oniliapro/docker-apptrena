@@ -254,25 +254,33 @@ export class Pagamentos implements OnInit {
     this.mostrarEtapas.update((v) => !v);
   }
 
-  protected itensCalculados(pagamento: Pagamento): ItemPagamentoCalculado[] {
-    return expandirItensPagamento(pagamento);
-  }
+  /**
+   * Uma linha por ETAPA (não por item, 01/09/2026, pedido do Lucas: "uma
+   * etapa aparece com o valor total no pagamento e não seus valores
+   * fracionados") — agrupa os itens do pagamento com `eapId` preenchido e
+   * soma o valor calculado de cada grupo. Rótulo mostra o tipo entre
+   * parênteses só quando TODOS os itens do grupo forem da mesma
+   * categoria — uma etapa que mistura Material e Mão de obra, por
+   * exemplo, mostra só o nome da etapa, pra não sugerir uma categoria que
+   * não é bem isso.
+   */
+  protected etapasAgrupadas(pagamento: Pagamento): { eapId: string; rotulo: string; valor: number }[] {
+    const itensComEtapa = expandirItensPagamento(pagamento).filter((it) => String(it.eapId ?? '').trim());
 
-  protected itensComEtapa(pagamento: Pagamento): ItemPagamentoCalculado[] {
-    return expandirItensPagamento(pagamento).filter((it) => String(it.eapId ?? '').trim());
-  }
+    const porEtapa = new Map<string, ItemPagamentoCalculado[]>();
+    for (const item of itensComEtapa) {
+      const lista = porEtapa.get(item.eapId) ?? [];
+      lista.push(item);
+      porEtapa.set(item.eapId, lista);
+    }
 
-  protected descricaoItem(item: ItemPagamentoCalculado): string {
-    const tipo = rotuloTipo(item.tipo);
-    return item.descricao ? `${item.descricao} (${tipo})` : tipo;
-  }
-
-  /** Em percentual, mostra os dois: "10,00% • R$ 100,00". */
-  protected valorItemTexto(item: ItemPagamentoCalculado): string {
-    const emReais = formatarMoeda(item.valorCalculado);
-    if (item.modoValor !== 'percentual') return emReais;
-    const pct = Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    return `${pct}% • ${emReais}`;
+    return Array.from(porEtapa.entries()).map(([eapId, itens]) => {
+      const valor = itens.reduce((soma, item) => soma + item.valorCalculado, 0);
+      const tiposDistintos = new Set(itens.map((item) => item.tipo));
+      const rotuloBase = this.rotuloEtapa(eapId);
+      const rotulo = tiposDistintos.size === 1 ? `${rotuloBase} (${rotuloTipo(itens[0].tipo)})` : rotuloBase;
+      return { eapId, rotulo, valor };
+    });
   }
 
   protected rotuloEtapa(eapId: string): string {

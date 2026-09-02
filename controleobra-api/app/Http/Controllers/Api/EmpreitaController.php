@@ -82,6 +82,13 @@ class EmpreitaController extends Controller
                     'qtdeContratada' => (float) $item->qtde_contratada,
                     'contratoEmp' => (float) $item->contrato_emp,
                     'contratoReserva' => (float) $item->contrato_reserva,
+                    // 01/09/2026, pedido do Lucas: "% medida" na lista de
+                    // empreitas da obra — precisa do acumulado/atual de
+                    // cada item pra calcular um percentual ponderado pelo
+                    // contrato, sem precisar de uma chamada extra por
+                    // empreita (ver EmpreitasObra.percentualMedido).
+                    'medicaoAcum' => (float) $item->medicao_acum,
+                    'medicaoAtual' => $item->medicao_atual === null ? null : (float) $item->medicao_atual,
                 ])->values(),
         ])->values();
     }

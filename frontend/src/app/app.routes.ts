@@ -95,6 +95,14 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/pagamentos/pagamentos').then((m) => m.Pagamentos),
   },
   {
+    // Recebimentos (01/09/2026, pedido do Lucas) — mirror exato da aba de
+    // Pagamentos acima, ver features/recebimentos/.
+    path: 'recebimentos',
+    data: { titulo: 'Recebimentos da obra' },
+    canActivate: [permissaoModuloGuard('recebimentos')],
+    loadComponent: () => import('./features/recebimentos/recebimentos').then((m) => m.Recebimentos),
+  },
+  {
     ...reservada('diarios', 'Diários desta obra'),
     canActivate: [permissaoModuloGuard('diario_obra')],
   },
@@ -257,6 +265,15 @@ export const routes: Routes = [
         canActivate: [permissaoModuloGuard('pagamentos')],
         loadComponent: () =>
           import('./features/pagamentos-geral/pagamentos-geral').then((m) => m.PagamentosGeral),
+      },
+      {
+        // Recebimentos (01/09/2026, pedido do Lucas) — mirror exato da lista
+        // geral de Pagamentos acima.
+        path: 'recebimentos',
+        data: { titulo: 'Recebimentos' },
+        canActivate: [permissaoModuloGuard('recebimentos')],
+        loadComponent: () =>
+          import('./features/recebimentos/recebimentos-geral').then((m) => m.RecebimentosGeral),
       },
       {
         path: 'diario-obra',

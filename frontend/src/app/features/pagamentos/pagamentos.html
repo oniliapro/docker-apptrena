@@ -59,7 +59,6 @@
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numeroPagamento')">Nº{{ setaOrdenacao(ordenacao(), 'numeroPagamento') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
-            <th>Itens</th>
             @if (mostrarEtapas()) { <th>Etapas</th> }
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('fornecedor')">Fornecedor{{ setaOrdenacao(ordenacao(), 'fornecedor') }}</th>
@@ -77,23 +76,12 @@
               <td class="centro">{{ formatarDataPtBr(pagamento.dataSolicitacao) }}</td>
               <td>{{ pagamento.descricao || '—' }}</td>
 
-              <td>
-                @for (item of itensCalculados(pagamento); track item.id) {
-                  <div class="lista-linha">
-                    <span>{{ descricaoItem(item) }}</span>
-                    <span>{{ valorItemTexto(item) }}</span>
-                  </div>
-                } @empty {
-                  <span class="atenuado">—</span>
-                }
-              </td>
-
               @if (mostrarEtapas()) {
                 <td>
-                  @for (item of itensComEtapa(pagamento); track item.id) {
+                  @for (grupo of etapasAgrupadas(pagamento); track grupo.eapId) {
                     <div class="lista-linha">
-                      <span>{{ rotuloEtapa(item.eapId) }} ({{ rotuloTipo(item.tipo) }})</span>
-                      <span>{{ formatarMoeda(item.valorCalculado) }}</span>
+                      <span>{{ grupo.rotulo }}</span>
+                      <span>{{ formatarMoeda(grupo.valor) }}</span>
                     </div>
                   } @empty {
                     <span class="atenuado">—</span>
@@ -120,7 +108,7 @@
             </tr>
           } @empty {
             <tr>
-              <td [attr.colspan]="mostrarEtapas() ? 11 : 10" class="centro atenuado">
+              <td [attr.colspan]="mostrarEtapas() ? 10 : 9" class="centro atenuado">
                 Nenhum pagamento lançado.
               </td>
             </tr>
@@ -129,7 +117,7 @@
 
         <tfoot>
           <tr class="bloco-topo bloco-base">
-            <th [attr.colspan]="mostrarEtapas() ? 6 : 5" class="rotulo-rodape">TOTAL</th>
+            <th [attr.colspan]="mostrarEtapas() ? 5 : 4" class="rotulo-rodape">TOTAL</th>
             <th class="valor"><b>{{ formatarMoeda(store.total()) }}</b></th>
             <th colspan="4"></th>
           </tr>

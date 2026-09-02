@@ -19,6 +19,7 @@ import { expandirItensPagamento, parsearBR } from '../pagamentos/pagamentos-calc
 import { ItemPagamentoCalculado } from '../pagamentos/pagamentos.models';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { ehDescendente } from './eap-engine';
+import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
 import { EapStore } from './eap.store';
@@ -413,6 +414,35 @@ export class Eap implements OnInit {
         this.gerandoPdf.set(false);
       },
     });
+  }
+
+  /**
+   * Exporta os itens de verdade da EAP pra planilha Excel (31/08/2026,
+   * pedido do Lucas) — ver `eap-exportar.ts`. Roda no navegador, sem
+   * chamada à API (mesma arquitetura de `gerarModeloXlsx`/
+   * `analisarPlanilha`, em `eap-importar.ts`).
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      // Realizado é calculado aqui (não no engine puro) porque depende
+      // dos pagamentos da obra, já carregados neste componente — ver
+      // `realizadoDoItemTipo`/`realizadoSemCategoria`/`realizadoDoItem`.
+      const realizadoPorLinha: RealizadoPorLinha[] = this.store.itens().map((item) => ({
+        porTipo: Object.fromEntries(
+          TIPOS_CUSTO.map((t) => [t.chave, this.realizadoDoItemTipo(item, t.chave)]),
+        ) as PorTipo,
+        semCategoria: this.realizadoSemCategoria(item),
+        total: this.realizadoDoItem(item),
+      }));
+      await exportarEapXlsx(this.store.cabecalho(), this.store.itens(), this.obraId(), realizadoPorLinha);
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
+    }
   }
 
   // ------------------------------------------------------------------

@@ -19,6 +19,7 @@ class Mapa extends Model
         'id', 'codigo', 'empresa_id', 'obra_id', 'numero_mapa', 'descricao', 'cliente', 'responsavel_mapa',
         'responsavel_obra', 'data_finalizacao', 'data_necessidade', 'frete_particular',
         'freteiro_particular', 'lancar_frete_como_item', 'frete_etapa_id', 'frete_categoria_tipo',
+        'lancar_imposto_desconto_como_item', 'imposto_desconto_etapa_id', 'imposto_desconto_categoria_tipo',
         'modo_manual', 'is_confirmed', 'confirmed_at', 'ultima_finalizacao_em', 'total_mapa',
     ];
 
@@ -27,6 +28,7 @@ class Mapa extends Model
         'data_necessidade' => 'date',
         'frete_particular' => 'float',
         'lancar_frete_como_item' => 'boolean',
+        'lancar_imposto_desconto_como_item' => 'boolean',
         'modo_manual' => 'boolean',
         'is_confirmed' => 'boolean',
         // 'date' truncava a hora (virava sempre 00:00) — 'datetime' corrige
