@@ -116,7 +116,10 @@
            (removerLinha)="removerPorIndice($event)">
       <thead>
         <tr>
-          <th rowspan="2" class="col-nivel">Nível</th>
+          @if (!store.travada()) {
+            <th rowspan="2" class="col-nivel">Nível</th>
+          }
+          <th rowspan="2" class="col-adicional" title="Serviço fora do escopo original da EAP — marcar propaga pra todos os subitens">Adicionais</th>
           <th rowspan="2" class="col-eap">EAP</th>
           <th rowspan="2" class="col-descricao">Descrição</th>
           <th rowspan="2" class="col-qtde">Qtde</th>
@@ -179,14 +182,21 @@
               [class.linha-grupo-nivel-2]="item.isGroup && item.nivel === 2"
               [class.linha-grupo-nivel-3]="item.isGroup && item.nivel === 3"
               [class.linha-grupo-nivel-4]="item.isGroup && item.nivel >= 4">
+            @if (!store.travada()) {
+              <td class="centro">
+                <select class="select-nivel" [value]="item.nivel"
+                        (change)="mudarNivel(item, $event)" title="Nível hierárquico da linha (1 a 4)">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </td>
+            }
             <td class="centro">
-              <select class="select-nivel" [value]="item.nivel" [disabled]="store.travada()"
-                      (change)="mudarNivel(item, $event)" title="Nível hierárquico da linha (1 a 4)">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </select>
+              <input type="checkbox" [checked]="item.adicional" [disabled]="store.travada()"
+                     (change)="alternarAdicional(item)"
+                     title="Serviço fora do escopo original da EAP — marcar propaga pra todos os subitens" />
             </td>
             <td class="centro indice">{{ item.eap }}</td>
             <td class="celula-descricao">
@@ -403,7 +413,7 @@
         }
 
         <tr>
-          <th colspan="5" class="rotulo-rodape">TOTAIS</th>
+          <th [attr.colspan]="store.travada() ? 5 : 6" class="rotulo-rodape">TOTAIS</th>
 
           @if (store.cabecalho().isConfirmed) {
             @if (store.ui().modoTotais === 'saldo') {

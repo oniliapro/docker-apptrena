@@ -7,6 +7,14 @@
   letter-spacing: 0.05em;
   font-weight: 600;
   color: var(--cor-texto-suave);
+}
+
+// "Realizar pagamento" (03/09/2026) fica na mesma linha do título, à direita.
+.painel-titulo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -16,8 +24,15 @@
 .saldo-positivo { color: var(--cor-aco); font-weight: 700; }
 .saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
 
+// 03/09/2026, pedido do Lucas: sem redimensionamento nesta tabela (era a
+// única que ficava esticada demais, ocupando toda a coluna `1fr` de
+// `.grade-inferior`) — largura FIXA por `<colgroup>`, uma por tipo de
+// dado (Nº/datas/percentual/valores), e a tabela toda encostada na
+// borda direita da página em vez de esticar (`margin-left: auto`, já
+// que ela não tem mais `width: 100%`).
 .tabela-relatorio-pagamentos {
-  width: 100%;
+  table-layout: fixed;
+  margin-left: auto;
   border-collapse: collapse;
   font-size: 11.5px;
 
@@ -38,8 +53,12 @@
   tr:last-child td { border-bottom: none; }
 }
 
-.col-num { width: 60px; }
-.col-valor { min-width: 140px; }
+// Nº do pagamento (+ badge "pendente", quando cabe na mesma linha).
+.col-num { width: 100px; }
+// Datas (Solicitação/Pagamento) — "dd/mm/aaaa" ou "Em aberto".
+.col-data { width: 90px; }
+// Valor pago — pares "Rótulo: R$ 000.000,00" empilhados (o mais largo é "Saldo empreita").
+.col-valor { width: 240px; }
 .centro { text-align: center; }
 .atenuado { color: var(--cor-texto-suave); }
 
@@ -100,4 +119,127 @@
 tfoot th {
   background: var(--cor-fundo-alt);
   border-top: 2px solid var(--cor-borda-forte);
+}
+
+// ---- "Medição %" — barra dupla (03/09/2026), mesmo padrão de `medicao.scss`/`empreitas-obra.scss` ----
+.col-medicao { width: 130px; }
+.celula-medicao { min-width: 130px; }
+
+.barra {
+  position: relative;
+  height: 16px;
+  background: var(--cor-fundo-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barra-compacta { height: 14px; }
+
+.preenchimento-total, .preenchimento-acumulado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-total {
+  background: var(--cor-sucesso);
+  z-index: 1;
+}
+
+.preenchimento-acumulado {
+  background: var(--cor-aco);
+  z-index: 2;
+}
+
+.percentual {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  z-index: 3;
+}
+
+// ---- Linha clicável (só quando há snapshot pra abrir) ----
+.linha-clicavel {
+  cursor: pointer;
+
+  &:hover { background: var(--cor-fundo-alt); }
+}
+
+// ---- Popup — retrato da medição (03/09/2026) — mesmo padrão de modal já usado no resto do sistema ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(820px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo {
+  padding: 14px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.envoltoria { overflow-x: auto; }
+
+.tabela-detalhe-snapshot {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    padding: 5px 8px;
+    text-align: left;
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    background: var(--cor-fundo-alt);
+  }
+
+  td { padding: 6px 8px; border-top: 1px solid var(--cor-fundo-alt); }
 }

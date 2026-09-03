@@ -173,3 +173,115 @@ table { table-layout: auto; }
     color: var(--cor-alerta);
   }
 }
+
+// ---- "Detalhar" — Empreiteiro/Reserva empilhados (03/09/2026) ----
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  user-select: none;
+  cursor: pointer;
+
+  input { width: auto; height: auto; }
+}
+
+.valor-detalhado {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+// ---- "% Medição" — barra dupla Físico/Financeiro (03/09/2026) ----
+// Mesmo padrão visual de `medicoes/medicao.scss` (não é componente
+// próprio, é markup+CSS copiado) — "Físico" reaproveita as MESMAS
+// classes (acumulado=azul por cima, total=verde por baixo, o trecho que
+// sobra visível é o avanço do período); "Financeiro" usa classes
+// próprias com o mesmo mecanismo de camadas, mas outro significado
+// (pago=verde por cima, total-solicitado=laranja por baixo — o trecho
+// que sobra visível é o quanto foi pedido mas ainda não foi pago).
+.celula-medicao {
+  min-width: 140px;
+}
+
+.linha-barra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  & + .linha-barra { margin-top: 4px; }
+}
+
+.rotulo-barra {
+  flex: 0 0 auto;
+  width: 52px;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  text-align: right;
+}
+
+.barra {
+  position: relative;
+  flex: 1 1 auto;
+  height: 18px;
+  background: var(--cor-fundo-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barra-compacta { height: 14px; }
+
+.preenchimento-total, .preenchimento-acumulado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-total {
+  background: var(--cor-sucesso);
+  z-index: 1;
+}
+
+.preenchimento-acumulado {
+  background: var(--cor-aco);
+  z-index: 2;
+}
+
+.preenchimento-financeiro-total, .preenchimento-financeiro-pago {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-financeiro-total {
+  background: var(--cor-alerta);
+  z-index: 1;
+}
+
+.preenchimento-financeiro-pago {
+  background: var(--cor-sucesso);
+  z-index: 2;
+}
+
+.percentual {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  z-index: 3;
+}

@@ -16,6 +16,7 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
+import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 import { proximoNumeroMapa } from './mapa-numero';
 
 type ColunaMapaObra =
@@ -354,5 +355,37 @@ export class MapasObra implements OnInit {
   protected temErro(campo: string): boolean {
     const controle = this.formulario.get(campo);
     return Boolean(controle?.invalid && (controle.dirty || controle.touched));
+  }
+
+  // ------------------------------------------------------------------
+  // Seleção múltipla + "Copiar mensagem" pro WhatsApp (02/09/2026, pedido
+  // do Lucas). Formato provisório — o Lucas vai mandar o padrão exato de
+  // mensagem que quer; até lá, uma linha por mapa com os dados principais.
+  // ------------------------------------------------------------------
+  protected readonly selecao = new SelecaoMultipla<Mapa>((mapa) => mapa.id);
+  protected readonly copiado = signal(false);
+
+  protected async copiarMensagem(): Promise<void> {
+    const selecionados = this.selecao.selecionados(this.listaOrdenada());
+    if (!selecionados.length) return;
+
+    const linhas = selecionados.map(
+      (mapa) => `• Nº ${this.numero(mapa)} — ${this.descricao(mapa)} — ${this.formatarMoeda(this.total(mapa))} — ${this.statusMapa(mapa)}`,
+    );
+    const totalGeral = selecionados.reduce((soma, mapa) => soma + this.total(mapa), 0);
+    const mensagem = [
+      `*Mapas (${selecionados.length})*`,
+      ...linhas,
+      '',
+      `Total: ${this.formatarMoeda(totalGeral)}`,
+    ].join('\n');
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) {
+      window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
+      return;
+    }
+    this.copiado.set(true);
+    setTimeout(() => this.copiado.set(false), 2000);
   }
 }

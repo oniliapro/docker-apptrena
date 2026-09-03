@@ -30,6 +30,7 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
+import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 
 type ColunaRecebimento =
   | 'obra'
@@ -355,5 +356,37 @@ export class Recebimentos implements OnInit {
       { ...recebimento, status: 'confirmado', dataRecebimento: new Date().toISOString() },
       recebimento.id,
     );
+  }
+
+  // ------------------------------------------------------------------
+  // Seleção múltipla + "Copiar mensagem" pro WhatsApp (02/09/2026, pedido
+  // do Lucas). Formato provisório — mesmo esquema de `Pagamentos`.
+  // ------------------------------------------------------------------
+  protected readonly selecao = new SelecaoMultipla<Recebimento>((recebimento) => recebimento.id);
+  protected readonly copiado = signal(false);
+
+  protected async copiarMensagem(): Promise<void> {
+    const selecionados = this.selecao.selecionados(this.listaExibida());
+    if (!selecionados.length) return;
+
+    const linhas = selecionados.map(
+      (recebimento) =>
+        `• Nº ${recebimento.numeroRecebimento || '—'} — ${recebimento.cliente || '—'} — ${this.formatarMoeda(recebimento.valorTotal)} — ${recebimento.status === 'pendente' ? 'Pendente' : 'Confirmado'}`,
+    );
+    const totalGeral = selecionados.reduce((soma, recebimento) => soma + recebimento.valorTotal, 0);
+    const mensagem = [
+      `*Recebimentos (${selecionados.length})*`,
+      ...linhas,
+      '',
+      `Total: ${this.formatarMoeda(totalGeral)}`,
+    ].join('\n');
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) {
+      window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
+      return;
+    }
+    this.copiado.set(true);
+    setTimeout(() => this.copiado.set(false), 2000);
   }
 }

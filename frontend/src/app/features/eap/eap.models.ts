@@ -103,6 +103,17 @@ export interface ItemEap {
    * grava o resultado de volta no item.
    */
   nivel: number;
+  /**
+   * Marca a linha como serviço ADICIONAL — fora do escopo original da
+   * EAP (03/09/2026, pedido do Lucas). Ao marcar/desmarcar um item, TODOS
+   * os descendentes (em qualquer nível, não só o filho direto) são
+   * marcados/desmarcados junto — ver `EapStore.alternarAdicional`, que
+   * usa `ehDescendente` pra propagar em cascata. Consumido hoje pela
+   * mensagem de solicitação de pagamento da Empreita, que separa
+   * "Serviços previstos" (`adicional === false`) de "Serviços não
+   * previstos" (`adicional === true`) na EAP.
+   */
+  adicional: boolean;
   /** Numeração hierárquica: "1", "1.1", "2.3"… gerada automaticamente a partir de `nivel`. */
   eap: string;
   desc: string;

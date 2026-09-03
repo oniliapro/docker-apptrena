@@ -1,8 +1,9 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
-import { Pagamento, StatusPagamento } from '../pagamentos/pagamentos.models';
+import { ItemSnapshotMedicao, MedicaoSnapshotEmpreita, Pagamento, StatusPagamento } from '../pagamentos/pagamentos.models';
 
 interface LinhaRelatorioPagamento {
   id: string;
@@ -14,6 +15,13 @@ interface LinhaRelatorioPagamento {
   reserva: number;
   total: number;
   saldoEmpreita: number;
+  /** `null` pra pagamentos gerados antes desta feature existir (sem snapshot gravado). */
+  snapshot: MedicaoSnapshotEmpreita | null;
+  /** Valor do CONTRATO no momento deste pagamento — do snapshot quando existe, senão cai pro atual. */
+  contratoTotalNoMomento: number;
+  /** "Medição %" — acumulado/atual ponderados por `contratoEmp`, `null` sem snapshot (mesma regra do "Físico" da lista de Empreitas). */
+  pctMedicaoAcumulado: number | null;
+  pctMedicaoAtual: number | null;
 }
 
 /**
@@ -51,8 +59,28 @@ export class EmpreitaRelatorioPagamentos {
   readonly pagamentos = input<Pagamento[]>([]);
   readonly contratoTotalEmpreita = input<number>(0);
 
+  /**
+   * Botão "Realizar medição" (03/09/2026, pedido do Lucas — nome trocado
+   * no mesmo dia; era "Realizar pagamento") — mostrado só quando o pai
+   * deixa (`empreita.html`, empreita confirmada); `false` por padrão pra
+   * não aparecer sozinho na versão de impressão
+   * (`empreita-imprimir.html`), que não passa esse input.
+   *
+   * Fica visível pra sempre (não some depois do primeiro clique, como
+   * antes) — quem controla se ele pode ser CLICADO agora é
+   * `medicaoHabilitada`, o par alternado com "Realizar pagamento" lá em
+   * `empreita.ts` (`podeRealizarMedicao`).
+   */
+  readonly mostrarBotaoMedicao = input<boolean>(false);
+  readonly medicaoHabilitada = input<boolean>(true);
+  readonly realizarMedicao = output<void>();
+
+  /** Itens ATUAIS da EAP (03/09/2026) — só pra rotular a etapa de cada serviço na popup de retrato. */
+  readonly itensEap = input<ItemEap[]>([]);
+
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
+  protected readonly tiposCusto = TIPOS_CUSTO;
 
   protected readonly linhas = computed<LinhaRelatorioPagamento[]>(() => {
     const contratoTotal = this.contratoTotalEmpreita();
@@ -73,6 +101,9 @@ export class EmpreitaRelatorioPagamentos {
       const total = empreiteiro + reserva;
       acumuladoPago += total;
 
+      const snapshot = pagamento.medicaoSnapshot ?? null;
+      const { acumulado: pctMedicaoAcumulado, atual: pctMedicaoAtual } = this.medicaoPonderada(snapshot);
+
       return {
         id: pagamento.id,
         numeroPagamento: pagamento.numeroPagamento,
@@ -83,9 +114,80 @@ export class EmpreitaRelatorioPagamentos {
         reserva,
         total,
         saldoEmpreita: contratoTotal - acumuladoPago,
+        snapshot,
+        // "Contrato" no momento deste pagamento (03/09/2026, pedido do
+        // Lucas: "uma empreita pode crescer ou diminuir ao longo do
+        // tempo") — do snapshot quando existe; pagamentos gerados antes
+        // desta feature caem pro total ATUAL, única referência possível.
+        contratoTotalNoMomento: snapshot ? snapshot.contratoTotalEmpreita : contratoTotal,
+        pctMedicaoAcumulado,
+        pctMedicaoAtual,
       };
     });
   });
+
+  /**
+   * "Medição %" — acumulado/atual ponderados por `contratoEmp`, mesma
+   * fórmula de "Físico" na lista de Empreitas (`empreitas-obra.ts`).
+   * `null` quando não há snapshot (pagamento antigo) ou nenhum item do
+   * snapshot tem contrato lançado.
+   */
+  private medicaoPonderada(
+    snapshot: MedicaoSnapshotEmpreita | null,
+  ): { acumulado: number | null; atual: number | null } {
+    if (!snapshot) return { acumulado: null, atual: null };
+
+    let somaPonderadaAcum = 0;
+    let somaPonderadaAtual = 0;
+    let somaContrato = 0;
+    for (const item of snapshot.itens) {
+      const contrato = item.contratoEmp || 0;
+      if (contrato <= 0) continue;
+      somaPonderadaAcum += item.medicaoAcum * contrato;
+      somaPonderadaAtual += item.medicaoAtual * contrato;
+      somaContrato += contrato;
+    }
+
+    return somaContrato > 0
+      ? { acumulado: somaPonderadaAcum / somaContrato, atual: somaPonderadaAtual / somaContrato }
+      : { acumulado: null, atual: null };
+  }
+
+  protected larguraBarra(pct: number): number {
+    return Math.min(100, Math.max(0, pct));
+  }
+
+  protected formatarPercentualBarra(pct: number): string {
+    return `${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  }
+
+  // ------------------------------------------------------------------
+  // Popup — "retrato" da empreita no momento do pagamento (03/09/2026)
+  // ------------------------------------------------------------------
+  protected readonly linhaDetalhada = signal<LinhaRelatorioPagamento | null>(null);
+
+  protected abrirDetalhe(linha: LinhaRelatorioPagamento): void {
+    if (!linha.snapshot) return;
+    this.linhaDetalhada.set(linha);
+  }
+
+  protected fecharDetalhe(): void {
+    this.linhaDetalhada.set(null);
+  }
+
+  protected rotuloTipo(chave: ChaveTipo | string): string {
+    return this.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? String(chave);
+  }
+
+  protected rotuloEtapaSnapshot(item: ItemSnapshotMedicao): string {
+    if (!item.eapId) return '—';
+    const itemEap = this.itensEap().find((i) => i.id === item.eapId);
+    if (!itemEap) return '—';
+    const eap = String(itemEap.eap ?? '').trim();
+    const desc = String(itemEap.desc ?? '').trim();
+    if (eap && desc) return `${eap} - ${desc}`;
+    return eap || desc || '—';
+  }
 
   protected readonly totalEmpreiteiro = computed(() => this.linhas().reduce((s, l) => s + l.empreiteiro, 0));
   protected readonly totalReserva = computed(() => this.linhas().reduce((s, l) => s + l.reserva, 0));

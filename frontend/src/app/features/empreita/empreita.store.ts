@@ -11,7 +11,7 @@ import {
   normalizarPagamento,
   paraPayloadApi,
 } from '../pagamentos/pagamentos-calc';
-import { ItemPagamento, Pagamento } from '../pagamentos/pagamentos.models';
+import { ItemPagamento, MedicaoSnapshotEmpreita, Pagamento } from '../pagamentos/pagamentos.models';
 import {
   calcularJaPagoPorLinha,
   calcularLinhaEmpreita,
@@ -41,6 +41,39 @@ const CHAVE_POR_ID: Record<number, ChaveTipo> = {
   4: 'outros',
   5: 'administracao',
 };
+
+/**
+ * Exportado (03/09/2026) pra `EmpreitasObra` também poder montar
+ * `ItemEmpreita[]` a partir da resposta bruta de `GET /empreitas/{id}` —
+ * ela precisa do detalhe completo (id do item, rascunho de pagamento) pra
+ * montar a mensagem de solicitação de pagamento de várias empreitas de
+ * uma vez, e a lista lightweight (`GET /empreitas/resumo`) não traz esses
+ * dois campos.
+ */
+export function normalizarItemEmpreita(bruto: Record<string, unknown>): ItemEmpreita {
+  const qtdeContratada = bruto['qtde_contratada'];
+  const emp = bruto['contrato_emp'];
+  const reserva = bruto['contrato_reserva'];
+  const medicaoAcum = bruto['medicao_acum'];
+  const medicaoAtual = bruto['medicao_atual'];
+  const pagamentoEmp = bruto['pagamento_emp'];
+  const pagamentoReserva = bruto['pagamento_reserva'];
+
+  return {
+    id: bruto['id'] ? String(bruto['id']) : gerarId(),
+    desc: String(bruto['descricao'] ?? ''),
+    eapId: bruto['eap_item_id'] ? String(bruto['eap_item_id']) : '',
+    tipo: CHAVE_POR_ID[Number(bruto['tipo_custo_id'])] ?? 'material',
+    qtdeContratada: qtdeContratada === null || qtdeContratada === undefined ? null : Number(qtdeContratada) || 0,
+    contratoEmp: Number(emp) || 0,
+    contratoReserva: Number(reserva) || 0,
+    medicaoAcum: Number(medicaoAcum) || 0,
+    medicaoAtual: medicaoAtual === null || medicaoAtual === undefined ? null : Number(medicaoAtual) || 0,
+    pagamentoEmp: pagamentoEmp === null || pagamentoEmp === undefined ? null : Number(pagamentoEmp) || 0,
+    pagamentoReserva:
+      pagamentoReserva === null || pagamentoReserva === undefined ? null : Number(pagamentoReserva) || 0,
+  };
+}
 
 /**
  * Estado da Empreita.
@@ -101,16 +134,34 @@ export class EmpreitaStore {
     data: '',
     isConfirmed: false,
     confirmedAt: '',
+    pagamentoIniciado: false,
+    pagamentoIniciadoAt: '',
+    medicaoHabilitada: true,
   });
 
   /**
    * Empreita confirmada — mesmo padrão da EAP (25/08/2026, pedido do
-   * Lucas): enquanto em edição, só Contrato e Quantidade contratada são
-   * lançados, e serviços podem ser adicionados; confirmando, esses campos
-   * travam e a medição/pagamento é liberada. Única saída do travamento é
-   * `alternarConfirmacao()` de novo (reabrir).
+   * Lucas): enquanto em edição, cabeçalho e serviços (desc/tipo/etapa/
+   * contrato/quantidade) ficam livres; confirmando, tudo isso trava.
+   * Única saída do travamento é `alternarConfirmacao()` de novo (reabrir).
    */
   readonly travada = computed(() => this.cabecalho().isConfirmed);
+
+  /**
+   * "Realizar pagamento" (03/09/2026, pedido do Lucas) — separado de
+   * `travada()`: confirmar só trava o contrato; é este passo à parte que
+   * libera a tabela de Medição/Já pago/Pagamento/Saldo após pagamento e
+   * os botões "Fechar período"/"Resetar". Só liga com a empreita
+   * confirmada (`iniciarPagamento()` abaixo) e reseta sozinho ao reabrir
+   * (`alternarConfirmacao()`).
+   */
+  readonly pagamentoIniciado = computed(() => this.cabecalho().pagamentoIniciado);
+
+  /**
+   * Qual dos 2 botões — "Realizar medição"/"Realizar pagamento" — está
+   * habilitado agora (03/09/2026) — ver `CabecalhoEmpreita.medicaoHabilitada`.
+   */
+  readonly medicaoHabilitada = computed(() => this.cabecalho().medicaoHabilitada);
 
   readonly itens = signal<ItemEmpreita[]>([]);
   readonly itensEap = signal<ItemEap[]>([]);
@@ -293,6 +344,12 @@ export class EmpreitaStore {
       data: String(empreita['medicao_date'] ?? '').slice(0, 10),
       isConfirmed: Boolean(empreita['is_confirmed']),
       confirmedAt: String(empreita['confirmed_at'] ?? ''),
+      pagamentoIniciado: Boolean(empreita['pagamento_iniciado']),
+      pagamentoIniciadoAt: String(empreita['pagamento_iniciado_at'] ?? ''),
+      // `!== false` (não `Boolean(...)`): ausente/undefined tem que virar
+      // `true` (o padrão), não `false` — mesma convenção de `ativo` nos
+      // cadastros.
+      medicaoHabilitada: empreita['medicao_habilitada'] !== false,
     });
 
     const itensBrutos = Array.isArray(empreita['itens'])
@@ -302,28 +359,7 @@ export class EmpreitaStore {
   }
 
   private normalizarItem(bruto: Record<string, unknown>): ItemEmpreita {
-    const qtdeContratada = bruto['qtde_contratada'];
-    const emp = bruto['contrato_emp'];
-    const reserva = bruto['contrato_reserva'];
-    const medicaoAcum = bruto['medicao_acum'];
-    const medicaoAtual = bruto['medicao_atual'];
-    const pagamentoEmp = bruto['pagamento_emp'];
-    const pagamentoReserva = bruto['pagamento_reserva'];
-
-    return {
-      id: bruto['id'] ? String(bruto['id']) : gerarId(),
-      desc: String(bruto['descricao'] ?? ''),
-      eapId: bruto['eap_item_id'] ? String(bruto['eap_item_id']) : '',
-      tipo: CHAVE_POR_ID[Number(bruto['tipo_custo_id'])] ?? 'material',
-      qtdeContratada: qtdeContratada === null || qtdeContratada === undefined ? null : Number(qtdeContratada) || 0,
-      contratoEmp: Number(emp) || 0,
-      contratoReserva: Number(reserva) || 0,
-      medicaoAcum: Number(medicaoAcum) || 0,
-      medicaoAtual: medicaoAtual === null || medicaoAtual === undefined ? null : Number(medicaoAtual) || 0,
-      pagamentoEmp: pagamentoEmp === null || pagamentoEmp === undefined ? null : Number(pagamentoEmp) || 0,
-      pagamentoReserva:
-        pagamentoReserva === null || pagamentoReserva === undefined ? null : Number(pagamentoReserva) || 0,
-    };
+    return normalizarItemEmpreita(bruto);
   }
 
   salvar(): void {
@@ -353,6 +389,9 @@ export class EmpreitaStore {
       medicao_date: cabecalho.data || null,
       is_confirmed: cabecalho.isConfirmed,
       confirmed_at: cabecalho.confirmedAt || null,
+      pagamento_iniciado: cabecalho.pagamentoIniciado,
+      pagamento_iniciado_at: cabecalho.pagamentoIniciadoAt || null,
+      medicao_habilitada: cabecalho.medicaoHabilitada,
       itens: this.itens().map((item) => ({
         id: item.id,
         desc: item.desc,
@@ -377,20 +416,29 @@ export class EmpreitaStore {
   }
 
   // ------------------------------------------------------------------
+  /**
+   * Descrição/Empreiteiro/Data — trava na confirmação (03/09/2026,
+   * pedido do Lucas). `numeroEmpreita`/`obraNumber` não passam mais por
+   * aqui (viraram somente leitura na tela, gerados pelo backend na
+   * criação — ver `EmpreitaController::syncCompleto`), então travar os 3
+   * campos que sobraram cobre o cabeçalho inteiro.
+   */
   atualizarCabecalho<K extends keyof CabecalhoEmpreita>(
     campo: K,
     valor: CabecalhoEmpreita[K],
   ): void {
+    if (this.travada()) return;
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
   }
 
   /**
    * Confirma a empreita (ou reabre) — mesmo padrão da EAP
-   * (`EapStore.alternarConfirmacao`). Confirmar trava Contrato/Qtde.
-   * contratada e bloqueia adicionar serviço; libera Medição de contrato/
-   * Já pago/Pagamento/Saldo após pagamento (escondidos enquanto em
-   * edição — ver `empreita.html`).
+   * (`EapStore.alternarConfirmacao`). Confirmar trava cabeçalho/serviços/
+   * Contrato/Qtde. contratada e bloqueia adicionar serviço. Reabrir
+   * (03/09/2026, pedido do Lucas) também zera `pagamentoIniciado` — a
+   * tela de Medição/Já pago/Pagamento/Saldo após pagamento só volta a
+   * aparecer depois de confirmar de novo E clicar "Realizar pagamento".
    */
   alternarConfirmacao(): void {
     const confirmando = !this.cabecalho().isConfirmed;
@@ -398,6 +446,38 @@ export class EmpreitaStore {
       ...c,
       isConfirmed: confirmando,
       confirmedAt: confirmando ? new Date().toISOString() : '',
+      ...(confirmando
+        ? null
+        : { pagamentoIniciado: false, pagamentoIniciadoAt: '', medicaoHabilitada: true }),
+    }));
+    this.salvar();
+  }
+
+  /**
+   * Alterna qual dos 2 botões — "Realizar medição"/"Realizar pagamento"
+   * — está habilitado (03/09/2026, pedido do Lucas: "pode fazer
+   * persistir"). `empreita.ts` chama isso nos dois cliques (valor `false`
+   * ao clicar "Realizar medição", `true` de volta quando "Realizar
+   * pagamento" termina com sucesso).
+   */
+  definirMedicaoHabilitada(valor: boolean): void {
+    this.cabecalho.update((c) => ({ ...c, medicaoHabilitada: valor }));
+    this.salvar();
+  }
+
+  /**
+   * "Realizar pagamento" (03/09/2026, pedido do Lucas) — só liga com a
+   * empreita confirmada; troca o layout da tabela pra Medição/Já pago/
+   * Pagamento/Saldo após pagamento e libera "Fechar período"/"Resetar".
+   * Sem "voltar atrás" própria: a única forma de desligar é reabrir a
+   * empreita (`alternarConfirmacao`), que já reseta este campo junto.
+   */
+  iniciarPagamento(): void {
+    if (!this.travada() || this.pagamentoIniciado()) return;
+    this.cabecalho.update((c) => ({
+      ...c,
+      pagamentoIniciado: true,
+      pagamentoIniciadoAt: new Date().toISOString(),
     }));
     this.salvar();
   }
@@ -423,7 +503,9 @@ export class EmpreitaStore {
     this.salvar();
   }
 
+  /** Desc/Tipo/Etapa(EAP) do serviço — trava na confirmação (03/09/2026, pedido do Lucas). */
   atualizarItem(id: string, alteracao: Partial<ItemEmpreita>): void {
+    if (this.travada()) return;
     this.itens.update((lista) => lista.map((i) => (i.id === id ? { ...i, ...alteracao } : i)));
     this.salvar();
   }
@@ -460,6 +542,7 @@ export class EmpreitaStore {
   }
 
   removerItem(id: string): void {
+    if (this.travada()) return;
     this.itens.update((lista) => lista.filter((i) => i.id !== id));
     this.salvar();
   }
@@ -476,7 +559,14 @@ export class EmpreitaStore {
    * Se a gravação do pagamento falhar, o período NÃO avança — evita
    * perder o avanço medido sem deixar rastro do pagamento correspondente.
    */
-  fecharPeriodo(): void {
+  /**
+   * `onSucesso` (03/09/2026, pedido do Lucas) — chamado só quando o
+   * período REALMENTE avança (`avancarPeriodo()` roda), nunca nos casos
+   * de erro. `empreita.ts` usa isso pra virar de volta o par de botões
+   * "Realizar medição"/"Realizar pagamento" pro estado inicial, pronto
+   * pro próximo ciclo.
+   */
+  fecharPeriodo(onSucesso?: () => void): void {
     if (!this.empreitaId || !this.obraIdAtual) return;
 
     const obraId = this.obraIdAtual;
@@ -491,6 +581,7 @@ export class EmpreitaStore {
         if (!novo) {
           this.gerandoPagamento.set(false);
           this.avancarPeriodo();
+          onSucesso?.();
           return;
         }
 
@@ -502,6 +593,7 @@ export class EmpreitaStore {
             );
             this.carregarPagamentos(obraId, this.empreitaId);
             this.avancarPeriodo();
+            onSucesso?.();
           },
           error: () => {
             this.gerandoPagamento.set(false);
@@ -618,6 +710,35 @@ export class EmpreitaStore {
       itens: itensPagamento,
       origem: { tipo: 'empreita', refId: this.empreitaId },
       status: 'pendente',
+      medicaoSnapshot: this.montarMedicaoSnapshot(itens),
+    };
+  }
+
+  /**
+   * "Guardar as medições" (03/09/2026, pedido do Lucas) — retrato de
+   * TODOS os serviços da empreita (não só os com avanço a pagar neste
+   * ciclo) no exato momento em que "Fechar período" gera o pagamento,
+   * antes de `avancarPeriodo()` zerar os rascunhos. `contratoTotalEmpreita`
+   * é gravado à parte porque o contrato pode crescer/diminuir depois
+   * deste pagamento — a popup de retrato precisa mostrar o total de
+   * ENTÃO, não o de agora.
+   */
+  private montarMedicaoSnapshot(itens: ItemEmpreita[]): MedicaoSnapshotEmpreita {
+    return {
+      contratoTotalEmpreita: this.totais().valorTotal,
+      itens: itens.map((item) => ({
+        empreitaItemId: item.id,
+        desc: item.desc,
+        tipo: item.tipo,
+        eapId: item.eapId || '',
+        medicaoAcum: Number(item.medicaoAcum) || 0,
+        medicaoAtual:
+          item.medicaoAtual === null || item.medicaoAtual === undefined
+            ? Number(item.medicaoAcum) || 0
+            : Number(item.medicaoAtual),
+        contratoEmp: Number(item.contratoEmp) || 0,
+        contratoReserva: Number(item.contratoReserva) || 0,
+      })),
     };
   }
 }

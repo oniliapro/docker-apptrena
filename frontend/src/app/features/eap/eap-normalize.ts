@@ -230,6 +230,7 @@ export function normalizarItemEap(bruto: Record<string, unknown> | null | undefi
     id: raw['id'] ? String(raw['id']) : gerarId(),
     isGroup: Boolean(raw['isGroup']),
     nivel,
+    adicional: Boolean(raw['adicional']),
     eap: String(raw['eap'] ?? ''),
     desc: String(raw['desc'] ?? ''),
     qtde,

@@ -247,6 +247,7 @@ export async function analisarPlanilha(dados: ArrayBuffer): Promise<ResultadoImp
       id: gerarId(),
       isGroup: false,
       nivel: nivelBruto,
+      adicional: false,
       eap: '',
       desc,
       qtde,

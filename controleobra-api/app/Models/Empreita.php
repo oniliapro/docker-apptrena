@@ -19,6 +19,7 @@ class Empreita extends Model
         'id', 'empresa_id', 'obra_id', 'obra_number', 'numero_empreita', 'empreiteiro',
         'descricao_empreita', 'medicao_date', 'competencia', 'obs', 'total_empreita',
         'total_pago', 'atualizado_em', 'is_confirmed', 'confirmed_at',
+        'pagamento_iniciado', 'pagamento_iniciado_at', 'medicao_habilitada',
     ];
 
     protected $casts = [
@@ -28,6 +29,9 @@ class Empreita extends Model
         'total_pago' => 'float',
         'is_confirmed' => 'boolean',
         'confirmed_at' => 'datetime',
+        'medicao_habilitada' => 'boolean',
+        'pagamento_iniciado' => 'boolean',
+        'pagamento_iniciado_at' => 'datetime',
     ];
 
     public function obra(): BelongsTo

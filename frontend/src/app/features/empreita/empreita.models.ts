@@ -63,12 +63,31 @@ export interface CabecalhoEmpreita {
   /**
    * Confirmada/em edição (25/08/2026, pedido do Lucas) — mesmo padrão já
    * usado na EAP (`CabecalhoObra.isConfirmed`/`confirmedAt`). Em edição,
-   * só Contrato e Quantidade contratada são lançados (e serviços podem
-   * ser adicionados); confirmando, esses campos travam e a
-   * medição/pagamento é liberada.
+   * cabeçalho e serviços (desc/tipo/etapa/contrato/quantidade) ficam
+   * livres; confirmando, tudo isso trava.
+   *
+   * 03/09/2026, pedido do Lucas: confirmar NÃO libera mais a tela de
+   * Medição/Pagamento sozinho — isso agora é `pagamentoIniciado`, um
+   * passo à parte (botão "Realizar pagamento", dentro de "Pagamentos
+   * registrados"), que só pode ser ligado depois de confirmada. Reabrir
+   * a empreita (`isConfirmed` volta a `false`) também reseta
+   * `pagamentoIniciado` pra `false`.
    */
   isConfirmed: boolean;
   confirmedAt: string;
+  pagamentoIniciado: boolean;
+  pagamentoIniciadoAt: string;
+  /**
+   * Qual dos 2 botões — "Realizar medição"/"Realizar pagamento" — está
+   * habilitado agora (03/09/2026, pedido do Lucas: "pode fazer
+   * persistir" — antes era um sinal só de tela, que se perdia ao
+   * recarregar). `true` = "Realizar medição" habilitado (padrão);
+   * `false` = "Realizar pagamento" habilitado. Alterna a cada clique num
+   * dos dois — independente de `pagamentoIniciado`, que não muda com
+   * isso (uma vez revelada, a tabela de Medição/Pagamento continua
+   * revelada pra sempre, mesmo alternando este campo).
+   */
+  medicaoHabilitada: boolean;
 }
 
 /**

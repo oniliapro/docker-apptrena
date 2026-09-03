@@ -85,6 +85,264 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (03/09/2026): "Realizar medição"/"Realizar pagamento" agora
+  persiste, e "Pagamentos registrados" ganhou largura fixa.** 2 pedidos
+  do Lucas depois da rodada de correções acima:
+  1. **Persistência do par de botões** — o que antes era um sinal só de
+     tela (`signal` local, se perdia ao recarregar) virou um campo
+     de verdade: `medicao_habilitada` (migration nova em `empreitas`,
+     default `true`) — `CabecalhoEmpreita.medicaoHabilitada`,
+     `EmpreitaStore.medicaoHabilitada`/`definirMedicaoHabilitada()`.
+     Clicar "Realizar medição" grava `false`; "Realizar pagamento"
+     terminar com sucesso grava `true` de volta (`EmpreitaStore.
+     fecharPeriodo()` ganhou um parâmetro `onSucesso?: () => void`,
+     chamado só quando o período REALMENTE avança, nunca em erro).
+     Reabrir a empreita também reseta pra `true` (mesmo padrão de
+     `pagamentoIniciado`). Testado via API numa empresa descartável —
+     grava, sobrevive a um GET novo, e reseta ao reabrir.
+  2. **"Pagamentos registrados" com largura fixa** — essa tabela nunca
+     teve `trenaRedimensionarColunas` (conferido no histórico do git);
+     o problema era só `width: 100%` dentro da coluna `1fr` de
+     `.grade-inferior` (que ficou bem larga depois que "Contrato x
+     orçado" foi removido de do lado dela), esticando a tabela por
+     nada. Trocado por um `<colgroup>` com largura fixa por tipo de
+     dado (Nº 100px, datas 90px cada, Medição% 130px, Valor pago
+     240px — o mais largo, por causa dos pares "Rótulo: R$ 000.000,00"
+     empilhados) + `table-layout: fixed` + `margin-left: auto` (sem
+     `width: 100%` a tabela agora tem largura própria e encosta na
+     borda direita, em vez de esticar).
+  **Pedido maior, ainda em aberto**: "dê uma olhada geral no sistema" no
+  redimensionamento de colunas (`RedimensionarColunas`, `shared/
+  redimensionar-colunas/`) — comportamento inconsistente entre tabelas
+  (mínimo ora maior, ora menor, texto estourando às vezes). Investiguei:
+  a diretiva trava a largura MÍNIMA de cada coluna na largura que ela
+  tinha no exato instante em que a tabela montou (`getBoundingClientRect()`
+  do `<td>` da 1ª linha) — se o container estava apertado naquele
+  momento (menos espaço disponível, menos itens carregados ainda, etc.),
+  o mínimo trava baixo demais, e conteúdo mais largo que chega DEPOIS
+  (mais linhas, texto mais longo) não tem como esticar a coluna de volta
+  (`table-layout: fixed` não deixa). Um jeito robusto de medir a
+  largura "de verdade" que o conteúdo precisa (sem depender do
+  container do momento) não é trivial de fazer com segurança sem testar
+  visualmente em cada tela que usa a diretiva (são muitas, e não tenho
+  como enxergar o resultado sem navegador de verdade aqui) — corrigir a
+  diretiva às cegas arrisca quebrar tabelas que hoje funcionam bem.
+  **Registrado aqui pra retomar**: se o Lucas apontar 2-3 telas
+  específicas onde o comportamento está pior, dá pra corrigir cada uma
+  de forma concreta e conferível; uma reescrita geral da diretiva é um
+  projeto maior, que valeria a pena combinar à parte.
+- **Feito (03/09/2026): correções no lote de 17 pedidos, depois que o
+  Lucas testou de verdade.** 5 ajustes no que tinha acabado de ser
+  entregue:
+  1. **Bug real**: o input de "Qtde. contrat." dentro do bloco
+     "Quantidades" (visível antes de "Realizar medição") não tinha
+     `[disabled]` nenhum — travava no STORE (a gravação era rejeitada
+     silenciosamente), mas a tela deixava digitar. Corrigido.
+  2. A tabela "Contrato x orçado" tinha sido removida, mas
+     "Pagamentos registrados" continuava fixado explicitamente na
+     célula onde sempre ficou (`grid-column: 2; grid-row: 2`), deixando
+     um buraco em branco no lugar da tabela removida. Removida a
+     posição fixa — com só 2 painéis agora, o auto-placement da grade já
+     bota "Pagamentos registrados" do lado de "Medição deste período".
+  3. **Bug real**: o botão que fecha o período (então "Fechar período")
+     só habilitava com `totais().totalPeriodo > 0` — uma fórmula que só
+     considera o AVANÇO medido, ignorando um valor lançado manualmente
+     no rascunho de Pagamento sem nenhuma medição. Trocado pra
+     `totaisEstendidos().pagamentoDraftTotal`, que já é exatamente o
+     "Valor a ser pago" mostrado na tela (leva em conta sobrescritas
+     manuais) — confirmado com um script que o bug era real (fórmula
+     antiga dava 0, a nova dava o valor certo).
+  4. Renomeado: o botão que revela Medição/Já pago/Pagamento/Saldo
+     (antes "Realizar pagamento") virou **"Realizar medição"**; o que
+     fecha o período e gera o pagamento (antes "Fechar período") virou
+     **"Realizar pagamento"**.
+  5. Os dois botões agora se alternam a cada clique — clicar em um
+     desabilita ele e habilita o outro, começando com "Realizar medição"
+     habilitado. **Importante**: esse par de habilitado/desabilitado é
+     um sinal NOVO, só de tela (`podeRealizarMedicao` em `empreita.ts`),
+     separado de `pagamentoIniciado` (que continua controlando pra
+     sempre se a tabela mostra Quantidades ou Medição/Pagamento — isso
+     não muda, uma vez revelada continua revelada). Decisão minha: esse
+     par não é salvo no banco — recarregar a página sempre volta pro
+     estado padrão ("Realizar medição" habilitado), mesmo se a empreita
+     já estiver no meio de um ciclo. Avisar se precisar que isso
+     persista entre sessões (exigiria mais um campo no banco).
+- **Feito (03/09/2026): lote de 17 pedidos — Lista de Empreitas, EAP
+  "Adicionais" e redesign da Empreita.** Planejado com `EnterPlanMode`
+  (3 agentes Explore em paralelo pesquisando Lista de Empreitas/EAP/
+  Empreita antes de implementar) — plano salvo em
+  `C:\Users\Lucas\.claude\plans\crispy-nibbling-allen.md`. 5 fases,
+  cada uma verificada (tsc/build, e as de backend também testadas
+  ponta a ponta numa empresa descartável) antes da próxima:
+  - **Fase A — Lista de Empreitas** (`empreitas-obra.ts`/`.html`):
+    trocou Descrição↔Empreiteiro de posição; "% Medida" (só texto) virou
+    2 barras duplas empilhadas — "Físico" (medição física, mesma lógica
+    visual acumulado/avanço da Medição de obra) e "Financeiro" (% do
+    Contrato já pago vs. solicitado-mas-não-pago, verde/laranja);
+    "Última solicitação" virou 2 colunas ("Valor da última solicitação"/
+    "Data da última solicitação", do MESMO pagamento); checkbox
+    "Detalhar" no cabeçalho da lista empilha Empreiteiro/Reserva nas
+    colunas Total/Pago/Valor-última-solicitação e também no popup de
+    pagamentos da empreita.
+  - **Fase B — EAP "Adicionais"**: nova coluna checkbox entre "Nível" e
+    "EAP" — marcar um item propaga em cascata pra TODOS os descendentes
+    em qualquer profundidade (`EapStore.alternarAdicional`, usando
+    `ehDescendente` já existente), sem afetar irmãos/outros ramos.
+    Migration nova em `eap_itens` (`adicional` boolean). Verificado com
+    script à parte simulando vários níveis.
+  - **Fase C — Empreita: criação/cabeçalho/travas**: numeração
+    `OBR-{map_number}-EMP-{sequencial por obra}` gerada no BACKEND
+    (`EmpreitaController::syncCompleto`) na criação, campo travado pra
+    sempre na tela (não edita nem no update, mesmo tentando via API
+    direto — testado); "Nº da obra" idem, sempre = `Obra.map_number`;
+    Empreiteiro virou `<select>` só com ativos do cadastro (era texto
+    livre); "Data" nasce com hoje, mas continua editável depois; a
+    confirmação agora TRAVA o cabeçalho inteiro (Descrição/Empreiteiro/
+    Data) e a edição de serviços (desc/tipo/etapa, além de
+    Contrato/Quantidade que já travavam) — antes desc/tipo/etapa
+    ficavam editáveis mesmo confirmada, mesmo devendo travar; valores de
+    Já pago/Pagamento/Saldo após pagamento agora sempre formatam (mesmo
+    R$0,00) em vez de sumir quando não há medição; removida a tabela
+    "Contrato x orçado" da tela.
+  - **Fase D — "Realizar pagamento"** (a maior peça): separa "confirmar"
+    (trava cabeçalho/contrato) de "liberar Medição/Já pago/Pagamento/
+    Saldo após pagamento", que agora é um passo À PARTE — um botão
+    "Realizar pagamento" dentro de "Pagamentos registrados", que só
+    aparece confirmada e ainda não iniciada. Novo campo persistido
+    `pagamentoIniciado`/`pagamentoIniciadoAt` (migration em `empreitas`,
+    mesmo padrão de `isConfirmed`/`confirmedAt`) — reabrir a empreita
+    também reseta esse campo (volta ao estado inicial completo).
+    "Pagamentos registrados" passa a guardar um RETRATO da medição da
+    empreita inteira no momento da geração (`medicao_snapshot`, JSON
+    novo em `pagamentos`, só populado pra origem Empreita) — inclui o
+    Contrato total DAQUELE momento (pode ter mudado desde então) e
+    `medicaoAcum`/`medicaoAtual`/`contratoEmp`/`contratoReserva` por
+    serviço. A tabela ganhou coluna "Medição %" (mesma barra dupla) e
+    corrigiu a coluna "Contrato" (antes sempre mostrava o total ATUAL
+    pra qualquer linha histórica — agora mostra o valor de então); clicar
+    numa linha com snapshot abre popup com o retrato completo dos
+    serviços. Verificado via API numa empresa descartável (round-trip do
+    JSON do snapshot, toggle de `pagamento_iniciado`). "Medição deste
+    período" ganhou uma 4ª linha "% avanço" (ponderado por `contratoEmp`,
+    mesma fórmula do "Físico").
+  - **Fase E — mensagem da Empreita**: a lista de serviços da mensagem
+    de "Copiar solicitação" (feita numa rodada anterior) agora separa
+    "SERVIÇOS PREVISTOS NA EAP" (`adicional === false`) de "SERVIÇOS NÃO
+    PREVISTOS NA EAP" (`adicional === true`, e qualquer serviço sem
+    etapa vinculada) — previstos sempre primeiro, cada seção só aparece
+    se tiver ao menos 1 bullet.
+- **Feito (02/09/2026): ajustes finos de Mapa + seleção múltipla pra
+  WhatsApp.** Pedido de 4 partes, na sequência do lote de 11 itens acima:
+  (1) exportação Excel do Mapa — Frete, Desconto e Markup agora aparecem
+  como se fossem itens na aba "Itens" (Frete/Desconto pelo valor REAL, já
+  com o markup do fornecedor embutido, pra fechar com o total da nota;
+  Markup só como percentual, já que o valor dos itens já reflete ele); aba
+  nova "Rateio por etapa" (mantendo "Resumo por fornecedor" como já
+  estava). (2) O total da lista de Mapas — a fórmula já tinha sido
+  corrigida na rodada anterior (confirmado de novo, bate com a soma real);
+  o valor errado que o Lucas ainda via em produção é porque `total_mapa`
+  só é recalculado quando o mapa é salvo — mapas antigos ficaram com o
+  valor velho gravado. Corrigido com um "autocorreção ao abrir": toda vez
+  que um mapa é carregado, o sistema recalcula e resalva sozinho se o
+  valor gravado divergir do calculado (`MapaStore.carregarSeDivergente`)
+  — **cada mapa afetado só corrige na lista depois de ser aberto uma vez**
+  (não há acesso ao banco de produção pra corrigir em lote). (3) Precisão
+  de 6 casas decimais no Mapa — a causa raiz era a coluna
+  `mapa_item_precos.valor_unitario`, que era `decimal(14,2)` e truncava
+  qualquer conta mais precisa antes mesmo de chegar no frontend (o cálculo
+  em si já estava certo); migration nova ampliou pra `decimal(14,6)`, e o
+  input de preço unitário no Mapa agora mostra 2 casas normalmente mas
+  revela a precisão completa enquanto o usuário está editando aquela
+  célula (foco/blur). (4) Seleção múltipla por checkbox nas listas de
+  Mapas, Empreitas, Pagamentos (obra e geral) e Recebimentos (obra e
+  geral), com botão "Copiar mensagem" que monta um texto e copia pra área
+  de transferência (`SelecaoMultipla<T>` + `copiarParaAreaDeTransferencia`
+  novos em `shared/selecao-lista/`) — **o texto da mensagem hoje é um
+  placeholder meu** (uma linha por item + total), porque o Lucas disse que
+  tem um padrão próprio de mensagem e vai mandar depois; quando mandar,
+  é só trocar o corpo de `copiarMensagem()` em cada uma das 6 telas, a
+  infraestrutura de seleção não muda.
+- **Feito (02-03/09/2026): "Copiar mensagem" de solicitação de pagamento
+  de Empreitas, no formato real que o Lucas usa.** Passou por 3 versões
+  até ficar como ele queria: a 1ª (mandou a fórmula do Google Planilhas
+  que usa pra isso) gerava um bloco por SERVIÇO selecionado dentro de uma
+  empreita — o Lucas mandou exemplos reais de mensagens dele e avisou que
+  "não ficou legal"; a 2ª corrigiu o formato do bloco (ficou fiel aos
+  exemplos) mas ainda vivia dentro da tela de CADA empreita; a 3ª (a que
+  ficou) moveu tudo pra **lista de Empreitas** (`empreitas-obra.ts`/
+  `.html`), por pedido explícito dele — "quero que aconteça de fato
+  apenas na lista de empreita" — porque os exemplos mostravam 3
+  solicitações simultâneas pra 3 EMPREITEIROS DIFERENTES (3 empreitas
+  diferentes), coisa que a versão "dentro de uma empreita" não conseguia
+  fazer de jeito nenhum. A versão anterior (dentro da empreita) foi
+  removida por completo — `empreita.ts`/`.html` voltaram exatamente ao
+  que eram antes desse recurso.
+  Como funciona agora: seleciona várias empreitas na lista (checkbox por
+  linha, já existia da rodada anterior) e clica em "Copiar solicitação"
+  — pra cada empreita selecionada, busca o detalhe cheio
+  (`GET /empreitas/{id}`, tem o id de cada serviço que o resumo leve da
+  lista não tem) e roda a MESMA engine de cálculo da tela da empreita
+  (`calcularOrcadoDaEap`/`calcularJaPagoPorLinha`/
+  `calcularLinhaEmpreitaEstendida`, reaproveitadas puras — nada
+  duplicado); cada empreita vira um bloco de solicitação, todos juntos
+  numa mensagem separados por travessão — bate com o exemplo de 3
+  solicitações simultâneas. Segundo botão "Copiar resumo" gera a segunda
+  mensagem (beneficiado + valor + PIX por empreita, formatado com crase).
+  Confirmado com o Lucas: "VALOR JÁ PAGO"/"VALOR A SER PAGO" somam
+  Empreiteiro + Reserva; a Chave PIX é escolhida na hora (por empreita,
+  já que cada uma pode ter um empreiteiro diferente) quando ele tem mais
+  de uma cadastrada — lido do cadastro de Empreiteiros, ainda na ponte
+  chave-valor (`CHAVE_EMPREITEIROS`/`normalizarEmpreiteiro`, exportados
+  de `empreiteiros.ts`).
+  **Dois ajustes feitos depois do Lucas testar de verdade (03/09/2026):**
+  (1) "quero que apareça tudo" — os bullets de "SERVIÇOS PREVISTOS NA
+  EAP" agora mostram TODOS os serviços contratados da empreita, não só
+  os com algo pendente pra pagar neste período (só o Orçado/Empreita/Já
+  pago somam todos; o A pagar continua vindo só do que está pendente).
+  (2) **Bug real do fluxo dele**: "VALOR A SER PAGO" vinha do rascunho
+  AO VIVO da empreita (`pagamentoDraftTotal`), mas `EmpreitaStore.
+  fecharPeriodo()` ZERA esse rascunho assim que cria o pagamento
+  pendente (o rascunho passa a representar o PRÓXIMO período, ainda sem
+  medição) — na prática, ler dali sempre dava "Nenhuma das empreitas
+  selecionadas tem valor a pagar" bem no momento em que o fluxo real do
+  Lucas mais precisa gerar a mensagem (medir → Fechar período → gerar
+  mensagem → mandar pro cliente → aguardar → confirmar o pagamento à
+  mão). Corrigido: "VALOR A SER PAGO"/"SALDO APÓS PAGAMENTO" agora vêm
+  da SOMA DOS PAGAMENTOS PENDENTES já gerados por "Fechar período"
+  (`status: 'pendente'`, ainda não confirmados) — uma empreita sem
+  nenhum pagamento pendente fica de fora da mensagem (nada a cobrar
+  agora); "VALOR JÁ PAGO"/"PAGAMENTOS PARCIAIS" continuam vindo só dos
+  CONFIRMADOS, então os dois números nunca se sobrepõem. Verificado com
+  2 scripts à parte (deletados depois): um reproduzindo o exemplo do
+  Wandeson (Orçado 15.000, Empreita 13.000, Já pago 8.500, A pagar 2.500,
+  Saldo 2.000 — todos batem) e outro reproduzindo o bug relatado
+  (confirmando `pagamentoDraftTotal = 0` logo após fechar período, e a
+  soma do pendente = 2.500 pela lógica corrigida).
+  **Ignorado por pedido do Lucas (03/09/2026):** a fórmula diferente de
+  empreita "Administração" (Valor gasto na obra × percentual, em vez de
+  Orçado/Contrato normais) — ele mesmo ajusta essa parte manualmente na
+  mensagem antes de mandar no WhatsApp, já que só acontece numa empreita
+  por obra. Toda empreita usa a mesma fórmula (Orçado/Contrato) por
+  enquanto.
+  **Mais 3 ajustes (03/09/2026, depois de testar de novo):** (1) o
+  cabeçalho `*RESUMO DE PAGAMENTOS*` tinha ficado de fora da "segunda
+  mensagem" quando o recurso migrou pra lista — devolvido, com uma linha
+  em branco antes do 1º pagamento. (2) Cada ETAPA da EAP agora aparece
+  **uma única vez** nos bullets de "SERVIÇOS PREVISTOS NA EAP", mesmo
+  quando a empreita tem mais de um serviço na mesma etapa em categorias
+  diferentes (ex.: um serviço de Material e outro de Mão de obra, ambos
+  na etapa 19) — antes cada SERVIÇO virava um bullet, duplicando a etapa.
+  (3) Cada bullet ganhou as categorias de custo presentes naquela etapa,
+  abreviadas (MAT/MO/EQUIP/OUTR/ADM), com o valor sendo a soma do orçado
+  só dessas categorias — contada uma vez por categoria mesmo que dois
+  serviços apontem pra etapa+categoria iguais (é o orçado de referência
+  da própria EAP, não some por serviço). Formato final do bullet:
+  `{código EAP} - {ETAPA} (ABREV, ABREV) - R$ {soma}`, ENTRE CRASES
+  (esqueceu delas no exemplo anterior, corrigido logo em seguida no mesmo
+  dia). Verificado com um script à parte (deletado depois) reproduzindo o
+  exemplo exato que o Lucas mandou (etapas "1.2 - CUSTO FIXO ENGENHARIA
+  (MO)" e "19 - LIMPEZA E CONSERVAÇÃO DE OBRA (MAT, MO)") — bateu
+  certinho, incluindo o total de R$ 28.828,16.
 - **Feito (01-02/09/2026): lote de 11 pedidos — bugs de Mapa/datas +
   módulo Recebimentos.** Numa sessão só: (1) corrigido o total errado na
   lista de Mapas (fórmula própria desatualizada dobrava o frete

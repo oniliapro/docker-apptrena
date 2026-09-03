@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Empreita;
 use App\Models\EmpreitaItem;
+use App\Models\Obra;
 use App\Models\TipoCusto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,14 +128,42 @@ class EmpreitaController extends Controller
             'obs' => 'nullable|string',
             'is_confirmed' => 'nullable|boolean',
             'confirmed_at' => 'nullable|date',
+            'pagamento_iniciado' => 'nullable|boolean',
+            'pagamento_iniciado_at' => 'nullable|date',
+            'medicao_habilitada' => 'nullable|boolean',
             'itens' => 'nullable|array',
         ]);
 
         DB::transaction(function () use ($data, $empreita) {
+            // 03/09/2026, pedido do Lucas: numeração e nº da obra deixam de
+            // ser digitados à mão — `obra_number` sempre reflete
+            // `Obra.map_number` (mesmo padrão de Mapa/Pagamentos/
+            // Recebimentos) e `numero_empreita` vira `OBR-{map_number}-
+            // EMP-{sequencial por obra}`, os dois travados pra sempre (o
+            // que vier de `$data` pra esses 2 campos é ignorado). Só
+            // calculados na CRIAÇÃO — numa atualização, os valores já
+            // gravados na empreita são preservados como estão.
+            $souCriacao = !$empreita->exists;
+            $obraId = $data['obra_id'] ?? $empreita->obra_id;
+
+            if ($souCriacao) {
+                $obra = $obraId ? Obra::find($obraId) : null;
+                $codigoObra = $obra ? trim((string) $obra->map_number) : '';
+                if ($codigoObra === '') $codigoObra = 'SN';
+
+                $sequencial = Empreita::where('obra_id', $obraId)->count() + 1;
+
+                $obraNumber = $codigoObra;
+                $numeroEmpreita = sprintf('OBR-%s-EMP-%03d', $codigoObra, $sequencial);
+            } else {
+                $obraNumber = $empreita->obra_number;
+                $numeroEmpreita = $empreita->numero_empreita;
+            }
+
             $empreita->fill([
-                'obra_id' => $data['obra_id'] ?? $empreita->obra_id,
-                'obra_number' => $data['obra_number'] ?? '',
-                'numero_empreita' => $data['numero_empreita'] ?? '',
+                'obra_id' => $obraId,
+                'obra_number' => $obraNumber,
+                'numero_empreita' => $numeroEmpreita,
                 'empreiteiro' => $data['empreiteiro'] ?? '',
                 'descricao_empreita' => $data['descricao_empreita'] ?? '',
                 'medicao_date' => $data['medicao_date'] ?? null,
@@ -142,6 +171,9 @@ class EmpreitaController extends Controller
                 'obs' => $data['obs'] ?? '',
                 'is_confirmed' => $data['is_confirmed'] ?? false,
                 'confirmed_at' => ($data['confirmed_at'] ?? null) ?: null,
+                'pagamento_iniciado' => $data['pagamento_iniciado'] ?? false,
+                'pagamento_iniciado_at' => ($data['pagamento_iniciado_at'] ?? null) ?: null,
+                'medicao_habilitada' => $data['medicao_habilitada'] ?? true,
             ]);
             $empreita->save();
 

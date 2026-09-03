@@ -10,6 +10,7 @@
 import {
   ItemPagamento,
   ItemPagamentoCalculado,
+  MedicaoSnapshotEmpreita,
   ModoValor,
   Pagamento,
   TIPOS_CUSTO_PAGAMENTO,
@@ -119,6 +120,7 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
     // nada — só entra como pendente o que for explicitamente marcado assim
     // (hoje, só o que a aba Mapas gera). Qualquer outra coisa é confirmado.
     status: p['status'] === 'pendente' ? 'pendente' : 'confirmado',
+    medicaoSnapshot: (p['medicaoSnapshot'] as MedicaoSnapshotEmpreita | null | undefined) ?? null,
   };
 }
 
@@ -168,6 +170,7 @@ export function paraPayloadApi(pagamento: Pagamento, obraId: string): Record<str
     mapa_id: origemTipo === 'mapa' ? origemRefId : null,
     empreita_id: origemTipo === 'empreita' ? origemRefId : null,
     status: pagamento.status,
+    medicao_snapshot: pagamento.medicaoSnapshot ?? null,
     itens: pagamento.itens.map((item) => ({
       id: item.id,
       descricao: item.descricao,

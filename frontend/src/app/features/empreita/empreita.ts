@@ -1,9 +1,12 @@
 import { Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
+import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.models';
+import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
 import {
@@ -51,8 +54,32 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao
 export class Empreita implements OnInit {
   protected readonly store = inject(EmpreitaStore);
   private readonly api = inject(ApiService);
+  private readonly armazenamento = inject(ArmazenamentoService);
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly tiposCusto = TIPOS_CUSTO;
+
+  /** Empreiteiro por `<select>` (03/09/2026, pedido do Lucas) — só os ATIVOS do cadastro. */
+  protected readonly empreiteirosCadastro = signal<EmpreiteiroCadastro[]>([]);
+  protected readonly empreiteirosAtivos = computed(() =>
+    this.empreiteirosCadastro()
+      .filter((e) => e.ativo !== false)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+  );
+
+  private carregarEmpreiteiros(): void {
+    this.armazenamento.ler(CHAVE_EMPREITEIROS).subscribe({
+      next: (bruto) => {
+        if (!bruto) return;
+        try {
+          const dados = JSON.parse(bruto);
+          if (Array.isArray(dados)) this.empreiteirosCadastro.set(dados.map((d) => normalizarEmpreiteiro(d)));
+        } catch {
+          // ignora — cadastro fica vazio, o select só mostra "(nenhum)"
+        }
+      },
+      error: () => this.empreiteirosCadastro.set([]),
+    });
+  }
 
   /** Estado do botão "Baixar PDF" (23/08/2026) — ver EmpreitaPdfController. */
   protected readonly gerandoPdf = signal(false);
@@ -84,15 +111,36 @@ export class Empreita implements OnInit {
   readonly empreitaId = input.required<string>({ alias: 'empreitaId' });
 
   /**
-   * Colunas fixas da tabela — 25/08/2026, pedido do Lucas: enquanto em
-   * edição (`!store.travada()`), só #/Serviço/Tipo/Etapa/Contrato/
-   * Quantidades/Ações (7); confirmada, Quantidades some e entram Medição/
-   * Já pago/Pagamento/Saldo após pagamento no lugar (10).
+   * Colunas fixas da tabela — 25/08/2026, pedido do Lucas: enquanto
+   * "Realizar pagamento" não foi clicado, só #/Serviço/Tipo/Etapa/
+   * Contrato/Quantidades/Ações (7); depois, Quantidades some e entram
+   * Medição/Já pago/Pagamento/Saldo após pagamento no lugar (10). Antes
+   * (até 02/09/2026) essa troca acontecia junto com `store.travada()` —
+   * 03/09/2026, pedido do Lucas: virou um passo à parte
+   * (`store.pagamentoIniciado()`), depois de confirmar.
    */
-  protected readonly totalColunas = computed(() => (this.store.travada() ? 10 : 7));
+  protected readonly totalColunas = computed(() => (this.store.pagamentoIniciado() ? 10 : 7));
+
+  /**
+   * Par "Realizar medição"/"Realizar pagamento" (03/09/2026, pedido do
+   * Lucas) — um só habilitado por vez, alternando a cada clique (começa
+   * com Medição habilitado). Persistido (`store.medicaoHabilitada`,
+   * "pode fazer persistir" — antes era um sinal só de tela) — mas
+   * INDEPENDENTE de `store.pagamentoIniciado()`: aquele campo controla
+   * pra sempre se a tabela mostra Quantidades ou Medição/Já pago/
+   * Pagamento/Saldo (uma vez revelada, continua revelada, mesmo
+   * alternando este outro campo).
+   */
+  protected readonly podeRealizarMedicao = computed(() => this.store.medicaoHabilitada());
+
+  protected realizarMedicao(): void {
+    this.store.iniciarPagamento();
+    this.store.definirMedicaoHabilitada(false);
+  }
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
+    this.carregarEmpreiteiros();
   }
 
   /**
@@ -179,28 +227,40 @@ export class Empreita implements OnInit {
    * ver `EmpreitaStore.fecharPeriodo`, que absorveu a lógica que antes vivia
    * num método `gerarPagamento()` separado.
    */
+  /**
+   * "Realizar pagamento" (nome novo, 03/09/2026 — antes "Fechar
+   * período", o método interno ficou com o nome antigo porque é
+   * exatamente o que ele continua fazendo: fecha o período de medição E
+   * gera o pagamento). Antes exigia `store.totais().totalPeriodo > 0`
+   * (calculado só a partir do AVANÇO medido) — o Lucas pediu pra
+   * habilitar sempre que houver "Valor a ser pago" de verdade, mesmo sem
+   * avanço medido (ex.: um valor lançado manualmente no rascunho de
+   * Pagamento) — por isso a checagem e o diálogo agora usam
+   * `totaisEstendidos().pagamentoDraftTotal`, que já leva em conta
+   * sobrescritas manuais, em vez de `totais().totalPeriodo`.
+   */
   protected fecharPeriodo(): void {
-    const totais = this.store.totais();
+    const totaisEstendidos = this.store.totaisEstendidos();
 
     if (this.store.temMedicaoInvalida()) {
       window.alert('Há medições menores que o acumulado. Corrija antes de fechar o período.');
       return;
     }
-    if (totais.totalPeriodo <= 0) {
-      window.alert('Nenhum avanço medido neste período.');
+    if (totaisEstendidos.pagamentoDraftTotal <= 0) {
+      window.alert('Nenhum valor a pagar neste período.');
       return;
     }
 
     const mensagem =
-      `Fechar o período?\n\n` +
-      `A pagar: ${formatarMoeda(totais.pagarEmp)}\n` +
-      `Reserva: ${formatarMoeda(totais.reservarPgto)}\n` +
-      `Total: ${formatarMoeda(totais.totalPeriodo)}\n\n` +
+      `Realizar o pagamento deste período?\n\n` +
+      `A pagar: ${formatarMoeda(totaisEstendidos.pagamentoDraftEmp)}\n` +
+      `Reserva: ${formatarMoeda(totaisEstendidos.pagamentoDraftReserva)}\n` +
+      `Total: ${formatarMoeda(totaisEstendidos.pagamentoDraftTotal)}\n\n` +
       `As medições atuais passam a ser o acumulado e um pagamento pendente é gerado automaticamente ` +
       `(confirme depois na aba Pagamentos).`;
 
     if (!window.confirm(mensagem)) return;
-    this.store.fecharPeriodo();
+    this.store.fecharPeriodo(() => this.store.definirMedicaoHabilitada(true));
   }
 
   /**
@@ -275,6 +335,26 @@ export class Empreita implements OnInit {
     return this.store.linhasEstendidas()[indice];
   }
 
+  /**
+   * "% avanço" agregado do período (03/09/2026, pedido do Lucas: faltava
+   * em "Medição deste período") — mesma ponderação por `contratoEmp` já
+   * usada em "% Medida" na lista de Empreitas (a Reserva fica de fora: é
+   * retenção discricionária, desvinculada do avanço físico).
+   */
+  protected readonly percentualAvancoPeriodo = computed(() => {
+    const itens = this.store.itens();
+    const linhas = this.store.linhasEstendidas();
+    let somaPonderada = 0;
+    let somaContrato = 0;
+    for (let i = 0; i < itens.length; i++) {
+      const contrato = itens[i].contratoEmp || 0;
+      if (contrato <= 0) continue;
+      somaPonderada += linhas[i].avanco * contrato;
+      somaContrato += contrato;
+    }
+    return somaContrato > 0 ? somaPonderada / somaContrato : 0;
+  });
+
   private itemEapDoServico(item: ItemEmpreita): ItemEap | undefined {
     return this.store.itensEap().find((i) => i.id === item.eapId);
   }
@@ -290,6 +370,18 @@ export class Empreita implements OnInit {
 
   protected moedaOuVazio(valor: number): string {
     return valor ? formatarMoeda(valor) : '';
+  }
+
+  /**
+   * Igual `moedaOuVazio`, mas SEMPRE formata, mesmo R$0,00 (03/09/2026,
+   * pedido do Lucas: "permitir que os valores de pagamento apareçam,
+   * mesmo se uma empreita não tiver medição") — usado só nos campos de
+   * Já pago/Pagamento/Saldo após pagamento, onde 0 é uma resposta válida
+   * ("ainda não tem nada"), não "campo vazio pra digitar" (esses
+   * continuam usando `moedaOuVazio`, ex.: Contrato/Saldo disp.).
+   */
+  protected moedaSempre(valor: number): string {
+    return formatarMoeda(valor);
   }
 
   protected valorContrato(item: ItemEmpreita, campo: 'contratoEmp' | 'contratoReserva'): string {
@@ -425,15 +517,15 @@ export class Empreita implements OnInit {
 
   // ---- Já pago (acumulado dos pagamentos confirmados) ----
   protected valorJaPagoEmpreiteiro(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).jaPago.empreiteiro);
+    return this.moedaSempre(this.linha(indice).jaPago.empreiteiro);
   }
 
   protected valorJaPagoReserva(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).jaPago.reserva);
+    return this.moedaSempre(this.linha(indice).jaPago.reserva);
   }
 
   protected valorJaPagoDivergencia(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).jaPago.divergencia);
+    return this.moedaSempre(this.linha(indice).jaPago.divergencia);
   }
 
   protected numDivergencia(indice: number): number {
@@ -441,12 +533,12 @@ export class Empreita implements OnInit {
   }
 
   protected valorJaPagoTotal(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).jaPago.total);
+    return this.moedaSempre(this.linha(indice).jaPago.total);
   }
 
   // ---- Pagamento (rascunho do período, editável) ----
   protected valorMedido(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).medido);
+    return this.moedaSempre(this.linha(indice).medido);
   }
 
   protected numMedido(indice: number): number {
@@ -454,11 +546,11 @@ export class Empreita implements OnInit {
   }
 
   protected valorPagamentoDraftExibido(indice: number, campo: 'pagamentoEmpDraft' | 'pagamentoReservaDraft'): string {
-    return this.moedaOuVazio(this.linha(indice)[campo]);
+    return this.moedaSempre(this.linha(indice)[campo]);
   }
 
   protected valorPagamentoDraftTotal(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).pagamentoDraftTotal);
+    return this.moedaSempre(this.linha(indice).pagamentoDraftTotal);
   }
 
   protected editarPagamentoDraft(item: ItemEmpreita, campo: 'pagamentoEmp' | 'pagamentoReserva', evento: Event): void {

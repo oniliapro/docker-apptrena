@@ -101,6 +101,8 @@ export interface EapItem {
   isGroup: boolean;
   /** Nível hierárquico (1-4) escolhido pelo usuário — ver `ItemEap.nivel`. */
   nivel?: number;
+  /** Serviço adicional (fora do escopo original), marcado em cascata — ver `ItemEap.adicional`. */
+  adicional?: boolean;
   eap: string;
   desc: string;
   qtde: number;

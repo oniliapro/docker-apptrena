@@ -322,6 +322,8 @@
                   <span class="rotulo-preco">Unit.</span>
                   <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
                          [value]="precoUnitario(item, $index)"
+                         (focus)="aoFocarPreco(item, $index)"
+                         (blur)="aoDesfocarPreco()"
                          (change)="editarPreco(item, $index, $event)" />
                 </div>
                 <div class="linha-total">

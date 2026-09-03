@@ -56,6 +56,35 @@ export interface OrigemPagamento {
  */
 export type StatusPagamento = 'pendente' | 'confirmado';
 
+/**
+ * Retrato de UM serviço da Empreita no momento em que o pagamento foi
+ * gerado (03/09/2026, "guardar as medições") — ver `MedicaoSnapshotEmpreita`.
+ */
+export interface ItemSnapshotMedicao {
+  empreitaItemId: string;
+  desc: string;
+  tipo: string;
+  eapId: string;
+  medicaoAcum: number;
+  medicaoAtual: number;
+  contratoEmp: number;
+  contratoReserva: number;
+}
+
+/**
+ * Retrato da Empreita inteira no momento em que "Fechar período" gerou
+ * este pagamento (03/09/2026, pedido do Lucas) — só existe pra
+ * `origem.tipo === 'empreita'`. `contratoTotalEmpreita` existe à parte
+ * (não só a soma de `itens[].contratoEmp/contratoReserva`) porque o
+ * contrato pode crescer/diminuir DEPOIS deste pagamento (serviço
+ * adicionado/removido, valor editado) — o snapshot precisa continuar
+ * mostrando o total de ENTÃO, não o de agora.
+ */
+export interface MedicaoSnapshotEmpreita {
+  contratoTotalEmpreita: number;
+  itens: ItemSnapshotMedicao[];
+}
+
 export interface Pagamento {
   id: string;
   numeroPagamento: string;
@@ -68,6 +97,8 @@ export interface Pagamento {
   itens: ItemPagamento[];
   origem: OrigemPagamento | null;
   status: StatusPagamento;
+  /** `null` pra pagamentos que não são de Empreita, ou gerados antes desta feature existir. */
+  medicaoSnapshot?: MedicaoSnapshotEmpreita | null;
 }
 
 export interface CabecalhoPagamentos {

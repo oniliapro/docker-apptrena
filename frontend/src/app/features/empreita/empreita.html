@@ -11,28 +11,32 @@
     <div class="grade-cabecalho">
       <label class="campo">
         <span>Nº da empreita</span>
-        <input type="text" [value]="store.cabecalho().numeroEmpreita"
-               (change)="editarCabecalho('numeroEmpreita', $event)" />
+        <span class="valor-somente-leitura">{{ store.cabecalho().numeroEmpreita || '—' }}</span>
       </label>
       <label class="campo campo-largo">
         <span>Descrição</span>
-        <input type="text" placeholder="Ex.: Alvenaria e revestimentos"
+        <input type="text" placeholder="Ex.: Alvenaria e revestimentos" [disabled]="store.travada()"
                [value]="store.cabecalho().descricaoEmpreita"
                (change)="editarCabecalho('descricaoEmpreita', $event)" />
       </label>
       <label class="campo">
         <span>Nº da obra</span>
-        <input type="text" [value]="store.cabecalho().obraNumber"
-               (change)="editarCabecalho('obraNumber', $event)" />
+        <span class="valor-somente-leitura">{{ store.cabecalho().obraNumber || '—' }}</span>
       </label>
       <label class="campo">
         <span>Empreiteiro</span>
-        <input type="text" [value]="store.cabecalho().empreiteiro"
-               (change)="editarCabecalho('empreiteiro', $event)" />
+        <select [value]="store.cabecalho().empreiteiro" [disabled]="store.travada()"
+                (change)="editarCabecalho('empreiteiro', $event)">
+          <option value="">(nenhum)</option>
+          @for (opcao of empreiteirosAtivos(); track opcao.id) {
+            <option [value]="opcao.nome" [selected]="opcao.nome === store.cabecalho().empreiteiro">{{ opcao.nome }}</option>
+          }
+        </select>
       </label>
       <label class="campo">
         <span>Data</span>
-        <input type="date" [value]="store.cabecalho().data"
+        <input type="date" [disabled]="store.travada()"
+               [value]="store.cabecalho().data"
                (change)="editarCabecalho('data', $event)" />
       </label>
     </div>
@@ -64,12 +68,12 @@
         {{ store.travada() ? 'Reabrir empreita' : 'Confirmar empreita' }}
       </button>
 
-      @if (store.travada()) {
+      @if (store.pagamentoIniciado()) {
         <button type="button"
-                [disabled]="store.temMedicaoInvalida() || store.totais().totalPeriodo <= 0 || store.gerandoPagamento()"
+                [disabled]="podeRealizarMedicao() || store.temMedicaoInvalida() || store.totaisEstendidos().pagamentoDraftTotal <= 0 || store.gerandoPagamento()"
                 (click)="fecharPeriodo()"
                 title="Fecha o período e já gera o pagamento deste ciclo automaticamente">
-          {{ store.gerandoPagamento() ? 'Fechando…' : '✅ Fechar período' }}
+          {{ store.gerandoPagamento() ? 'Fechando…' : '✅ Realizar pagamento' }}
         </button>
         <button type="button" class="perigo" (click)="resetarAcumulado()"
                 title="Zera o % acumulado de todos os serviços — a medição recomeça do zero">
@@ -121,7 +125,7 @@
           <th class="col-tipo">Tipo</th>
           <th class="col-eap">Etapa (EAP)</th>
           <th class="grupo-contrato">Contrato (R$)</th>
-          @if (!store.travada()) {
+          @if (!store.pagamentoIniciado()) {
             <th class="grupo-quantidades">Quantidades</th>
           } @else {
             <th class="grupo-medicao">Medição de contrato</th>
@@ -138,10 +142,10 @@
           <tr [class.zebra]="i % 2 === 1" [class.invalida]="linha(i).reducaoInvalida">
             <td class="centro indice">{{ i + 1 }}</td>
             <td>
-              <input type="text" [value]="item.desc" (change)="editarTexto(item, $event)" />
+              <input type="text" [value]="item.desc" [disabled]="store.travada()" (change)="editarTexto(item, $event)" />
             </td>
             <td>
-              <select [value]="item.tipo" (change)="editarTipo(item, $event)">
+              <select [value]="item.tipo" [disabled]="store.travada()" (change)="editarTipo(item, $event)">
                 @for (tipo of tiposCusto; track tipo.chave) {
                   <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
                 }
@@ -149,7 +153,7 @@
             </td>
             <td>
               @if (store.opcoesEap().length) {
-                <select [value]="item.eapId" (change)="editarEap(item, $event)">
+                <select [value]="item.eapId" [disabled]="store.travada()" (change)="editarEap(item, $event)">
                   <option value="">(sem vínculo)</option>
                   @for (opcao of store.opcoesEap(); track opcao.id) {
                     <option [value]="opcao.id" [selected]="opcao.id === item.eapId">{{ rotuloEap(opcao) }}</option>
@@ -190,8 +194,8 @@
               </div>
             </td>
 
-            @if (!store.travada()) {
-              <!-- Quantidades (só em edição): Qtde. EAP / Un. EAP / Qtde. disp. / Qtde. contrat., empilhados numa célula só -->
+            @if (!store.pagamentoIniciado()) {
+              <!-- Quantidades (só antes de "Realizar pagamento"): Qtde. EAP / Un. EAP / Qtde. disp. / Qtde. contrat., empilhados numa célula só -->
               <td class="celula-grupo">
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Qtde. EAP</span>
@@ -211,7 +215,7 @@
                 </div>
                 <div class="subcampo destaque">
                   <span class="rotulo-subcampo">Qtde. contrat.</span>
-                  <input type="text" class="valor" placeholder="0"
+                  <input type="text" class="valor" placeholder="0" [disabled]="store.travada()"
                          [value]="valorQtdeContratadaExibida(item)"
                          (change)="editarQtdeContratada(item, $event)" />
                 </div>
@@ -318,7 +322,7 @@
                   <span class="valor-subcampo"
                         [class.saldo-positivo]="valorSaldoAposPagamentoEtapa(i) >= 0"
                         [class.saldo-negativo]="valorSaldoAposPagamentoEtapa(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
+                    {{ moedaSempre(valorSaldoAposPagamentoEtapa(i)) }}
                   </span>
                 </div>
                 @if (!simplificado()) {
@@ -327,7 +331,7 @@
                     <span class="valor-subcampo"
                           [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
                           [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
-                      {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
+                      {{ moedaSempre(valorSaldoAposPagamentoEmp(i)) }}
                     </span>
                   </div>
                   <div class="subcampo">
@@ -335,7 +339,7 @@
                     <span class="valor-subcampo"
                           [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
                           [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
-                      {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
+                      {{ moedaSempre(valorSaldoAposPagamentoReserva(i)) }}
                     </span>
                   </div>
                 }
@@ -344,14 +348,14 @@
                   <span class="valor-subcampo"
                         [class.saldo-positivo]="valorSaldoAposPagamentoTotal(i) >= 0"
                         [class.saldo-negativo]="valorSaldoAposPagamentoTotal(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoTotal(i)) }}
+                    {{ moedaSempre(valorSaldoAposPagamentoTotal(i)) }}
                   </span>
                 </div>
               </td>
             }
 
             <td class="centro">
-              <button type="button" title="Remover" (click)="remover(item)">✖</button>
+              <button type="button" title="Remover" [disabled]="store.travada()" (click)="remover(item)">✖</button>
             </td>
           </tr>
         } @empty {
@@ -378,7 +382,7 @@
               <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
             </th>
 
-            @if (!store.travada()) {
+            @if (!store.pagamentoIniciado()) {
               <th class="celula-grupo-rodape">
                 <div class="subcampo-rodape">Qtde. EAP <span class="atenuado">—</span></div>
                 <div class="subcampo-rodape">Un. EAP <span class="atenuado">—</span></div>
@@ -476,6 +480,10 @@
           <span>Total do período</span>
           <b>{{ formatarMoeda(store.totais().totalPeriodo) }}</b>
         </div>
+        <div class="linha-resumo">
+          <span>% avanço</span>
+          <b>{{ percentualAvancoPeriodo().toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }}%</b>
+        </div>
 
         <p class="nota">
           A reserva acompanha o avanço medido, mas o valor é definido serviço a
@@ -484,51 +492,14 @@
         </p>
       </div>
 
-      <div class="painel">
-        <div class="painel-titulo">Contrato x orçado</div>
-        <table class="tabela-resumo" trenaRedimensionarColunas>
-          <thead>
-            <tr>
-              <th>Serviço</th>
-              <th class="valor">Orçado (EAP)</th>
-              <th class="valor">Contratado</th>
-              <th class="valor">Diferença</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of store.itens(); track item.id; let i = $index) {
-              <tr>
-                <td>{{ item.desc || '(sem descrição)' }}</td>
-                <td class="valor">{{ formatarMoeda(linha(i).orcado) }}</td>
-                <td class="valor">{{ formatarMoeda(linha(i).valorTotal) }}</td>
-                <td class="valor"
-                    [class.acima]="linha(i).orcado > 0 && linha(i).valorTotal > linha(i).orcado">
-                  @if (linha(i).orcado > 0) {
-                    {{ formatarMoeda(linha(i).valorTotal - linha(i).orcado) }}
-                  } @else {
-                    <span class="atenuado pequeno">sem orçado</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr>
-              <th>Total</th>
-              <th class="valor">{{ formatarMoeda(store.totais().orcadoTotal) }}</th>
-              <th class="valor">{{ formatarMoeda(store.totais().valorTotal) }}</th>
-              <th class="valor">
-                {{ formatarMoeda(store.totais().valorTotal - store.totais().orcadoTotal) }}
-              </th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
       <div class="painel painel-relatorio-pagamentos">
         <app-empreita-relatorio-pagamentos
           [pagamentos]="store.pagamentosDaEmpreita()"
-          [contratoTotalEmpreita]="store.totais().valorTotal" />
+          [contratoTotalEmpreita]="store.totais().valorTotal"
+          [mostrarBotaoMedicao]="store.travada()"
+          [medicaoHabilitada]="podeRealizarMedicao()"
+          [itensEap]="store.itensEap()"
+          (realizarMedicao)="realizarMedicao()" />
       </div>
     </div>
   }

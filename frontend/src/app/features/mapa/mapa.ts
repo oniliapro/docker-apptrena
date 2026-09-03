@@ -231,6 +231,7 @@ export class Mapa implements OnInit {
         this.store.notas(),
         this.store.cabecalho().modoManual,
         this.store.cenarios(),
+        this.linhasEtapa(),
         this.mapaId(),
       );
     } catch {
@@ -564,9 +565,47 @@ export class Mapa implements OnInit {
   // ------------------------------------------------------------------
   // Cálculos por célula
   // ------------------------------------------------------------------
+  /**
+   * Célula de preço unitário atualmente em edição (02/09/2026, pedido do
+   * Lucas) — a conta sempre usa a precisão de verdade guardada em
+   * `item.unit[]` (até 6 casas, desde a migration que ampliou
+   * `mapa_item_precos.valor_unitario`), mas mostrar isso o tempo todo
+   * polui a tela; então o campo mostra arredondado a 2 casas (como
+   * sempre), e só revela as casas extras enquanto o usuário está com o
+   * cursor NELE, pra poder ver/ajustar o valor de verdade sem "perder" a
+   * precisão por engano ao editar em cima de um número já arredondado.
+   */
+  protected readonly celulaPrecoFocada = signal<string | null>(null);
+
+  private chavePreco(item: ItemMapa, indice: number): string {
+    return `${item.id}|${indice}`;
+  }
+
+  protected aoFocarPreco(item: ItemMapa, indice: number): void {
+    this.celulaPrecoFocada.set(this.chavePreco(item, indice));
+  }
+
+  protected aoDesfocarPreco(): void {
+    this.celulaPrecoFocada.set(null);
+  }
+
+  /** Até 6 casas decimais, sem zeros à direita além do mínimo de 2 — "1,5001", "1,50". */
+  private formatarPrecoEdicao(valor: number): string {
+    const [inteiro, decimalBruto] = valor.toFixed(6).split('.');
+    let decimal = decimalBruto;
+    while (decimal.length > 2 && decimal.endsWith('0')) {
+      decimal = decimal.slice(0, -1);
+    }
+    return `${inteiro},${decimal}`;
+  }
+
   protected precoUnitario(item: ItemMapa, indice: number): string {
     const valor = Number(item.unit?.[indice]) || 0;
-    return valor ? formatarMoeda(valor) : '';
+    if (!valor) return '';
+    if (this.celulaPrecoFocada() === this.chavePreco(item, indice)) {
+      return this.formatarPrecoEdicao(valor);
+    }
+    return formatarMoeda(valor);
   }
 
   protected totalDoItem(item: ItemMapa, indice: number): string {

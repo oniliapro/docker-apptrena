@@ -17,13 +17,14 @@ class EapItem extends Model
     protected $table = 'eap_itens';
 
     protected $fillable = [
-        'id', 'obra_id', 'ordem', 'is_group', 'nivel', 'codigo_eap', 'descricao',
+        'id', 'obra_id', 'ordem', 'is_group', 'nivel', 'adicional', 'codigo_eap', 'descricao',
         'quantidade', 'unidade', 'bdi_mode', 'bdi_percent', 'bdi_value',
     ];
 
     protected $casts = [
         'is_group' => 'boolean',
         'nivel' => 'integer',
+        'adicional' => 'boolean',
         'quantidade' => 'float',
         'bdi_percent' => 'float',
         'bdi_value' => 'float',

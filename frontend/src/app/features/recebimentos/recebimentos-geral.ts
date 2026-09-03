@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
 import {
   gerarId,
@@ -337,5 +338,37 @@ export class RecebimentosGeral implements OnInit {
       return ['/obras', obraId, 'medicoes', origem.refId];
     }
     return ['/obras', obraId, 'recebimentos'];
+  }
+
+  // ------------------------------------------------------------------
+  // Seleção múltipla + "Copiar mensagem" pro WhatsApp (02/09/2026, pedido
+  // do Lucas). Formato provisório — mesmo esquema de `Pagamentos`.
+  // ------------------------------------------------------------------
+  protected readonly selecao = new SelecaoMultipla<Recebimento>((r) => String(r['id'] ?? ''));
+  protected readonly copiado = signal(false);
+
+  protected async copiarMensagem(): Promise<void> {
+    const selecionados = this.selecao.selecionados(this.listaOrdenada());
+    if (!selecionados.length) return;
+
+    const linhas = selecionados.map(
+      (r) =>
+        `• Obra ${this.obraNumber(r)} — Nº ${this.numero(r)} — ${this.cliente(r)} — ${this.formatarMoeda(this.valorTotal(r))} — ${this.pendente(r) ? 'Pendente' : 'Confirmado'}`,
+    );
+    const totalGeral = selecionados.reduce((soma, r) => soma + this.valorTotal(r), 0);
+    const mensagem = [
+      `*Recebimentos (${selecionados.length})*`,
+      ...linhas,
+      '',
+      `Total: ${this.formatarMoeda(totalGeral)}`,
+    ].join('\n');
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) {
+      window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
+      return;
+    }
+    this.copiado.set(true);
+    setTimeout(() => this.copiado.set(false), 2000);
   }
 }

@@ -3,10 +3,43 @@
     <h1>Empreitas</h1>
     <div class="atenuado">Contratos de empreitada desta obra</div>
   </div>
+  @if (selecao.temSelecao()) {
+    <button type="button" [disabled]="preparando()" (click)="copiarSolicitacoes()"
+            title="Copia a solicitação de pagamento das empreitas selecionadas, pronta pra colar no WhatsApp">
+      {{ preparando() ? 'Preparando…' : (copiadoSolicitacoes() ? '✔ Copiado!' : '📋 Copiar solicitação (' + selecao.contagem() + ')') }}
+    </button>
+    <button type="button" [disabled]="preparando()" (click)="copiarResumo()"
+            title="Copia o resumo (beneficiado + valor + PIX) — a segunda mensagem, pra colar em seguida">
+      {{ preparando() ? 'Preparando…' : (copiadoResumo() ? '✔ Copiado!' : '📋 Copiar resumo') }}
+    </button>
+  }
   <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
 </div>
 
+@if (empreitasComPixParaEscolher().length) {
+  <div class="painel aviso-info">
+    <div class="atenuado pequeno" style="margin-bottom: 8px;">
+      Mais de uma Chave PIX cadastrada — escolha qual usar em cada uma:
+    </div>
+    @for (empreita of empreitasComPixParaEscolher(); track empreita.id) {
+      <label class="campo" style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
+        <span>{{ empreiteiro(empreita) }}</span>
+        <select (change)="mudarPixEscolhida(empreita.id, $event)">
+          <option value="">Escolha a chave PIX…</option>
+          @for (opcao of opcoesPix(empreita); track opcao.id) {
+            <option [value]="opcao.id">{{ opcao.chavePix || opcao.banco || 'PIX sem descrição' }}</option>
+          }
+        </select>
+      </label>
+    }
+  </div>
+}
+
 <div class="painel barra-ferramentas">
+  <label class="checagem-inline" title="Mostra Empreiteiro e Reserva separados em vez do valor somado">
+    <input type="checkbox" [checked]="detalhar()" (change)="alternarDetalhar()" />
+    Detalhar
+  </label>
   <span class="espacador"></span>
   <input class="busca" type="search" placeholder="Buscar nº, descrição, empreiteiro…" (input)="mudarBusca($event)" />
 </div>
@@ -21,38 +54,93 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
+                     (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
-            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('empreiteiro')">Empreiteiro{{ setaOrdenacao(ordenacao(), 'empreiteiro') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
-            <th class="centro" title="Percentual medido, ponderado pelo valor do contrato de cada serviço">% Medida</th>
-            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
+            <th class="centro" title="Físico: medição acumulada/avanço do período. Financeiro: quanto do contrato já foi pago/solicitado">% Medição</th>
+            <th class="valor">Valor da última solicitação</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Data da última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
           @for (empreita of listaOrdenada(); track empreita.id) {
             <tr class="linha-clicavel" (click)="abrir(empreita)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(empreita)" (change)="selecao.alternar(empreita)" />
+              </td>
               <td class="centro">{{ numero(empreita) }}</td>
-              <td>{{ descricao(empreita) }}</td>
               <td>{{ empreiteiro(empreita) }}</td>
-              <td class="valor"><b>{{ formatarMoeda(total(empreita)) }}</b></td>
+              <td>{{ descricao(empreita) }}</td>
+              <td class="valor">
+                @if (detalhar()) {
+                  <div class="valor-detalhado">
+                    <div>Empreita: {{ formatarMoeda(totalEmp(empreita)) }}</div>
+                    <div>Reserva: {{ formatarMoeda(totalReserva(empreita)) }}</div>
+                  </div>
+                } @else {
+                  <b>{{ formatarMoeda(total(empreita)) }}</b>
+                }
+              </td>
               <td class="valor">
                 <button type="button" class="valor-clicavel" title="Ver pagamentos desta empreita"
                         (click)="abrirPagamentos(empreita, $event)">
-                  {{ formatarMoeda(totalPago(empreita)) }}
+                  @if (detalhar()) {
+                    <span class="valor-detalhado">
+                      <span>Empreita: {{ formatarMoeda(pagoEmp(empreita)) }}</span>
+                      <span>Reserva: {{ formatarMoeda(pagoReserva(empreita)) }}</span>
+                    </span>
+                  } @else {
+                    {{ formatarMoeda(totalPago(empreita)) }}
+                  }
                 </button>
               </td>
-              <td class="centro">{{ percentualMedidoTexto(empreita) }}</td>
-              <td class="centro">{{ formatarData(ultimaSolicitacao(empreita)) || '—' }}</td>
+              <td class="celula-medicao">
+                @if (temMedicaoFisica(empreita)) {
+                  <div class="linha-barra">
+                    <span class="rotulo-barra">Físico</span>
+                    <div class="barra barra-dupla barra-compacta">
+                      <div class="preenchimento-total" [style.width.%]="larguraBarra(pctFisicoAtual(empreita))"></div>
+                      <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(pctFisicoAcumulado(empreita))"></div>
+                      <span class="percentual">{{ formatarPercentualBarra(pctFisicoAtual(empreita)) }}</span>
+                    </div>
+                  </div>
+                  <div class="linha-barra">
+                    <span class="rotulo-barra">Financeiro</span>
+                    <div class="barra barra-dupla barra-compacta barra-financeira">
+                      <div class="preenchimento-financeiro-total" [style.width.%]="larguraBarra(pctFinanceiroTotal(empreita))"></div>
+                      <div class="preenchimento-financeiro-pago" [style.width.%]="larguraBarra(pctFinanceiroPago(empreita))"></div>
+                      <span class="percentual">{{ formatarPercentualBarra(pctFinanceiroTotal(empreita)) }}</span>
+                    </div>
+                  </div>
+                } @else {
+                  <span class="atenuado">—</span>
+                }
+              </td>
+              <td class="valor">
+                @if (detalhar()) {
+                  <div class="valor-detalhado">
+                    <div>Empreita: {{ formatarMoeda(ultimaSolicitacaoDetalhada(empreita).emp) }}</div>
+                    <div>Reserva: {{ formatarMoeda(ultimaSolicitacaoDetalhada(empreita).reserva) }}</div>
+                  </div>
+                } @else {
+                  {{ formatarMoeda(valorUltimaSolicitacao(empreita)) }}
+                }
+              </td>
+              <td class="centro">{{ formatarData(dataUltimaSolicitacao(empreita)) || '—' }}</td>
               <td class="centro">
                 <button type="button" title="Excluir" (click)="remover(empreita, $event)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
+              <td colspan="10" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
             </tr>
           }
         </tbody>
@@ -73,12 +161,10 @@
       </div>
 
       <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          O nº da empreita é gerado automaticamente (OBR-XXX-EMP-XXX) assim que a empreita é criada.
+        </p>
         <div class="grade">
-          <label class="campo">
-            <span>Nº da empreita</span>
-            <input type="text" formControlName="numeroEmpreita" placeholder="Ex.: 03" />
-          </label>
-
           <label class="campo campo-largo">
             <span class="obrigatorio">Descrição</span>
             <input type="text" formControlName="descricaoEmpreita" placeholder="Ex.: Estrutura e alvenaria" />
@@ -89,7 +175,12 @@
 
           <label class="campo campo-largo">
             <span>Empreiteiro</span>
-            <input type="text" formControlName="empreiteiro" placeholder="Nome do empreiteiro já cadastrado" />
+            <select formControlName="empreiteiro">
+              <option value="">(nenhum)</option>
+              @for (opcao of empreiteirosAtivos(); track opcao.id) {
+                <option [value]="opcao.nome">{{ opcao.nome }}</option>
+              }
+            </select>
           </label>
 
           <label class="campo">
@@ -144,7 +235,16 @@
                       <span class="atenuado">Em aberto</span>
                     }
                   </td>
-                  <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
+                  <td class="valor">
+                    @if (detalhar()) {
+                      <div class="valor-detalhado">
+                        <div>Empreita: {{ formatarMoeda(detalharPagamento(pagamento).emp) }}</div>
+                        <div>Reserva: {{ formatarMoeda(detalharPagamento(pagamento).reserva) }}</div>
+                      </div>
+                    } @else {
+                      {{ formatarMoeda(pagamento.valorTotal) }}
+                    }
+                  </td>
                   <td class="centro">
                     <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
                       {{ pagamento.status === 'confirmado' ? 'Confirmado' : 'Pendente' }}

@@ -34,6 +34,7 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
+import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 
 type ColunaPagamento =
   | 'obra'
@@ -465,5 +466,37 @@ export class Pagamentos implements OnInit {
       { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
       pagamento.id,
     );
+  }
+
+  // ------------------------------------------------------------------
+  // Seleção múltipla + "Copiar mensagem" pro WhatsApp (02/09/2026, pedido
+  // do Lucas). Formato provisório — mesmo esquema de `MapasObra`.
+  // ------------------------------------------------------------------
+  protected readonly selecao = new SelecaoMultipla<Pagamento>((pagamento) => pagamento.id);
+  protected readonly copiado = signal(false);
+
+  protected async copiarMensagem(): Promise<void> {
+    const selecionados = this.selecao.selecionados(this.listaExibida());
+    if (!selecionados.length) return;
+
+    const linhas = selecionados.map(
+      (pagamento) =>
+        `• Nº ${pagamento.numeroPagamento || '—'} — ${pagamento.fornecedor || '—'} — ${this.formatarMoeda(pagamento.valorTotal)} — ${pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado'}`,
+    );
+    const totalGeral = selecionados.reduce((soma, pagamento) => soma + pagamento.valorTotal, 0);
+    const mensagem = [
+      `*Pagamentos (${selecionados.length})*`,
+      ...linhas,
+      '',
+      `Total: ${this.formatarMoeda(totalGeral)}`,
+    ].join('\n');
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) {
+      window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
+      return;
+    }
+    this.copiado.set(true);
+    setTimeout(() => this.copiado.set(false), 2000);
   }
 }

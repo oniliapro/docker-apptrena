@@ -22,6 +22,49 @@ import { valoresDistintos } from '../../../shared/filtros/filtros';
 
 const CHAVE = 'controleObra.empreiteiros.v1';
 
+/**
+ * Exportados (02/09/2026) pra `Empreita` também poder ler o cadastro —
+ * ela precisa da Chave PIX pra montar a mensagem de solicitação de
+ * pagamento, e o cadastro ainda mora só na ponte chave-valor (sem
+ * endpoint relacional próprio, ver `CadastroStore`), então ler direto
+ * pela mesma chave/normalizador é mais simples do que instanciar outro
+ * `CadastroStore` só pra leitura.
+ */
+export const CHAVE_EMPREITEIROS = CHAVE;
+
+export function normalizarEmpreiteiro(bruto: Record<string, unknown>): Empreiteiro {
+  const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+  const recebimentosBrutos = Array.isArray(bruto['dadosRecebimento']) ? bruto['dadosRecebimento'] : [];
+
+  return {
+    id: bruto['id'] ? String(bruto['id']) : gerarId(),
+    codigo: String(bruto['codigo'] ?? ''),
+    nome: String(bruto['nome'] ?? ''),
+    tipo: tipo === 'PJ' ? 'PJ' : 'PF',
+    documento: apenasDigitos(bruto['documento']),
+    telefone: apenasDigitos(bruto['telefone']),
+    email: String(bruto['email'] ?? ''),
+    especialidade: String(bruto['especialidade'] ?? ''),
+    ativo: bruto['ativo'] !== false,
+    observacoes: String(bruto['observacoes'] ?? ''),
+    dadosRecebimento: recebimentosBrutos.map((r) => normalizarDadosRecebimento(r as Record<string, unknown>)),
+  };
+}
+
+function normalizarDadosRecebimento(bruto: Record<string, unknown>): DadosRecebimento {
+  const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+  return {
+    id: bruto['id'] ? String(bruto['id']) : gerarId(),
+    tipo: tipo === 'PJ' ? 'PJ' : 'PF',
+    nomeTitular: String(bruto['nomeTitular'] ?? ''),
+    documento: apenasDigitos(bruto['documento']),
+    banco: String(bruto['banco'] ?? ''),
+    agencia: String(bruto['agencia'] ?? ''),
+    conta: String(bruto['conta'] ?? ''),
+    chavePix: String(bruto['chavePix'] ?? ''),
+  };
+}
+
 /** Documento é opcional, mas se preenchido tem que ser válido. */
 function documentoValido(controle: AbstractControl): ValidationErrors | null {
   const valor = String(controle.value ?? '').trim();
@@ -81,36 +124,7 @@ export class Empreiteiros implements OnInit {
   }
 
   private normalizar(bruto: Record<string, unknown>): Empreiteiro {
-    const tipo = String(bruto['tipo'] ?? '').toUpperCase();
-    const recebimentosBrutos = Array.isArray(bruto['dadosRecebimento']) ? bruto['dadosRecebimento'] : [];
-
-    return {
-      id: bruto['id'] ? String(bruto['id']) : gerarId(),
-      codigo: String(bruto['codigo'] ?? ''),
-      nome: String(bruto['nome'] ?? ''),
-      tipo: tipo === 'PJ' ? 'PJ' : 'PF',
-      documento: apenasDigitos(bruto['documento']),
-      telefone: apenasDigitos(bruto['telefone']),
-      email: String(bruto['email'] ?? ''),
-      especialidade: String(bruto['especialidade'] ?? ''),
-      ativo: bruto['ativo'] !== false,
-      observacoes: String(bruto['observacoes'] ?? ''),
-      dadosRecebimento: recebimentosBrutos.map((r) => this.normalizarRecebimento(r as Record<string, unknown>)),
-    };
-  }
-
-  private normalizarRecebimento(bruto: Record<string, unknown>): DadosRecebimento {
-    const tipo = String(bruto['tipo'] ?? '').toUpperCase();
-    return {
-      id: bruto['id'] ? String(bruto['id']) : gerarId(),
-      tipo: tipo === 'PJ' ? 'PJ' : 'PF',
-      nomeTitular: String(bruto['nomeTitular'] ?? ''),
-      documento: apenasDigitos(bruto['documento']),
-      banco: String(bruto['banco'] ?? ''),
-      agencia: String(bruto['agencia'] ?? ''),
-      conta: String(bruto['conta'] ?? ''),
-      chavePix: String(bruto['chavePix'] ?? ''),
-    };
+    return normalizarEmpreiteiro(bruto);
   }
 
   /**

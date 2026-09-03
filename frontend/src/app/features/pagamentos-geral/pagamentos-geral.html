@@ -7,6 +7,11 @@
           title="Exporta os pagamentos filtrados abaixo pra uma planilha Excel">
     {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
   </button>
+  @if (selecao.temSelecao()) {
+    <button type="button" (click)="copiarMensagem()" title="Copia uma mensagem com os pagamentos selecionados, pronta pra colar no WhatsApp">
+      {{ copiado() ? '✔ Copiado!' : '📋 Copiar mensagem (' + selecao.contagem() + ')' }}
+    </button>
+  }
   <button type="button" class="botao-novo" (click)="novo()">+ Novo pagamento</button>
 </div>
 
@@ -54,6 +59,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
+                     (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
@@ -68,6 +77,9 @@
         <tbody>
           @for (pagamento of listaOrdenada(); track pagamento.id) {
             <tr>
+              <td class="centro">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(pagamento)" (change)="selecao.alternar(pagamento)" />
+              </td>
               <td class="centro">{{ obraNumber(pagamento) }}</td>
               <td class="centro">{{ numero(pagamento) }}</td>
               <td class="centro">{{ dataSolicitacao(pagamento) }}</td>
@@ -86,7 +98,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="9" class="centro atenuado">Nenhum pagamento lançado.</td>
+              <td colspan="10" class="centro atenuado">Nenhum pagamento lançado.</td>
             </tr>
           }
         </tbody>

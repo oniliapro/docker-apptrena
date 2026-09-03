@@ -77,6 +77,7 @@ class PagamentoController extends Controller
             'mapa_id' => 'nullable|string|exists:mapas,id',
             'empreita_id' => 'nullable|string|exists:empreitas,id',
             'status' => 'nullable|in:' . implode(',', \App\Models\Pagamento::STATUS_OPCOES),
+            'medicao_snapshot' => 'nullable|array',
             'itens' => 'required|array|min:1',
         ]);
 
@@ -104,6 +105,7 @@ class PagamentoController extends Controller
                 'mapa_id' => $data['mapa_id'] ?? null,
                 'empreita_id' => $data['empreita_id'] ?? null,
                 'status' => $data['status'] ?? 'confirmado',
+                'medicao_snapshot' => $data['medicao_snapshot'] ?? null,
             ]);
             $pagamento->save();
 
@@ -176,6 +178,7 @@ class PagamentoController extends Controller
                 ? ['tipo' => $pagamento->origem_tipo, 'refId' => $pagamento->origem_ref_id]
                 : null,
             'status' => $pagamento->status ?? 'confirmado',
+            'medicaoSnapshot' => $pagamento->medicao_snapshot,
         ];
     }
 }

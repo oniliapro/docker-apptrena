@@ -40,6 +40,11 @@
 
   <span class="espacador"></span>
 
+  @if (selecao.temSelecao()) {
+    <button type="button" (click)="copiarMensagem()" title="Copia uma mensagem com os recebimentos selecionados, pronta pra colar no WhatsApp">
+      {{ copiado() ? '✔ Copiado!' : '📋 Copiar mensagem (' + selecao.contagem() + ')' }}
+    </button>
+  }
   <button class="primario" type="button" (click)="novoRecebimento()">+ Novo recebimento</button>
 </div>
 
@@ -55,6 +60,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaExibida())"
+                     (change)="selecao.alternarTodos(listaExibida())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numeroRecebimento')">Nº{{ setaOrdenacao(ordenacao(), 'numeroRecebimento') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
@@ -71,6 +80,9 @@
         <tbody>
           @for (recebimento of listaExibida(); track recebimento.id) {
             <tr>
+              <td class="centro">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
+              </td>
               <td class="centro">{{ obraDoRecebimento(recebimento) }}</td>
               <td class="centro">{{ recebimento.numeroRecebimento || '—' }}</td>
               <td class="centro">{{ formatarDataPtBr(recebimento.dataSolicitacao) }}</td>
@@ -108,7 +120,7 @@
             </tr>
           } @empty {
             <tr>
-              <td [attr.colspan]="mostrarEtapas() ? 10 : 9" class="centro atenuado">
+              <td [attr.colspan]="mostrarEtapas() ? 11 : 10" class="centro atenuado">
                 Nenhum recebimento lançado.
               </td>
             </tr>
@@ -117,7 +129,7 @@
 
         <tfoot>
           <tr class="bloco-topo bloco-base">
-            <th [attr.colspan]="mostrarEtapas() ? 5 : 4" class="rotulo-rodape">TOTAL</th>
+            <th [attr.colspan]="mostrarEtapas() ? 6 : 5" class="rotulo-rodape">TOTAL</th>
             <th class="valor"><b>{{ formatarMoeda(store.total()) }}</b></th>
             <th colspan="4"></th>
           </tr>

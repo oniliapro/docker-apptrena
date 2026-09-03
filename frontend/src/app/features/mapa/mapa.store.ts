@@ -598,6 +598,7 @@ export class MapaStore {
         // no servidor.
         this.aplicar(mapa as Record<string, unknown>);
         this.carregando.set(false);
+        this.corrigirTotalSeDivergente(mapa as Record<string, unknown>);
         this.carregarObra(obraId);
       },
       error: () => {
@@ -620,6 +621,28 @@ export class MapaStore {
       next: (bruto) => this.fornecedoresCadastro.set(this.extrairFornecedoresAtivos(bruto)),
       error: () => undefined,
     });
+  }
+
+  /**
+   * Corrige silenciosamente o `total_mapa` gravado se ele não bater com o
+   * total calculado agora (02/09/2026, achado do Lucas: um mapa salvo com
+   * a fórmula antiga de `calcularTotalGeral()` — corrigida nesta mesma
+   * sessão — continua mostrando o total ERRADO na lista de mapas até ser
+   * salvo de novo, porque `total_mapa` só é recalculado no momento de um
+   * `salvar()`, nunca retroativamente numa mapa já existente). Este
+   * resave silencioso, uma vez, ao abrir, resolve isso sem precisar de
+   * nenhuma migração de dados: basta o Lucas abrir cada mapa afetado uma
+   * vez pra lista voltar a mostrar o valor certo. Só as computeds de
+   * itens/fornecedores/cabecalho entram nessa conta (já aplicados nesse
+   * ponto) — não depende da EAP/pagamentos da obra, que ainda estão
+   * carregando.
+   */
+  private corrigirTotalSeDivergente(mapaBruto: Record<string, unknown>): void {
+    const totalGravado = Number(mapaBruto['total_mapa']) || 0;
+    const totalCorreto = this.calcularTotalGeral();
+    if (Math.abs(totalGravado - totalCorreto) > 0.01) {
+      this.salvar();
+    }
   }
 
   private extrairResponsaveisAtivos(bruto: string | null): string[] {

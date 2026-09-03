@@ -51,6 +51,24 @@
   input { height: 26px; }
 }
 
+// Campo travado pra sempre (Nº da empreita/Nº da obra, 03/09/2026) —
+// mesmo espaço de um input, mas sem virar outro `span` do rótulo (a
+// regra `.campo span` acima é só pro texto do rótulo em si).
+.campo .valor-somente-leitura {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm, 4px);
+}
+
 // ---- Barra de ferramentas ----
 .linha-ferramentas {
   display: flex;
@@ -304,13 +322,12 @@ tfoot th {
 .subcampo-rodape + .subcampo-rodape { margin-top: 4px; }
 
 // ---- Painéis inferiores ----
-// Grade 2x2: "Medição deste período" em cima à esquerda, "Contrato x
-// orçado" em cima à direita, e o relatório "Pagamentos registrados"
-// (25/08/2026, pedido do Lucas: "coloquie ... no canto inferior direito")
-// embaixo à direita, alinhado por baixo do painel de contrato — por isso
-// a posição explícita em vez de deixar o auto-placement da grade decidir
-// (senão o terceiro painel cairia embaixo à ESQUERDA, voltando pra
-// coluna 1).
+// "Medição deste período" à esquerda, "Pagamentos registrados" à
+// direita — 2 colunas lado a lado (03/09/2026: a tabela "Contrato x
+// orçado", que antes ficava aqui à direita, foi removida a pedido do
+// Lucas; "Pagamentos registrados" tomou o lugar dela, sem precisar mais
+// de posição explícita — o auto-placement da grade já resolve com só 2
+// painéis).
 .grade-inferior {
   display: grid;
   grid-template-columns: 340px 1fr;
@@ -318,14 +335,8 @@ tfoot th {
   align-items: start;
 }
 
-.painel-relatorio-pagamentos {
-  grid-column: 2;
-  grid-row: 2;
-}
-
 @media (max-width: 900px) {
   .grade-inferior { grid-template-columns: 1fr; }
-  .painel-relatorio-pagamentos { grid-column: 1; grid-row: auto; }
 }
 
 .linha-resumo {

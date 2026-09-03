@@ -268,7 +268,9 @@ export class Eap implements OnInit {
     const ui = this.store.ui();
     const porTipo = this.store.mostrarColunasTipo() ? this.store.tiposVisiveis().length : 0;
 
-    let colunas = 5; // nível, EAP, descrição, quantidade, unidade
+    // adicional, EAP, descrição, quantidade, unidade — "Nível" some
+    // confirmada (03/09/2026, pedido do Lucas).
+    let colunas = this.store.travada() ? 5 : 6;
 
     if (this.store.cabecalho().isConfirmed) {
       // Bloco único "Totais (Orçado x Realizado)": uma coluna por
@@ -358,6 +360,10 @@ export class Eap implements OnInit {
   protected mudarNivel(item: ItemEap, evento: Event): void {
     const nivel = Number((evento.target as HTMLSelectElement).value) || 1;
     this.store.atualizarItem(item.id, { nivel });
+  }
+
+  protected alternarAdicional(item: ItemEap): void {
+    this.store.alternarAdicional(item.id);
   }
 
   protected alternarModoBdiItem(item: ItemEap): void {

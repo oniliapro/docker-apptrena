@@ -7,6 +7,7 @@ import {
   aplicarNumeracaoAutomatica,
   cabecalhoVazio,
   criarVazioPorTipo,
+  ehDescendente,
   gerarId,
   normalizarCabecalho,
   normalizarItemEap,
@@ -219,6 +220,7 @@ export class EapStore {
         id: gerarId(),
         isGroup: false,
         nivel: 0,
+        adicional: false,
         eap: '',
         desc: '',
         qtde: 1,
@@ -247,6 +249,28 @@ export class EapStore {
         lista.map((item) => (item.id === id ? { ...item, ...alteracao } : item)),
       ),
     );
+    this.salvar();
+  }
+
+  /**
+   * Marca/desmarca um item como "Adicional" (03/09/2026, pedido do
+   * Lucas) — a marcação se propaga em CASCATA pra todos os descendentes,
+   * em qualquer nível (`ehDescendente`), sem filtrar por `isGroup`:
+   * diferente de outras operações "por grupo" desta tela, aqui um item
+   * comum dentro de um grupo adicional também precisa ficar marcado.
+   */
+  alternarAdicional(id: string): void {
+    if (this.travada()) return;
+    this.itens.update((lista) => {
+      const alvo = lista.find((i) => i.id === id);
+      if (!alvo) return lista;
+      const novoValor = !alvo.adicional;
+      return lista.map((item) =>
+        item.id === id || ehDescendente(alvo.eap, item.eap)
+          ? { ...item, adicional: novoValor }
+          : item,
+      );
+    });
     this.salvar();
   }
 
