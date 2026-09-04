@@ -20,9 +20,12 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, inject, input } from '
  * 1. Descobre o número real de colunas pela primeira linha do `<tbody>`
  *    (cada `<td>` ali é sempre uma coluna de verdade, sem colspan/rowspan).
  * 2. Injeta um `<colgroup>` com uma `<col>` por coluna, cada uma travada na
- *    largura atual renderizada — e liga `table-layout: fixed`, que é o que
- *    faz o navegador respeitar a largura de cada `<col>` independente das
- *    outras. Uma célula do `<tbody>` pode declarar `data-largura-inicial`
+ *    largura que o CONTEÚDO da primeira linha precisa (ver
+ *    `medirLarguraNatural`, não é `getBoundingClientRect()` da célula viva
+ *    — isso mediria só o espaço que sobrava naquele carregamento, podendo
+ *    ser menor que o necessário) — e liga `table-layout: fixed`, que é o
+ *    que faz o navegador respeitar a largura de cada `<col>` independente
+ *    das outras. Uma célula do `<tbody>` pode declarar `data-largura-inicial`
  *    (em px) pra travar num valor fixo em vez de medir do DOM — útil
  *    quando a largura natural varia conforme o espaço disponível (ex.:
  *    mais ou menos colunas de fornecedor no Mapa).
@@ -31,7 +34,10 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, inject, input } from '
  *    (colspan 1) corresponde, e pendura uma alça arrastável na borda
  *    direita de cada uma. Células de agrupamento (colspan > 1, como "Custo"
  *    ou "BDI" na EAP) não ganham alça — quem se redimensiona são as
- *    colunas-folha por baixo delas.
+ *    colunas-folha por baixo delas. O texto de cada célula-folha também
+ *    vira a CHAVE de identidade daquela coluna (ver `gerarChavesColunas`)
+ *    — é por ela, não pela posição numérica, que a largura arrastada é
+ *    preservada entre reconstruções do colgroup.
  *
  * **Tabelas alinhadas à direita** (`[alinhadoDireita]="true"`, pedido do
  * Lucas 16/08/2026 pro "Resumo por categoria" da EAP, que fica encostado na
@@ -64,14 +70,29 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
 
   private colgroup: HTMLTableColElement[] = [];
   /**
-   * Largura mínima de cada coluna — a largura natural que ela tinha antes
-   * de qualquer redimensionamento (a mesma medida usada pra travar a
-   * largura inicial). Arrastar não deixa encolher além disso, porque é o
-   * espaço que o próprio conteúdo (cabeçalho, valores) precisa pra não
-   * vazar visualmente em cima da coluna vizinha — bug visto pelo Lucas
-   * (15/08/2026) ao arrastar uma coluna mais estreita que o texto dela.
+   * Largura mínima de cada coluna — a largura que o conteúdo da primeira
+   * linha precisa pra não cortar texto (a mesma medida usada pra travar a
+   * largura inicial, ver `medirLarguraNatural`). Arrastar não deixa
+   * encolher além disso, porque é o espaço que o próprio conteúdo
+   * (cabeçalho, valores) precisa pra não vazar visualmente em cima da
+   * coluna vizinha — bug visto pelo Lucas (15/08/2026) ao arrastar uma
+   * coluna mais estreita que o texto dela.
    */
   private larguraMinima: number[] = [];
+  /**
+   * Chave estável de cada coluna do colgroup atual, na mesma ordem de
+   * `colgroup`/`larguraMinima` — gerada por `gerarChavesColunas` a partir
+   * do texto do cabeçalho-folha de cada uma. Existe pra preservar a
+   * largura arrastada da coluna CERTA quando o colgroup é reconstruído
+   * (ver `criarColgroup`), em vez de reaplicar por posição/índice — bug
+   * real confirmado pelo Lucas via Claude Chrome (04/09/2026): ao mudar o
+   * conjunto de colunas (uma aparece, some, ou muda de ordem), a largura
+   * de uma coluna vazava pra outra completamente diferente na mesma
+   * posição numérica (ex.: na EAP, "Reabrir EAP" jogava a largura de
+   * DESCRIÇÃO — 209px — no código curto da coluna EAP, e a de QTDE — 28px
+   * — na própria DESCRIÇÃO, cada letra do texto quebrando numa linha).
+   */
+  private chavesColunas: string[] = [];
   private arrastando: { indiceColuna: number; xInicial: number; larguraInicial: number } | null =
     null;
 
@@ -116,9 +137,10 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
    *    Lucas, 17/08/2026).
    *
    * Reconstruir do zero não perde larguras redimensionadas à mão: as
-   * colunas que já existiam preservam a largura que já tinham (guardada
-   * antes de remontar o colgroup, em `criarColgroup`) — só as colunas
-   * novas de fato ganham uma largura natural, medida do DOM.
+   * colunas que já existiam preservam a largura que já tinham, casada
+   * pela CHAVE do cabeçalho (não mais por posição — ver `criarColgroup`/
+   * `gerarChavesColunas`) — só as colunas novas de fato ganham uma
+   * largura natural, medida do DOM.
    */
   private sincronizarColunas(tabela: HTMLTableElement): void {
     if (!tabela.isConnected) return;
@@ -126,8 +148,9 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
     const numeroColunas = this.contarColunasReais(tabela);
     if (numeroColunas <= 0 || numeroColunas === this.colgroup.length) return;
 
-    this.criarColgroup(tabela, numeroColunas);
-    this.pendurarAlcas(tabela);
+    const celulasLideres = this.resolverCelulasLideres(tabela, numeroColunas);
+    this.criarColgroup(tabela, numeroColunas, celulasLideres);
+    this.pendurarAlcas(celulasLideres);
   }
 
   /** Observa o `<tbody>` pelo resto da vida do componente — ver `sincronizarColunas`. */
@@ -158,15 +181,25 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
     return this.linhaComColunasReais(tabela)?.children.length ?? 0;
   }
 
-  private criarColgroup(tabela: HTMLTableElement, numeroColunas: number): void {
+  private criarColgroup(
+    tabela: HTMLTableElement,
+    numeroColunas: number,
+    celulasLideres: (HTMLTableCellElement | null)[],
+  ): void {
     const antigo = tabela.querySelector('colgroup[data-redimensionavel]');
     // Guarda a largura das colunas que já existiam (inclusive as que o
-    // usuário redimensionou à mão) antes de remover o colgroup antigo —
-    // remover primeiro e só depois medir de novo pelo DOM faria o navegador
-    // recalcular a tabela inteira sem nenhuma coluna travada, perdendo o
-    // ajuste do usuário até pras colunas que nem mudaram (bug visto ao
-    // corrigir o caso de adicionar um fornecedor novo, 17/08/2026).
-    const largurasAnteriores = this.colgroup.map((col) => col.style.width);
+    // usuário redimensionou à mão) antes de remover o colgroup antigo,
+    // indexada pela CHAVE do cabeçalho de cada uma (não pela posição —
+    // ver o comentário de `chavesColunas`), senão remover primeiro e só
+    // depois medir de novo pelo DOM faria o navegador recalcular a tabela
+    // inteira sem nenhuma coluna travada, perdendo o ajuste do usuário até
+    // pras colunas que nem mudaram (bug visto ao corrigir o caso de
+    // adicionar um fornecedor novo, 17/08/2026).
+    const largurasAnterioresPorChave = new Map<string, number>();
+    this.chavesColunas.forEach((chave, i) => {
+      const largura = parseFloat(this.colgroup[i]?.style.width ?? '');
+      if (Number.isFinite(largura)) largurasAnterioresPorChave.set(chave, largura);
+    });
     antigo?.remove();
 
     const colgroup = document.createElement('colgroup');
@@ -174,6 +207,7 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
 
     const primeiraLinha = this.linhaComColunasReais(tabela);
     const celulasDaLinha = primeiraLinha ? Array.from(primeiraLinha.children) : [];
+    const novasChaves = this.gerarChavesColunas(celulasLideres);
 
     this.colgroup = [];
     this.larguraMinima = [];
@@ -189,12 +223,16 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
       // específico). Bug visto pelo Lucas, 17/08/2026.
       const larguraFixa = celula ? parseFloat(celula.dataset['larguraInicial'] ?? '') : NaN;
 
-      const larguraPreservada = largurasAnteriores[i] ? parseFloat(largurasAnteriores[i]) : NaN;
+      const larguraPreservada = largurasAnterioresPorChave.has(novasChaves[i])
+        ? largurasAnterioresPorChave.get(novasChaves[i])!
+        : NaN;
       const larguraAtual = Number.isFinite(larguraPreservada)
         ? larguraPreservada
         : Number.isFinite(larguraFixa)
           ? larguraFixa
-          : celula?.getBoundingClientRect().width;
+          : celula
+            ? this.medirLarguraNatural(celula)
+            : undefined;
       const largura = Math.max(
         this.LARGURA_MINIMA_ABSOLUTA,
         Math.round(larguraAtual || this.LARGURA_MINIMA_ABSOLUTA),
@@ -207,19 +245,100 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
       // certo mas ainda assim ser arrastada abaixo dele.
       this.larguraMinima.push(Number.isFinite(larguraFixa) ? Math.round(larguraFixa) : largura);
     }
+    this.chavesColunas = novasChaves;
 
     tabela.insertBefore(colgroup, tabela.firstChild);
     tabela.style.tableLayout = 'fixed';
   }
 
   /**
-   * Resolve a grade do `<thead>` — igual ao navegador faz internamente pra
-   * desenhar a tabela — pra saber em qual coluna cada célula começa,
-   * inclusive quando linhas anteriores têm `rowspan` "roubando" posições.
+   * Gera uma chave estável por coluna, a partir do texto do seu
+   * cabeçalho-folha (a mesma célula que ganha a alça de arrastar, ver
+   * `resolverCelulasLideres`) — é essa chave, não a posição numérica, que
+   * `criarColgroup` usa pra casar a largura arrastada com a coluna certa
+   * entre reconstruções do colgroup (bug real corrigido em 04/09/2026, ver
+   * o comentário de `chavesColunas`). Colunas sem cabeçalho de texto (ex.:
+   * a de checkbox) caem num fallback posicional (`#0`, `#1`...); cabeçalhos
+   * repetidos na mesma tabela ganham um sufixo de ocorrência (`::2`,
+   * `::3`...) pra nunca duas colunas colidirem na mesma chave.
    */
-  private pendurarAlcas(tabela: HTMLTableElement): void {
+  private gerarChavesColunas(celulasLideres: (HTMLTableCellElement | null)[]): string[] {
+    const contagem = new Map<string, number>();
+    return celulasLideres.map((th, indice) => {
+      const base = (th?.textContent ?? '').trim().toLowerCase().replace(/\s+/g, ' ') || `#${indice}`;
+      const vezes = (contagem.get(base) ?? 0) + 1;
+      contagem.set(base, vezes);
+      return vezes > 1 ? `${base}::${vezes}` : base;
+    });
+  }
+
+  /**
+   * Mede a largura que o CONTEÚDO da célula precisa pra não cortar texto,
+   * sem depender de quanto espaço a tabela tinha sobrando no momento da
+   * medição. Medir direto no DOM (`celula.getBoundingClientRect()`, jeito
+   * antigo) reflete só o espaço que o `table-layout: auto` decidiu dar
+   * naquele instante — que pode ser BEM menor que o necessário se a
+   * tabela/coluna estava espremida. Confirmado por um teste do Lucas
+   * (03/09/2026, via Claude Chrome): a coluna ETAPA do Mapa nascia travada
+   * em 140px, cortando "1.1 - ART'S (ANOTAÇÃO)" pra "1.1 - ART'S (ANOTA" —
+   * mesmo o texto do próprio carregamento já precisando de bem mais que
+   * isso pra caber numa linha.
+   *
+   * Pra medir sem essa distorção, clona a célula pra fora da tabela
+   * (`position: absolute; visibility: hidden`, então nunca chega a ser
+   * pintada nem afeta o layout real) com `white-space: nowrap` e largura
+   * livre (`width: auto; max-width: none`) — o navegador dá pra ela
+   * exatamente a largura que o conteúdo pede, em vez da que sobrava. Um
+   * `<td>` clonado fora de qualquer `<table>` ainda é tratado como célula
+   * de tabela pelo navegador (vira uma "tabela anônima" por baixo dos
+   * panos, comportamento padrão do CSS) — o clone preserva as classes e
+   * atributos originais, então herda o mesmo CSS do componente mesmo
+   * anexado direto no `<body>` (a folha de estilo do Angular seleciona por
+   * atributo, não por proximidade no DOM).
+   *
+   * `<input>`/`<select>` dentro da célula (ex.: os `<select>` de Tipo/Etapa
+   * na Empreita) têm `width: 100%` por padrão global (`_base.scss`) — sem
+   * uma tabela real ao redor, essa porcentagem não tem uma largura de
+   * referência confiável (o próprio contêiner também está em `width:
+   * auto`), então cada campo desses ganha `width: auto` só dentro do
+   * clone, pra medir pelo próprio conteúdo (o texto da opção selecionada)
+   * em vez de herdar zero/indefinido.
+   */
+  private medirLarguraNatural(celula: HTMLElement): number {
+    const clone = celula.cloneNode(true) as HTMLElement;
+    clone.style.position = 'absolute';
+    clone.style.visibility = 'hidden';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.width = 'auto';
+    clone.style.maxWidth = 'none';
+    clone.style.whiteSpace = 'nowrap';
+    clone.querySelectorAll<HTMLElement>('input, select, textarea').forEach((campo) => {
+      campo.style.width = 'auto';
+      campo.style.maxWidth = 'none';
+    });
+    document.body.appendChild(clone);
+    const largura = clone.getBoundingClientRect().width;
+    clone.remove();
+    return largura;
+  }
+
+  /**
+   * Resolve a grade do `<thead>` — igual ao navegador faz internamente pra
+   * desenhar a tabela — pra saber a qual coluna cada célula-folha (colspan
+   * 1) corresponde, inclusive quando linhas anteriores têm `rowspan`
+   * "roubando" posições. Usado tanto pra pendurar as alças de arrastar
+   * (`pendurarAlcas`) quanto pra gerar a chave de identidade de cada
+   * coluna (`gerarChavesColunas`, chamado de `criarColgroup`) — o texto do
+   * cabeçalho-folha é a única pista de identidade que a diretiva tem sobre
+   * uma coluna.
+   */
+  private resolverCelulasLideres(
+    tabela: HTMLTableElement,
+    numeroColunas: number,
+  ): (HTMLTableCellElement | null)[] {
+    const resultado: (HTMLTableCellElement | null)[] = new Array(numeroColunas).fill(null);
     const linhas = Array.from(tabela.querySelectorAll('thead tr'));
-    if (!linhas.length) return;
 
     // ocupacao[coluna] = quantas linhas restantes essa coluna ainda está
     // reservada por causa de um rowspan de uma linha anterior.
@@ -240,8 +359,8 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
         const colSpan = th.colSpan || 1;
         const rowSpan = th.rowSpan || 1;
 
-        if (colSpan === 1) {
-          this.criarAlca(th, coluna);
+        if (colSpan === 1 && coluna < numeroColunas) {
+          resultado[coluna] = th;
         }
 
         for (let k = 0; k < colSpan; k++) {
@@ -250,6 +369,14 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
         coluna += colSpan;
       }
     }
+
+    return resultado;
+  }
+
+  private pendurarAlcas(celulasLideres: (HTMLTableCellElement | null)[]): void {
+    celulasLideres.forEach((th, coluna) => {
+      if (th) this.criarAlca(th, coluna);
+    });
   }
 
   private criarAlca(th: HTMLTableCellElement, indiceColuna: number): void {

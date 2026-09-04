@@ -111,26 +111,81 @@ AppTrena/
      empilhados) + `table-layout: fixed` + `margin-left: auto` (sem
      `width: 100%` a tabela agora tem largura própria e encosta na
      borda direita, em vez de esticar).
-  **Pedido maior, ainda em aberto**: "dê uma olhada geral no sistema" no
-  redimensionamento de colunas (`RedimensionarColunas`, `shared/
-  redimensionar-colunas/`) — comportamento inconsistente entre tabelas
-  (mínimo ora maior, ora menor, texto estourando às vezes). Investiguei:
-  a diretiva trava a largura MÍNIMA de cada coluna na largura que ela
-  tinha no exato instante em que a tabela montou (`getBoundingClientRect()`
-  do `<td>` da 1ª linha) — se o container estava apertado naquele
-  momento (menos espaço disponível, menos itens carregados ainda, etc.),
-  o mínimo trava baixo demais, e conteúdo mais largo que chega DEPOIS
-  (mais linhas, texto mais longo) não tem como esticar a coluna de volta
-  (`table-layout: fixed` não deixa). Um jeito robusto de medir a
-  largura "de verdade" que o conteúdo precisa (sem depender do
-  container do momento) não é trivial de fazer com segurança sem testar
-  visualmente em cada tela que usa a diretiva (são muitas, e não tenho
-  como enxergar o resultado sem navegador de verdade aqui) — corrigir a
-  diretiva às cegas arrisca quebrar tabelas que hoje funcionam bem.
-  **Registrado aqui pra retomar**: se o Lucas apontar 2-3 telas
-  específicas onde o comportamento está pior, dá pra corrigir cada uma
-  de forma concreta e conferível; uma reescrita geral da diretiva é um
-  projeto maior, que valeria a pena combinar à parte.
+  **Feito (03/09/2026): corrigida a causa raiz do redimensionamento
+  inconsistente** (`RedimensionarColunas`, `shared/
+  redimensionar-colunas/`) — pedido maior que tinha ficado em aberto
+  nesta mesma rodada por falta de como testar visualmente. O Lucas
+  ativou o "Claude Chrome" (extensão separada, outra sessão de Claude
+  com navegador de verdade) e rodou um teste sistemático (arrastar
+  ~50 colunas em 5 telas — EAP, Mapa, Empreita, Pagamentos, Cronograma
+  de desembolso — expandindo e depois tentando encolher de volta),
+  confirmando com números concretos a hipótese registrada abaixo: TODA
+  coluna testada travava exatamente na largura que tinha ao carregar a
+  tabela, mesmo depois de expandida (ex.: a ETAPA do Mapa nascia
+  travada em 140px, cortando "1.1 - ART'S (ANOTAÇÃO)" pra "1.1 - ART'S
+  (ANOTA" mesmo no PRÓPRIO carregamento). Com essa confirmação, corrigi
+  a diretiva: `criarColgroup()` media a largura mínima direto no DOM
+  (`celula.getBoundingClientRect()`), que reflete só o espaço que
+  sobrava naquele carregamento (podia ser menor que o texto precisava);
+  trocado por um método novo `medirLarguraNatural()` que clona a célula
+  pra fora da tabela (`position: absolute; visibility: hidden`, nunca
+  chega a ser pintado) com `white-space: nowrap` e largura livre — o
+  navegador dá a largura real que o conteúdo pede, não a que sobrava.
+  Campos de formulário dentro da célula (`<input>`/`<select>`, como os
+  de Tipo/Etapa na Empreita) têm `width: 100%` por padrão global
+  (`_base.scss`), que não faz sentido dentro de um clone sem tabela ao
+  redor — o método solta esses campos pra `width: auto` só dentro do
+  clone, senão a medição desses casos ficaria pior, não melhor.
+  `tsc`/`ng build` limpos, dev server reiniciado e respondendo — mas
+  **sem verificação visual própria** (não tenho navegador aqui): pedi
+  ao Lucas pra repetir o mesmo teste do Claude Chrome (arrastar as
+  mesmas colunas nas mesmas 5 telas) pra confirmar que agora abre no
+  tamanho certo e que encolher não trava mais cedo do que devia.
+  Limitação conhecida, não corrigida agora: a diretiva mede só a
+  PRIMEIRA linha do `<tbody>`; se uma linha mais abaixo tiver texto bem
+  mais longo que a primeira, ainda pode truncar — não apareceu nos
+  testes do Claude Chrome, mas fica registrado.
+- **Feito (04/09/2026): corrigido um SEGUNDO bug, mais grave, no
+  redimensionamento de colunas — largura vazando pra coluna errada
+  quando o CONJUNTO de colunas muda.** O Lucas pediu um novo teste ao
+  Claude Chrome depois da correção acima, e ele achou algo bem pior que
+  o "mínimo travado": a diretiva guardava a largura de cada coluna num
+  array POSICIONAL (`largura[0]`, `largura[1]`...), não por identidade.
+  Enquanto o conjunto de colunas não muda isso não dá problema, mas
+  toda vez que uma coluna aparece/some/muda de ordem (ex.: EAP
+  confirmada→"Reabrir EAP", que troca de 13 pra 15 colunas; Mapa ao
+  adicionar um fornecedor; Pagamentos ao marcar/desmarcar "Mostrar
+  etapas"), o array não é remapeado — a largura que era de uma coluna
+  passa a ser aplicada, por acidente, na coluna que ficou na MESMA
+  posição numérica. Caso mais grave confirmado: na EAP, "Reabrir EAP"
+  jogava a largura de DESCRIÇÃO (209px) no código curto da coluna EAP
+  (que sobrava enorme e vazia), e a largura de QTDE (28px) ia pra
+  DESCRIÇÃO — cada LETRA do texto quebrando numa linha própria,
+  totalmente ilegível. Confirmado com números exatos em 3 telas (EAP,
+  Mapa, Pagamentos).
+  Corrigido trocando o array posicional por uma **chave estável por
+  coluna**: `RedimensionarColunas` agora resolve o cabeçalho-folha de
+  cada coluna (método novo `resolverCelulasLideres`, extraído do que já
+  existia em `pendurarAlcas`) e usa o TEXTO desse cabeçalho como chave
+  (`gerarChavesColunas` — cabeçalhos vazios como o de checkbox caem num
+  fallback posicional `#0`/`#1`; cabeçalhos repetidos na mesma tabela
+  ganham sufixo `::2`/`::3` pra nunca colidir). `criarColgroup` guarda e
+  recupera a largura de cada coluna por essa chave, não mais por
+  índice — então quando o conjunto de colunas muda, cada coluna que
+  continua existindo (mesmo texto de cabeçalho) mantém a largura que já
+  tinha, e só colunas de fato NOVAS ganham uma medição do zero (via
+  `medirLarguraNatural`, da correção anterior). `tsc`/`ng build`
+  limpos, dev server reiniciado. De novo sem verificação visual própria
+  — pedi pro Lucas rodar os mesmos 3 casos que o Claude Chrome
+  encontrou (EAP reabrir, Mapa adicionar fornecedor, Pagamentos
+  marcar/desmarcar "Mostrar etapas") pra confirmar que a largura de
+  cada coluna agora segue ela mesma, não a posição.
+  Limitação conhecida, não coberta por este fix: a chave por texto de
+  cabeçalho só é RECALCULADA quando o NÚMERO de colunas muda (é o que
+  dispara o `MutationObserver`) — uma reordenação de colunas que
+  mantém a mesma quantidade (sem inserir/remover nenhuma) não dispara
+  o remapeamento; não apareceu em nenhum caso relatado até agora, mas
+  fica registrado caso surja.
 - **Feito (03/09/2026): correções no lote de 17 pedidos, depois que o
   Lucas testou de verdade.** 5 ajustes no que tinha acabado de ser
   entregue:
