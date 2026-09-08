@@ -182,6 +182,17 @@ export const routes: Routes = [
       import('./features/medicoes/medicao-imprimir').then((m) => m.MedicaoImprimir),
   },
   {
+    // Acesso PÚBLICO (sem login, sem AppShell) do contratante da obra
+    // (cliente final) ao Diário de Obra (08/09/2026) — autorizado só
+    // pelo token na própria URL, o mesmo padrão de segurança das rotas
+    // "imprimir" acima (nada de authGuard aqui: a pessoa não tem, e não
+    // precisa ter, uma conta no AppTrena). Sempre somente leitura — ver
+    // PublicoDiario e PublicoDiarioController.
+    path: 'publico/diario/:token',
+    loadComponent: () =>
+      import('./features/publico-diario/publico-diario').then((m) => m.PublicoDiario),
+  },
+  {
     path: '',
     component: AppShell,
     canActivate: [authGuard],
