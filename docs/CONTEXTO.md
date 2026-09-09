@@ -786,3 +786,34 @@ AppTrena/
 - 27/07/2026: tudo reorganizado numa pasta única (`AppTrena`) para
   facilitar acompanhamento e backup; nome do projeto trocado de "TrenaApp"
   para "AppTrena" nos textos e telas (domínio de produção não mudou).
+- 08-09/09/2026: `master` (local) recebeu merge de
+  `feature/diario-de-obra-completo` — branch construída por OUTRA sessão
+  do Claude Code, em paralelo, sem acesso a Docker/MySQL (a própria
+  mensagem do commit `cadb23e` avisa disso), cobrindo: Diário de Obra
+  ampliado (responsáveis presentes, catálogo de equipamentos,
+  ocorrências, pendências, comentário interno oculto do contratante;
+  "Finalizar" já assina eletronicamente, sem ação separada de assinar),
+  acesso somente-leitura do contratante via link público com token
+  (`/publico/diario/:token`, fora do authGuard) e um `WhatsAppNotifier`
+  ainda só com stub de log (provedor real por decidir). Merge sem
+  conflitos (só 2 arquivos em comum com o trabalho da sessão anterior:
+  `routes/api.php` e `api.service.ts`, ambos auto-mesclados certo).
+  Nesta sessão (que tem Docker/MySQL), validado de verdade pela
+  primeira vez: as 4 migrations novas rodaram limpas
+  (`php artisan migrate`), lint PHP de toda a árvore sem erro, `tsc
+  --noEmit` e `ng build` limpos com as duas features juntas, e um
+  fluxo ponta a ponta via curl (criar obra → lançar diário já
+  finalizado, assinatura automática → gerar link do contratante →
+  acessar `/publico/diario/{token}` sem login e ver só o lançamento
+  finalizado → revogar o link → confirmar que o acesso passa a
+  devolver 410). Revisão de segurança da rota pública: token
+  `Str::random(64)` (alta entropia, não é o UUID do registro), throttle
+  60/min por IP no grupo, geração/revogação exigem permissão sobre a
+  obra (`PermissaoService::podeObra`), e o controller público não herda
+  nenhum contexto de usuário autenticado — nada encontrado de errado.
+  A validação de `equipamento_id` contra o catálico de outra empresa
+  (gap que a própria branch já tinha corrigido) foi conferida e está
+  correta. **Ainda não publicado**: o merge está só local, não foi
+  enviado a `origin/master`, e nada foi rodado em produção — falta
+  autorização do Lucas pra isso (dump de produção, migrate remoto e
+  deploy em `trenadigital.com.br`).
