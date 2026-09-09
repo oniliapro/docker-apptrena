@@ -6,7 +6,8 @@ import { catchError, of } from 'rxjs';
 import { Mapa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
-import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
+import { normalizarPagamento, paraPayloadApi } from '../pagamentos/pagamentos-calc';
+import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import {
@@ -41,7 +42,7 @@ type ColunaMapaObra =
  */
 @Component({
   selector: 'app-mapas-obra',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [ReactiveFormsModule, RedimensionarColunas, EditarPagamentoModal],
   templateUrl: './mapas-obra.html',
   styleUrl: './mapas-obra.scss',
 })
@@ -99,6 +100,18 @@ export class MapasObra implements OnInit {
 
   /** Mapa cujo popup de pagamentos está aberto — null quando fechado. */
   protected readonly popupMapa = signal<Mapa | null>(null);
+
+  /**
+   * Pagamento aberto no popup de "lançamento" (06/09/2026, corrige bug:
+   * clicar em "Ver" num pagamento vinculado ao mapa só fechava o popup e
+   * navegava pra lista geral de Pagamentos da obra, ignorando qual
+   * pagamento tinha sido clicado). `null` = fechado. Reaproveita o MESMO
+   * `EditarPagamentoModal` de `Pagamentos` — sem precisar do
+   * `PagamentosStore` (obra-scoped, só existe dentro da tela de
+   * Pagamentos): salvar aqui chama `ApiService.atualizarPagamento`
+   * direto, com a mesma função pura (`paraPayloadApi`) que o store usa.
+   */
+  protected readonly pagamentoEmEdicao = signal<Pagamento | null>(null);
 
   protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapaObra> | null>(null);
   protected readonly setaOrdenacao = setaOrdenacao;
@@ -285,6 +298,43 @@ export class MapasObra implements OnInit {
   protected irParaPagamentos(): void {
     this.fecharPopupPagamentos();
     void this.router.navigate(['/obras', this.obraId(), 'pagamentos']);
+  }
+
+  protected abrirPagamento(pagamento: Pagamento): void {
+    this.pagamentoEmEdicao.set(pagamento);
+  }
+
+  protected fecharPagamento(): void {
+    this.pagamentoEmEdicao.set(null);
+  }
+
+  /**
+   * `EventoSalvarPagamento.anexoNotaPendente` nunca vem preenchido aqui —
+   * só existe pra pagamentos sendo CRIADOS (`modoNovo()`), e o popup do
+   * Mapa só abre pagamentos que já existem (nunca cria um novo).
+   */
+  protected salvarPagamento(evento: EventoSalvarPagamento): void {
+    const pagamento = evento.pagamento;
+    this.api.atualizarPagamento(pagamento.id, paraPayloadApi(pagamento, this.obraId())).subscribe({
+      next: (salvo) => {
+        const normalizado = normalizarPagamento(salvo as Record<string, unknown>);
+        this.pagamentosPorMapa.update((mapa) => {
+          const copia = new Map(mapa);
+          for (const [mapaId, lista] of copia) {
+            const indice = lista.findIndex((p) => p.id === normalizado.id);
+            if (indice !== -1) {
+              const novaLista = [...lista];
+              novaLista[indice] = normalizado;
+              copia.set(mapaId, novaLista);
+              break;
+            }
+          }
+          return copia;
+        });
+        this.fecharPagamento();
+      },
+      error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
+    });
   }
 
   protected abrir(mapa: Mapa): void {

@@ -2,31 +2,19 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 
 import { ApiService } from '../../core/services/api.service';
 
-import { formatarMoeda } from '../../core/utils/formato';
-import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
-import { hojeIso } from '../../core/utils/formato';
 import {
-  calcularSomaItens,
-  calcularValorItem,
   expandirItensPagamento,
-  formatarPercentual,
   gerarId,
   gerarNumeroPagamento,
   normalizarPagamento,
-  parsearBR,
   rotuloTipo,
-  validarPagamento,
 } from './pagamentos-calc';
-import {
-  ItemEapSnapshot,
-  ItemPagamento,
-  ItemPagamentoCalculado,
-  Pagamento,
-  TIPOS_CUSTO_PAGAMENTO,
-} from './pagamentos.models';
+import { EditarPagamentoModal, EventoSalvarPagamento } from './editar-pagamento-modal/editar-pagamento-modal';
+import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
+import { ItemEapSnapshot, ItemPagamentoCalculado, Pagamento } from './pagamentos.models';
 import { PagamentosStore } from './pagamentos.store';
-import { RespostaLeituraNota } from '../../core/models/api.models';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -55,7 +43,7 @@ type ColunaPagamento =
  */
 @Component({
   selector: 'app-pagamentos',
-  imports: [NavegacaoTabela, RedimensionarColunas],
+  imports: [RedimensionarColunas, EditarPagamentoModal, AnexosLancamento],
   providers: [PagamentosStore],
   templateUrl: './pagamentos.html',
   styleUrl: './pagamentos.scss',
@@ -72,7 +60,6 @@ export class Pagamentos implements OnInit {
    */
   readonly obraId = input.required<string>({ alias: 'id' });
 
-  protected readonly tipos = TIPOS_CUSTO_PAGAMENTO;
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly rotuloTipo = rotuloTipo;
 
@@ -153,95 +140,8 @@ export class Pagamentos implements OnInit {
     );
   });
 
-  protected readonly somaItens = computed(() => {
-    const rascunho = this.rascunho();
-    return rascunho ? calcularSomaItens(rascunho) : 0;
-  });
-
-  protected readonly diferenca = computed(() => {
-    const rascunho = this.rascunho();
-    return rascunho ? rascunho.valorTotal - this.somaItens() : 0;
-  });
-
-  /** Vermelho quando o rateio ainda não fecha — o bloqueio para salvar. */
-  protected readonly diferencaAberta = computed(() => Math.abs(this.diferenca()) > 0.01);
-
-  // ---- Leitura de nota fiscal por foto ----
-  protected readonly lendoNota = signal(false);
-  protected readonly statusNota = signal<string>('');
-  private notaSelecionada: File | null = null;
-
   ngOnInit(): void {
     this.store.carregar(this.obraId());
-  }
-
-  protected selecionarNota(evento: Event): void {
-    const arquivos = (evento.target as HTMLInputElement).files;
-    this.notaSelecionada = arquivos?.[0] ?? null;
-    this.statusNota.set('');
-  }
-
-  /**
-   * Preenche o rascunho a partir da foto da nota. O que a leitura não
-   * reconhecer fica em branco para o usuário completar — e o status
-   * pede conferência de propósito: leitura automática erra, e um valor
-   * errado aqui vira pagamento errado.
-   */
-  protected lerNota(): void {
-    if (!this.notaSelecionada) {
-      window.alert('Selecione uma imagem da nota fiscal ou recibo primeiro.');
-      return;
-    }
-    if (!this.rascunho() || this.lendoNota()) return;
-
-    this.lendoNota.set(true);
-    this.statusNota.set('Lendo a nota…');
-
-    this.api.lerNotaFiscal(this.notaSelecionada).subscribe({
-      next: (resposta) => {
-        this.lendoNota.set(false);
-
-        if (!resposta?.ok) {
-          this.statusNota.set('');
-          window.alert(resposta?.message || 'Não foi possível ler a nota fiscal.');
-          return;
-        }
-
-        this.aplicarDadosDaNota(resposta.dados ?? {});
-        this.statusNota.set('Dados preenchidos — confira antes de salvar.');
-      },
-      error: () => {
-        this.lendoNota.set(false);
-        this.statusNota.set('');
-        window.alert('Não foi possível falar com o servidor para ler a nota.');
-      },
-    });
-  }
-
-  private aplicarDadosDaNota(dados: NonNullable<RespostaLeituraNota['dados']>): void {
-    this.rascunho.update((p) => {
-      if (!p) return p;
-
-      // O número da nota entra junto da descrição, como no app original —
-      // é o que permite achar o pagamento depois pela nota.
-      let descricao = String(dados.descricao ?? '').trim();
-      if (dados.numero_nota) {
-        descricao = descricao
-          ? `${descricao} (Nota nº ${dados.numero_nota})`
-          : `Nota nº ${dados.numero_nota}`;
-      }
-
-      return {
-        ...p,
-        fornecedor: dados.fornecedor ? String(dados.fornecedor) : p.fornecedor,
-        descricao: descricao || p.descricao,
-        dataPagamento: dados.data ? String(dados.data) : p.dataPagamento,
-        valorTotal:
-          dados.valor_total !== null && dados.valor_total !== undefined
-            ? Number(dados.valor_total) || 0
-            : p.valorTotal,
-      };
-    });
   }
 
   // ------------------------------------------------------------------
@@ -297,12 +197,6 @@ export class Pagamentos implements OnInit {
     return eap || desc || '—';
   }
 
-  /** Indentação do select pelo nível da EAP (1.2.3 → dois níveis). */
-  protected recuoEap(item: ItemEapSnapshot): string {
-    const nivel = item.eap.split('.').filter(Boolean).length - 1;
-    return ' '.repeat(Math.max(0, nivel) * 3);
-  }
-
   protected formatarDataPtBr(iso: string): string {
     const texto = String(iso ?? '');
     if (!texto) return '—';
@@ -316,18 +210,12 @@ export class Pagamentos implements OnInit {
     return Number.isNaN(data.getTime()) ? texto : data.toLocaleString('pt-BR');
   }
 
-  /**
-   * Só a parte `YYYY-MM-DD` de `dataPagamento` — necessário porque, desde
-   * 26/08/2026, `confirmar()` grava data+hora (`2026-08-26T14:23:00`), e um
-   * `<input type="date">` rejeita qualquer valor fora do formato de data
-   * pura (mostraria o campo em branco na edição).
-   */
-  protected somenteData(iso: string): string {
-    return String(iso ?? '').slice(0, 10);
-  }
-
   // ------------------------------------------------------------------
-  // Modal
+  // Modal — edição em si mora em `EditarPagamentoModal` (06/09/2026,
+  // extraído daqui pra poder ser reaberto de outras telas, ex.: o popup
+  // de pagamentos vinculados do Mapa, ver `mapas-obra.ts`). Esta tela só
+  // guarda QUAL pagamento está sendo editado (`rascunho`/`idEditando`) e
+  // decide o que fazer quando o modal emite `salvar`.
   // ------------------------------------------------------------------
   protected novoPagamento(): void {
     this.idEditando = null;
@@ -359,94 +247,53 @@ export class Pagamentos implements OnInit {
     this.idEditando = null;
   }
 
-  protected atualizarCampo(campo: keyof Pagamento, evento: Event): void {
-    const valor = (evento.target as HTMLInputElement).value;
-    this.rascunho.update((p) => (p ? { ...p, [campo]: valor } : p));
-  }
+  /**
+   * `EditarPagamentoModal` já validou (rateio bate com o total) antes de
+   * emitir — aqui só resta aplicar o que é específico desta tela:
+   * `obraNumber` sempre segue o valor ATUAL do cabeçalho (campo "Nº da
+   * obra" da barra de ferramentas), mesmo numa edição — comportamento já
+   * existente antes desta extração, preservado aqui de propósito.
+   *
+   * `anexoNotaPendente` (06/09/2026) — só vem preenchido quando o
+   * pagamento estava sendo CRIADO e uma nota fiscal foi lida com uma tag
+   * escolhida (`EditarPagamentoModal.lerNota()`): naquele momento ainda
+   * não existia um pagamento salvo pra usar como `origemId` do anexo, só
+   * dá pra arquivar a foto agora, depois que `inserirOuAtualizar`
+   * devolve o pagamento com um id de verdade.
+   */
+  protected salvarModal(evento: EventoSalvarPagamento): void {
+    const final: Pagamento = { ...evento.pagamento, obraNumber: this.store.cabecalho().obraNumber };
+    const anexoNotaPendente = evento.anexoNotaPendente;
 
-  protected atualizarValorTotal(evento: Event): void {
-    const valor = parsearBR((evento.target as HTMLInputElement).value);
-    this.rascunho.update((p) => (p ? { ...p, valorTotal: valor } : p));
-  }
-
-  protected adicionarItem(): void {
-    this.rascunho.update((p) =>
-      p
-        ? {
-            ...p,
-            itens: [
-              ...p.itens,
-              { id: gerarId(), descricao: '', tipo: '', eapId: '', valor: 0, modoValor: 'valor' },
-            ],
-          }
-        : p,
-    );
-  }
-
-  /** Shift + `-` na tabela de itens do modal: remove a linha atual. */
-  protected removerItemPorIndice(indiceLinha: number): void {
-    const item = this.rascunho()?.itens[indiceLinha];
-    if (item) this.removerItem(item.id);
-  }
-
-  protected removerItem(id: string): void {
-    this.rascunho.update((p) => (p ? { ...p, itens: p.itens.filter((i) => i.id !== id) } : p));
-  }
-
-  protected atualizarItem(id: string, campo: keyof ItemPagamento, evento: Event): void {
-    const bruto = (evento.target as HTMLInputElement | HTMLSelectElement).value;
-    const valor = campo === 'valor' ? parsearBR(bruto) : String(bruto ?? '');
-
-    this.rascunho.update((p) =>
-      p ? { ...p, itens: p.itens.map((i) => (i.id === id ? { ...i, [campo]: valor } : i)) } : p,
-    );
-  }
-
-  protected alternarModoItem(id: string): void {
-    this.rascunho.update((p) =>
-      p
-        ? {
-            ...p,
-            itens: p.itens.map((i) =>
-              i.id === id
-                ? { ...i, modoValor: i.modoValor === 'percentual' ? 'valor' : 'percentual' }
-                : i,
-            ),
-          }
-        : p,
-    );
-  }
-
-  protected valorItemEditado(item: ItemPagamento): string {
-    if (!item.valor) return '';
-    return item.modoValor === 'percentual'
-      ? formatarPercentual(item.valor)
-      : formatarMoeda(item.valor);
-  }
-
-  protected valorResolvido(item: ItemPagamento): number {
-    return calcularValorItem(item, this.rascunho()?.valorTotal ?? 0);
-  }
-
-  protected salvar(): void {
-    const rascunho = this.rascunho();
-    if (!rascunho) return;
-
-    const pagamento: Pagamento = {
-      ...rascunho,
-      numeroPagamento:
-        rascunho.numeroPagamento.trim() || gerarNumeroPagamento(this.store.pagamentos()),
-      obraNumber: this.store.cabecalho().obraNumber,
-    };
-
-    const erros = validarPagamento(pagamento);
-    if (erros.length) {
-      window.alert(erros.join('\n'));
-      return;
-    }
-
-    this.store.inserirOuAtualizar(pagamento, this.idEditando);
+    this.store.inserirOuAtualizar(final, this.idEditando, (salvo) => {
+      if (!anexoNotaPendente) return;
+      this.api.anexarArquivoPagamento(salvo.id, anexoNotaPendente.tagId, anexoNotaPendente.arquivo).subscribe({
+        // Só a contagem local — a lista já foi atualizada pelo próprio
+        // `inserirOuAtualizar` com o `anexosCount` de ANTES de arquivar
+        // esta nota (o backend não sabia dela ainda naquele momento).
+        next: () =>
+          this.store.pagamentos.update((lista) =>
+            lista.map((p) => (p.id === salvo.id ? { ...p, anexosCount: (p.anexosCount || 0) + 1 } : p)),
+          ),
+        error: () => window.alert('O pagamento foi salvo, mas não foi possível arquivar a nota fiscal lida.'),
+      });
+    });
     this.fecharModal();
+  }
+
+  // ------------------------------------------------------------------
+  // Popup de anexos (06/09/2026, coluna "Anexos" da lista) — reaproveita
+  // o MESMO `AnexosLancamento` de dentro do modal de edição, só que
+  // aberto direto da lista, sem passar pela tela de edição inteira.
+  // ------------------------------------------------------------------
+  protected readonly anexosPopupPagamento = signal<Pagamento | null>(null);
+
+  protected abrirAnexos(pagamento: Pagamento): void {
+    this.anexosPopupPagamento.set(pagamento);
+  }
+
+  protected fecharAnexos(): void {
+    this.anexosPopupPagamento.set(null);
   }
 
   protected remover(pagamento: Pagamento): void {

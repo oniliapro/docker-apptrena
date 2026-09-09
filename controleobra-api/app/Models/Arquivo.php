@@ -23,7 +23,7 @@ class Arquivo extends Model
     protected $fillable = [
         'id', 'pasta_id', 'nome_original', 'caminho', 'extensao', 'mime',
         'tamanho_bytes', 'categoria', 'caminho_thumbnail', 'thumbnail_status',
-        'enviado_por_user_id',
+        'enviado_por_user_id', 'tag_id', 'origem_tipo', 'origem_id',
     ];
 
     protected $casts = [
@@ -35,6 +35,12 @@ class Arquivo extends Model
     public function pasta(): BelongsTo
     {
         return $this->belongsTo(Pasta::class);
+    }
+
+    /** Preenchida só quando este Arquivo é um "anexo" (`origem_tipo`/`tag_id`) — ver `AnexoController`. */
+    public function tag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class);
     }
 
     /**

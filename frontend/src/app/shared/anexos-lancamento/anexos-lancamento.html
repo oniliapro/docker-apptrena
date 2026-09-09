@@ -1,0 +1,49 @@
+<div class="anexos">
+  <div class="painel-titulo">Anexos</div>
+
+  @if (carregando()) {
+    <p class="atenuado pequeno">Carregando…</p>
+  } @else {
+    <div class="lista-anexos">
+      @for (grupo of anexosAgrupados(); track grupo.tagNome) {
+        <div class="grupo-tag">
+          <span class="rotulo-grupo-tag">{{ grupo.tagNome }}</span>
+          @for (anexo of grupo.anexos; track anexo.id) {
+            <div class="item-anexo" (click)="abrirPreview(anexo)">
+              <span class="nome-anexo" [title]="anexo.nome_original">{{ anexo.nome_original }}</span>
+              <span class="atenuado pequeno">{{ formatarTamanho(anexo.tamanho_bytes) }}</span>
+              <button type="button" title="Baixar" (click)="$event.stopPropagation(); baixar(anexo)">⬇</button>
+              <button type="button" title="Excluir" (click)="excluir(anexo, $event)">✖</button>
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="atenuado pequeno">Nenhum arquivo anexado ainda.</p>
+      }
+    </div>
+
+    <div class="linha-anexar">
+      <select [value]="tagEscolhida()" (change)="mudarTagEscolhida($event)">
+        <option value="">Escolha a tag…</option>
+        @for (tag of tagsAtivas(); track tag.id) {
+          <option [value]="tag.id">{{ tag.nome }}</option>
+        }
+      </select>
+      <input #inputArquivo type="file" [disabled]="enviando()"
+             (change)="selecionarArquivo($event, inputArquivo)" />
+      @if (enviando()) {
+        <span class="atenuado pequeno">Enviando…</span>
+      }
+    </div>
+
+    @if (!tagsAtivas().length) {
+      <p class="atenuado pequeno">
+        Nenhuma tag cadastrada ainda — crie uma em Configurações → Tags antes de anexar.
+      </p>
+    }
+  }
+</div>
+
+@if (visualizando(); as anexo) {
+  <app-preview-modal [arquivo]="anexo" (fechar)="fecharPreview()" (baixar)="baixar(anexo)" />
+}

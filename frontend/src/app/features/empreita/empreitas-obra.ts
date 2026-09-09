@@ -78,6 +78,7 @@ type ColunaEmpreitaObra =
   | 'empreiteiro'
   | 'total'
   | 'totalPago'
+  | 'saldo'
   | 'ultimaSolicitacao';
 
 /**
@@ -233,6 +234,24 @@ export class EmpreitasObra implements OnInit {
     return mapa;
   });
 
+  /** Empreiteiro/Reserva separados do total PENDENTE — mesmo filtro de `pendentePorEmpreita`, pro "Saldo" detalhado. */
+  private readonly pendenteDetalhadoPorEmpreita = computed(() => {
+    const mapa = new Map<string, { emp: number; reserva: number }>();
+    for (const [id, lista] of this.pagamentosPorEmpreita()) {
+      let emp = 0;
+      let reserva = 0;
+      for (const pagamento of lista) {
+        if (pagamento.status !== 'pendente') continue;
+        for (const item of pagamento.itens) {
+          if (item.parcela === 'reserva') reserva += Number(item.valor) || 0;
+          else if (item.parcela === 'empreiteiro') emp += Number(item.valor) || 0;
+        }
+      }
+      mapa.set(id, { emp, reserva });
+    }
+    return mapa;
+  });
+
   /** Pagamento mais recentemente SOLICITADO (pendente ou confirmado) — fonte única das 2 colunas "última solicitação". */
   private readonly ultimaSolicitacaoPorEmpreita = computed(() => {
     const mapa = new Map<string, Pagamento | null>();
@@ -315,6 +334,7 @@ export class EmpreitasObra implements OnInit {
         case 'empreiteiro': return this.empreiteiro(e);
         case 'total': return this.total(e);
         case 'totalPago': return this.totalPago(e);
+        case 'saldo': return this.saldo(e);
         case 'ultimaSolicitacao': return this.dataUltimaSolicitacao(e);
       }
     }),
@@ -459,6 +479,34 @@ export class EmpreitasObra implements OnInit {
 
   protected pagoReserva(empreita: Empreita): number {
     return this.pagoDetalhadoPorEmpreita().get(empreita.id)?.reserva ?? 0;
+  }
+
+  /**
+   * "Saldo" (06/09/2026, pedido do Lucas) — mesma definição de "Saldo
+   * empreita" já usada em "Pagamentos registrados"
+   * (`empreita-relatorio-pagamentos.ts`, confirmada com o Lucas em
+   * 24/08/2026): Contrato Total desta empreita menos a soma paga
+   * (Empreiteiro+Reserva), contando pendente e confirmado igual — um
+   * pagamento pendente já é dinheiro comprometido, mesmo antes de
+   * confirmado.
+   */
+  protected saldo(empreita: Empreita): number {
+    const pendente = this.pendentePorEmpreita().get(empreita.id) ?? 0;
+    return this.total(empreita) - this.totalPago(empreita) - pendente;
+  }
+
+  protected saldoEmp(empreita: Empreita): number {
+    const totalEmp = this.totalDetalhadoPorEmpreita().get(empreita.id)?.emp ?? 0;
+    const pagoEmp = this.pagoDetalhadoPorEmpreita().get(empreita.id)?.emp ?? 0;
+    const pendenteEmp = this.pendenteDetalhadoPorEmpreita().get(empreita.id)?.emp ?? 0;
+    return totalEmp - pagoEmp - pendenteEmp;
+  }
+
+  protected saldoReserva(empreita: Empreita): number {
+    const totalReserva = this.totalDetalhadoPorEmpreita().get(empreita.id)?.reserva ?? 0;
+    const pagoReserva = this.pagoDetalhadoPorEmpreita().get(empreita.id)?.reserva ?? 0;
+    const pendenteReserva = this.pendenteDetalhadoPorEmpreita().get(empreita.id)?.reserva ?? 0;
+    return totalReserva - pagoReserva - pendenteReserva;
   }
 
   protected valorUltimaSolicitacao(empreita: Empreita): number {

@@ -16,7 +16,7 @@ class Pasta extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'empresa_id', 'obra_id', 'parent_id', 'owner_user_id', 'tipo_raiz', 'nome',
+        'id', 'empresa_id', 'obra_id', 'parent_id', 'owner_user_id', 'tipo_raiz', 'tag_id', 'nome',
     ];
 
     /** Verdadeiro para as duas pastas automáticas (própria/compartilhada) — travadas contra renomear/excluir. */
@@ -25,9 +25,24 @@ class Pasta extends Model
         return $this->tipo_raiz !== null;
     }
 
+    /**
+     * Verdadeiro pra pasta gerada automaticamente por uma Tag (06/09/2026)
+     * — travada contra renomear/excluir pela aba Arquivos, mesmo espírito
+     * de `ehRaiz()`: quem gerencia é `TagController`, não `PastaController`.
+     */
+    public function ehDeTag(): bool
+    {
+        return $this->tag_id !== null;
+    }
+
     public function obra(): BelongsTo
     {
         return $this->belongsTo(Obra::class);
+    }
+
+    public function tag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class);
     }
 
     public function pai(): BelongsTo

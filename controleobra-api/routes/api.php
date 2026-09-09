@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnexoController;
 use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CronogramaPdfController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Api\RecebimentoController;
 use App\Http\Controllers\Api\PastaController;
 use App\Http\Controllers\Api\RelatorioPdfController;
 use App\Http\Controllers\Api\StorageController;
+use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,6 +75,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('empresa/representantes', [EmpresaPerfilController::class, 'criarRepresentante']);
     Route::put('empresa/representantes/{representante}', [EmpresaPerfilController::class, 'atualizarRepresentante']);
     Route::delete('empresa/representantes/{representante}', [EmpresaPerfilController::class, 'excluirRepresentante']);
+
+    // Popup de Configurações — aba "Tags" (06/09/2026, controle de notas
+    // fiscais por anexo em Pagamentos/Recebimentos).
+    Route::get('tags', [TagController::class, 'index']);
+    Route::post('tags', [TagController::class, 'store']);
+    Route::put('tags/{tag}', [TagController::class, 'update']);
+    Route::delete('tags/{tag}', [TagController::class, 'destroy']);
 
     // 31/08/2026, "Controle de permissões" — achado testando o pedido do
     // Lucas de mexer no acesso por obra: `show`/`update`/`destroy` não
@@ -194,6 +203,11 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middlewareFor('destroy', ['permissaoModulo:pagamentos,excluir', 'permissaoObra:lancar']);
     Route::post('pagamentos/ler-nota', [NotaFiscalController::class, 'ler'])
         ->middleware('permissaoModulo:pagamentos,criar');
+    // Anexos (06/09/2026, controle de notas fiscais) — ver AnexoController.
+    Route::get('pagamentos/{pagamento}/anexos', [AnexoController::class, 'indexPagamento'])
+        ->middleware(['permissaoModulo:pagamentos,usar', 'permissaoObra:ver']);
+    Route::post('pagamentos/{pagamento}/anexos', [AnexoController::class, 'storePagamento'])
+        ->middleware(['permissaoModulo:pagamentos,editar', 'permissaoObra:lancar']);
     // Alimenta o cadastro de Fornecedores (módulo ainda fora do "Controle
     // de permissões" — sem backend relacional próprio), não Pagamentos —
     // fica sem gate de propósito.
@@ -207,6 +221,11 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middlewareFor('store', ['permissaoModulo:recebimentos,criar', 'permissaoObra:lancar'])
         ->middlewareFor('update', ['permissaoModulo:recebimentos,editar', 'permissaoObra:lancar'])
         ->middlewareFor('destroy', ['permissaoModulo:recebimentos,excluir', 'permissaoObra:lancar']);
+    // Anexos (06/09/2026, controle de notas fiscais) — ver AnexoController.
+    Route::get('recebimentos/{recebimento}/anexos', [AnexoController::class, 'indexRecebimento'])
+        ->middleware(['permissaoModulo:recebimentos,usar', 'permissaoObra:ver']);
+    Route::post('recebimentos/{recebimento}/anexos', [AnexoController::class, 'storeRecebimento'])
+        ->middleware(['permissaoModulo:recebimentos,editar', 'permissaoObra:lancar']);
 
     Route::get('storage', [StorageController::class, 'get']);
     Route::post('storage', [StorageController::class, 'set']);

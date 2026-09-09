@@ -85,6 +85,238 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (07/09/2026): cabeçalho da obra simplificado + cadastro/edição
+  de obra unificados num popup só + "Local da obra" no cadastro + "Quem
+  acessa esta obra" também na criação.** Lote de pedidos do Lucas nesta
+  ordem:
+  1. **"Local da obra" faltava no cadastro** — na real o campo já existia
+     no formulário de "+ Nova obra" da Lista de Obras; o que faltava era
+     em `ObraDetalhe` (cabeçalho da obra já aberta), que só tinha
+     Nº/Cliente/Responsável/Data base/Período/Status/Observações. Virou
+     moot com o item 2 abaixo (o campo já está no formulário unificado).
+  2. **Cabeçalho da obra virou só nome + status + "Editar obra"**
+     (`ObraDetalhe`/`obra-detalhe.html`) — antes era um formulário inteiro
+     sempre visível/editável ali (Nº/Cliente/Local/Responsável/Data base/
+     Período/Status/Observações), com "Quem acessa esta obra" e
+     "Confirmar obra" soltos do lado. Clicar "Editar obra" abre o MESMO
+     popup usado pra criar uma obra.
+  3. **Novo componente compartilhado `CadastroObraModal`**
+     (`features/obras/cadastro-obra-modal/`) — unifica o que antes eram
+     dois formulários parecidos mas diferentes (o de "+ Nova obra" em
+     `Obras`, só criação; e o cabeçalho sempre-editável de `ObraDetalhe`,
+     só edição). `obra() === null` = criando, preenchido = editando
+     (mesmo padrão `modoNovo` do `EditarPagamentoModal`). "Quem acessa
+     esta obra" e "Confirmar obra"/"Reabrir obra" moraram pra dentro dele
+     — o botão de acessos agora aparece TAMBÉM na criação (pedido do
+     Lucas), coisa que não existia antes.
+  4. **"Quem acessa esta obra" na criação — sem obra_id ainda**: a lista
+     não vem mais de `listarAcessosObra(obraId)` (que exige a obra já
+     existir) — nasce de `listarUsuarios()` (todo usuário `papel:
+     secundario` da empresa, "vê"/"lança" `true` por padrão, mesmo
+     default do backend) e fica pendente (`acessosPendentes`) até
+     `Obras.salvarNovaObra()` criar a obra de verdade e só ENTÃO chamar
+     `salvarAcessosObra(idNovo, lista)` — mesmo padrão "salva depois que
+     existe um id de verdade" já usado pra arquivar nota fiscal lida na
+     criação de um Pagamento (rodada anterior).
+  5. **Novo componente compartilhado `GerenciarAcessosObra`**
+     (`shared/gerenciar-acessos-obra/`) — só a tabela de checkboxes
+     "vê"/"lança" por usuário, extraída de `ObraDetalhe` pra ser
+     reaproveitada dentro do `CadastroObraModal` nos dois modos.
+  6. **Cuidado replicado de propósito**: `CadastroObraModal`/`Obras`/
+     `Pagamentos`/`RecebimentosStore` (aninham outro popup `position:
+     fixed` por dentro) usam centralização por `display:flex`, NÃO
+     `transform` — mesmo motivo do achado de 06/09 sobre o preview de
+     anexo. `GerenciarAcessosObra` sozinho não aninha nada, então
+     continua com `transform` normalmente.
+  **Verificado via API** (empresa descartável): criar obra com
+  `local_obra` preenchido, editar nome/local/status de uma obra
+  existente, confirmar/reabrir — tudo persistindo certo. `tsc`/`ng build`
+  limpos. **Sem verificação visual própria** — vale conferir na tela: o
+  cabeçalho simplificado, o botão "Editar obra" abrindo o popup
+  preenchido, e "Quem acessa esta obra" funcionando tanto ao criar uma
+  obra nova quanto editando uma já existente.
+- **Feito (06/09/2026): preview de anexo ficava pequeno dentro do popup
+  de Pagamentos/Recebimentos — causa raiz era `transform`, não tamanho.**
+  Alargar o CSS do `PreviewModal` (rodada anterior) não resolveu quando
+  ele abre de DENTRO de outro popup (popup de anexos da Lista de
+  Pagamentos, modal de editar Pagamento, modal de Recebimentos — os 3
+  aninham `AnexosLancamento`, que pode abrir `PreviewModal` por dentro):
+  **um `transform` em qualquer elemento vira o "containing block" dos
+  filhos `position: fixed`** — como os 3 `.modal-cartao` desses popups
+  usavam `transform: translate(-50%,-50%)` pra centralizar, o `.modal`
+  `position: fixed` do preview (aninhado lá dentro) ficava preso ao
+  tamanho do CARTÃO pequeno do popup pai, não ao viewport, não importa o
+  `width`/`height` declarados na folha de estilo do próprio preview.
+  Corrigido nos 3 arquivos (`pagamentos.scss`, `editar-pagamento-
+  modal.scss`, `recebimentos.scss`): centralização trocada de
+  `position:absolute + transform` pra `display:flex` no `.modal`
+  (mesmo efeito visual, sem criar containing block pros filhos fixed).
+  **Vale lembrar se aparecer de novo**: qualquer modal futuro que precise
+  abrir OUTRO modal `position: fixed` por dentro dele precisa da mesma
+  centralização por flexbox — o padrão `transform` (usado em ~20 outros
+  modais do sistema que NÃO aninham nada por dentro) continua seguro
+  nesses outros casos, só quebra quando há aninhamento de verdade.
+  `ng build` limpo.
+- **Feito (06/09/2026): sequencial dos anexos com 3 algarismos; achado
+  (não é bug) sobre renomeio parar de funcionar depois de excluir a
+  tag.** O Lucas testou o item anterior e reportou "excluí o NF 1, o NF
+  2 não foi renomeado". Investigado com os logs reais do nginx
+  (`nginx/logs/access.log`) cruzados com o banco: ele tinha excluído a
+  própria tag "NF" ENQUANTO os 2 anexos ainda existiam (decisão dele,
+  confirmada antes: "excluir tag não apaga nada, só desvincula") — isso
+  zera o `tag_id` dos arquivos que usavam ela. Sem `tag_id`, o
+  `AnexoNomeador::aposExcluir` não tem mais um nome de tag pra usar na
+  sequência, então corretamente não mexe em nada — comportamento
+  consistente com a regra já combinada, não uma falha na lógica de
+  renomeio (reconfirmado com um teste novo: tag viva, excluir o
+  primeiro de 2 anexos → o segundo é renomeado certinho). Registrado
+  aqui caso o Lucas ache estranho de novo — a melhoria possível seria
+  renumerar mesmo um anexo "solto" usando o nome de tag já gravado no
+  próprio nome do arquivo (sem precisar de uma `Tag` viva), mas isso não
+  foi pedido, só ficou anotado como ideia.
+  **Feito de verdade**: `AnexoNomeador::nome()` agora preenche o
+  sequencial com zero à esquerda até 3 dígitos (`NF 001`, `NF 002`... em
+  vez de `NF 1`, `NF 2`) — só vale pra nomes gerados DAQUI PRA FRENTE
+  (criar/renomear/renumerar), não recalcula retroativamente nomes já
+  existentes, mesmo padrão já usado pra renome de tag. Verificado via
+  API.
+- **Feito (06/09/2026): coluna "Anexos" na Lista de Pagamentos + popup
+  agrupado por tag + preview + renomeio automático.** Extensão do
+  recurso de Tags/anexos da mesma data (item logo abaixo) — implementado
+  direto (sem `EnterPlanMode`, pedido já vinha sem ambiguidade real):
+  - **Nova coluna "Anexos"** na Lista de Pagamentos (`pagamentos.html`),
+    mostrando `anexosCount` (contagem vinda pronta do backend via
+    `Pagamento::anexos()` + `withCount`/`loadCount`, sem 1 query por
+    linha) — clicar no número abre um popup novo reaproveitando o MESMO
+    `AnexosLancamento` já usado dentro do modal de edição.
+  - **`AnexosLancamento` ganhou**: lista agrupada por tag
+    (`anexosAgrupados`, com um bucket "Sem tag" defensivo pra anexo cuja
+    tag foi excluída); clicar num anexo abre `PreviewModal` (mesmo
+    componente já usado na aba Arquivos comum — imagem/vídeo/áudio/PDF
+    inline, resto só "baixe pra abrir"); excluir agora **recarrega a
+    lista inteira** em vez de só remover localmente (o backend renomeia
+    os que sobraram) e, ao terminar, mostra o aviso combinado com o
+    Lucas: *"O anexo foi excluído com sucesso, os anexos restantes foram
+    renomeados."*
+  - **Backend — `AnexoNomeador`** (novo serviço,
+    `App\Services\AnexoNomeador`): centraliza a fórmula do nome (mesma
+    usada por `AnexoController::criar`, sem duplicar) e dois gatilhos de
+    renomeio automático — `aposExcluir()` (fecha o buraco na sequência
+    da mesma tag+lançamento, chamado por `ArquivoController::destroy`
+    sempre que o arquivo apagado era um anexo, não importa se a exclusão
+    veio da tela de Pagamentos ou da aba Arquivos comum) e
+    `aposMudarNumero()` (renomeia TODOS os anexos de um lançamento,
+    qualquer tag, quando `numero_pagamento`/`numero_recebimento` muda —
+    ligado tanto em `PagamentoController` quanto `RecebimentoController`,
+    pedido do Lucas: "trocar a numeração dele renomeia todos os anexos").
+  - **"Ler nota" ganhou tag opcional**: no bloco "Preencher pela foto da
+    nota" (`EditarPagamentoModal`), um `<select>` de tag ao lado do
+    arquivo — se escolhida, a MESMA foto lida também é arquivada como
+    anexo. Editando um pagamento já salvo, arquiva na hora; CRIANDO um
+    pagamento novo, fica pendente (`anexoNotaPendente`) até
+    `Pagamentos.salvarModal` conseguir um id de verdade (a
+    `PagamentosStore.inserirOuAtualizar` ganhou um `onSucesso?` opcional,
+    mesmo padrão já usado em `EmpreitaStore.fecharPeriodo`, só pra isso).
+  **Verificado via API** (empresa descartável): contagem aparecendo
+  certa na criação e depois de anexar; excluir o anexo do MEIO de 3
+  fechou a sequência (1,2,3 → exclui o 2 → sobra 1,2); trocar o número
+  do pagamento renomeou os 2 anexos restantes; `preview-url` funcionando
+  igual pra anexo; listagem já vem com o objeto `tag` aninhado
+  (`with('tag')`), sem precisar cruzar com `listarTags()` só pro nome.
+  `tsc`/`ng build` limpos. **Sem verificação visual própria** — pedir
+  pro Lucas conferir na tela: a coluna/popup agrupado, o preview ao
+  clicar num anexo, a mensagem de exclusão, e ler uma nota com tag
+  escolhida tanto editando quanto criando um pagamento novo.
+- **Feito (06/09/2026): popup de pagamento no Mapa + Tags/anexos de nota
+  fiscal em Pagamentos/Recebimentos.** Dois pedidos do Lucas, planejados
+  juntos (`EnterPlanMode`, 3 agentes Explore em paralelo) por causa da
+  extração de componente que os dois precisavam — plano salvo em
+  `C:\Users\Lucas\.claude\plans\crispy-nibbling-allen.md`. 6 fases, cada
+  uma testada via API numa empresa descartável antes da próxima:
+  1. **Bug do Mapa corrigido**: clicar em "Ver" num pagamento do popup de
+     pagamentos vinculados (`mapas-obra.html`) só fechava o popup e
+     navegava pra lista geral de Pagamentos, ignorando qual linha foi
+     clicada. Corrigido extraindo o modal de edição de `pagamentos.ts`/
+     `.html` pro componente novo `EditarPagamentoModal`
+     (`features/pagamentos/editar-pagamento-modal/`) — "burro" de
+     propósito (sem `PagamentosStore`, que é obra-scoped e só existe
+     dentro da tela de Pagamentos): recebe o `Pagamento` pronto,
+     `linkedSignal` copia pra um rascunho local editável (`signal` direto
+     não funciona pra copiar um `input.required()` — Angular só garante
+     o valor do input DEPOIS da construção da instância, erro `NG8118`),
+     emite `salvar`/`fechar` pro pai decidir como persistir. `Pagamentos`
+     usa o componente sem mudar comportamento nenhum; `MapasObra` agora
+     abre o MESMO modal com o pagamento certo, salvando via
+     `ApiService.atualizarPagamento` direto (mesma função pura
+     `paraPayloadApi` que o store usa) — sem precisar duplicar o store.
+  2. **Modelo de dados**: 3 migrations — `tags` (nova, `empresa_id`+
+     `nome` único, `ativo`), `pastas.tag_id` (FK `nullOnDelete()`, unique
+     `(obra_id, tag_id)` — localiza a pasta da tag por FK, não por nome,
+     pra nunca duplicar nem perder o vínculo ao renomear) e
+     `arquivos.tag_id`/`origem_tipo`/`origem_id` (um "anexo" é só um
+     `Arquivo` normal com esses 3 campos preenchidos).
+  3. **Backend — `TagController`** (novo): criar uma tag cria a pasta
+     correspondente em "Arquivos compartilhados" de TODA obra da empresa
+     (`App\Services\PastaRaizes`, extraído de `PastaController::raizes()`
+     pra reaproveitar); renomear a tag renomeia a pasta em todas as obras
+     de uma vez (via `tag_id`, não por nome); excluir a tag NÃO apaga
+     nada (decisão do Lucas) — as FKs `nullOnDelete()` só desvinculam.
+     `ObraController::store` ganhou o hook inverso: obra nova também
+     ganha pasta de toda tag já ativa. `PastaController::update`/
+     `destroy` ganharam trava (403) contra renomear/excluir uma pasta de
+     tag pela aba Arquivos comum — só pode mexer nela via Configurações.
+  4. **Backend — `AnexoController`** (novo): `POST/GET
+     pagamentos/{pagamento}/anexos` e `recebimentos/{recebimento}/anexos`
+     — nome do arquivo gerado automaticamente
+     `{Tag} {sequencial} - {Obra} - {Nº do lançamento}.{extensão}`
+     (sequencial por par tag+lançamento, reinicia a cada lançamento
+     diferente). Download/preview/exclusão de um anexo NÃO precisam de
+     rota nova — são as mesmas `arquivos/{arquivo}/...` de sempre, porque
+     um anexo é só um `Arquivo` normal. `EXTENSOES_PERMITIDAS`/
+     `CATEGORIA_POR_EXTENSAO` extraídas de `ArquivoController` pro trait
+     `Concerns/ClassificaArquivo`, reaproveitado pelos dois controllers.
+  5. **Frontend — aba "Tags" em Configurações** (`configuracoes/tags/`):
+     lista simples (nome + toggle ativo + excluir), criar/renomear via
+     `window.prompt` (mesmo padrão já usado pra renomear arquivo/pasta em
+     `arquivos.ts` — só 1 campo, não precisa de modal-dentro-do-modal).
+  6. **Frontend — `AnexosLancamento`** (`shared/anexos-lancamento/`):
+     componente compartilhado (lista de anexos + seletor de tag + input
+     de arquivo), embutido tanto em `EditarPagamentoModal` (Pagamentos E
+     o popup do Mapa ganham "Anexar arquivo" de graça, por reaproveitar o
+     mesmo componente) quanto no modal já existente de Recebimentos. Só
+     aparece depois que o lançamento já foi salvo (`!modoNovo()`/
+     `editando()` — precisa do número do lançamento pra montar o nome do
+     arquivo, que só existe depois de salvar).
+  **Verificado ponta a ponta via API** (empresa descartável, limpa
+  depois): tag criada em 2 obras + pasta renomeada em ambas ao renomear
+  a tag + obra criada DEPOIS da tag já existir também ganha a pasta +
+  trava 403 confirmada ao tentar renomear/excluir a pasta de tag pela
+  aba Arquivos + tag excluída mantém pasta/arquivos intactos + 2 anexos
+  no mesmo pagamento geraram `Nota Fiscal 1 - Obra - PG-0056.pdf`/
+  `Nota Fiscal 2 - Obra - PG-0056.jpeg` exatamente como pedido +
+  sequencial reiniciou em 1 num segundo pagamento + download/exclusão
+  via as rotas de `Arquivo` já existentes funcionaram sem mudança
+  nenhuma. `tsc`/`ng build` limpos em cada fase. **Sem verificação visual
+  própria** (não tenho navegador aqui) — pedir pro Lucas confirmar na
+  tela: editar um pagamento (deve continuar igual), abrir um pagamento
+  pelo popup do Mapa (deve abrir o lançamento, não navegar), e o fluxo
+  completo de criar tag → anexar 2 notas fiscais → conferir na aba
+  Arquivos da obra.
+- **Feito (06/09/2026): coluna "Saldo" na Lista de Empreitas.** Pedido
+  simples do Lucas ("adicione o saldo da empreita tbm") — nova coluna
+  `valor` entre "Pago" e "% Medição", com a MESMA definição de "Saldo
+  empreita" já usada em "Pagamentos registrados" (confirmada com o
+  Lucas em 24/08/2026): Contrato Total da empreita menos a soma paga
+  (Empreiteiro+Reserva), contando pendente e confirmado igual — um
+  pagamento pendente já é dinheiro comprometido, mesmo antes de
+  confirmado (`saldo()` em `empreitas-obra.ts` = `total - totalPago -
+  pendentePorEmpreita`). Ordenável (nova entrada `saldo` em
+  `ColunaEmpreitaObra`), participa do modo "Detalhar" (Empreiteiro/
+  Reserva separados — novo computed `pendenteDetalhadoPorEmpreita`,
+  mesmo padrão de `pagoDetalhadoPorEmpreita`) e fica colorido (verde/
+  vermelho) conforme o sinal, mesmo par de classes `.saldo-positivo`/
+  `.saldo-negativo` já usado em outras telas. `tsc`/`ng build` limpos,
+  dev server reiniciado.
 - **Feito (03/09/2026): "Realizar medição"/"Realizar pagamento" agora
   persiste, e "Pagamentos registrados" ganhou largura fixa.** 2 pedidos
   do Lucas depois da rodada de correções acima:

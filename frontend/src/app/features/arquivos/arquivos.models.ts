@@ -4,6 +4,8 @@
  * porque vem direto da API, igual RegistroDiario/FotoDiario.
  */
 
+import { Tag } from '../configuracoes/tags/tags.models';
+
 export type TipoRaizPasta = 'propria' | 'compartilhada';
 
 export interface Pasta {
@@ -45,6 +47,17 @@ export interface Arquivo {
   enviado_por_user_id?: number | string | null;
   created_at?: string;
   updated_at?: string;
+  /**
+   * Preenchidos só quando este Arquivo é um "anexo" de Pagamento/
+   * Recebimento (06/09/2026, controle de notas fiscais) — ver
+   * `shared/anexos-lancamento`. `null`/ausente = arquivo comum da aba
+   * Arquivos, sem tag nem lançamento associado.
+   */
+  tag_id?: string | null;
+  origem_tipo?: 'pagamento' | 'recebimento' | null;
+  origem_id?: string | null;
+  /** Preenchida quando o backend faz `with('tag')` (ex.: `AnexoController::indexPagamento`) — evita cruzar com `listarTags()` só pra saber o nome. */
+  tag?: Tag | null;
 }
 
 export interface RaizesPastas {

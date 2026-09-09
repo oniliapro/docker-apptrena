@@ -195,6 +195,12 @@ table { table-layout: auto; }
   text-align: right;
 }
 
+// ---- "Saldo" (06/09/2026) — mesmo par de classes de `empreita.scss`/
+// `empreita-relatorio-pagamentos.scss`/`mapa.scss`/`eap.scss` — duplicado
+// aqui de propósito, cada tela tem seu próprio CSS.
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
+
 // ---- "% Medição" — barra dupla Físico/Financeiro (03/09/2026) ----
 // Mesmo padrão visual de `medicoes/medicao.scss` (não é componente
 // próprio, é markup+CSS copiado) — "Físico" reaproveita as MESMAS

@@ -121,6 +121,7 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
     // (hoje, só o que a aba Mapas gera). Qualquer outra coisa é confirmado.
     status: p['status'] === 'pendente' ? 'pendente' : 'confirmado',
     medicaoSnapshot: (p['medicaoSnapshot'] as MedicaoSnapshotEmpreita | null | undefined) ?? null,
+    anexosCount: numeroSeguro(p['anexosCount']),
   };
 }
 

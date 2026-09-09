@@ -63,6 +63,7 @@
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('saldo')" title="Contrato menos o que já foi pago/solicitado (pendente conta como comprometido)">Saldo{{ setaOrdenacao(ordenacao(), 'saldo') }}</th>
             <th class="centro" title="Físico: medição acumulada/avanço do período. Financeiro: quanto do contrato já foi pago/solicitado">% Medição</th>
             <th class="valor">Valor da última solicitação</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Data da última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
@@ -100,6 +101,22 @@
                     {{ formatarMoeda(totalPago(empreita)) }}
                   }
                 </button>
+              </td>
+              <td class="valor">
+                @if (detalhar()) {
+                  <div class="valor-detalhado">
+                    <div [class.saldo-positivo]="saldoEmp(empreita) >= 0" [class.saldo-negativo]="saldoEmp(empreita) < 0">
+                      Empreita: {{ formatarMoeda(saldoEmp(empreita)) }}
+                    </div>
+                    <div [class.saldo-positivo]="saldoReserva(empreita) >= 0" [class.saldo-negativo]="saldoReserva(empreita) < 0">
+                      Reserva: {{ formatarMoeda(saldoReserva(empreita)) }}
+                    </div>
+                  </div>
+                } @else {
+                  <b [class.saldo-positivo]="saldo(empreita) >= 0" [class.saldo-negativo]="saldo(empreita) < 0">
+                    {{ formatarMoeda(saldo(empreita)) }}
+                  </b>
+                }
               </td>
               <td class="celula-medicao">
                 @if (temMedicaoFisica(empreita)) {
@@ -140,7 +157,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="10" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
+              <td colspan="11" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
             </tr>
           }
         </tbody>

@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\EapItem;
 use App\Models\Obra;
 use App\Models\ObraAcesso;
+use App\Models\Pasta;
+use App\Models\Tag;
 use App\Models\TipoCusto;
 use App\Models\User;
+use App\Services\PastaRaizes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -46,7 +49,28 @@ class ObraController extends Controller
     public function store(Request $request)
     {
         $obra = Obra::create($this->validated($request));
+        $this->criarPastasDeTagsAtivas($obra);
+
         return response()->json($obra, 201);
+    }
+
+    /**
+     * 06/09/2026 — tags cadastradas ANTES desta obra existir também
+     * ganham uma pasta aqui (o oposto do que `TagController::store` faz
+     * pras obras que já existiam quando a tag foi criada). Sem isso, uma
+     * tag só apareceria em obras que já existiam no momento em que ela
+     * foi cadastrada.
+     */
+    private function criarPastasDeTagsAtivas(Obra $obra): void
+    {
+        $compartilhada = PastaRaizes::compartilhada($obra);
+
+        foreach (Tag::where('ativo', true)->get() as $tag) {
+            Pasta::firstOrCreate(
+                ['obra_id' => $obra->id, 'tag_id' => $tag->id],
+                ['parent_id' => $compartilhada->id, 'owner_user_id' => null, 'nome' => $tag->nome],
+            );
+        }
     }
 
     public function show(Obra $obra)

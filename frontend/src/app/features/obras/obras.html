@@ -77,87 +77,13 @@
   }
 </div>
 
-<!-- ============ Formulário ============ -->
+<!-- ============ Formulário — Nova obra (07/09/2026, ver CadastroObraModal) ============ -->
 @if (formularioAberto()) {
-  <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
-
-    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
-      <div class="modal-cabecalho">
-        <span class="modal-titulo">Nova obra</span>
-        <button type="button" (click)="fechar()">✖</button>
-      </div>
-
-      <div class="modal-corpo">
-        <datalist id="lista-clientes-obra">
-          @for (cliente of clientesAtivos(); track cliente.id) {
-            <option [value]="cliente.nome"></option>
-          }
-        </datalist>
-        <datalist id="lista-responsaveis-obra">
-          @for (responsavel of responsaveisAtivos(); track responsavel.id) {
-            <option [value]="responsavel.nome"></option>
-          }
-        </datalist>
-
-        <div class="grade">
-          <label class="campo">
-            <span>Código</span>
-            <input type="text" formControlName="mapNumber" readonly class="somente-leitura" />
-          </label>
-
-          <label class="campo campo-largo">
-            <span class="obrigatorio">Nome da obra</span>
-            <input type="text" formControlName="obraNome" />
-            @if (temErro('obraNome')) {
-              <small class="erro-campo">Informe o nome da obra.</small>
-            }
-          </label>
-
-          <label class="campo campo-largo">
-            <span>Cliente</span>
-            <input type="text" formControlName="cliente" list="lista-clientes-obra"
-                   placeholder="Buscar cliente cadastrado…" />
-          </label>
-
-          <label class="campo">
-            <span>Responsável</span>
-            <input type="text" formControlName="responsavel" list="lista-responsaveis-obra"
-                   placeholder="Buscar responsável cadastrado…" />
-          </label>
-
-          <label class="campo">
-            <span>Data base (início)</span>
-            <input type="date" formControlName="dataBase" />
-          </label>
-
-          <label class="campo">
-            <span>Prazo / período</span>
-            <input type="text" formControlName="periodo" placeholder="Ex.: até 30/11/2026" />
-          </label>
-
-          <label class="campo">
-            <span>Status</span>
-            <select formControlName="status">
-              @for (opcao of statusOpcoes; track opcao.chave) {
-                <option [value]="opcao.chave">{{ opcao.rotulo }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="campo campo-total">
-            <span>Observações</span>
-            <input type="text" formControlName="obs" />
-          </label>
-        </div>
-      </div>
-
-      <div class="modal-rodape">
-        <button type="button" (click)="fechar()">Cancelar</button>
-        <button class="primario" type="submit" [disabled]="salvando()">
-          {{ salvando() ? 'Salvando…' : 'Cadastrar obra' }}
-        </button>
-      </div>
-    </form>
-  </div>
+  <app-cadastro-obra-modal
+    [proximoCodigo]="proximoCodigo()"
+    [clientesAtivos]="clientesAtivos()"
+    [responsaveisAtivos]="responsaveisAtivos()"
+    [salvando]="salvando()"
+    (salvar)="salvarNovaObra($event)"
+    (fechar)="fechar()" />
 }

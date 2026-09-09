@@ -63,6 +63,10 @@ table { table-layout: auto; }
   &:hover { text-decoration: underline; }
 }
 
+// "Ver todos os pagamentos da obra" (06/09/2026) — abaixo da tabela do
+// popup de pagamentos vinculados, precisa de um respiro em cima.
+.tabela-popup + .link-medicoes { display: block; margin-top: 10px; }
+
 // ---- Modal de formulário ----
 .modal { position: fixed; inset: 0; z-index: 200; }
 

@@ -73,8 +73,53 @@
   font-size: 11.5px;
 }
 
-// ---- Modal ----
-.modal { position: fixed; inset: 0; z-index: 200; }
+// ---- Status do pagamento (pendente/confirmado) ----
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: var(--fonte-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: #e4eee3;
+  color: #2f6b2f;
+
+  &.pendente {
+    background: #fdf1d6;
+    color: #8a5a00;
+  }
+}
+
+// ---- Coluna "Anexos" (06/09/2026) ----
+.valor-clicavel {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--cor-primaria);
+  cursor: pointer;
+  text-decoration: underline dotted;
+
+  &:hover { color: var(--cor-primaria-escura); }
+}
+
+// ---- Popup de anexos (06/09/2026) ----
+// `display: flex` centraliza — NÃO usar `transform` no `.modal-cartao`
+// (bug real do Lucas): este popup aninha `<app-anexos-lancamento>`, que
+// pode abrir `<app-preview-modal>` (outro `position: fixed`) por dentro
+// dele — um `transform` no ancestral vira "containing block" dos filhos
+// `fixed`, prendendo o preview do tamanho deste popup pequeno em vez do
+// viewport inteiro. Ver comentário igual em `editar-pagamento-modal.scss`.
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .modal-fundo {
   position: absolute;
@@ -83,13 +128,10 @@
 }
 
 .modal-cartao {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(920px, 94vw);
+  position: relative;
+  width: min(520px, 94vw);
   max-height: 88vh;
-  background: #fff;
+  background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-lg);
   box-shadow: var(--sombra-md);
@@ -109,121 +151,4 @@
 
 .modal-titulo { font-weight: 700; }
 
-.modal-corpo {
-  padding: 14px;
-  overflow: auto;
-}
-
-.modal-rodape {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--cor-borda);
-}
-
-.grade-campos {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px 12px;
-  margin-bottom: 16px;
-}
-
-.campo-largo { grid-column: span 2; }
-
-.campo {
-  display: block;
-
-  span {
-    display: block;
-    font-family: var(--fonte-mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--cor-texto-suave);
-    margin-bottom: 4px;
-  }
-
-  input { height: 26px; }
-}
-
-@media (max-width: 760px) {
-  .grade-campos { grid-template-columns: 1fr 1fr; }
-  .campo-largo { grid-column: span 2; }
-}
-
-.cabecalho-itens {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-
-  .painel-titulo { margin-bottom: 0; }
-}
-
-.resumo {
-  display: flex;
-  gap: 24px;
-  justify-content: flex-end;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--cor-borda);
-
-  div {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-  }
-
-  span {
-    font-family: var(--fonte-mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--cor-texto-suave);
-  }
-
-  b { font-size: 14px; }
-
-  .divergente b { color: var(--cor-perigo); }
-}
-
-// ---- Leitura de nota fiscal ----
-.leitura-nota {
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px dashed var(--cor-borda-forte);
-  border-radius: var(--raio-md);
-  background: var(--cor-fundo);
-
-  .painel-titulo { margin-bottom: 8px; }
-}
-
-// ---- Status do pagamento (pendente/confirmado) ----
-.etiqueta-status {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-family: var(--fonte-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background: #e4eee3;
-  color: #2f6b2f;
-
-  &.pendente {
-    background: #fdf1d6;
-    color: #8a5a00;
-  }
-}
-
-.linha-nota {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-
-  input[type='file'] { width: auto; height: 26px; flex: 1; min-width: 200px; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-}
+.modal-corpo { padding: 14px; overflow: auto; }

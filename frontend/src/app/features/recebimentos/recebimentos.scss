@@ -73,8 +73,23 @@
   font-size: 11.5px;
 }
 
+.aviso-anexo-apos-salvar { margin-top: 16px; }
+
 // ---- Modal ----
-.modal { position: fixed; inset: 0; z-index: 200; }
+// `display: flex` centraliza — NÃO usar `transform` no `.modal-cartao`
+// (bug real do Lucas): este modal aninha `<app-anexos-lancamento>`, que
+// pode abrir `<app-preview-modal>` (outro `position: fixed`) por dentro
+// dele — um `transform` no ancestral vira "containing block" dos filhos
+// `fixed`, prendendo o preview do tamanho deste modal em vez do viewport
+// inteiro. Ver comentário igual em `editar-pagamento-modal.scss`.
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .modal-fundo {
   position: absolute;
@@ -83,10 +98,7 @@
 }
 
 .modal-cartao {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  position: relative;
   width: min(920px, 94vw);
   max-height: 88vh;
   background: #fff;

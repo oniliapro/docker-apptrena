@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Recebimento;
+use App\Services\AnexoNomeador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -92,6 +93,11 @@ class RecebimentoController extends Controller
             ], 422);
         }
 
+        // Mesmo raciocínio de `PagamentoController::syncCompleto` —
+        // capturado antes do fill()/save() pra saber, depois, se o número
+        // mudou numa edição de verdade (nunca numa criação).
+        $numeroAntigo = $recebimento->exists ? $recebimento->numero_recebimento : null;
+
         DB::transaction(function () use ($data, $recebimento) {
             $recebimento->fill([
                 'numero_recebimento' => $data['numero_recebimento'],
@@ -129,6 +135,10 @@ class RecebimentoController extends Controller
             }
             $recebimento->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
         });
+
+        if ($numeroAntigo !== null && $numeroAntigo !== $data['numero_recebimento']) {
+            AnexoNomeador::aposMudarNumero('recebimento', $recebimento->id, $data['numero_recebimento']);
+        }
 
         return $this->paraFrontend($recebimento->load('itens.tipoCusto'));
     }

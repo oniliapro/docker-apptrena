@@ -23,6 +23,10 @@
             Controle de permissões
           </button>
         }
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'tags'"
+                (click)="selecionarAba('tags')">
+          Tags
+        </button>
       </aside>
 
       <div class="painel-config">
@@ -35,6 +39,9 @@
           }
           @case ('permissoes') {
             <app-controle-permissoes />
+          }
+          @case ('tags') {
+            <app-tags />
           }
         }
       </div>

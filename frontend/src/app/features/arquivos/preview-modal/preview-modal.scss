@@ -13,8 +13,11 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(760px, 94vw);
-  max-height: 88vh;
+  // Quase a tela toda (06/09/2026, pedido do Lucas) — antes tinha o
+  // mesmo tamanho do popup de lista de anexos, pequeno demais pra
+  // visualizar imagem/PDF direito.
+  width: 96vw;
+  height: 92vh;
   background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-lg);
@@ -59,7 +62,8 @@
   align-items: center;
   gap: 8px;
   background: var(--cor-fundo);
-  min-height: 200px;
+  flex: 1;
+  min-height: 0; // sem isso o flex item não encolhe, e o overflow:auto não tem efeito
 }
 
 .modal-rodape {
@@ -84,7 +88,7 @@
 
 .preview-conteudo {
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 100%;
   border-radius: var(--raio-md);
 }
 
@@ -92,7 +96,7 @@
 
 .preview-pdf {
   width: 100%;
-  height: 70vh;
+  height: 100%;
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-md);
   background: #fff;

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\AutorizaAcessoAPasta;
+use App\Http\Controllers\Concerns\ClassificaArquivo;
 use App\Http\Controllers\Controller;
 use App\Models\Arquivo;
+use App\Services\AnexoNomeador;
 use App\Services\GeradorMiniatura;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,34 +23,7 @@ use Illuminate\Support\Str;
  */
 class ArquivoController extends Controller
 {
-    use AutorizaAcessoAPasta;
-
-    /**
-     * Lista de extensões permitidas — não valida por `mimes:` porque
-     * formatos CAD/BIM (DWG, IFC, RVT, SKP) não têm sniffing de mimetype
-     * confiável no PHP.
-     */
-    private const EXTENSOES_PERMITIDAS = [
-        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
-        'mp4', 'mov', 'avi', 'mkv', 'webm',
-        'mp3', 'wav', 'ogg', 'm4a',
-        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'odt', 'ods',
-        'dwg', 'dxf', 'ifc', 'rvt', 'skp',
-        'zip', 'rar', '7z',
-    ];
-
-    private const CATEGORIA_POR_EXTENSAO = [
-        'jpg' => 'imagem', 'jpeg' => 'imagem', 'png' => 'imagem', 'gif' => 'imagem',
-        'webp' => 'imagem', 'bmp' => 'imagem', 'svg' => 'imagem',
-        'mp4' => 'video', 'mov' => 'video', 'avi' => 'video', 'mkv' => 'video', 'webm' => 'video',
-        'mp3' => 'audio', 'wav' => 'audio', 'ogg' => 'audio', 'm4a' => 'audio',
-        'pdf' => 'pdf',
-        'doc' => 'documento', 'docx' => 'documento', 'xls' => 'documento', 'xlsx' => 'documento',
-        'ppt' => 'documento', 'pptx' => 'documento', 'txt' => 'documento', 'csv' => 'documento',
-        'odt' => 'documento', 'ods' => 'documento',
-        'dwg' => 'cad_bim', 'dxf' => 'cad_bim', 'ifc' => 'cad_bim', 'rvt' => 'cad_bim', 'skp' => 'cad_bim',
-        'zip' => 'compactado', 'rar' => 'compactado', '7z' => 'compactado',
-    ];
+    use AutorizaAcessoAPasta, ClassificaArquivo;
 
     public function store(Request $request, string $id, GeradorMiniatura $gerador)
     {
@@ -59,7 +34,7 @@ class ArquivoController extends Controller
         $arquivoEnviado = $request->file('arquivo');
         $extensao = strtolower($arquivoEnviado->getClientOriginalExtension());
 
-        if (!in_array($extensao, self::EXTENSOES_PERMITIDAS, true)) {
+        if (!$this->extensaoPermitida($extensao)) {
             abort(422, 'Formato de arquivo não suportado.');
         }
 
@@ -76,7 +51,7 @@ class ArquivoController extends Controller
             'extensao' => $extensao,
             'mime' => $arquivoEnviado->getMimeType(),
             'tamanho_bytes' => $arquivoEnviado->getSize(),
-            'categoria' => self::CATEGORIA_POR_EXTENSAO[$extensao] ?? 'outro',
+            'categoria' => $this->categoriaDaExtensao($extensao),
             'enviado_por_user_id' => auth()->id(),
         ]);
 
@@ -115,8 +90,19 @@ class ArquivoController extends Controller
     {
         $this->autorizarPasta($arquivo->pasta);
 
+        // Captura antes de apagar — depois do delete() não dá mais pra
+        // confiar nesses campos no objeto (06/09/2026, pedido do Lucas:
+        // excluir um anexo fecha o buraco na sequência dos que sobraram).
+        $tagId = $arquivo->tag_id;
+        $origemTipo = $arquivo->origem_tipo;
+        $origemId = $arquivo->origem_id;
+
         Storage::disk('local')->delete(array_filter([$arquivo->caminho, $arquivo->caminho_thumbnail]));
         $arquivo->delete();
+
+        if ($tagId && $origemTipo && $origemId) {
+            AnexoNomeador::aposExcluir($tagId, $origemTipo, $origemId);
+        }
 
         return response()->noContent();
     }

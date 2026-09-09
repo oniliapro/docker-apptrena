@@ -207,13 +207,24 @@
                   </span>
                 </td>
                 <td class="centro">
-                  <button type="button" class="link-medicoes" (click)="irParaPagamentos()">Ver</button>
+                  <button type="button" class="link-medicoes" (click)="abrirPagamento(pagamento)">Ver</button>
                 </td>
               </tr>
             }
           </tbody>
         </table>
+
+        <button type="button" class="link-medicoes" (click)="irParaPagamentos()">Ver todos os pagamentos da obra →</button>
       </div>
     </div>
   </div>
+}
+
+<!-- ============ Popup — lançamento de UM pagamento (06/09/2026) ============ -->
+@if (pagamentoEmEdicao(); as pagamento) {
+  <app-editar-pagamento-modal
+    [pagamento]="pagamento"
+    [obraId]="obraId()"
+    (salvar)="salvarPagamento($event)"
+    (fechar)="fecharPagamento()" />
 }

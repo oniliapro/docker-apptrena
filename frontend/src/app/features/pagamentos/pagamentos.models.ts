@@ -99,6 +99,8 @@ export interface Pagamento {
   status: StatusPagamento;
   /** `null` pra pagamentos que não são de Empreita, ou gerados antes desta feature existir. */
   medicaoSnapshot?: MedicaoSnapshotEmpreita | null;
+  /** Quantidade de anexos (06/09/2026, controle de notas fiscais) — vem pronto de `PagamentoController` (`withCount`), sem 1 chamada por linha. */
+  anexosCount?: number;
 }
 
 export interface CabecalhoPagamentos {

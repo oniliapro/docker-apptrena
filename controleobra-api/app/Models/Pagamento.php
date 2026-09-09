@@ -56,4 +56,17 @@ class Pagamento extends Model
     {
         return $this->hasMany(PagamentoItem::class)->orderBy('ordem');
     }
+
+    /**
+     * Anexos (06/09/2026, controle de notas fiscais) — `Arquivo` não tem
+     * `pagamento_id` de verdade, o vínculo é via `origem_tipo`/`origem_id`
+     * (mesmo par que `Pagamento` usa pra apontar pra Mapa/Empreita, só que
+     * aqui é o Arquivo apontando pro Pagamento). Usado por
+     * `PagamentoController::index/show` (`withCount`/`loadCount`) pra
+     * expor `anexosCount` na Lista de Pagamentos sem N+1.
+     */
+    public function anexos(): HasMany
+    {
+        return $this->hasMany(Arquivo::class, 'origem_id', 'id')->where('origem_tipo', 'pagamento');
+    }
 }

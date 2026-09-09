@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Arquivo;
 use App\Models\Obra;
 use App\Models\Pasta;
+use App\Services\PastaRaizes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -26,17 +27,10 @@ class PastaController extends Controller
 
     public function raizes(Obra $obra)
     {
-        $propria = Pasta::firstOrCreate(
-            ['obra_id' => $obra->id, 'owner_user_id' => auth()->id(), 'tipo_raiz' => 'propria'],
-            ['nome' => 'Arquivos próprios'],
-        );
-
-        $compartilhada = Pasta::firstOrCreate(
-            ['obra_id' => $obra->id, 'owner_user_id' => null, 'tipo_raiz' => 'compartilhada'],
-            ['nome' => 'Arquivos compartilhados'],
-        );
-
-        return ['propria' => $propria, 'compartilhada' => $compartilhada];
+        return [
+            'propria' => PastaRaizes::propria($obra, auth()->id()),
+            'compartilhada' => PastaRaizes::compartilhada($obra),
+        ];
     }
 
     public function show(string $id)
@@ -79,6 +73,10 @@ class PastaController extends Controller
             abort(403, 'As pastas padrão não podem ser renomeadas ou movidas.');
         }
 
+        if ($pasta->ehDeTag()) {
+            abort(403, 'Esta pasta pertence a uma tag — gerencie o nome dela em Configurações.');
+        }
+
         $data = $request->validate([
             'nome' => 'sometimes|string|max:180',
             'parent_id' => 'sometimes|string',
@@ -113,6 +111,10 @@ class PastaController extends Controller
 
         if ($pasta->ehRaiz()) {
             abort(403, 'As pastas padrão não podem ser excluídas.');
+        }
+
+        if ($pasta->ehDeTag()) {
+            abort(403, 'Esta pasta pertence a uma tag — exclua a tag em Configurações (os arquivos não são apagados).');
         }
 
         DB::transaction(function () use ($pasta) {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pagamento;
+use App\Services\AnexoNomeador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,7 +17,9 @@ class PagamentoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Pagamento::with('itens.tipoCusto')->orderByDesc('data_solicitacao');
+        // `withCount('anexos')` (06/09/2026) — coluna "Anexos" da Lista de
+        // Pagamentos, sem 1 query por linha.
+        $query = Pagamento::with('itens.tipoCusto')->withCount('anexos')->orderByDesc('data_solicitacao');
 
         if ($request->filled('origem_tipo')) {
             $query->where('origem_tipo', $request->string('origem_tipo'));
@@ -42,7 +45,7 @@ class PagamentoController extends Controller
 
     public function show(Pagamento $pagamento)
     {
-        return $this->paraFrontend($pagamento->load('itens.tipoCusto'));
+        return $this->paraFrontend($pagamento->load('itens.tipoCusto')->loadCount('anexos'));
     }
 
     public function store(Request $request)
@@ -89,6 +92,13 @@ class PagamentoController extends Controller
                 'message' => 'A soma dos itens deve ser igual ao valor total do pagamento.',
             ], 422);
         }
+
+        // Capturado ANTES do fill()/save() — só existe (não é null) numa
+        // edição de verdade, nunca numa criação (aí não tem anexo nenhum
+        // ainda pra renomear). Usado depois da transação pra saber se o
+        // número mudou (06/09/2026, pedido do Lucas: "trocar a numeração
+        // dele renomeia todos os anexos").
+        $numeroAntigo = $pagamento->exists ? $pagamento->numero_pagamento : null;
 
         DB::transaction(function () use ($data, $pagamento) {
             $pagamento->fill([
@@ -137,7 +147,11 @@ class PagamentoController extends Controller
             $pagamento->itens()->whereNotIn('id', $keepItens ?: ['__none__'])->delete();
         });
 
-        return $this->paraFrontend($pagamento->load('itens.tipoCusto'));
+        if ($numeroAntigo !== null && $numeroAntigo !== $data['numero_pagamento']) {
+            AnexoNomeador::aposMudarNumero('pagamento', $pagamento->id, $data['numero_pagamento']);
+        }
+
+        return $this->paraFrontend($pagamento->load('itens.tipoCusto')->loadCount('anexos'));
     }
 
     /**
@@ -179,6 +193,10 @@ class PagamentoController extends Controller
                 : null,
             'status' => $pagamento->status ?? 'confirmado',
             'medicaoSnapshot' => $pagamento->medicao_snapshot,
+            // `anexos_count` vem de `withCount`/`loadCount` (index/show/
+            // syncCompleto) — cai pra uma query direta só se, por algum
+            // motivo, nenhum dos dois rodou antes de chegar aqui.
+            'anexosCount' => $pagamento->anexos_count ?? $pagamento->anexos()->count(),
         ];
     }
 }

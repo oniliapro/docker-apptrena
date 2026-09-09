@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
 import {
   calcularSomaItens,
   calcularValorItem,
@@ -55,7 +56,7 @@ type ColunaRecebimento =
  */
 @Component({
   selector: 'app-recebimentos',
-  imports: [NavegacaoTabela, RedimensionarColunas],
+  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento],
   providers: [RecebimentosStore],
   templateUrl: './recebimentos.html',
   styleUrl: './recebimentos.scss',

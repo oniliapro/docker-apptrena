@@ -1,14 +1,14 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { ChaveStatusObra, Obra, ObraPayload, STATUS_OBRA, rotuloStatusObra } from '../../core/models/api.models';
+import { Obra, ObraPayload, rotuloStatusObra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData } from '../../core/utils/formato';
 import { Cliente, Responsavel } from '../cadastros/cadastros.models';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { CadastroObraModal, EventoSalvarObra } from './cadastro-obra-modal/cadastro-obra-modal';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -31,14 +31,13 @@ type ColunaObra = 'map_number' | 'obra_nome' | 'cliente' | 'responsavel' | 'data
  */
 @Component({
   selector: 'app-obras',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [RedimensionarColunas, CadastroObraModal],
   templateUrl: './obras.html',
   styleUrl: './obras.scss',
 })
 export class Obras implements OnInit {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
-  private readonly fb = inject(FormBuilder);
   private readonly armazenamento = inject(ArmazenamentoService);
 
   protected readonly obras = signal<Obra[]>([]);
@@ -54,8 +53,6 @@ export class Obras implements OnInit {
   protected readonly formularioAberto = signal(false);
   protected readonly salvando = signal(false);
 
-  protected readonly statusOpcoes = STATUS_OBRA;
-
   /**
    * Clientes/Responsáveis ativos, pro dropdown com busca do formulário
    * (20/08/2026, pedido do Lucas: campos deixam de ser texto livre e
@@ -66,17 +63,6 @@ export class Obras implements OnInit {
    */
   protected readonly clientesAtivos = signal<Cliente[]>([]);
   protected readonly responsaveisAtivos = signal<Responsavel[]>([]);
-
-  protected readonly formulario = this.fb.nonNullable.group({
-    mapNumber: [''],
-    obraNome: ['', [Validators.required]],
-    cliente: [''],
-    responsavel: [''],
-    dataBase: [''],
-    periodo: [''],
-    status: ['a_iniciar' as ChaveStatusObra],
-    obs: [''],
-  });
 
   protected readonly ordenacao = signal<EstadoOrdenacao<ColunaObra> | null>(null);
   protected readonly setaOrdenacao = setaOrdenacao;
@@ -189,9 +175,10 @@ export class Obras implements OnInit {
    * gerado pelo sistema na criação (20/08/2026, pedido do Lucas). Mesmo
    * padrão "escaneia o maior sufixo, +1" já usado pelos códigos dos
    * cadastros (CLI-NNN, EMP-NNN…), pra não reaproveitar número de uma
-   * obra excluída.
+   * obra excluída. `protected` (não `private`) porque o template passa
+   * pro `CadastroObraModal` como `[proximoCodigo]`.
    */
-  private proximoCodigo(): string {
+  protected proximoCodigo(): string {
     const maior = this.obras().reduce((max, obra) => {
       const combinacao = /^OBR-(\d+)$/.exec(obra.map_number?.trim() ?? '');
       const numero = combinacao ? Number(combinacao[1]) : 0;
@@ -224,10 +211,10 @@ export class Obras implements OnInit {
   }
 
   // ------------------------------------------------------------------
-  // Formulário — Nova obra
+  // Formulário — Nova obra (07/09/2026, movido pro `CadastroObraModal`
+  // compartilhado com `ObraDetalhe` — ver comentário na classe dele).
   // ------------------------------------------------------------------
   protected novo(): void {
-    this.formulario.reset({ status: 'a_iniciar', mapNumber: this.proximoCodigo() });
     this.formularioAberto.set(true);
   }
 
@@ -235,55 +222,30 @@ export class Obras implements OnInit {
     this.formularioAberto.set(false);
   }
 
-  protected salvar(): void {
-    if (this.formulario.invalid) {
-      this.formulario.markAllAsTouched();
-      return;
-    }
-
-    const v = this.formulario.getRawValue();
-
-    const payload: ObraPayload = {
-      // map_number e data_base são as únicas colunas realmente NULLable no
-      // banco (obras.map_number, obras.data_base) — as demais colunas de
-      // texto/BDI são NOT NULL com default (ver migration
-      // 2024_01_01_000000_create_controle_obra_schema.php), então mandar
-      // null nelas quebra a constraint. String vazia e os defaults do
-      // schema (bdi_scope=global, bdi_mode=pct, bdi_percent/value=0) são o
-      // equivalente correto de "não preenchido" aqui.
-      map_number: v.mapNumber.trim() || this.proximoCodigo(),
-      obra_nome: v.obraNome.trim(),
-      cliente: v.cliente.trim(),
-      data_base: v.dataBase || null,
-      responsavel: v.responsavel.trim(),
-      local_obra: '',
-      periodo: v.periodo.trim(),
-      obs: v.obs.trim(),
-      bdi_scope: 'global',
-      bdi_mode: 'pct',
-      bdi_percent: 0,
-      bdi_value: 0,
-      is_confirmed: false,
-      confirmed_at: null,
-      status: v.status,
-    };
-
+  /**
+   * `acessosPendentes` (07/09/2026) — só vem preenchido se o usuário
+   * mexeu em "Quem acessa esta obra" durante a criação; sem obra_id
+   * ainda naquele momento, só dá pra gravar de verdade agora que a obra
+   * foi criada.
+   */
+  protected salvarNovaObra(evento: EventoSalvarObra): void {
     this.salvando.set(true);
-    this.api.criarObra(payload).subscribe({
+    this.api.criarObra(evento.payload as ObraPayload).subscribe({
       next: (obra) => {
         this.obras.update((lista) => [...lista, obra]);
         this.salvando.set(false);
         this.fechar();
+
+        if (evento.acessosPendentes) {
+          this.api.salvarAcessosObra(obra.id, evento.acessosPendentes).subscribe({
+            error: () => window.alert('A obra foi criada, mas não foi possível salvar os acessos definidos.'),
+          });
+        }
       },
       error: () => {
         this.salvando.set(false);
         window.alert('Não foi possível criar a obra.');
       },
     });
-  }
-
-  protected temErro(campo: string): boolean {
-    const controle = this.formulario.get(campo);
-    return Boolean(controle?.invalid && (controle.dirty || controle.touched));
   }
 }

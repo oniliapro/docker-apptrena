@@ -274,6 +274,14 @@
             A soma dos itens precisa ser igual ao valor total para salvar.
           </p>
         }
+
+        @if (editando()) {
+          <app-anexos-lancamento origemTipo="recebimento" [origemId]="r.id" />
+        } @else {
+          <p class="atenuado pequeno aviso-anexo-apos-salvar">
+            Salve o recebimento primeiro pra poder anexar arquivos (o nome do arquivo usa o número do recebimento).
+          </p>
+        }
       </div>
 
       <div class="modal-rodape">
