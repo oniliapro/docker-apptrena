@@ -190,6 +190,81 @@ export interface FotoDiario {
   url: string;
 }
 
+/** 'rascunho' (editável, ainda sem assinatura) | 'finalizado' (assinado automaticamente por quem finalizou). */
+export type StatusRegistroDiario = 'rascunho' | 'finalizado';
+
+export interface DiarioResponsavelPresente {
+  id?: string;
+  registro_id?: string;
+  nome: string;
+  empresa?: string | null;
+  funcao?: string | null;
+  /** Referência ao contrato/empreita, pra amarrar quem estava presente ao vínculo contratual (item A da especificação). */
+  contrato_referencia?: string | null;
+  presente?: boolean;
+}
+
+/** Cadastro simples da empresa (08/09/2026) — reutilizado entre obras e lançamentos. GET/POST /equipamentos-catalogo. */
+export interface EquipamentoCatalogoItem {
+  id: string;
+  nome: string;
+  tipo?: string | null;
+}
+
+export interface DiarioEquipamentoUso {
+  id?: string;
+  registro_id?: string;
+  equipamento_id: string;
+  quantidade?: number;
+  /** Presente quando o backend faz eager-load (`equipamentosUso.equipamento`). */
+  equipamento?: EquipamentoCatalogoItem | null;
+}
+
+export type TipoOcorrenciaDiario = 'nao_conformidade' | 'mudanca_projeto' | 'interferencia' | 'interrupcao';
+
+export const TIPOS_OCORRENCIA_DIARIO: ReadonlyArray<{ chave: TipoOcorrenciaDiario; rotulo: string }> = [
+  { chave: 'nao_conformidade', rotulo: 'Não conformidade' },
+  { chave: 'mudanca_projeto', rotulo: 'Mudança de projeto' },
+  { chave: 'interferencia', rotulo: 'Interferência' },
+  { chave: 'interrupcao', rotulo: 'Interrupção' },
+];
+
+export interface DiarioOcorrencia {
+  id?: string;
+  registro_id?: string;
+  tipo: TipoOcorrenciaDiario;
+  descricao: string;
+  responsavel?: string | null;
+  motivo?: string | null;
+  danos_materiais?: string | null;
+}
+
+export type StatusPendenciaDiario = 'aberta' | 'concluida';
+
+export interface DiarioPendencia {
+  id?: string;
+  registro_id?: string;
+  descricao: string;
+  responsavel?: string | null;
+  /** ISO "AAAA-MM-DD". */
+  prazo?: string | null;
+  status?: StatusPendenciaDiario;
+}
+
+/**
+ * Observação da contratada sobre o lançamento — por padrão NÃO visível
+ * ao contratante da obra (`visivel_contratante = false`). Ver
+ * `DiarioComentarioInterno` no backend.
+ */
+export interface DiarioComentarioInterno {
+  id?: string;
+  registro_id?: string;
+  autor_user_id?: number | string | null;
+  texto: string;
+  visivel_contratante?: boolean;
+  created_at?: string;
+}
+
 export interface RegistroDiario {
   id: string;
   obra_id?: string | null;
@@ -198,9 +273,64 @@ export interface RegistroDiario {
   autor?: string | null;
   titulo?: string | null;
   descricao?: string | null;
+  impacto_cronograma?: string | null;
+  quantidade_operarios?: number | null;
+  status?: StatusRegistroDiario;
+  assinado_em?: string | null;
+  assinado_por_user_id?: number | string | null;
+  /** Presente quando o backend faz eager-load (`assinadoPor:id,name`). */
+  assinadoPor?: { id: number | string; name?: string } | null;
   fotos?: FotoDiario[];
+  responsaveisPresentes?: DiarioResponsavelPresente[];
+  equipamentosUso?: DiarioEquipamentoUso[];
+  ocorrencias?: DiarioOcorrencia[];
+  pendencias?: DiarioPendencia[];
+  comentariosInternos?: DiarioComentarioInterno[];
   /** Presente quando o backend faz eager-load da obra (usado no dashboard). */
   obra?: { obra_nome?: string | null } | null;
+}
+
+/**
+ * Link de acesso somente-leitura do contratante da obra (cliente final)
+ * ao Diário — sem login, autorizado só pelo token (08/09/2026). Quem
+ * gera/revoga é sempre alguém do lado da contratada — ver
+ * `ObraContratanteLinkController`.
+ */
+export interface ObraContratanteLink {
+  id: string;
+  obra_id: string;
+  token: string;
+  nome_contato?: string | null;
+  telefone_whatsapp?: string | null;
+  expira_em?: string | null;
+  revogado_em?: string | null;
+  criado_por_user_id?: number | string | null;
+  created_at?: string;
+}
+
+// ---------------- Acesso público do contratante (sem login) ----------------
+/** GET /publico/diario/{token} — dados da obra + datas com lançamento finalizado (calendário). */
+export interface PublicoObraResumo {
+  obra: { nome?: string | null; cliente?: string | null; local?: string | null };
+  datas_com_lancamento: string[];
+}
+
+/** GET /publico/diario/{token}/dia/{data} — um item da lista do dia. */
+export interface PublicoLancamentoResumo {
+  id: string;
+  data: string;
+  titulo?: string | null;
+  clima?: string | null;
+  assinado_em?: string | null;
+  assinado_por_user_id?: number | string | null;
+  assinadoPor?: { id: number | string; name?: string } | null;
+  created_at?: string;
+}
+
+/** GET /publico/diario/{token}/lancamento/{registroId} — detalhe completo, só o que é permitido ao contratante ver. */
+export interface PublicoLancamentoDetalhe {
+  registro: RegistroDiario;
+  comentarios: Array<{ id: string; texto: string; created_at?: string }>;
 }
 
 /** Resposta de POST /api/login — token Sanctum. */

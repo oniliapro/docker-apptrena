@@ -1,0 +1,170 @@
+<div class="pagina">
+  @if (carregando()) {
+    <div class="atenuado central">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="cartao erro central">{{ mensagem }}</div>
+  } @else {
+    <header class="cabecalho">
+      <div class="obra-nome">{{ resumoObra()?.obra?.nome || 'Diário de obra' }}</div>
+      @if (resumoObra()?.obra?.cliente) {
+        <div class="atenuado pequeno">{{ resumoObra()?.obra?.cliente }}</div>
+      }
+      @if (resumoObra()?.obra?.local) {
+        <div class="atenuado pequeno">{{ resumoObra()?.obra?.local }}</div>
+      }
+      <div class="atenuado pequeno aviso-leitura">
+        Acesso somente para visualização — os lançamentos são assinados pela contratada.
+      </div>
+    </header>
+
+    <!-- Vista: calendário -->
+    @if (vista() === 'calendario') {
+      <div class="cartao">
+        <div class="navegacao-mes">
+          <button type="button" (click)="mesAnterior()">‹</button>
+          <span class="nome-mes">{{ nomeMes() }}</span>
+          <button type="button" (click)="proximoMes()">›</button>
+        </div>
+
+        <div class="grade-semana">
+          <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
+        </div>
+
+        <div class="grade-calendario">
+          @for (dia of diasDoMes(); track $index) {
+            @if (dia.foraDoMes) {
+              <div class="dia-vazio"></div>
+            } @else {
+              <button
+                type="button"
+                class="dia"
+                [class.dia-com-lancamento]="dia.temLancamento"
+                [disabled]="!dia.temLancamento"
+                (click)="abrirDia(dia)"
+              >
+                {{ dia.numero }}
+                @if (dia.temLancamento) { <span class="ponto"></span> }
+              </button>
+            }
+          }
+        </div>
+
+        @if ((resumoObra()?.datas_com_lancamento ?? []).length === 0) {
+          <div class="atenuado pequeno" style="margin-top: 10px;">Ainda não há lançamentos finalizados nesta obra.</div>
+        }
+      </div>
+    }
+
+    <!-- Vista: lista do dia -->
+    @if (vista() === 'dia') {
+      <div class="cartao">
+        <button type="button" class="voltar" (click)="voltarParaCalendario()">‹ Voltar ao calendário</button>
+        <div class="painel-titulo">{{ formatarData(diaSelecionado()) }}</div>
+
+        @if (carregandoDia()) {
+          <div class="atenuado">Carregando…</div>
+        } @else if (lancamentosDoDia().length === 0) {
+          <div class="atenuado">Nenhum lançamento neste dia.</div>
+        } @else {
+          @for (lancamento of lancamentosDoDia(); track lancamento.id) {
+            <button type="button" class="item-lista" (click)="abrirLancamento(lancamento)">
+              <div>
+                <strong>{{ lancamento.titulo || 'Lançamento do dia' }}</strong>
+                @if (lancamento.clima) { <span class="atenuado pequeno"> · {{ lancamento.clima }}</span> }
+              </div>
+              @if (lancamento.assinadoPor?.name) {
+                <div class="atenuado pequeno">Assinado por {{ lancamento.assinadoPor?.name }}</div>
+              }
+            </button>
+          }
+        }
+      </div>
+    }
+
+    <!-- Vista: detalhe do lançamento -->
+    @if (vista() === 'detalhe') {
+      <div class="cartao">
+        <button type="button" class="voltar" (click)="voltarParaDia()">‹ Voltar à lista do dia</button>
+
+        @if (carregandoDetalhe()) {
+          <div class="atenuado">Carregando…</div>
+        } @else if (detalhe(); as info) {
+          <div class="painel-titulo">{{ info.registro.titulo || 'Lançamento' }}</div>
+          <div class="atenuado pequeno">
+            {{ formatarData(info.registro.data) }}
+            @if (info.registro.clima) { · {{ info.registro.clima }} }
+            @if (info.registro.assinado_em) { · assinado em {{ formatarDataHora(info.registro.assinado_em) }} }
+          </div>
+
+          @if (info.registro.descricao) {
+            <p class="descricao">{{ info.registro.descricao }}</p>
+          }
+
+          <div class="atenuado pequeno">
+            @if (info.registro.quantidade_operarios !== null && info.registro.quantidade_operarios !== undefined) {
+              {{ info.registro.quantidade_operarios }} operário(s) em campo
+            }
+            @if (info.registro.impacto_cronograma) { · impacto no cronograma: {{ info.registro.impacto_cronograma }} }
+          </div>
+
+          @if (info.registro.responsaveisPresentes?.length) {
+            <div class="bloco">
+              <div class="bloco-titulo">Responsáveis presentes</div>
+              @for (r of info.registro.responsaveisPresentes; track r.id) {
+                <span class="chip">{{ r.nome }}@if (r.empresa) { ({{ r.empresa }}) }</span>
+              }
+            </div>
+          }
+
+          @if (info.registro.equipamentosUso?.length) {
+            <div class="bloco">
+              <div class="bloco-titulo">Equipamentos</div>
+              @for (e of info.registro.equipamentosUso; track e.id) {
+                <span class="chip">{{ e.equipamento?.nome }} × {{ e.quantidade }}</span>
+              }
+            </div>
+          }
+
+          @if (info.registro.ocorrencias?.length) {
+            <div class="bloco">
+              <div class="bloco-titulo">Ocorrências</div>
+              @for (o of info.registro.ocorrencias; track o.id) {
+                <div class="pequeno">— {{ o.descricao }}</div>
+              }
+            </div>
+          }
+
+          @if (info.registro.pendencias?.length) {
+            <div class="bloco">
+              <div class="bloco-titulo">Pendências</div>
+              @for (p of info.registro.pendencias; track p.id) {
+                <div class="pequeno">— {{ p.descricao }} ({{ p.status }})</div>
+              }
+            </div>
+          }
+
+          @if (info.comentarios.length) {
+            <div class="bloco">
+              <div class="bloco-titulo">Observações</div>
+              @for (c of info.comentarios; track c.id) {
+                <div class="pequeno">— {{ c.texto }}</div>
+              }
+            </div>
+          }
+
+          @if (info.registro.fotos?.length) {
+            <div class="fotos">
+              @for (foto of info.registro.fotos; track foto.url) {
+                <a [href]="foto.url" target="_blank" rel="noopener">
+                  <img [src]="foto.url" alt="Foto do lançamento" />
+                </a>
+              }
+            </div>
+          }
+        } @else {
+          <div class="atenuado">Não foi possível carregar este lançamento.</div>
+        }
+      </div>
+    }
+  }
+</div>

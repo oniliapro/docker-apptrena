@@ -17,7 +17,62 @@
   </label>
 
   <button type="button" (click)="abrirModalNovaObra()">+ Nova obra</button>
+  @if (obraAtiva()) {
+    <button type="button" (click)="togglePainelLink()">
+      {{ painelLinkAberto() ? 'Fechar link do contratante' : 'Link do contratante' }}
+    </button>
+  }
 </div>
+
+@if (painelLinkAberto()) {
+  <div class="painel">
+    <div class="painel-titulo">Acesso do contratante da obra (cliente final)</div>
+    <p class="atenuado pequeno">
+      Link somente-leitura, sem login: quem receber só vê os lançamentos já finalizados (assinados) — nunca escreve
+      nem assina nada. Gere um link por contratante/obra e revogue quando não fizer mais sentido.
+    </p>
+
+    <form class="linha-campos" [formGroup]="formNovoLink" (ngSubmit)="gerarLinkContratante()">
+      <label class="campo">
+        <span>Nome do contato (opcional)</span>
+        <input type="text" formControlName="nome_contato" />
+      </label>
+      <label class="campo">
+        <span>WhatsApp (opcional)</span>
+        <input type="text" formControlName="telefone_whatsapp" placeholder="(00) 00000-0000" />
+      </label>
+      <button class="primario" type="submit" [disabled]="gerandoLink()">
+        {{ gerandoLink() ? 'Gerando…' : '+ Gerar link' }}
+      </button>
+    </form>
+
+    @if (contratanteLinks().length === 0) {
+      <div class="atenuado pequeno">Nenhum link gerado ainda para esta obra.</div>
+    } @else {
+      @for (link of contratanteLinks(); track link.id) {
+        <div class="cartao-link">
+          <div>
+            <div>
+              <strong>{{ link.nome_contato || 'Contato sem nome' }}</strong>
+              @if (!linkEstaAtivo(link)) {
+                <span class="etiqueta etiqueta-inativo">{{ link.revogado_em ? 'revogado' : 'expirado' }}</span>
+              } @else {
+                <span class="etiqueta etiqueta-ativo">ativo</span>
+              }
+            </div>
+            <div class="atenuado pequeno">{{ urlPublicaLink(link) }}</div>
+          </div>
+          <div class="acoes">
+            @if (linkEstaAtivo(link)) {
+              <button type="button" (click)="copiarLink(link)">Copiar</button>
+              <button type="button" (click)="revogarLink(link)">Revogar</button>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+}
 
 <div class="colunas">
   <form class="painel" [formGroup]="formulario" (ngSubmit)="salvar()">
@@ -49,9 +104,130 @@
       <textarea formControlName="descricao" rows="5"></textarea>
     </label>
 
+    <div class="linha-campos">
+      <label class="campo">
+        <span>Mão de obra (nº de operários)</span>
+        <input type="number" min="0" formControlName="quantidade_operarios" />
+      </label>
+      <label class="campo">
+        <span>Impacto no cronograma (opcional)</span>
+        <input type="text" formControlName="impacto_cronograma" />
+      </label>
+    </div>
+
     <label class="campo">
       <span>Fotos</span>
       <input type="file" multiple accept="image/*" (change)="selecionarFotos($event)" />
+    </label>
+
+    <!-- Responsáveis presentes -->
+    <div class="secao">
+      <div class="secao-titulo">
+        <span>Responsáveis presentes</span>
+        <button type="button" (click)="adicionarResponsavel()">+ Adicionar</button>
+      </div>
+      @for (grupo of responsaveisPresentes.controls; track $index; let i = $index) {
+        <div class="linha-repetida" [formGroup]="grupo">
+          <input type="text" formControlName="nome" placeholder="Nome" />
+          <input type="text" formControlName="empresa" placeholder="Empresa" />
+          <input type="text" formControlName="funcao" placeholder="Função" />
+          <input type="text" formControlName="contrato_referencia" placeholder="Contrato/empreita" />
+          <button type="button" title="Remover" (click)="removerResponsavel(i)">✖</button>
+        </div>
+      }
+    </div>
+
+    <!-- Equipamentos -->
+    <div class="secao">
+      <div class="secao-titulo">
+        <span>Equipamentos utilizados</span>
+        <div class="acoes">
+          <button type="button" (click)="cadastrarEquipamentoRapido()">+ Cadastrar no catálogo</button>
+          <button type="button" (click)="adicionarEquipamento()">+ Adicionar</button>
+        </div>
+      </div>
+      @for (grupo of equipamentos.controls; track $index; let i = $index) {
+        <div class="linha-repetida" [formGroup]="grupo">
+          <select formControlName="equipamento_id">
+            <option value="" disabled>Escolha o equipamento…</option>
+            @for (equip of equipamentosCatalogo(); track equip.id) {
+              <option [value]="equip.id">{{ equip.nome }}</option>
+            }
+          </select>
+          <input type="number" min="1" formControlName="quantidade" placeholder="Qtde" />
+          <button type="button" title="Remover" (click)="removerEquipamento(i)">✖</button>
+        </div>
+      }
+    </div>
+
+    <!-- Ocorrências -->
+    <div class="secao">
+      <div class="secao-titulo">
+        <span>Ocorrências</span>
+        <button type="button" (click)="adicionarOcorrencia()">+ Adicionar</button>
+      </div>
+      @for (grupo of ocorrencias.controls; track $index; let i = $index) {
+        <div class="bloco-repetido" [formGroup]="grupo">
+          <div class="linha-campos">
+            <select formControlName="tipo">
+              @for (tipo of tiposOcorrencia; track tipo.chave) {
+                <option [value]="tipo.chave">{{ tipo.rotulo }}</option>
+              }
+            </select>
+            <input type="text" formControlName="responsavel" placeholder="Responsável (opcional)" />
+            <button type="button" title="Remover" (click)="removerOcorrencia(i)">✖</button>
+          </div>
+          <textarea formControlName="descricao" rows="2" placeholder="Descrição"></textarea>
+          <div class="linha-campos">
+            <input type="text" formControlName="motivo" placeholder="Motivo (opcional)" />
+            <input type="text" formControlName="danos_materiais" placeholder="Danos materiais (opcional)" />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pendências -->
+    <div class="secao">
+      <div class="secao-titulo">
+        <span>Pendências</span>
+        <button type="button" (click)="adicionarPendencia()">+ Adicionar</button>
+      </div>
+      @for (grupo of pendencias.controls; track $index; let i = $index) {
+        <div class="linha-repetida" [formGroup]="grupo">
+          <input type="text" formControlName="descricao" placeholder="Descrição" />
+          <input type="text" formControlName="responsavel" placeholder="Responsável" />
+          <input type="date" formControlName="prazo" />
+          <select formControlName="status">
+            <option value="aberta">Aberta</option>
+            <option value="concluida">Concluída</option>
+          </select>
+          <button type="button" title="Remover" (click)="removerPendencia(i)">✖</button>
+        </div>
+      }
+    </div>
+
+    <!-- Comentário interno -->
+    <div class="secao">
+      <div class="secao-titulo">
+        <span>Comentário interno</span>
+        <button type="button" (click)="adicionarComentarioInterno()">+ Adicionar</button>
+      </div>
+      <p class="atenuado pequeno">Não visível para o contratante da obra, a menos que você marque abaixo.</p>
+      @for (grupo of comentariosInternos.controls; track $index; let i = $index) {
+        <div class="bloco-repetido" [formGroup]="grupo">
+          <textarea formControlName="texto" rows="2" placeholder="Comentário"></textarea>
+          <label class="campo-checkbox">
+            <input type="checkbox" formControlName="visivel_contratante" />
+            <span>Visível para o contratante</span>
+          </label>
+          <button type="button" title="Remover" (click)="removerComentarioInterno(i)">✖</button>
+        </div>
+      }
+    </div>
+
+    <label class="campo-checkbox campo-finalizar">
+      <input type="checkbox" formControlName="finalizar" />
+      <span>Finalizar e assinar agora (não dá para editar depois)</span>
     </label>
 
     <div class="acoes">
@@ -82,7 +258,19 @@
             <span class="atenuado">
               {{ formatarData(registro.data) }}@if (registro.clima) { · {{ registro.clima }} }
             </span>
-            <button type="button" title="Excluir" (click)="remover(registro)">✖</button>
+            <div class="acoes">
+              @if (registro.status === 'finalizado') {
+                <span class="etiqueta etiqueta-ativo">
+                  Finalizado @if (registro.assinadoPor?.name) { · assinado por {{ registro.assinadoPor?.name }} }
+                </span>
+              } @else {
+                <span class="etiqueta etiqueta-inativo">Rascunho</span>
+                <button type="button" [disabled]="finalizandoId() === registro.id" (click)="finalizar(registro)">
+                  {{ finalizandoId() === registro.id ? 'Finalizando…' : 'Finalizar e assinar' }}
+                </button>
+              }
+              <button type="button" title="Excluir" (click)="remover(registro)">✖</button>
+            </div>
           </div>
 
           @if (registro.titulo) {
@@ -91,8 +279,63 @@
           @if (registro.descricao) {
             <div class="descricao">{{ registro.descricao }}</div>
           }
-          @if (registro.autor) {
-            <div class="atenuado pequeno">Registrado por {{ registro.autor }}</div>
+          <div class="atenuado pequeno">
+            @if (registro.autor) { Registrado por {{ registro.autor }} }
+            @if (registro.quantidade_operarios !== null && registro.quantidade_operarios !== undefined) {
+              · {{ registro.quantidade_operarios }} operário(s)
+            }
+            @if (registro.impacto_cronograma) { · impacto no cronograma: {{ registro.impacto_cronograma }} }
+          </div>
+
+          @if (registro.responsaveisPresentes?.length) {
+            <div class="bloco-detalhe">
+              <strong class="pequeno">Presentes:</strong>
+              @for (r of registro.responsaveisPresentes; track r.id) {
+                <span class="chip">{{ r.nome }}@if (r.empresa) { ({{ r.empresa }}) }</span>
+              }
+            </div>
+          }
+
+          @if (registro.equipamentosUso?.length) {
+            <div class="bloco-detalhe">
+              <strong class="pequeno">Equipamentos:</strong>
+              @for (e of registro.equipamentosUso; track e.id) {
+                <span class="chip">{{ e.equipamento?.nome }} × {{ e.quantidade }}</span>
+              }
+            </div>
+          }
+
+          @if (registro.ocorrencias?.length) {
+            <div class="bloco-detalhe">
+              <strong class="pequeno">Ocorrências:</strong>
+              @for (o of registro.ocorrencias; track o.id) {
+                <div class="pequeno">— [{{ rotuloOcorrencia(o.tipo) }}] {{ o.descricao }}</div>
+              }
+            </div>
+          }
+
+          @if (registro.pendencias?.length) {
+            <div class="bloco-detalhe">
+              <strong class="pequeno">Pendências:</strong>
+              @for (p of registro.pendencias; track p.id) {
+                <div class="pequeno">
+                  — {{ p.descricao }}
+                  <span class="etiqueta" [class.etiqueta-ativo]="p.status === 'concluida'">{{ p.status }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          @if (registro.comentariosInternos?.length) {
+            <div class="bloco-detalhe">
+              <strong class="pequeno">Comentários internos:</strong>
+              @for (c of registro.comentariosInternos; track c.id) {
+                <div class="pequeno">
+                  — {{ c.texto }}
+                  @if (!c.visivel_contratante) { <span class="atenuado">(não visível ao contratante)</span> }
+                </div>
+              }
+            </div>
           }
 
           @if (registro.fotos?.length) {

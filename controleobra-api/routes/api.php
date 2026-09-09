@@ -14,9 +14,12 @@ use App\Http\Controllers\Api\MapaController;
 use App\Http\Controllers\Api\MapaPdfController;
 use App\Http\Controllers\Api\MedicaoController;
 use App\Http\Controllers\Api\MedicaoPdfController;
+use App\Http\Controllers\Api\EquipamentoCatalogoController;
 use App\Http\Controllers\Api\NotaFiscalController;
+use App\Http\Controllers\Api\ObraContratanteLinkController;
 use App\Http\Controllers\Api\ObraController;
 use App\Http\Controllers\Api\PagamentoController;
+use App\Http\Controllers\Api\PublicoDiarioController;
 use App\Http\Controllers\Api\RecebimentoController;
 use App\Http\Controllers\Api\PastaController;
 use App\Http\Controllers\Api\RelatorioPdfController;
@@ -55,6 +58,18 @@ Route::get('arquivos/{arquivo}/stream', [ArquivoController::class, 'stream'])
     ->name('arquivos.stream')->middleware('signed');
 Route::get('arquivos/{arquivo}/stream-thumb', [ArquivoController::class, 'streamThumb'])
     ->name('arquivos.streamThumb')->middleware('signed');
+
+// Diário de Obra — acesso do contratante da obra (cliente final), sem
+// login, autorizado só pelo token do link (08/09/2026, ver
+// PublicoDiarioController). Somente leitura, de propósito: nenhuma
+// dessas rotas grava nada. Throttle mais folgado que login (não é
+// autenticação por senha), mas ainda limitado contra varredura de
+// tokens.
+Route::prefix('publico/diario/{token}')->middleware('throttle:60,1')->group(function () {
+    Route::get('/', [PublicoDiarioController::class, 'obra']);
+    Route::get('dia/{data}', [PublicoDiarioController::class, 'dia']);
+    Route::get('lancamento/{registroId}', [PublicoDiarioController::class, 'lancamento']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -160,6 +175,33 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:diario_obra,criar', 'permissaoObra:lancar']);
     Route::delete('diario/{registro}', [DiarioObraController::class, 'destroy'])
         ->middleware(['permissaoModulo:diario_obra,excluir', 'permissaoObra:lancar']);
+
+    // Diário de obra — extensões de 08/09/2026 (especificação completa).
+    // "Finalizar" É a assinatura eletrônica automática do responsável
+    // (ver DiarioObraController::finalizar) — não existe rota separada
+    // de "assinar".
+    Route::post('diario/{registro}/finalizar', [DiarioObraController::class, 'finalizar'])
+        ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
+    Route::get('diario/pendentes-assinatura', [DiarioObraController::class, 'pendentesAssinatura'])
+        ->middleware('permissaoModulo:diario_obra,usar');
+    Route::get('diario/ultima-mao-de-obra', [DiarioObraController::class, 'ultimaMaoDeObra'])
+        ->middleware('permissaoModulo:diario_obra,usar');
+
+    // Catálogo de equipamentos — cadastro inicial reaproveitado nos
+    // lançamentos do diário (item E da especificação).
+    Route::get('equipamentos-catalogo', [EquipamentoCatalogoController::class, 'index'])
+        ->middleware('permissaoModulo:diario_obra,usar');
+    Route::post('equipamentos-catalogo', [EquipamentoCatalogoController::class, 'store'])
+        ->middleware('permissaoModulo:diario_obra,criar');
+
+    // Link de acesso do contratante da obra (cliente final) — quem
+    // gera/revoga é sempre alguém do lado da contratada.
+    Route::get('obras/{obra}/contratante-links', [ObraContratanteLinkController::class, 'index'])
+        ->middleware('permissaoModulo:diario_obra,usar');
+    Route::post('obras/{obra}/contratante-links', [ObraContratanteLinkController::class, 'store'])
+        ->middleware('permissaoModulo:diario_obra,criar');
+    Route::delete('contratante-links/{link}', [ObraContratanteLinkController::class, 'destroy'])
+        ->middleware('permissaoModulo:diario_obra,excluir');
 
     // Mapas — módulo-prova do padrão de "Controle de permissões"
     // (31/08/2026): cobre lista geral (index, só permissaoModulo — cruza

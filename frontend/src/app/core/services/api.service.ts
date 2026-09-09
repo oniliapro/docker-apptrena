@@ -11,17 +11,22 @@ import {
   AcessoObraUsuario,
   EapPayload,
   Empreita,
+  EquipamentoCatalogoItem,
   Mapa,
   MedicaoPayload,
   MedicaoResumo,
   MedicaoSalvarPayload,
   MinhasPermissoes,
   Obra,
+  ObraContratanteLink,
   ObraPayload,
   Pagamento,
   PerfilEmpresa,
   PermissaoModulo,
   PlanejamentoCronograma,
+  PublicoLancamentoDetalhe,
+  PublicoLancamentoResumo,
+  PublicoObraResumo,
   Recebimento,
   RegistroDiario,
   RepresentanteLegal,
@@ -311,6 +316,80 @@ export class ApiService {
 
   excluirRegistroDiario(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/diario/${id}`);
+  }
+
+  /**
+   * POST /diario/{registro}/finalizar — assina automaticamente (finalizar
+   * É assinar, não existe ação separada) e dispara a notificação de
+   * WhatsApp pro contratante, se houver link ativo (08/09/2026).
+   */
+  finalizarRegistroDiario(id: string): Observable<RegistroDiario> {
+    return this.http.post<RegistroDiario>(`${this.base}/diario/${id}/finalizar`, {});
+  }
+
+  /** GET /diario/pendentes-assinatura — rascunhos ainda não finalizados, item K da especificação. */
+  listarDiarioPendentesAssinatura(obraId?: string): Observable<RegistroDiario[]> {
+    let params = new HttpParams();
+    if (obraId) params = params.set('obra_id', obraId);
+    return this.http.get<RegistroDiario[]>(`${this.base}/diario/pendentes-assinatura`, { params });
+  }
+
+  /**
+   * GET /diario/ultima-mao-de-obra?obra_id= — quantidade de operários do
+   * último lançamento da obra, pra pré-preencher o campo (item D).
+   */
+  obterUltimaMaoDeObra(obraId: string): Observable<{ quantidade_operarios: number | null }> {
+    const params = new HttpParams().set('obra_id', obraId);
+    return this.http.get<{ quantidade_operarios: number | null }>(
+      `${this.base}/diario/ultima-mao-de-obra`,
+      { params },
+    );
+  }
+
+  // ---------------- Diário de obra — catálogo de equipamentos ----------------
+  listarEquipamentosCatalogo(): Observable<EquipamentoCatalogoItem[]> {
+    return this.http.get<EquipamentoCatalogoItem[]>(`${this.base}/equipamentos-catalogo`);
+  }
+
+  criarEquipamentoCatalogo(dados: { nome: string; tipo?: string }): Observable<EquipamentoCatalogoItem> {
+    return this.http.post<EquipamentoCatalogoItem>(`${this.base}/equipamentos-catalogo`, dados);
+  }
+
+  // ---------------- Diário de obra — link do contratante (cliente final) ----------------
+  /** GET /obras/{obra}/contratante-links — sempre gerenciado do lado da contratada. */
+  listarContratanteLinks(obraId: string): Observable<ObraContratanteLink[]> {
+    return this.http.get<ObraContratanteLink[]>(`${this.base}/obras/${obraId}/contratante-links`);
+  }
+
+  criarContratanteLink(
+    obraId: string,
+    dados: { nome_contato?: string; telefone_whatsapp?: string; expira_em?: string },
+  ): Observable<ObraContratanteLink> {
+    return this.http.post<ObraContratanteLink>(`${this.base}/obras/${obraId}/contratante-links`, dados);
+  }
+
+  revogarContratanteLink(linkId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/contratante-links/${linkId}`);
+  }
+
+  // ---------------- Diário de obra — acesso público do contratante (sem login) ----------------
+  /**
+   * As 3 chamadas abaixo NÃO passam pelo token Sanctum (o interceptor só
+   * anexa Authorization se houver um logado por acaso no mesmo
+   * navegador — o backend ignora, a rota é pública por token de URL).
+   */
+  obterPublicoObra(token: string): Observable<PublicoObraResumo> {
+    return this.http.get<PublicoObraResumo>(`${this.base}/publico/diario/${token}`);
+  }
+
+  obterPublicoDia(token: string, data: string): Observable<PublicoLancamentoResumo[]> {
+    return this.http.get<PublicoLancamentoResumo[]>(`${this.base}/publico/diario/${token}/dia/${data}`);
+  }
+
+  obterPublicoLancamento(token: string, registroId: string): Observable<PublicoLancamentoDetalhe> {
+    return this.http.get<PublicoLancamentoDetalhe>(
+      `${this.base}/publico/diario/${token}/lancamento/${registroId}`,
+    );
   }
 
   // ---------------- Relatórios ----------------
