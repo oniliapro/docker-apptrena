@@ -71,6 +71,8 @@ export function normalizarRecebimento(bruto: Record<string, unknown>): Recebimen
   return {
     id: r['id'] ? String(r['id']) : gerarId(),
     numeroRecebimento: String(r['numeroRecebimento'] ?? ''),
+    obraId: r['obraId'] ? String(r['obraId']) : undefined,
+    obraNome: r['obraNome'] ? String(r['obraNome']) : undefined,
     obraNumber: String(r['obraNumber'] ?? ''),
     dataSolicitacao: String(r['dataSolicitacao'] ?? ''),
     dataRecebimento: String(r['dataRecebimento'] ?? ''),
@@ -80,6 +82,7 @@ export function normalizarRecebimento(bruto: Record<string, unknown>): Recebimen
     itens,
     origem: r['origem'] ? { ...(r['origem'] as object) } : null,
     status: r['status'] === 'pendente' ? 'pendente' : 'confirmado',
+    anexosCount: numeroSeguro(r['anexosCount']),
   };
 }
 

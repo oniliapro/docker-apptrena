@@ -46,6 +46,9 @@ export type StatusRecebimento = 'pendente' | 'confirmado';
 export interface Recebimento {
   id: string;
   numeroRecebimento: string;
+  /** Id/nome da obra (14/09/2026) — card "Recebimentos" do dashboard, que cruza várias obras. */
+  obraId?: string;
+  obraNome?: string;
   obraNumber: string;
   dataSolicitacao: string;
   dataRecebimento: string;
@@ -55,6 +58,8 @@ export interface Recebimento {
   itens: ItemRecebimento[];
   origem: OrigemRecebimento | null;
   status: StatusRecebimento;
+  /** Quantidade de anexos (14/09/2026, mesmo padrão de `Pagamento.anexosCount`) — vem pronto de `RecebimentoController` (`withCount`), sem 1 chamada por linha. */
+  anexosCount?: number;
 }
 
 export interface CabecalhoRecebimentos {

@@ -18,8 +18,12 @@ class PagamentoController extends Controller
     public function index(Request $request)
     {
         // `withCount('anexos')` (06/09/2026) — coluna "Anexos" da Lista de
-        // Pagamentos, sem 1 query por linha.
-        $query = Pagamento::with('itens.tipoCusto')->withCount('anexos')->orderByDesc('data_solicitacao');
+        // Pagamentos, sem 1 query por linha. `obra:id,obra_nome` (14/09/2026)
+        // — card "Pagamentos" do dashboard precisa do nome da obra, não só
+        // do número.
+        $query = Pagamento::with('itens.tipoCusto', 'obra:id,obra_nome')
+            ->withCount('anexos')
+            ->orderByDesc('data_solicitacao');
 
         if ($request->filled('origem_tipo')) {
             $query->where('origem_tipo', $request->string('origem_tipo'));
@@ -170,6 +174,7 @@ class PagamentoController extends Controller
             'numeroPagamento' => $pagamento->numero_pagamento,
             'obraId' => $pagamento->obra_id,
             'obraNumber' => $pagamento->obra_number ?? '',
+            'obraNome' => optional($pagamento->obra)->obra_nome ?? '',
             'dataSolicitacao' => optional($pagamento->data_solicitacao)->format('Y-m-d') ?? '',
             // Datetime, não só data (26/08/2026) — `confirmar()` no
             // frontend grava a hora do clique junto com a data.

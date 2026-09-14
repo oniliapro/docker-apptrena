@@ -88,6 +88,9 @@ export interface MedicaoSnapshotEmpreita {
 export interface Pagamento {
   id: string;
   numeroPagamento: string;
+  /** Id/nome da obra (14/09/2026) — card "Pagamentos" do dashboard, que cruza várias obras. Opcional porque rascunhos locais (pagamento novo) ainda não têm. */
+  obraId?: string;
+  obraNome?: string;
   obraNumber: string;
   dataSolicitacao: string;
   dataPagamento: string;

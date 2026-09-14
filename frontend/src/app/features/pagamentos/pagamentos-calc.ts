@@ -107,6 +107,8 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
   return {
     id: p['id'] ? String(p['id']) : gerarId(),
     numeroPagamento: String(p['numeroPagamento'] ?? p['numero'] ?? ''),
+    obraId: p['obraId'] ? String(p['obraId']) : undefined,
+    obraNome: p['obraNome'] ? String(p['obraNome']) : undefined,
     obraNumber: String(p['obraNumber'] ?? p['obra'] ?? ''),
     dataSolicitacao: String(p['dataSolicitacao'] ?? data),
     dataPagamento: String(p['dataPagamento'] ?? data),

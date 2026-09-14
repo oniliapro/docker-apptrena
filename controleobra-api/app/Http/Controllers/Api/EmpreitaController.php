@@ -30,7 +30,11 @@ class EmpreitaController extends Controller
     /** GET /api/empreitas — aceita `obra_id` para listar só as empreitas de uma obra. */
     public function index(Request $request)
     {
-        $query = Empreita::orderBy('numero_empreita');
+        // `obra:id,obra_nome` (14/09/2026) — card "Empreitas" do dashboard.
+        // Total/Pago/Saldo continuam calculados no frontend (ver
+        // `EmpreitasObra.total/totalPago/saldo`) — não duplicar aquela
+        // regra aqui.
+        $query = Empreita::with('obra:id,obra_nome')->orderBy('numero_empreita');
         if ($request->filled('obra_id')) {
             $query->where('obra_id', $request->query('obra_id'));
         }
@@ -46,7 +50,12 @@ class EmpreitaController extends Controller
             $query->whereNotIn('obra_id', $obraIdsNegados);
         }
 
-        return $query->get();
+        return $query->get()->map(function (Empreita $empreita) {
+            $array = $empreita->toArray();
+            $array['obra_nome'] = $array['obra']['obra_nome'] ?? '';
+            unset($array['obra']);
+            return $array;
+        })->values();
     }
 
     /**

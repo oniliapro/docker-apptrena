@@ -45,4 +45,10 @@ class Recebimento extends Model
     {
         return $this->hasMany(RecebimentoItem::class)->orderBy('ordem');
     }
+
+    /** Anexos (14/09/2026) — mesmo padrão de `Pagamento::anexos()`: vínculo via `origem_tipo`/`origem_id`, não FK de verdade. */
+    public function anexos(): HasMany
+    {
+        return $this->hasMany(Arquivo::class, 'origem_id', 'id')->where('origem_tipo', 'recebimento');
+    }
 }

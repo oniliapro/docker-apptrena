@@ -21,7 +21,11 @@ class RecebimentoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Recebimento::with('itens.tipoCusto')->orderByDesc('data_solicitacao');
+        // `obra:id,obra_nome` + `withCount('anexos')` (14/09/2026) — card
+        // "Recebimentos" do dashboard, mesmo padrão de PagamentoController::index.
+        $query = Recebimento::with('itens.tipoCusto', 'obra:id,obra_nome')
+            ->withCount('anexos')
+            ->orderByDesc('data_solicitacao');
 
         if ($request->filled('origem_tipo')) {
             $query->where('origem_tipo', $request->string('origem_tipo'));
@@ -47,7 +51,7 @@ class RecebimentoController extends Controller
 
     public function show(Recebimento $recebimento)
     {
-        return $this->paraFrontend($recebimento->load('itens.tipoCusto'));
+        return $this->paraFrontend($recebimento->load('itens.tipoCusto')->loadCount('anexos'));
     }
 
     public function store(Request $request)
@@ -151,6 +155,7 @@ class RecebimentoController extends Controller
             'numeroRecebimento' => $recebimento->numero_recebimento,
             'obraId' => $recebimento->obra_id,
             'obraNumber' => $recebimento->obra_number ?? '',
+            'obraNome' => optional($recebimento->obra)->obra_nome ?? '',
             'dataSolicitacao' => optional($recebimento->data_solicitacao)->format('Y-m-d') ?? '',
             'dataRecebimento' => optional($recebimento->data_recebimento)->toIso8601String() ?? '',
             'cliente' => $recebimento->cliente ?? '',
@@ -168,6 +173,7 @@ class RecebimentoController extends Controller
                 ? ['tipo' => $recebimento->origem_tipo, 'refId' => $recebimento->origem_ref_id]
                 : null,
             'status' => $recebimento->status ?? 'confirmado',
+            'anexosCount' => $recebimento->anexos_count ?? $recebimento->anexos()->count(),
         ];
     }
 }

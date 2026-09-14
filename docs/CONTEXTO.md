@@ -813,7 +813,78 @@ AppTrena/
   nenhum contexto de usuário autenticado — nada encontrado de errado.
   A validação de `equipamento_id` contra o catálico de outra empresa
   (gap que a própria branch já tinha corrigido) foi conferida e está
-  correta. **Ainda não publicado**: o merge está só local, não foi
-  enviado a `origin/master`, e nada foi rodado em produção — falta
-  autorização do Lucas pra isso (dump de produção, migrate remoto e
-  deploy em `trenadigital.com.br`).
+  correta. Com autorização do Lucas, o merge foi enviado a
+  `origin/master` (`fd48d07..25b382d`) — falta ainda a parte de
+  produção (dump, migrate remoto e deploy em `trenadigital.com.br`),
+  que precisa ser feita à mão no terminal do VPS (esta sessão não tem
+  acesso SSH).
+- 14/09/2026: Dashboard ("Principal") reorganizado a partir de mockups
+  em Excel do Lucas. O card "Obras em aberto" saiu (não aparecia em
+  nenhum mockup); o card "Relatórios" (antes um placeholder vazio)
+  ganhou dados de verdade e ficou sozinho numa linha cheia, com um
+  toggle "Detalhar" que troca entre um resumo (Orçado/Realizado/Medido/
+  Saldo totais por obra) e uma tabela por categoria de custo (Material/
+  Mão de obra/Equipamento/Outros/S de categoria/Total) — reaproveita
+  exatamente o cálculo de Orçado/Realizado da tela de Relatórios de uma
+  obra (`relatorios.ts`, `calcularCacheOrcado`), rodado uma vez por
+  obra do recorte. "Medido" é conceito NOVO (não existia em lugar
+  nenhum do sistema antes): valor da última medição APROVADA de cada
+  obra, convertido de "% acumulado" pra R$ usando o orçado de cada item
+  (mesma fórmula de `medicao-engine.ts::pctParaValor`) — decisão
+  confirmada com o Lucas, já que a alternativa era deixar como
+  placeholder igual ao Diário (abaixo). Os outros 6 cards (Mapas,
+  Empreitas, Pagamentos, Recebimentos, Medição — novo — e Diários de
+  obra) foram pro layout de 3 linhas x 2 colunas abaixo do Relatórios.
+  Textos em azul nos mockups do Lucas viraram: "Ver todos/Ver mais" →
+  link pra página geral; contagens/somas que representam uma lista de
+  itens (n° de pagamentos de um Mapa, "Já pago" de uma Empreita, n° de
+  anexos de um Pagamento/Recebimento) → popup com a lista real (`Ver`
+  abre `EditarPagamentoModal` de dentro do popup — mesmo padrão já
+  usado no popup de pagamentos vinculados do Mapa, agora extraído pra
+  `shared/pagamentos-vinculados-popup/`, reaproveitado por Mapas E
+  Empreitas). "Já pago"/Saldo de Empreita usa a MESMA fórmula já
+  confirmada com o Lucas em `EmpreitasObra` (Total = contrato
+  Empreiteiro+Reserva via `/empreitas/resumo`; Pago = pagamentos
+  confirmados; Saldo = Total − Pago − Pendente), só que calculada aqui
+  pra várias obras de uma vez. Diários de obra: por pedido do Lucas,
+  ficou só o LAYOUT posicionado (Data/Nº do diário, Nome da
+  obra/Responsável, Nº de Tarefas, Status/Nº de Ocorrências), sem
+  nenhum dado real — o modelo de dados do Diário está sendo refeito
+  (ver entrada de 08-09/09/2026 acima), não compensava ligar campos que
+  vão mudar de novo. Backend: `Pagamento`/`Recebimento`/`Mapa`/
+  `Empreita` (`index()`) ganharam `obraNome`/`obra_nome` (join
+  `obra:id,obra_nome`); `Recebimento` ganhou `anexos()` (mesmo padrão
+  de `Pagamento::anexos()`, fazia falta) e `anexosCount`; `Mapa` ganhou
+  `pagamentos_count` via `withCount('pagamentos')` (a relação já
+  existia, só não era usada na listagem). Validado com screenshots
+  reais (Puppeteer, login de teste) mostrando os números batendo entre
+  o card e o popup.
+- 14/09/2026 (mesmo dia, revisão de fidelidade + redesenho do
+  Relatórios): duas rodadas de ajuste depois do Lucas mandar os
+  mockups originais de novo e depois um segundo lote de 4 mockups
+  definitivos.
+  1ª rodada — cada card (Mapas/Empreitas/Pagamentos/Recebimentos/
+  Medição/Diários) foi refeito pra seguir o empilhamento/posicionamento
+  EXATO dos mockups por coluna (ex.: Mapas = Data/Nº empilhados,
+  Descrição/Nome da obra empilhados, um valor total em destaque,
+  Status/contagem empilhados) — só as linhas divisórias entre entradas
+  continuaram no padrão do sistema, por pedido explícito do Lucas.
+  2ª rodada — o card Relatórios ganhou um SEGUNDO toggle, "Segmentar
+  adicionais", que separa Orçado/Realizado/Medido (e o Saldo derivado)
+  em dois baldes usando o `adicional: boolean` que a EAP já tem
+  (serviço "fora do escopo original") — pagamento e medição não têm
+  esse flag direto, então o balde de cada lançamento é decidido
+  olhando de qual item da EAP ele veio (`item.eapId`/`eapItemId`); sem
+  correspondência cai em "sem adicionais" por padrão. Percentual de
+  cada métrica = valor ÷ Orçado do mesmo balde/categoria (decisão
+  minha, não confirmada explicitamente com o Lucas — Orçado sempre dá
+  100%). Percebido nessa rodada que "Detalhar" não muda a ESTRUTURA da
+  linha, só troca quais colunas aparecem (só "Total" sem Detalhar,
+  Material/Mão de obra/.../Total com); Status da obra/EAP saiu de uma
+  coluna à parte e entrou empilhado dentro do bloco de identidade da
+  obra (junto com Nº/Nome/Cliente/Data de início). O cabeçalho de
+  colunas passou a ser renderizado com a MESMA árvore de elementos que
+  as linhas de dado (`.banda` vazia, mesmas classes/larguras) — antes
+  cabeçalho e dado usavam estruturas parecidas mas não idênticas, e
+  ficavam desalinhados horizontalmente; agora alinham de verdade porque
+  são literalmente a mesma estrutura só com conteúdo diferente.

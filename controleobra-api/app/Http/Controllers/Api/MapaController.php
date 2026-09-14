@@ -25,7 +25,13 @@ class MapaController extends Controller
     /** GET /api/mapas — aceita `obra_id` para listar só os mapas de uma obra. */
     public function index(Request $request)
     {
-        $query = Mapa::orderBy('numero_mapa');
+        // `obra:id,obra_nome` + `withCount('pagamentos')` (14/09/2026) —
+        // card "Mapas" do dashboard precisa do nome da obra e de quantos
+        // pagamentos foram gerados a partir deste mapa (popup "Ver
+        // pagamentos"). `pagamentos()` já é uma relação de verdade (FK
+        // `mapa_id`, não o par origem_tipo/origem_ref_id), então
+        // `withCount` funciona direto, sem N+1.
+        $query = Mapa::with('obra:id,obra_nome')->withCount('pagamentos')->orderBy('numero_mapa');
         if ($request->filled('obra_id')) {
             $query->where('obra_id', $request->query('obra_id'));
         }
@@ -42,7 +48,16 @@ class MapaController extends Controller
             $query->whereNotIn('obra_id', $obraIdsNegados);
         }
 
-        return $query->get();
+        // `toArray()` + achatar `obra_nome` (em vez de devolver o objeto
+        // `obra` aninhado) — mantém todo o resto do dump cru de sempre
+        // (nenhum mapper aqui), só acrescenta os 2 campos novos.
+        // `pagamentos_count` já vem achatado sozinho, é fruto de `withCount`.
+        return $query->get()->map(function (Mapa $mapa) {
+            $array = $mapa->toArray();
+            $array['obra_nome'] = $array['obra']['obra_nome'] ?? '';
+            unset($array['obra']);
+            return $array;
+        })->values();
     }
 
     public function show(Mapa $mapa)

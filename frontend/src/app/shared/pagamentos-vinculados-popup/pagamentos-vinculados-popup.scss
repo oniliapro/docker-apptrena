@@ -1,0 +1,87 @@
+// Extraído de `mapas-obra.scss` (14/09/2026) — ver docblock do .ts pra
+// por que o modal de edição (`EditarPagamentoModal`) tem que continuar
+// como bloco IRMÃO do `.modal` daqui, nunca aninhado dentro do
+// `.modal-cartao`: com `transform`, `.modal-cartao` vira o "containing
+// block" de qualquer `position: fixed` de dentro dele.
+:host { display: block; }
+
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &.estreito {
+    width: min(560px, 94vw);
+    max-height: 80vh;
+  }
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo { padding: 16px; overflow: auto; }
+
+.tabela-popup {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td { padding: 6px 8px; font-size: 12px; text-align: left; }
+  th { font-family: var(--fonte-mono); font-size: 10px; text-transform: uppercase; color: var(--cor-texto-suave); }
+  .valor { text-align: right; font-family: var(--fonte-mono); }
+  .mono { font-family: var(--fonte-mono); }
+  tbody tr:nth-child(odd) td { background: var(--cor-fundo-alt); }
+}
+
+.centro { text-align: center; }
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+
+  &.pendente {
+    background: var(--cor-alerta-bg);
+    color: var(--cor-alerta);
+  }
+}
+
+.link-medicoes {
+  border: none;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-aco);
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover { text-decoration: underline; }
+}
