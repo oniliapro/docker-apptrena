@@ -77,6 +77,11 @@ class DiarioRegistro extends Model
         return $this->hasMany(DiarioComentarioInterno::class, 'registro_id');
     }
 
+    public function etapas(): HasMany
+    {
+        return $this->hasMany(DiarioEtapa::class, 'registro_id');
+    }
+
     public function estaFinalizado(): bool
     {
         return $this->status === self::STATUS_FINALIZADO;
