@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { Arquivo, ConteudoPasta, Pasta, RaizesPastas } from '../../features/arquivos/arquivos.models';
 import { ResumoContratoEmpreita } from '../../features/empreita/empreita.models';
+import { Tag } from '../../features/configuracoes/tags/tags.models';
 import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
@@ -573,6 +574,36 @@ export class ApiService {
     });
   }
 
+  // ---------------- Anexos de Pagamento/Recebimento (06/09/2026) ----------------
+  // Baixar/excluir/pré-visualizar um anexo usa os mesmos métodos de Arquivo
+  // acima (`baixarArquivo`/`excluirArquivo`/`obterUrlPreviewArquivo`) — um
+  // anexo é só um `Arquivo` normal, ver `AnexoController` no backend.
+  listarAnexosPagamento(pagamentoId: string): Observable<Arquivo[]> {
+    return this.http.get<Arquivo[]>(`${this.base}/pagamentos/${pagamentoId}/anexos`);
+  }
+
+  anexarArquivoPagamento(pagamentoId: string, tagId: string, arquivo: File): Observable<Arquivo> {
+    const dados = new FormData();
+    dados.append('tag_id', tagId);
+    dados.append('arquivo', arquivo);
+    return this.http.post<Arquivo>(`${this.base}/pagamentos/${pagamentoId}/anexos`, dados, {
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
+  }
+
+  listarAnexosRecebimento(recebimentoId: string): Observable<Arquivo[]> {
+    return this.http.get<Arquivo[]>(`${this.base}/recebimentos/${recebimentoId}/anexos`);
+  }
+
+  anexarArquivoRecebimento(recebimentoId: string, tagId: string, arquivo: File): Observable<Arquivo> {
+    const dados = new FormData();
+    dados.append('tag_id', tagId);
+    dados.append('arquivo', arquivo);
+    return this.http.post<Arquivo>(`${this.base}/recebimentos/${recebimentoId}/anexos`, dados, {
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
+  }
+
   // ---------------- Configurações — Dados da empresa ----------------
   obterPerfilEmpresa(): Observable<PerfilEmpresa> {
     return this.http.get<PerfilEmpresa>(`${this.base}/empresa/perfil`);
@@ -596,6 +627,23 @@ export class ApiService {
 
   excluirRepresentante(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/empresa/representantes/${id}`);
+  }
+
+  // ---------------- Configurações — Tags (06/09/2026) ----------------
+  listarTags(): Observable<Tag[]> {
+    return this.http.get<Tag[]>(`${this.base}/tags`);
+  }
+
+  criarTag(nome: string): Observable<Tag> {
+    return this.http.post<Tag>(`${this.base}/tags`, { nome });
+  }
+
+  atualizarTag(id: string, dados: Partial<{ nome: string; ativo: boolean }>): Observable<Tag> {
+    return this.http.put<Tag>(`${this.base}/tags/${id}`, dados);
+  }
+
+  excluirTag(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/tags/${id}`);
   }
 
   // ---------------- Configurações — Controle de permissões (31/08/2026) ----------------
