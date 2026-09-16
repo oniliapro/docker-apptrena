@@ -186,6 +186,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permissaoModulo:diario_obra,usar');
     Route::get('diario/ultima-mao-de-obra', [DiarioObraController::class, 'ultimaMaoDeObra'])
         ->middleware('permissaoModulo:diario_obra,usar');
+    // Checklist de etapas (16/09/2026, item 6/16 dos pedidos de ajuste) —
+    // mesmo padrão de pré-preenchimento de `ultima-mao-de-obra` acima.
+    Route::get('diario/ultimas-etapas', [DiarioObraController::class, 'ultimasEtapas'])
+        ->middleware('permissaoModulo:diario_obra,usar');
 
     // Catálogo de equipamentos — cadastro inicial reaproveitado nos
     // lançamentos do diário (item E da especificação).
