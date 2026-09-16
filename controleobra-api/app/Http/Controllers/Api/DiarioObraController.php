@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DiarioComentarioInterno;
 use App\Models\DiarioEquipamentoUso;
+use App\Models\DiarioEtapa;
 use App\Models\DiarioFoto;
 use App\Models\DiarioOcorrencia;
 use App\Models\DiarioPendencia;
@@ -13,8 +14,8 @@ use App\Models\DiarioResponsavelPresente;
 use App\Models\EquipamentoCatalogo;
 use App\Models\Obra;
 use App\Models\ObraContratanteLink;
+use App\Services\Notificacao\ContratanteNotifier;
 use App\Services\PermissaoService;
-use App\Services\WhatsApp\WhatsAppNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -58,7 +59,7 @@ class DiarioObraController extends Controller
         $query = DiarioRegistro::with([
             'fotos', 'obra:id,obra_nome', 'autorUser:id,name', 'assinadoPor:id,name',
             'responsaveisPresentes', 'equipamentosUso.equipamento', 'ocorrencias', 'pendencias',
-            'comentariosInternos',
+            'comentariosInternos', 'etapas',
         ])
             ->orderByDesc('data')
             ->orderByDesc('created_at');
@@ -149,6 +150,46 @@ class DiarioObraController extends Controller
         return ['quantidade_operarios' => $ultimo->quantidade_operarios ?? null];
     }
 
+    /**
+     * Etapas ainda não concluídas do último lançamento da obra — usado
+     * pelo front-end pra pré-preencher o checklist de etapas do novo
+     * registro (16/09/2026, item 6/16 dos pedidos de ajuste). Não é
+     * ligado ao cronograma nem a um enum fixo: é só uma sugestão de
+     * continuidade, que o usuário pode editar livremente (renomear,
+     * marcar concluída, adicionar ou remover linhas).
+     */
+    public function ultimasEtapas(Request $request, PermissaoService $permissoes)
+    {
+        $data = $request->validate([
+            'obra_id' => 'required|string|exists:obras,id',
+        ]);
+
+        $obra = Obra::find($data['obra_id']);
+        if (!$obra) {
+            abort(403, 'Obra não encontrada para esta empresa.');
+        }
+        if (!$permissoes->podeObra($request->user(), $obra->id, 'ver')) {
+            abort(403, 'Sem acesso a esta obra.');
+        }
+
+        $ultimo = DiarioRegistro::where('obra_id', $obra->id)
+            ->orderByDesc('data')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$ultimo) {
+            return ['etapas' => []];
+        }
+
+        $etapas = $ultimo->etapas()
+            ->where('concluida', false)
+            ->get(['nome'])
+            ->map(fn (DiarioEtapa $etapa) => ['nome' => $etapa->nome])
+            ->values();
+
+        return ['etapas' => $etapas];
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -162,6 +203,15 @@ class DiarioObraController extends Controller
             'finalizar' => 'nullable|boolean',
             'fotos' => 'nullable|array|max:10',
             'fotos.*' => 'file|image|max:8192',
+
+            // Croqui (16/09/2026, item 9) — marcação opcional de local na
+            // foto, indexado pela MESMA posição de `fotos[]` (índice 0 =
+            // primeira foto etc.). Uma foto sem marcador simplesmente não
+            // tem entrada aqui.
+            'fotos_marcadores' => 'nullable|array',
+            'fotos_marcadores.*.x' => 'nullable|numeric|min:0|max:1',
+            'fotos_marcadores.*.y' => 'nullable|numeric|min:0|max:1',
+            'fotos_marcadores.*.nota' => 'nullable|string|max:255',
 
             'responsaveis_presentes' => 'nullable|array',
             'responsaveis_presentes.*.nome' => 'required_with:responsaveis_presentes|string|max:150',
@@ -190,6 +240,10 @@ class DiarioObraController extends Controller
             'comentarios_internos' => 'nullable|array',
             'comentarios_internos.*.texto' => 'required_with:comentarios_internos|string',
             'comentarios_internos.*.visivel_contratante' => 'nullable|boolean',
+
+            'etapas' => 'nullable|array',
+            'etapas.*.nome' => 'required_with:etapas|string|max:150',
+            'etapas.*.concluida' => 'nullable|boolean',
         ]);
 
         $obra = Obra::find($data['obra_id']);
@@ -278,15 +332,27 @@ class DiarioObraController extends Controller
                 ]);
             }
 
+            foreach ($data['etapas'] ?? [] as $item) {
+                DiarioEtapa::create([
+                    'registro_id' => $registro->id,
+                    'nome' => $item['nome'],
+                    'concluida' => $item['concluida'] ?? false,
+                ]);
+            }
+
             return $registro;
         });
 
         foreach ($request->file('fotos', []) as $ordem => $arquivo) {
             $caminho = $arquivo->store('diario', 'public');
+            $marcador = $data['fotos_marcadores'][$ordem] ?? null;
             DiarioFoto::create([
                 'registro_id' => $registro->id,
                 'caminho' => $caminho,
                 'ordem' => $ordem,
+                'marcador_x' => $marcador['x'] ?? null,
+                'marcador_y' => $marcador['y'] ?? null,
+                'marcador_nota' => $marcador['nota'] ?? null,
             ]);
         }
 
@@ -300,7 +366,7 @@ class DiarioObraController extends Controller
     /**
      * Marca um registro em rascunho como finalizado — assina
      * automaticamente com o usuário autenticado (que precisa ter
-     * permissão de lançar na obra) e dispara a notificação de WhatsApp.
+     * permissão de lançar na obra) e dispara o aviso por e-mail.
      * Não existe um botão de "assinar" separado do usuário: finalizar
      * O É assinar (ver especificação, decisão de 08/09/2026).
      */
@@ -343,7 +409,7 @@ class DiarioObraController extends Controller
         return $registro->load([
             'fotos', 'autorUser:id,name', 'assinadoPor:id,name',
             'responsaveisPresentes', 'equipamentosUso.equipamento', 'ocorrencias', 'pendencias',
-            'comentariosInternos',
+            'comentariosInternos', 'etapas',
         ]);
     }
 
@@ -363,6 +429,6 @@ class DiarioObraController extends Controller
         $urlBase = rtrim(config('app.frontend_url', config('app.url')), '/');
         $urlPublica = "{$urlBase}/publico/diario/{$link->token}";
 
-        app(WhatsAppNotifier::class)->notificarNovoDiario($obra, $registro, $urlPublica);
+        app(ContratanteNotifier::class)->notificarNovoDiario($obra, $registro, $urlPublica);
     }
 }

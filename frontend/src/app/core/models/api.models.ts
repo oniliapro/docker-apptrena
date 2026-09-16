@@ -188,6 +188,10 @@ export interface Recebimento {
 export interface FotoDiario {
   id?: string;
   url: string;
+  /** Croqui (16/09/2026, item 9) — marcação opcional de local na foto: coordenadas relativas (0 a 1). */
+  marcador_x?: number | null;
+  marcador_y?: number | null;
+  marcador_nota?: string | null;
 }
 
 /** 'rascunho' (editável, ainda sem assinatura) | 'finalizado' (assinado automaticamente por quem finalizou). */
@@ -239,6 +243,19 @@ export interface DiarioOcorrencia {
   danos_materiais?: string | null;
 }
 
+/**
+* Item do checklist de etapas de um registro (16/09/2026, item 6/16 dos
+* pedidos de ajuste). Sem enum fixo: `nome` é texto livre, selecionado/
+* editado pelo usuário — o front-end só sugere a partir das etapas ainda
+* não concluídas do lançamento anterior (`obterUltimasEtapas`).
+*/
+export interface DiarioEtapa {
+  id?: string;
+  registro_id?: string;
+  nome: string;
+  concluida?: boolean;
+}
+
 export type StatusPendenciaDiario = 'aberta' | 'concluida';
 
 export interface DiarioPendencia {
@@ -286,6 +303,7 @@ export interface RegistroDiario {
   ocorrencias?: DiarioOcorrencia[];
   pendencias?: DiarioPendencia[];
   comentariosInternos?: DiarioComentarioInterno[];
+  etapas?: DiarioEtapa[];
   /** Presente quando o backend faz eager-load da obra (usado no dashboard). */
   obra?: { obra_nome?: string | null } | null;
 }
@@ -302,6 +320,8 @@ export interface ObraContratanteLink {
   token: string;
   nome_contato?: string | null;
   telefone_whatsapp?: string | null;
+  /** Quem recebe o aviso de novo diário (16/09/2026, item 12: canal trocado de WhatsApp para e-mail). */
+  email?: string | null;
   expira_em?: string | null;
   revogado_em?: string | null;
   criado_por_user_id?: number | string | null;

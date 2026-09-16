@@ -99,6 +99,12 @@
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.foto-item {
+  position: relative;
+  width: 74px;
+  height: 74px;
 
   img {
     width: 74px;
@@ -107,6 +113,53 @@
     border-radius: var(--raio-sm);
     border: 1px solid var(--cor-borda);
     cursor: pointer;
+  }
+}
+
+// ---- Croqui: marcação de local na foto (16/09/2026, item 9) ----
+.marcador-croqui {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cor-perigo);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--cor-perigo);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.fotos-croqui {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.foto-croqui-item {
+  width: 160px;
+
+  input[type='text'] {
+    width: 100%;
+    height: 26px;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .acoes { margin-top: 4px; }
+}
+
+.foto-croqui-imagem {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  cursor: crosshair;
+
+  img {
+    width: 160px;
+    height: 160px;
+    object-fit: cover;
+    border-radius: var(--raio-sm);
+    border: 1px solid var(--cor-borda);
   }
 }
 

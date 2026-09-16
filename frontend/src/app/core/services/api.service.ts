@@ -9,6 +9,7 @@ import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
   AcessoObraUsuario,
+  DiarioEtapa,
   EapPayload,
   Empreita,
   EquipamentoCatalogoItem,
@@ -320,8 +321,9 @@ export class ApiService {
 
   /**
    * POST /diario/{registro}/finalizar — assina automaticamente (finalizar
-   * É assinar, não existe ação separada) e dispara a notificação de
-   * WhatsApp pro contratante, se houver link ativo (08/09/2026).
+   * É assinar, não existe ação separada) e dispara o aviso por e-mail
+   * pro contratante, se houver link ativo com e-mail cadastrado
+   * (08/09/2026; canal trocado de WhatsApp para e-mail em 16/09/2026).
    */
   finalizarRegistroDiario(id: string): Observable<RegistroDiario> {
     return this.http.post<RegistroDiario>(`${this.base}/diario/${id}/finalizar`, {});
@@ -346,6 +348,19 @@ export class ApiService {
     );
   }
 
+  /**
+   * GET /diario/ultimas-etapas?obra_id= — etapas ainda não concluídas do
+   * último lançamento da obra, pra pré-preencher o checklist do novo
+   * registro (16/09/2026, item 6/16 dos pedidos de ajuste).
+   */
+  obterUltimasEtapas(obraId: string): Observable<{ etapas: Pick<DiarioEtapa, 'nome'>[] }> {
+    const params = new HttpParams().set('obra_id', obraId);
+    return this.http.get<{ etapas: Pick<DiarioEtapa, 'nome'>[] }>(
+      `${this.base}/diario/ultimas-etapas`,
+      { params },
+    );
+  }
+
   // ---------------- Diário de obra — catálogo de equipamentos ----------------
   listarEquipamentosCatalogo(): Observable<EquipamentoCatalogoItem[]> {
     return this.http.get<EquipamentoCatalogoItem[]>(`${this.base}/equipamentos-catalogo`);
@@ -363,7 +378,7 @@ export class ApiService {
 
   criarContratanteLink(
     obraId: string,
-    dados: { nome_contato?: string; telefone_whatsapp?: string; expira_em?: string },
+    dados: { nome_contato?: string; telefone_whatsapp?: string; email?: string; expira_em?: string },
   ): Observable<ObraContratanteLink> {
     return this.http.post<ObraContratanteLink>(`${this.base}/obras/${obraId}/contratante-links`, dados);
   }

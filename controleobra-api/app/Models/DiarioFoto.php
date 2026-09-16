@@ -15,7 +15,18 @@ class DiarioFoto extends Model
 
     protected $table = 'diario_fotos';
 
-    protected $fillable = ['id', 'registro_id', 'caminho', 'ordem'];
+    protected $fillable = [
+        'id', 'registro_id', 'caminho', 'ordem',
+        // Croqui (16/09/2026, item 9): marcação opcional de local na
+        // própria foto — coordenadas relativas (0 a 1), ver docblock da
+        // migration `add_croqui_a_diario_fotos`.
+        'marcador_x', 'marcador_y', 'marcador_nota',
+    ];
+
+    protected $casts = [
+        'marcador_x' => 'float',
+        'marcador_y' => 'float',
+    ];
 
     public function registro(): BelongsTo
     {

@@ -25,7 +25,7 @@ class ObraContratanteLink extends Model
     protected $table = 'obra_contratante_links';
 
     protected $fillable = [
-        'id', 'empresa_id', 'obra_id', 'token', 'nome_contato', 'telefone_whatsapp',
+        'id', 'empresa_id', 'obra_id', 'token', 'nome_contato', 'telefone_whatsapp', 'email',
         'expira_em', 'revogado_em', 'criado_por_user_id',
     ];
 

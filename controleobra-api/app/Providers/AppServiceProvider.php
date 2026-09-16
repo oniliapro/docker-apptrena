@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Services\WhatsApp\LogWhatsAppNotifier;
-use App\Services\WhatsApp\WhatsAppNotifier;
+use App\Services\Notificacao\ContratanteNotifier;
+use App\Services\Notificacao\EmailContratanteNotifier;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,9 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Diário de Obra (08/09/2026) — provedor de WhatsApp ainda não
-        // decidido, ver App\Services\WhatsApp\WhatsAppNotifier.
-        $this->app->bind(WhatsAppNotifier::class, LogWhatsAppNotifier::class);
+        // Diário de Obra — aviso ao contratante da obra por e-mail
+        // (16/09/2026, item 12 dos pedidos de ajuste: decisão de trocar o
+        // canal de WhatsApp — ainda sem provedor decidido — para e-mail).
+        $this->app->bind(ContratanteNotifier::class, EmailContratanteNotifier::class);
     }
 
     /**
