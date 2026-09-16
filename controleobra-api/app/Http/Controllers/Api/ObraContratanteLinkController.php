@@ -43,6 +43,9 @@ class ObraContratanteLinkController extends Controller
         $data = $request->validate([
             'nome_contato' => 'nullable|string|max:150',
             'telefone_whatsapp' => 'nullable|string|max:30',
+            // E-mail é quem recebe o aviso de novo diário (16/09/2026, item
+            // 12: decisão de trocar o canal de WhatsApp pra e-mail).
+            'email' => 'nullable|email|max:190',
             'expira_em' => 'nullable|date',
         ]);
 
@@ -50,6 +53,7 @@ class ObraContratanteLinkController extends Controller
             'obra_id' => $obra->id,
             'nome_contato' => $data['nome_contato'] ?? null,
             'telefone_whatsapp' => $data['telefone_whatsapp'] ?? null,
+            'email' => $data['email'] ?? null,
             'expira_em' => $data['expira_em'] ?? null,
             'criado_por_user_id' => optional($request->user())->id,
         ]);
