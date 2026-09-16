@@ -14,6 +14,20 @@ import { formatarData, hojeIso } from '../../core/utils/formato';
 const CHAVE_OBRA_ATIVA = 'trenaapp.obraAtiva.v1';
 
 /**
+ * Foto escolhida no <input type="file"> antes de salvar, com o croqui
+ * opcional (16/09/2026, item 9): clicar na prévia marca onde na obra foi
+ * aquela ocorrência. `marcador` fica em coordenadas RELATIVAS (0 a 1),
+ * não pixels — mesmo formato que o backend grava, ver
+ * `DiarioFoto::marcador_x/marcador_y`.
+ */
+interface FotoSelecionada {
+  arquivo: File;
+  previewUrl: string;
+  marcador: { x: number; y: number } | null;
+  nota: string;
+}
+
+/**
  * Diário de Obra — portado de js/diario-obra/01-app.js, e estendido em
  * 08/09/2026 (especificação consolidada com a Onilia e o Lucas) para
  * cobrir o checklist completo: responsáveis presentes, mão de obra,
@@ -56,8 +70,8 @@ export class DiarioObra implements OnInit {
 
   protected readonly finalizandoId = signal<string | null>(null);
 
-  /** Arquivos escolhidos no <input type="file"> — fora do form reativo. */
-  private fotos: File[] = [];
+  /** Arquivos escolhidos no <input type="file"> — fora do form reativo (com o croqui opcional de cada um). */
+  protected readonly fotosSelecionadas = signal<FotoSelecionada[]>([]);
 
   protected readonly formatarData = formatarData;
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA_DIARIO;
@@ -76,6 +90,7 @@ export class DiarioObra implements OnInit {
     ocorrencias: this.fb.array<FormGroup>([]),
     pendencias: this.fb.array<FormGroup>([]),
     comentariosInternos: this.fb.array<FormGroup>([]),
+    etapas: this.fb.array<FormGroup>([]),
   });
 
   protected readonly formNovaObra = this.fb.nonNullable.group({
@@ -85,7 +100,8 @@ export class DiarioObra implements OnInit {
 
   protected readonly formNovoLink = this.fb.nonNullable.group({
     nome_contato: [''],
-    telefone_whatsapp: [''],
+    // 16/09/2026, item 12: canal de aviso trocado de WhatsApp para e-mail.
+    email: [''],
   });
 
   ngOnInit(): void {
@@ -114,6 +130,7 @@ export class DiarioObra implements OnInit {
         if (escolhida) {
           this.carregarRegistros();
           this.prePreencherMaoDeObra();
+          this.prePreencherEtapas();
           this.carregarLinksContratante();
         }
       },
@@ -127,6 +144,7 @@ export class DiarioObra implements OnInit {
     this.salvarObraAtiva(id);
     this.carregarRegistros();
     this.prePreencherMaoDeObra();
+    this.prePreencherEtapas();
     this.carregarLinksContratante();
   }
 
@@ -204,9 +222,91 @@ export class DiarioObra implements OnInit {
     });
   }
 
+  /**
+   * Pré-preenche o checklist de etapas com as ainda não concluídas do
+   * lançamento anterior (item 6/16 dos pedidos de ajuste) — só sugestão,
+   * o usuário edita livremente (renomeia, marca concluída, adiciona ou
+   * remove linhas).
+   */
+  private prePreencherEtapas(): void {
+    const obraId = this.obraAtiva();
+    if (!obraId) return;
+
+    this.api.obterUltimasEtapas(obraId).subscribe({
+      next: ({ etapas }) => {
+        this.etapas.clear();
+        for (const etapa of etapas) {
+          this.etapas.push(
+            this.fb.nonNullable.group({
+              nome: [etapa.nome, [Validators.required]],
+              concluida: [false],
+            }),
+          );
+        }
+      },
+      error: () => {
+        // Sem sugestão — o checklist começa vazio, o usuário adiciona na mão.
+      },
+    });
+  }
+
   protected selecionarFotos(evento: Event): void {
     const input = evento.target as HTMLInputElement;
-    this.fotos = Array.from(input.files ?? []);
+    this.limparFotosSelecionadas();
+    this.fotosSelecionadas.set(
+      Array.from(input.files ?? []).map((arquivo) => ({
+        arquivo,
+        previewUrl: URL.createObjectURL(arquivo),
+        marcador: null,
+        nota: '',
+      })),
+    );
+  }
+
+  /**
+   * Croqui (16/09/2026, item 9): clique na prévia da foto marca onde,
+   * em coordenadas relativas à imagem (0 a 1), foi a ocorrência. Clicar
+   * de novo move o marcador — não existe "confirmar", é sempre o último
+   * clique que vale.
+   */
+  protected marcarCroqui(indice: number, evento: MouseEvent): void {
+    const alvo = evento.currentTarget as HTMLElement;
+    const retangulo = alvo.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (evento.clientX - retangulo.left) / retangulo.width));
+    const y = Math.min(1, Math.max(0, (evento.clientY - retangulo.top) / retangulo.height));
+
+    this.fotosSelecionadas.update((lista) =>
+      lista.map((foto, i) => (i === indice ? { ...foto, marcador: { x, y } } : foto)),
+    );
+  }
+
+  protected removerMarcadorCroqui(indice: number): void {
+    this.fotosSelecionadas.update((lista) =>
+      lista.map((foto, i) => (i === indice ? { ...foto, marcador: null } : foto)),
+    );
+  }
+
+  protected atualizarNotaCroqui(indice: number, evento: Event): void {
+    const nota = (evento.target as HTMLInputElement).value;
+    this.fotosSelecionadas.update((lista) =>
+      lista.map((foto, i) => (i === indice ? { ...foto, nota } : foto)),
+    );
+  }
+
+  protected removerFotoSelecionada(indice: number): void {
+    this.fotosSelecionadas.update((lista) => {
+      if (lista[indice]) {
+        URL.revokeObjectURL(lista[indice].previewUrl);
+      }
+      return lista.filter((_, i) => i !== indice);
+    });
+  }
+
+  private limparFotosSelecionadas(): void {
+    for (const foto of this.fotosSelecionadas()) {
+      URL.revokeObjectURL(foto.previewUrl);
+    }
+    this.fotosSelecionadas.set([]);
   }
 
   // ---- Responsáveis presentes ----
@@ -317,6 +417,24 @@ export class DiarioObra implements OnInit {
     this.comentariosInternos.removeAt(indice);
   }
 
+  // ---- Etapas ----
+  protected get etapas(): FormArray<FormGroup> {
+    return this.formulario.controls.etapas;
+  }
+
+  protected adicionarEtapa(): void {
+    this.etapas.push(
+      this.fb.nonNullable.group({
+        nome: ['', [Validators.required]],
+        concluida: [false],
+      }),
+    );
+  }
+
+  protected removerEtapa(indice: number): void {
+    this.etapas.removeAt(indice);
+  }
+
   protected salvar(): void {
     const obraId = this.obraAtiva();
     if (!obraId) {
@@ -341,7 +459,16 @@ export class DiarioObra implements OnInit {
       dados.append('quantidade_operarios', String(valores.quantidade_operarios));
     }
     if (valores.finalizar) dados.append('finalizar', '1');
-    this.fotos.forEach((foto) => dados.append('fotos[]', foto));
+    this.fotosSelecionadas().forEach((foto, indice) => {
+      dados.append('fotos[]', foto.arquivo);
+      if (foto.marcador) {
+        dados.append(`fotos_marcadores[${indice}][x]`, String(foto.marcador.x));
+        dados.append(`fotos_marcadores[${indice}][y]`, String(foto.marcador.y));
+      }
+      if (foto.nota.trim()) {
+        dados.append(`fotos_marcadores[${indice}][nota]`, foto.nota.trim());
+      }
+    });
 
     this.anexarLista(dados, 'responsaveis_presentes', valores.responsaveisPresentes, (item) =>
       !!String(item['nome'] ?? '').trim(),
@@ -356,6 +483,7 @@ export class DiarioObra implements OnInit {
     this.anexarLista(dados, 'comentarios_internos', valores.comentariosInternos, (item) =>
       !!String(item['texto'] ?? '').trim(),
     );
+    this.anexarLista(dados, 'etapas', valores.etapas, (item) => !!String(item['nome'] ?? '').trim());
 
     const eraFinalizar = valores.finalizar;
 
@@ -364,7 +492,7 @@ export class DiarioObra implements OnInit {
         this.salvando.set(false);
         this.status.set(eraFinalizar ? 'Registro salvo e assinado.' : 'Registro salvo como rascunho.');
         this.resetarFormulario();
-        this.fotos = [];
+        this.limparFotosSelecionadas();
         this.carregarRegistros();
       },
       error: () => {
@@ -391,7 +519,9 @@ export class DiarioObra implements OnInit {
     this.ocorrencias.clear();
     this.pendencias.clear();
     this.comentariosInternos.clear();
+    this.etapas.clear();
     this.prePreencherMaoDeObra();
+    this.prePreencherEtapas();
   }
 
   /** Serializa um FormArray de grupos no formato `chave[i][campo]` que o Laravel espera, pulando linhas em branco. */
@@ -480,18 +610,18 @@ export class DiarioObra implements OnInit {
     if (!obraId || this.gerandoLink()) return;
 
     this.gerandoLink.set(true);
-    const { nome_contato, telefone_whatsapp } = this.formNovoLink.getRawValue();
+    const { nome_contato, email } = this.formNovoLink.getRawValue();
 
     this.api
       .criarContratanteLink(obraId, {
         nome_contato: nome_contato.trim() || undefined,
-        telefone_whatsapp: telefone_whatsapp.trim() || undefined,
+        email: email.trim() || undefined,
       })
       .subscribe({
         next: (novo) => {
           this.gerandoLink.set(false);
           this.contratanteLinks.update((lista) => [novo, ...lista]);
-          this.formNovoLink.reset({ nome_contato: '', telefone_whatsapp: '' });
+          this.formNovoLink.reset({ nome_contato: '', email: '' });
         },
         error: () => {
           this.gerandoLink.set(false);
