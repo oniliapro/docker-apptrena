@@ -3,6 +3,10 @@
     <h1>Obras</h1>
     <div class="atenuado">Obras às quais você tem acesso</div>
   </div>
+  <button type="button" [disabled]="!listaFiltrada().length || exportandoXlsx()" (click)="exportarXlsx()"
+          title="Exporta as obras filtradas abaixo pra uma planilha Excel">
+    {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+  </button>
   <button class="botao-novo" type="button" (click)="novo()">+ Nova obra</button>
 </div>
 
@@ -29,39 +33,28 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Nº</th>
-            <th>Obra</th>
-            <th>Cliente</th>
-            <th>Responsável</th>
-            <th class="centro">Data base</th>
-            <th class="centro">Status</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('map_number')">Nº{{ setaOrdenacao(ordenacao(), 'map_number') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra_nome')">Obra{{ setaOrdenacao(ordenacao(), 'obra_nome') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('responsavel')">Responsável{{ setaOrdenacao(ordenacao(), 'responsavel') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('data_base')">Data base{{ setaOrdenacao(ordenacao(), 'data_base') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
             <th class="centro">EAP</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
           @for (obra of listaFiltrada(); track obra.id) {
-            <tr>
+            <tr class="linha-clicavel" (click)="acessar(obra)">
               <td class="centro">{{ obra.map_number || '—' }}</td>
               <td>{{ obra.obra_nome || '(sem nome)' }}</td>
               <td>{{ obra.cliente || '—' }}</td>
               <td>{{ obra.responsavel || '—' }}</td>
               <td class="centro">{{ formatarData(obra.data_base) || '—' }}</td>
-              <td class="centro">
-                <select
-                  class="select-status-inline"
-                  [value]="obra.status || 'a_iniciar'"
-                  (change)="mudarStatusInline(obra, $event)">
-                  @for (opcao of statusOpcoes; track opcao.chave) {
-                    <option [value]="opcao.chave" [selected]="opcao.chave === obra.status">
-                      {{ opcao.rotulo }}
-                    </option>
-                  }
-                </select>
-              </td>
+              <td class="centro">{{ rotuloStatusObra(obra.status) }}</td>
               <td class="centro">
                 @if (obra.is_confirmed) {
                   <span class="etiqueta confirmada">Confirmada</span>
@@ -70,8 +63,7 @@
                 }
               </td>
               <td class="centro acoes-linha">
-                <button type="button" (click)="acessar(obra)">Acessar obra</button>
-                <button type="button" title="Excluir" (click)="remover(obra)">✖</button>
+                <button type="button" title="Excluir" (click)="remover(obra, $event)">✖</button>
               </td>
             </tr>
           } @empty {
@@ -85,77 +77,13 @@
   }
 </div>
 
-<!-- ============ Formulário ============ -->
+<!-- ============ Formulário — Nova obra (07/09/2026, ver CadastroObraModal) ============ -->
 @if (formularioAberto()) {
-  <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
-
-    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
-      <div class="modal-cabecalho">
-        <span class="modal-titulo">Nova obra</span>
-        <button type="button" (click)="fechar()">✖</button>
-      </div>
-
-      <div class="modal-corpo">
-        <div class="grade">
-          <label class="campo">
-            <span>Código / nº do mapa</span>
-            <input type="text" formControlName="mapNumber" placeholder="Ex.: OBR-001" />
-          </label>
-
-          <label class="campo campo-largo">
-            <span class="obrigatorio">Nome da obra</span>
-            <input type="text" formControlName="obraNome" />
-            @if (temErro('obraNome')) {
-              <small class="erro-campo">Informe o nome da obra.</small>
-            }
-          </label>
-
-          <label class="campo campo-largo">
-            <span class="obrigatorio">Cliente</span>
-            <input type="text" formControlName="cliente" placeholder="Nome do cliente já cadastrado" />
-            @if (temErro('cliente')) {
-              <small class="erro-campo">Informe o cliente.</small>
-            }
-          </label>
-
-          <label class="campo">
-            <span>Responsável</span>
-            <input type="text" formControlName="responsavel" placeholder="Ex.: Eng. Paulo Reis" />
-          </label>
-
-          <label class="campo">
-            <span>Data base (início)</span>
-            <input type="date" formControlName="dataBase" />
-          </label>
-
-          <label class="campo">
-            <span>Prazo / período</span>
-            <input type="text" formControlName="periodo" placeholder="Ex.: até 30/11/2026" />
-          </label>
-
-          <label class="campo">
-            <span>Status</span>
-            <select formControlName="status">
-              @for (opcao of statusOpcoes; track opcao.chave) {
-                <option [value]="opcao.chave">{{ opcao.rotulo }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="campo campo-total">
-            <span>Observações</span>
-            <input type="text" formControlName="obs" />
-          </label>
-        </div>
-      </div>
-
-      <div class="modal-rodape">
-        <button type="button" (click)="fechar()">Cancelar</button>
-        <button class="primario" type="submit" [disabled]="salvando()">
-          {{ salvando() ? 'Salvando…' : 'Cadastrar obra' }}
-        </button>
-      </div>
-    </form>
-  </div>
+  <app-cadastro-obra-modal
+    [proximoCodigo]="proximoCodigo()"
+    [clientesAtivos]="clientesAtivos()"
+    [responsaveisAtivos]="responsaveisAtivos()"
+    [salvando]="salvando()"
+    (salvar)="salvarNovaObra($event)"
+    (fechar)="fechar()" />
 }

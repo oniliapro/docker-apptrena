@@ -19,6 +19,11 @@
   --cor-texto-suave: #5b6560;
   --cor-fundo: #f5f6f3;
   --cor-fundo-alt: #eceee8;
+  // Fundo das linhas alternadas de tabela ("zebra") — mais escuro que
+  // branco o bastante pra ser visível, mas sempre mais claro que
+  // `--cor-fundo-alt` (o cinza do cabeçalho), senão a linha se confunde
+  // com ele (pedido do Lucas, 17/08/2026: era #fafaf8, quase invisível).
+  --cor-zebra: #f8f8f6;
   --cor-superficie: #ffffff;
   --cor-borda: #dadcd5;
   --cor-borda-forte: #c9ccc4;

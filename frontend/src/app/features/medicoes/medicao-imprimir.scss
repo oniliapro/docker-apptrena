@@ -1,0 +1,91 @@
+// Layout para papel (A4 paisagem — 5 categorias + Total + Resultado da
+// Medição, cada uma com várias linhas empilhadas), usado só pelo
+// Chromium headless que gera o PDF (ver MedicaoPdfController). 24/08/2026,
+// mesmo padrão de eap-imprimir.scss/mapa-imprimir.scss (ver docs/GERAR-PDF.md).
+@use '../medicoes/medicao.scss';
+
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 10mm 8mm;
+}
+
+// ---- Cabeçalho/rodapé do documento ----
+.folha-rodape {
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+.titulo-medicao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+// ---- Ajustes de papel sobre o que veio de medicao.scss ----
+
+// Mesmo achado do Eap/Mapa: `.envoltoria` com rolagem própria corta a
+// tabela na altura de 1 página só — o Chromium não pagina o que passa de
+// `overflow: auto`, só some com o resto.
+.envoltoria {
+  max-height: none;
+  overflow-y: visible;
+}
+
+// `position: sticky` é pra rolagem de tela — numa folha sem scroll só
+// atrapalha o paginador do Chromium.
+thead th { position: static; }
+
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.col-descricao { width: 15%; min-width: 0; }
+// `.col-tipo`/`.col-tipo-total`/`.col-resultado` sem width própria — o
+// que sobra depois da Descrição se divide entre elas por causa do
+// `table-layout: fixed` acima (Resultado um pouco mais larga por ter a
+// barra, ajustada pelo `flex-grow` implícito do fixed não existir —
+// então uma largura mínima maior aqui mesmo).
+.col-resultado { width: 15%; }
+
+.celula-descricao, .celula-medicao, .celula-resultado, .celula-total-categorias {
+  min-width: 0;
+}
+
+.grade-celula {
+  row-gap: 1px;
+}
+
+.rotulo-celula, .valor-orcado, .valor-acumulado, .valor-nova, .valor-atual, .valor-avanco {
+  font-size: 8.5px;
+}
+
+th, td { overflow-wrap: break-word; }
+
+// Dashboard mais compacto no papel — a versão de tela tem folga de
+// sobra pensada pra passar o mouse/clicar; aqui cada mm conta.
+.dashboard-medicao { padding: 6px 10px; gap: 6px; }
+.grupo-dashboard { padding-top: 4px; }
+.linha-dashboard { gap: 12px; }
+.stat-valor { font-size: 13px; }
+.stat-tile-barra { min-width: 160px; }
+
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }

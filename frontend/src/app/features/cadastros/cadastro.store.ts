@@ -2,6 +2,12 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { gerarId } from '../eap/eap-normalize';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
 
 /** Registro de cadastro: qualquer coisa com id. */
 export interface ComId {
@@ -40,14 +46,34 @@ export class CadastroStore<T extends ComId> {
   readonly busca = signal('');
   readonly filtroAtivos = signal<'todos' | 'ativos' | 'inativos'>('todos');
 
+  /**
+   * Filtro extra por coluna (19/08/2026, pedido do Lucas) — ex.: Tipo
+   * (PF/PJ) em Clientes/Empreiteiros/Fornecedores. Fica genérico aqui (uma
+   * função sobre o registro, não um campo fixo) porque os 4 cadastros têm
+   * campos diferentes — cada tela pluga sua própria checagem sem o store
+   * genérico precisar conhecer o campo específico dela.
+   */
+  readonly filtroExtra = signal<((registro: T) => boolean) | null>(null);
+
+  /** Ordenação por cabeçalho clicado (18/08/2026, pedido do Lucas) — compartilhada pelos 4 cadastros. */
+  readonly ordenacao = signal<EstadoOrdenacao<Extract<keyof T, string>> | null>(null);
+  readonly setaOrdenacao = setaOrdenacao;
+
+  alternarOrdenacaoColuna(coluna: Extract<keyof T, string>): void {
+    this.ordenacao.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
   readonly listaFiltrada = computed(() => {
     const termo = this.busca().trim().toLowerCase();
     const filtro = this.filtroAtivos();
 
-    return this.registros().filter((registro) => {
+    const extra = this.filtroExtra();
+
+    const filtrada = this.registros().filter((registro) => {
       const ativo = (registro as unknown as { ativo?: boolean }).ativo !== false;
       if (filtro === 'ativos' && !ativo) return false;
       if (filtro === 'inativos' && ativo) return false;
+      if (extra && !extra(registro)) return false;
       if (!termo) return true;
 
       return this.camposBusca.some((campo) =>
@@ -56,6 +82,8 @@ export class CadastroStore<T extends ComId> {
           .includes(termo),
       );
     });
+
+    return ordenarPor(filtrada, this.ordenacao(), (registro, coluna) => registro[coluna]);
   });
 
   /** Configura o cadastro. Chamado uma vez, no início do componente. */

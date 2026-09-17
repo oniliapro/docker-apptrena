@@ -35,6 +35,38 @@ table { table-layout: auto; }
   &:hover { background: var(--cor-fundo-alt); }
 }
 
+.mono { font-family: var(--fonte-mono); font-size: 11.5px; }
+
+.link-contagem {
+  border: none;
+  background: none;
+  color: var(--cor-aco);
+  font-weight: 700;
+  font-family: var(--fonte-mono);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover { color: var(--cor-primaria); }
+}
+
+.link-medicoes {
+  border: none;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-aco);
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover { text-decoration: underline; }
+}
+
+// "Ver todos os pagamentos da obra" (06/09/2026) — abaixo da tabela do
+// popup de pagamentos vinculados, precisa de um respiro em cima.
+.tabela-popup + .link-medicoes { display: block; margin-top: 10px; }
+
 // ---- Modal de formulário ----
 .modal { position: fixed; inset: 0; z-index: 200; }
 
@@ -84,6 +116,38 @@ table { table-layout: auto; }
   border-top: 1px solid var(--cor-borda);
 }
 
+// Popup de pagamentos vinculados — mais estreito que o form de "Novo mapa".
+.modal-cartao.estreito {
+  width: min(560px, 94vw);
+  max-height: 80vh;
+}
+
+.tabela-popup {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td { padding: 6px 8px; font-size: 12px; text-align: left; }
+  th { font-family: var(--fonte-mono); font-size: 10px; text-transform: uppercase; color: var(--cor-texto-suave); }
+  .valor { text-align: right; font-family: var(--fonte-mono); }
+  .mono { font-family: var(--fonte-mono); }
+  tbody tr:nth-child(odd) td { background: #fafaf8; }
+}
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+
+  &.pendente {
+    background: var(--cor-alerta-bg);
+    color: var(--cor-alerta);
+  }
+}
+
 // ---- Campos ----
 .grade {
   display: grid;
@@ -117,6 +181,13 @@ table { table-layout: auto; }
   }
 
   input, select { height: 30px; font-size: 13px; padding: 4px 8px; }
+
+  input.somente-leitura {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+    font-family: var(--fonte-mono);
+    cursor: not-allowed;
+  }
 }
 
 .erro-campo {

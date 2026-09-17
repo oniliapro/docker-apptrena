@@ -1,0 +1,98 @@
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Relatório de obra — Orçado x Realizado"
+                         [geradoEm]="geradoEm" />
+
+@if (carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else if (!temDados()) {
+  <p class="atenuado">Ainda não há dados de EAP ou pagamentos para esta obra.</p>
+} @else {
+
+<section class="dados-obra">
+  <h1>{{ cabecalho().obraNome || 'Obra sem nome' }}</h1>
+  <dl>
+    <div><dt>Cliente</dt><dd>{{ cabecalho().cliente || '—' }}</dd></div>
+    <div><dt>Responsável</dt><dd>{{ cabecalho().responsavel || '—' }}</dd></div>
+    <div><dt>Local</dt><dd>{{ cabecalho().local || '—' }}</dd></div>
+    <div><dt>Data-base</dt><dd>{{ formatarData(cabecalho().dataBase) || '—' }}</dd></div>
+  </dl>
+</section>
+
+<!-- Mesmo desenho de cartões da tela normal (relatorios.html: .grade-resumo/.cartao). -->
+<section class="grade-resumo">
+  <div class="cartao">
+    <div class="rotulo">Orçado</div>
+    <div class="numero">{{ formatarMoeda(orcadoTotal()) }}</div>
+    <div class="nota">com BDI</div>
+  </div>
+
+  <div class="cartao">
+    <div class="rotulo">Realizado</div>
+    <div class="numero">{{ formatarMoeda(realizadoTotal()) }}</div>
+    <div class="nota">{{ consumoTotal() | number: '1.1-1' }}% do orçado</div>
+  </div>
+
+  <div class="cartao" [class.estourado]="saldoTotal() < 0">
+    <div class="rotulo">{{ saldoTotal() < 0 ? 'Estouro' : 'Saldo' }}</div>
+    <div class="numero">{{ formatarMoeda(saldoTotal() < 0 ? -saldoTotal() : saldoTotal()) }}</div>
+    <div class="nota">{{ saldoTotal() < 0 ? 'acima do orçamento' : 'ainda disponível' }}</div>
+  </div>
+</section>
+
+<!-- Mesmo wrapper .painel/.painel-titulo (globais, ver _base.scss) + tabela
+     e barra de consumo da tela normal (relatorios.html). -->
+<section class="painel">
+  <div class="painel-titulo">Por categoria de custo</div>
+
+  <p class="explicacao atenuado">
+    O total pode fechar escondendo um estouro numa categoria compensado por economia em outra —
+    por isso a comparação também aparece separada.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Categoria</th>
+        <th class="valor">Orçado</th>
+        <th class="valor">Realizado</th>
+        <th class="valor">Saldo</th>
+        <th class="col-consumo">Consumo</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (tipo of tipos; track tipo.chave) {
+        <tr>
+          <td class="nome-categoria">{{ tipo.rotulo }}</td>
+          <td class="valor">{{ formatarMoeda(orcado()[tipo.chave] || 0) }}</td>
+          <td class="valor">{{ formatarMoeda(realizado()[tipo.chave] || 0) }}</td>
+          <td class="valor" [class.negativo]="estourou(tipo.chave)">
+            <b>{{ formatarMoeda(saldoDe(tipo.chave)) }}</b>
+          </td>
+          <td>
+            <div class="barra">
+              <div class="preenchimento" [class.estourado]="estourou(tipo.chave)"
+                   [style.width.%]="larguraBarra(consumoDe(tipo.chave))"></div>
+              <span class="percentual">{{ consumoDe(tipo.chave) | number: '1.0-0' }}%</span>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Total</th>
+        <th class="valor">{{ formatarMoeda(orcadoTotal()) }}</th>
+        <th class="valor">{{ formatarMoeda(realizadoTotal()) }}</th>
+        <th class="valor" [class.negativo]="saldoTotal() < 0">{{ formatarMoeda(saldoTotal()) }}</th>
+        <th class="valor">{{ consumoTotal() | number: '1.0-0' }}%</th>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+
+<footer class="folha-rodape">
+  Gerado automaticamente pelo AppTrena — os valores refletem os dados no momento da geração.
+</footer>
+
+}

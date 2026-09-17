@@ -1,0 +1,55 @@
+<div class="modal">
+  <div class="modal-fundo" (click)="fechar.emit()"></div>
+
+  <div class="modal-cartao estreito">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">{{ titulo() }}</span>
+      <button type="button" (click)="fechar.emit()">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      @if (carregando()) {
+        <p class="atenuado pequeno">Carregando…</p>
+      } @else if (pagamentos().length) {
+        <table class="tabela-popup">
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Fornecedor</th>
+              <th class="valor">Total</th>
+              <th class="centro">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pagamento of pagamentos(); track pagamento.id) {
+              <tr>
+                <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
+                <td>{{ pagamento.fornecedor || '—' }}</td>
+                <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
+                <td class="centro">
+                  <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                    {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                  </span>
+                </td>
+                <td class="centro">
+                  <button type="button" class="link-medicoes" (click)="abrirPagamento(pagamento)">Ver</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="atenuado pequeno">Nenhum pagamento vinculado ainda.</p>
+      }
+    </div>
+  </div>
+</div>
+
+@if (pagamentoEmEdicao(); as pagamento) {
+  <app-editar-pagamento-modal
+    [pagamento]="pagamento"
+    [obraId]="pagamento.obraId ?? ''"
+    (salvar)="salvarPagamento($event)"
+    (fechar)="fecharPagamento()" />
+}

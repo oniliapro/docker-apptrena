@@ -1,0 +1,50 @@
+<div class="modal">
+  <div class="modal-fundo" (click)="fechar.emit()"></div>
+
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">Configurações</span>
+      <button type="button" (click)="fechar.emit()">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      <aside class="abas-config">
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'empresa'"
+                (click)="selecionarAba('empresa')">
+          Dados da empresa
+        </button>
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'plano'"
+                (click)="selecionarAba('plano')">
+          Plano
+        </button>
+        @if (podeVerControlePermissoes()) {
+          <button type="button" class="aba" [class.ativa]="abaAtiva() === 'permissoes'"
+                  (click)="selecionarAba('permissoes')">
+            Controle de permissões
+          </button>
+        }
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'tags'"
+                (click)="selecionarAba('tags')">
+          Tags
+        </button>
+      </aside>
+
+      <div class="painel-config">
+        @switch (abaAtiva()) {
+          @case ('empresa') {
+            <app-dados-empresa />
+          }
+          @case ('plano') {
+            <app-plano />
+          }
+          @case ('permissoes') {
+            <app-controle-permissoes />
+          }
+          @case ('tags') {
+            <app-tags />
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>

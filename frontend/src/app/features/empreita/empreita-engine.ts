@@ -4,45 +4,49 @@
  * ------------------------------------------------------------------
  * Como uma medição se transforma em pagamento
  * ------------------------------------------------------------------
- * Cada serviço da empreita aponta para um item da EAP, e é o orçado
- * desse item que define **como o valor contratado se distribui entre as
- * categorias de custo**. Se o item orçado é 70% material e 30% mão de
- * obra, o contrato é lido na mesma proporção. Quando não há orçado, a
- * divisão é igual entre as categorias — melhor que travar.
+ * Cada serviço da empreita aponta para um item da EAP e pertence a UMA
+ * categoria de custo só (`item.tipo` — 25/08/2026, pedido do Lucas: "cada
+ * item da lista só vai ter um tipo"; antes um serviço podia ter contrato/
+ * medição em várias categorias ao mesmo tempo). É o orçado desse item,
+ * NAQUELA categoria, que entra como referência de comparação na tela.
  *
- * A medição é feita em percentual por categoria, e o que se paga é o
- * **avanço** do período: `atual − acumulado`. Retrocesso não gera
- * crédito negativo; a linha é marcada como inválida, porque medição que
- * anda para trás é erro de digitação, não estorno.
+ * A medição é feita em percentual, e o que se paga é o **avanço** do
+ * período: `atual − acumulado`. Retrocesso não gera crédito negativo; a
+ * linha é marcada como inválida, porque medição que anda para trás é erro
+ * de digitação, não estorno.
  *
- * Sobre o avanço incidem duas coisas em paralelo, categoria a categoria:
+ * Sobre o avanço incidem duas coisas em paralelo:
  *
- *  - `pagar`    = contratoEmpPorTipo[categoria]     × avanço%
- *  - `reservar` = contratoReservaPorTipo[categoria] × avanço%
+ *  - `pagar`    = contratoEmp     × avanço%
+ *  - `reservar` = contratoReserva × avanço%
  *
  * O contrato **não é distribuído automaticamente pelo orçado** — decisão
- * da task #45 (28/07/2026): o usuário lança o valor de cada categoria à
- * mão. O orçado da EAP continua calculado aqui (`orcadoPorTipo`), mas só
- * como referência de comparação na tela — não entra mais na conta de
- * quanto pagar.
+ * da task #45 (28/07/2026): o usuário lança o valor à mão. O orçado da
+ * EAP continua calculado aqui (`orcado`), mas só como referência de
+ * comparação na tela — não entra mais na conta de quanto pagar.
  *
  * A **reserva discricionária** é o diferencial do AppTrena: em vez de
- * uma retenção percentual fixa, é um valor lançado à mão por serviço (e
- * por categoria), que acompanha o avanço mas pode ser dimensionado caso
- * a caso — e usado para cobrir problema em outra obra.
+ * uma retenção percentual fixa, é um valor lançado à mão por serviço,
+ * que acompanha o avanço mas pode ser dimensionado caso a caso — e usado
+ * para cobrir problema em outra obra.
  * ------------------------------------------------------------------
  */
 
 import { ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { criarVazioPorTipo, somarEmPorTipo, somarPorTipo } from '../eap/eap-normalize';
 import { ehDescendente } from '../eap/eap-engine';
+import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
+import { Pagamento } from '../pagamentos/pagamentos.models';
 import {
-  CabecalhoEmpreita,
   CabecalhoEapSnapshot,
   ItemEmpreita,
+  JaPagoLinha,
   LinhaEmpreita,
+  LinhaEmpreitaEstendida,
   OrcadoEap,
+  ResumoContratoEmpreita,
   TotaisEmpreita,
+  TotaisEmpreitaEstendida,
 } from './empreita.models';
 
 /** Mantém percentuais no intervalo 0–100. */
@@ -50,17 +54,6 @@ export function limitarPercentual(valor: unknown): number {
   const n = Number(valor);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, n));
-}
-
-/**
- * Categorias consideradas. Nenhuma marcada equivale a todas — assim uma
- * empreita recém-criada já funciona, sem exigir configuração antes.
- */
-export function obterTiposIncluidos(cabecalho: CabecalhoEmpreita): ChaveTipo[] {
-  const marcadas = TIPOS_CUSTO.filter((t) => cabecalho?.typesIncluded?.[t.chave]).map(
-    (t) => t.chave,
-  );
-  return marcadas.length ? marcadas : TIPOS_CUSTO.map((t) => t.chave);
 }
 
 function calcularOverrideBdi(item: ItemEap, totalDireto: number): number | null {
@@ -236,116 +229,60 @@ export function calcularOrcadoDaEap(
 /** Cálculo completo de uma linha de empreita. */
 export function calcularLinhaEmpreita(
   item: ItemEmpreita,
-  cabecalho: CabecalhoEmpreita,
   orcadoPorId: Map<string, OrcadoEap>,
 ): LinhaEmpreita {
-  const tipos = obterTiposIncluidos(cabecalho);
-  const orcado = orcadoPorId.get(String(item?.eapId ?? '')) ?? null;
+  const orcadoItem = orcadoPorId.get(String(item?.eapId ?? '')) ?? null;
+  const orcado = Number(orcadoItem?.totalPorTipo?.[item.tipo]) || 0;
 
-  // Parte de todas as categorias zeradas, e não só das consideradas: as
-  // excluídas aparecem como 0 em vez de ausentes, o que mantém a forma do
-  // objeto estável para quem consome (tabelas, somatórios, comparações).
-  // Usado só como referência de comparação na tela — não entra mais no
-  // cálculo de quanto pagar (task #45, 28/07/2026: o contrato é lançado
-  // pelo usuário por categoria, não distribuído pelo sistema).
-  const orcadoPorTipo: PorTipo = criarVazioPorTipo();
-  tipos.forEach((k) => {
-    orcadoPorTipo[k] = Number(orcado?.totalPorTipo?.[k]) || 0;
-  });
-  const orcadoTotal = tipos.reduce((soma, k) => soma + (Number(orcadoPorTipo[k]) || 0), 0);
-
-  // Contrato lançado pelo usuário, categoria a categoria — fonte única de
-  // verdade, sem cálculo automático a partir do orçado.
-  const contratoEmpPorTipo = item?.contratoEmpPorTipo ?? {};
-  const contratoReservaPorTipo = item?.contratoReservaPorTipo ?? {};
-
-  const contratoPorTipo: Partial<PorTipo> = {};
-  let valorEmp = 0;
-  let valorReserva = 0;
-  tipos.forEach((k) => {
-    const emp = Number(contratoEmpPorTipo[k]) || 0;
-    const reserva = Number(contratoReservaPorTipo[k]) || 0;
-    valorEmp += emp;
-    valorReserva += reserva;
-    contratoPorTipo[k] = emp + reserva;
-  });
+  const valorEmp = Number(item?.contratoEmp) || 0;
+  const valorReserva = Number(item?.contratoReserva) || 0;
   const valorTotal = valorEmp + valorReserva;
+  const contrato = valorTotal;
 
-  const acumuladoPorTipo: Partial<Record<ChaveTipo, number>> = {};
-  const atualPorTipo: Partial<Record<ChaveTipo, number>> = {};
-  const avancoPorTipo: Partial<Record<ChaveTipo, number>> = {};
-  const pagarPorTipo: Partial<Record<ChaveTipo, number>> = {};
-  const reservarPorTipo: Partial<Record<ChaveTipo, number>> = {};
-  const tiposInvalidos: ChaveTipo[] = [];
+  const acumulado = limitarPercentual(item?.medicaoAcum);
+  // Atual em branco significa "sem avanço", não zero — herda o acumulado.
+  const atualBruto = item?.medicaoAtual;
+  const atual =
+    atualBruto === null || atualBruto === undefined ? acumulado : limitarPercentual(atualBruto);
 
-  let temAvanco = false;
-  let pagarEmp = 0;
-  let reservarPgto = 0;
+  const avanco = Math.max(0, atual - acumulado);
+  const reducaoInvalida = atual < acumulado;
+  const temAvanco = avanco > 0;
 
-  for (const k of tipos) {
-    const acumulado = limitarPercentual(item?.medicaoAcumByType?.[k]);
-
-    // Atual em branco significa "sem avanço", não zero — herda o acumulado.
-    const atualBruto = item?.medicaoAtualByType?.[k];
-    const atual =
-      atualBruto === null || atualBruto === undefined ? acumulado : limitarPercentual(atualBruto);
-
-    const avanco = Math.max(0, atual - acumulado);
-    if (atual < acumulado) tiposInvalidos.push(k);
-    if (avanco > 0) temAvanco = true;
-
-    acumuladoPorTipo[k] = acumulado;
-    atualPorTipo[k] = atual;
-    avancoPorTipo[k] = avanco;
-
-    const empTipo = Number(contratoEmpPorTipo[k]) || 0;
-    const reservaTipo = Number(contratoReservaPorTipo[k]) || 0;
-    const pagar = empTipo * (avanco / 100);
-    const reservar = reservaTipo * (avanco / 100);
-
-    pagarPorTipo[k] = pagar;
-    reservarPorTipo[k] = reservar;
-    pagarEmp += pagar;
-    reservarPgto += reservar;
-  }
+  const pagar = valorEmp * (avanco / 100);
+  const reservar = valorReserva * (avanco / 100);
 
   return {
     valorEmp,
     valorReserva,
     valorTotal,
-    tipos,
-    orcadoPorTipo,
-    orcadoTotal,
-    contratoPorTipo,
-    acumuladoPorTipo,
-    atualPorTipo,
-    avancoPorTipo,
-    pagarPorTipo,
-    reservarPorTipo,
+    orcado,
+    contrato,
+    acumulado,
+    atual,
+    avanco,
+    pagar,
+    reservar,
     temAvanco,
-    pagarEmp,
-    reservarPgto,
-    totalPeriodo: pagarEmp + reservarPgto,
-    reducaoInvalida: tiposInvalidos.length > 0,
-    tiposInvalidos,
+    totalPeriodo: pagar + reservar,
+    reducaoInvalida,
   };
 }
 
 export function calcularTotaisEmpreita(
   itens: ItemEmpreita[],
-  cabecalho: CabecalhoEmpreita,
   orcadoPorId: Map<string, OrcadoEap>,
 ): TotaisEmpreita {
   return itens.reduce<TotaisEmpreita>(
     (totais, item) => {
-      const linha = calcularLinhaEmpreita(item, cabecalho, orcadoPorId);
+      const linha = calcularLinhaEmpreita(item, orcadoPorId);
       return {
-        orcadoTotal: totais.orcadoTotal + linha.orcadoTotal,
+        orcadoTotal: totais.orcadoTotal + linha.orcado,
         valorEmp: totais.valorEmp + linha.valorEmp,
         valorReserva: totais.valorReserva + linha.valorReserva,
         valorTotal: totais.valorTotal + linha.valorTotal,
-        pagarEmp: totais.pagarEmp + linha.pagarEmp,
-        reservarPgto: totais.reservarPgto + linha.reservarPgto,
+        pagarEmp: totais.pagarEmp + linha.pagar,
+        reservarPgto: totais.reservarPgto + linha.reservar,
         totalPeriodo: totais.totalPeriodo + linha.totalPeriodo,
       };
     },
@@ -359,4 +296,284 @@ export function calcularTotaisEmpreita(
       totalPeriodo: 0,
     },
   );
+}
+
+// ----------------------------------------------------------------------
+// Redesign 25/08/2026 (pedido do Lucas) — saldo comprometido entre
+// empreitas, Já pago/Divergência acumulados, e o "Saldo após pagamento".
+// ----------------------------------------------------------------------
+
+/**
+ * Saldo disponível por item da EAP e categoria de custo — quanto do
+ * orçado ainda não foi comprometido por CONTRATOS de outras empreitas da
+ * mesma obra. Adaptado do `saldoPorEtapa` do Mapa
+ * (`mapa.store.ts:392-548`), mas a "contribuição" descontada aqui é o
+ * Contrato Total (Empreiteiro + Reserva) de cada empreita-irmã, não o que
+ * foi de fato pago — "quando uma empreita é criada o valor total dela
+ * compromete o saldo" (pedido do Lucas, 24/08/2026). Nunca bloqueia nada:
+ * o resultado pode ficar negativo, e a tela só mostra em vermelho.
+ *
+ * Só conta empreitas CRIADAS ANTES da atual (`criadoEmAtual`, empate por
+ * id) — uma empreita nunca desconta de si mesma, e a ordem de criação é a
+ * mesma fila que decide "quem chegou primeiro" no orçamento da etapa.
+ *
+ * Continua devolvendo `Map<eapId, PorTipo>` (5 categorias) mesmo com cada
+ * ITEM só tendo uma categoria — o orçado da EAP em si continua sendo por
+ * categoria, e duas empreitas diferentes podem comprometer categorias
+ * diferentes do mesmo item da EAP.
+ */
+/**
+ * Empreitas "criadas antes" da atual (empate por id) — mesma fila usada
+ * tanto pelo Saldo disp. (R$) quanto pela Qtde. disp. (física): quem
+ * chegou primeiro consome do recurso compartilhado (orçado da categoria,
+ * ou quantidade física do item) antes de quem chegou depois.
+ */
+function empreitaFoiCriadaAntes(
+  sibling: ResumoContratoEmpreita,
+  empreitaIdAtual: string,
+  criadoEmAtual: string,
+): boolean {
+  if (sibling.id === empreitaIdAtual) return false;
+  if (!criadoEmAtual) return true; // empreita atual ainda sem data (nova) — todas as existentes contam como "antes"
+  if (!sibling.criadoEm) return false;
+  if (sibling.criadoEm !== criadoEmAtual) return sibling.criadoEm < criadoEmAtual;
+  return sibling.id < empreitaIdAtual;
+}
+
+export function calcularSaldoDisponivelPorEap(
+  itensEap: ItemEap[],
+  cabecalhoEap: CabecalhoEapSnapshot | null | undefined,
+  siblings: ResumoContratoEmpreita[],
+  empreitaIdAtual: string,
+  criadoEmAtual: string,
+): Map<string, PorTipo> {
+  const orcadoPorId = calcularOrcadoDaEap(itensEap, cabecalhoEap);
+
+  const consumido = new Map<string, PorTipo>();
+  for (const sibling of siblings) {
+    if (!empreitaFoiCriadaAntes(sibling, empreitaIdAtual, criadoEmAtual)) continue;
+    for (const item of sibling.itens) {
+      if (!item.eapId || !item.tipo) continue;
+      if (!consumido.has(item.eapId)) consumido.set(item.eapId, criarVazioPorTipo());
+      const porTipo = consumido.get(item.eapId)!;
+      porTipo[item.tipo] += (Number(item.contratoEmp) || 0) + (Number(item.contratoReserva) || 0);
+    }
+  }
+
+  const resultado = new Map<string, PorTipo>();
+  for (const [eapId, orcado] of orcadoPorId) {
+    const usado = consumido.get(eapId) ?? criarVazioPorTipo();
+    const saldo = criarVazioPorTipo();
+    TIPOS_CUSTO.forEach((t) => {
+      saldo[t.chave] = (Number(orcado.totalPorTipo[t.chave]) || 0) - (Number(usado[t.chave]) || 0);
+    });
+    resultado.set(eapId, saldo);
+  }
+  return resultado;
+}
+
+/**
+ * Qtde. disp. (25/08/2026, pedido do Lucas) — mesma ideia do Saldo disp.,
+ * mas em quantidade física: `item.qtde` (da EAP) menos a quantidade
+ * contratada de empreitas anteriores no MESMO item da EAP. Ao contrário
+ * do Saldo disp., não é por categoria — a quantidade física é um recurso
+ * só, comum a todas as categorias que porventura contratem pedaços do
+ * mesmo item (ex.: mão de obra e material do mesmo item disputam a
+ * mesma quantidade física, não orçamentos separados).
+ */
+export function calcularQtdeDisponivelPorEap(
+  itensEap: ItemEap[],
+  siblings: ResumoContratoEmpreita[],
+  empreitaIdAtual: string,
+  criadoEmAtual: string,
+): Map<string, number> {
+  const consumido = new Map<string, number>();
+  for (const sibling of siblings) {
+    if (!empreitaFoiCriadaAntes(sibling, empreitaIdAtual, criadoEmAtual)) continue;
+    for (const item of sibling.itens) {
+      if (!item.eapId) continue;
+      consumido.set(item.eapId, (consumido.get(item.eapId) ?? 0) + (Number(item.qtdeContratada) || 0));
+    }
+  }
+
+  const resultado = new Map<string, number>();
+  for (const itemEap of itensEap) {
+    if (!itemEap?.id) continue;
+    const usado = consumido.get(itemEap.id) ?? 0;
+    resultado.set(itemEap.id, (Number(itemEap.qtde) || 0) - usado);
+  }
+  return resultado;
+}
+
+/**
+ * "Já pago" + Divergência, por linha de serviço (`ItemEmpreita.id`) —
+ * replay de todos os pagamentos CONFIRMADOS já gerados por esta empreita
+ * (pendentes ficam de fora, mesma regra do resto do sistema: um
+ * pagamento pendente ainda não é dinheiro de verdade). A ordem dos
+ * pagamentos não afeta o resultado — Divergência é uma soma comutativa de
+ * (medido − liberado), sem clamp (pedido do Lucas, 25/08/2026: "a sobra
+ * seria quando o pagamento liberado for menor do que o medido... se a
+ * medição aferiu que ele pode receber 250, mas o pagamento foi de apenas
+ * 200 então fica uma sobra de 50 reais" — e pode ir negativa se o
+ * empreiteiro recebeu adiantado).
+ */
+export function calcularJaPagoPorLinha(pagamentosConfirmados: Pagamento[]): Map<string, JaPagoLinha> {
+  interface Acumulador {
+    empreiteiro: number;
+    reserva: number;
+    divergencia: number;
+  }
+  const acumulado = new Map<string, Acumulador>();
+
+  for (const pagamento of pagamentosConfirmados) {
+    for (const item of expandirItensPagamento(pagamento)) {
+      if (!item.empreitaItemId) continue;
+
+      if (!acumulado.has(item.empreitaItemId)) {
+        acumulado.set(item.empreitaItemId, { empreiteiro: 0, reserva: 0, divergencia: 0 });
+      }
+      const acc = acumulado.get(item.empreitaItemId)!;
+
+      if (item.parcela === 'reserva') {
+        acc.reserva += item.valorCalculado;
+      } else if (item.parcela === 'empreiteiro') {
+        acc.empreiteiro += item.valorCalculado;
+        acc.divergencia += (item.valorReferencia ?? 0) - item.valorCalculado;
+      }
+      // parcela null (pagamento de empreita gerado pelo código antigo,
+      // antes desta coluna existir): não é possível saber se era
+      // empreiteiro ou reserva, então fica de fora do replay — o
+      // pagamento ainda conta normalmente como Realizado em todo o resto
+      // do sistema, só não aparece em "Já pago"/Divergência desta tela.
+    }
+  }
+
+  const resultado = new Map<string, JaPagoLinha>();
+  for (const [empreitaItemId, acc] of acumulado) {
+    resultado.set(empreitaItemId, {
+      empreiteiro: acc.empreiteiro,
+      reserva: acc.reserva,
+      divergencia: acc.divergencia,
+      total: acc.empreiteiro + acc.reserva,
+    });
+  }
+  return resultado;
+}
+
+const JA_PAGO_VAZIO: JaPagoLinha = { empreiteiro: 0, reserva: 0, divergencia: 0, total: 0 };
+
+/** `calcularLinhaEmpreita` + Saldo disp., Já pago/Divergência, o rascunho efetivo de Pagamento, e o Saldo após pagamento. */
+export function calcularLinhaEmpreitaEstendida(
+  item: ItemEmpreita,
+  orcadoPorId: Map<string, OrcadoEap>,
+  saldoDispPorEap: Map<string, PorTipo>,
+  qtdeDispPorEap: Map<string, number>,
+  jaPagoPorItem: Map<string, JaPagoLinha>,
+): LinhaEmpreitaEstendida {
+  const linha = calcularLinhaEmpreita(item, orcadoPorId);
+
+  const saldoDispBase = saldoDispPorEap.get(item.eapId) ?? criarVazioPorTipo();
+  const saldoDisp = Number(saldoDispBase[item.tipo]) || 0;
+  const qtdeDisp = Number(qtdeDispPorEap.get(item.eapId)) || 0;
+
+  const jaPago = jaPagoPorItem.get(item.id) ?? JA_PAGO_VAZIO;
+
+  // "Medido" (25/08/2026) — quanto falta pagar com base no TOTAL medido
+  // até agora (atual%), não só no avanço deste período — diferente de
+  // `pagar` (contratoEmp × avanço%), que só reflete o incremento.
+  const medido = (linha.atual / 100) * (Number(item.contratoEmp) || 0) - jaPago.empreiteiro;
+
+  // null/undefined = sem sobrescrita, herda o calculado pela engine.
+  const overrideEmp = item.pagamentoEmp;
+  const overrideReserva = item.pagamentoReserva;
+  const pagamentoEmpDraft =
+    overrideEmp === null || overrideEmp === undefined ? linha.pagar : Number(overrideEmp) || 0;
+  const pagamentoReservaDraft =
+    overrideReserva === null || overrideReserva === undefined ? linha.reservar : Number(overrideReserva) || 0;
+  const pagamentoDraftTotal = pagamentoEmpDraft + pagamentoReservaDraft;
+
+  const saldoAposPagamentoEtapa = saldoDisp - linha.contrato;
+  const saldoAposPagamentoEmp = (Number(item.contratoEmp) || 0) - jaPago.empreiteiro - pagamentoEmpDraft;
+  const saldoAposPagamentoReserva = (Number(item.contratoReserva) || 0) - jaPago.reserva - pagamentoReservaDraft;
+  const saldoAposPagamentoTotal = saldoAposPagamentoEmp + saldoAposPagamentoReserva;
+
+  return {
+    ...linha,
+    saldoDisp,
+    qtdeDisp,
+    jaPago,
+    medido,
+    pagamentoEmpDraft,
+    pagamentoReservaDraft,
+    pagamentoDraftTotal,
+    saldoAposPagamentoEtapa,
+    saldoAposPagamentoEmp,
+    saldoAposPagamentoReserva,
+    saldoAposPagamentoTotal,
+  };
+}
+
+export function calcularTotaisEmpreitaEstendida(
+  itens: ItemEmpreita[],
+  orcadoPorId: Map<string, OrcadoEap>,
+  saldoDispPorEap: Map<string, PorTipo>,
+  qtdeDispPorEap: Map<string, number>,
+  jaPagoPorItem: Map<string, JaPagoLinha>,
+): TotaisEmpreitaEstendida {
+  const base = calcularTotaisEmpreita(itens, orcadoPorId);
+
+  return itens.reduce<TotaisEmpreitaEstendida>(
+    (totais, item) => {
+      const linha = calcularLinhaEmpreitaEstendida(item, orcadoPorId, saldoDispPorEap, qtdeDispPorEap, jaPagoPorItem);
+      return {
+        ...totais,
+        jaPagoEmpreiteiro: totais.jaPagoEmpreiteiro + linha.jaPago.empreiteiro,
+        jaPagoReserva: totais.jaPagoReserva + linha.jaPago.reserva,
+        jaPagoDivergencia: totais.jaPagoDivergencia + linha.jaPago.divergencia,
+        jaPagoTotal: totais.jaPagoTotal + linha.jaPago.total,
+        medidoTotal: totais.medidoTotal + linha.medido,
+        pagamentoDraftEmp: totais.pagamentoDraftEmp + linha.pagamentoEmpDraft,
+        pagamentoDraftReserva: totais.pagamentoDraftReserva + linha.pagamentoReservaDraft,
+        pagamentoDraftTotal: totais.pagamentoDraftTotal + linha.pagamentoDraftTotal,
+        saldoAposPagamentoEmp: totais.saldoAposPagamentoEmp + linha.saldoAposPagamentoEmp,
+        saldoAposPagamentoReserva: totais.saldoAposPagamentoReserva + linha.saldoAposPagamentoReserva,
+        saldoAposPagamentoTotal: totais.saldoAposPagamentoTotal + linha.saldoAposPagamentoTotal,
+      };
+    },
+    {
+      ...base,
+      jaPagoEmpreiteiro: 0,
+      jaPagoReserva: 0,
+      jaPagoDivergencia: 0,
+      jaPagoTotal: 0,
+      medidoTotal: 0,
+      pagamentoDraftEmp: 0,
+      pagamentoDraftReserva: 0,
+      pagamentoDraftTotal: 0,
+      saldoAposPagamentoEmp: 0,
+      saldoAposPagamentoReserva: 0,
+      saldoAposPagamentoTotal: 0,
+    },
+  );
+}
+
+// ---- Conversores do toggle R$ ⇄ % ⇄ Qtde (Medição de contrato) ----
+// Mesma convenção dos toggles de 2 estados já existentes (Mapa/Medição/
+// Cronograma): o valor gravado continua sempre percentual — isto é só
+// conveniência de exibição/edição, client-side, nunca persistido.
+
+export function pctParaQtde(pct: number, qtdeTotal: number): number {
+  return qtdeTotal * ((Number(pct) || 0) / 100);
+}
+
+export function qtdeParaPct(qtde: number, qtdeTotal: number): number {
+  return qtdeTotal > 0 ? ((Number(qtde) || 0) / qtdeTotal) * 100 : 0;
+}
+
+export function pctParaValorContrato(pct: number, contratoTotal: number): number {
+  return contratoTotal * ((Number(pct) || 0) / 100);
+}
+
+export function valorContratoParaPct(valor: number, contratoTotal: number): number {
+  return contratoTotal > 0 ? ((Number(valor) || 0) / contratoTotal) * 100 : 0;
 }

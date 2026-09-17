@@ -19,6 +19,44 @@ import {
   TIPOS_CUSTO,
 } from './eap.models';
 
+/** "1.2" é descendente de "1"; "12" não é. O ponto evita o falso positivo. */
+export function ehDescendente(eapPai: string, eapFilho: string): boolean {
+  const pai = String(eapPai ?? '').trim();
+  const filho = String(eapFilho ?? '').trim();
+  if (!pai || !filho) return false;
+  return filho.startsWith(pai + '.');
+}
+
+/** Nível de recuo visual: "1.2.3" recua dois níveis. Usado pela EAP e pelo Cronograma de Desembolso. */
+export function recuoDoCodigoEap(codigoEap: string): number {
+  return Math.max(0, String(codigoEap ?? '').split('.').filter(Boolean).length - 1);
+}
+
+/**
+ * Ids ocultos por causa de recolher/expandir grupos (17/08/2026, pedido
+ * do Lucas — EAP e Cronograma de Desembolso). Um item some quando
+ * QUALQUER um dos seus ancestrais (não só o pai direto) está na lista de
+ * colapsados — é assim que recolher o grupo "1" esconde "1.1", "1.1.2"
+ * etc., todos de uma vez. O estado de cada grupo é independente: se
+ * "1.1" também estiver marcado como colapsado, reabrir "1" não reabre
+ * "1.1" — ele continua escondendo os próprios descendentes.
+ */
+export function itensOcultosPorColapso<T extends { id: string; eap: string }>(
+  itens: T[],
+  colapsados: ReadonlySet<string>,
+): Set<string> {
+  const ocultos = new Set<string>();
+  if (!colapsados.size) return ocultos;
+
+  const codigosColapsados = itens.filter((i) => colapsados.has(i.id)).map((i) => i.eap);
+  if (!codigosColapsados.length) return ocultos;
+
+  for (const item of itens) {
+    if (codigosColapsados.some((pai) => ehDescendente(pai, item.eap))) ocultos.add(item.id);
+  }
+  return ocultos;
+}
+
 export function gerarId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -160,6 +198,7 @@ export function normalizarUi(bruto: Record<string, unknown> | null | undefined):
     showBDI: raw['showBDI'] !== false,
     showTypes: raw['showTypes'] !== false,
     orcRealMode: String(raw['orcRealMode'] ?? '').toLowerCase() === 'pct' ? 'pct' : 'value',
+    modoTotais: String(raw['modoTotais'] ?? '').toLowerCase() === 'saldo' ? 'saldo' : 'detalhado',
     visibleTypes: TIPOS_CUSTO.reduce((acc, t) => {
       acc[t.chave] = visiveis[t.chave] !== false;
       return acc;
@@ -177,9 +216,21 @@ export function normalizarItemEap(bruto: Record<string, unknown> | null | undefi
   const qtdeBruta = Number(raw['qtde']);
   const qtde = Number.isFinite(qtdeBruta) ? qtdeBruta : temCustosLegado ? 1 : 0;
 
+  const nivelBruto = Number(raw['nivel']);
+  const nivel =
+    Number.isInteger(nivelBruto) && nivelBruto >= 1 && nivelBruto <= NIVEL_MAX ? nivelBruto : 0;
+
+  const orcadoCongeladoBruto = raw['orcadoCongelado'];
+  const orcadoCongelado =
+    orcadoCongeladoBruto && typeof orcadoCongeladoBruto === 'object'
+      ? normalizarPorTipo(orcadoCongeladoBruto)
+      : null;
+
   return {
     id: raw['id'] ? String(raw['id']) : gerarId(),
     isGroup: Boolean(raw['isGroup']),
+    nivel,
+    adicional: Boolean(raw['adicional']),
     eap: String(raw['eap'] ?? ''),
     desc: String(raw['desc'] ?? ''),
     qtde,
@@ -188,38 +239,83 @@ export function normalizarItemEap(bruto: Record<string, unknown> | null | undefi
     bdiMode: normalizarModoBdi(raw['bdiMode'], raw['bdiValue'], raw['bdiPercent']),
     bdiPercent: Number(raw['bdiPercent']) || 0,
     bdiValue: Number(raw['bdiValue']) || 0,
+    orcadoCongelado,
   };
 }
 
+/** Quantos níveis a EAP suporta (select "Nível" na tela vai de 1 a este valor). */
+export const NIVEL_MAX = 4;
+
 /**
- * Renumera a EAP conforme a ordem das linhas: grupos viram "1", "2"…, e
- * os itens dentro de cada grupo viram "1.1", "1.2"… Itens antes de
- * qualquer grupo recebem numeração de primeiro nível.
+ * Renumera a EAP conforme a ordem das linhas e o `nivel` (1 a `NIVEL_MAX`)
+ * de cada uma, e deriva quem é "grupo" a partir do resultado. Faz duas
+ * passadas:
+ *
+ * **1ª passada — códigos EAP.** O índice de uma linha é a numeração
+ * acumulada até o seu nível, ex. nível 3 vira "1.2.1". Cada nível tem seu
+ * próprio contador, que zera quando aparece uma linha de nível mais raso.
+ * Itens sem `nivel` definido (`0`, dado antigo de antes de 14/08/2026, ou
+ * item novo ainda não editado) recebem o comportamento legado, herdado de
+ * quando só existiam 2 níveis inferidos do então-checkbox "Grupo" (já
+ * removido da tela, ver `ItemEap.isGroup`): grupo sempre vira nível 1;
+ * item dentro de um grupo vira nível 2. Um item solto antes de qualquer
+ * grupo é o único caso especial: no app original ele tinha um contador
+ * próprio, separado do dos grupos — por isso "Solto 1"/"Solto 2" viram
+ * "0"/"1" (nível 1 sempre começa em 0, 17/08/2026, pedido do Lucas) e o
+ * primeiro grupo que aparecer depois também começa em "0" (número
+ * repetido, mas é o comportamento herdado, preservado aqui pra não
+ * quebrar dados antigos). O nível resolvido é gravado de volta no
+ * item (como já acontecia com `eap`), então da segunda renumeração em
+ * diante o valor já é explícito e esse caso especial não se aplica mais.
+ *
+ * **2ª passada — quem é grupo.** Só pode rodar depois da 1ª, porque
+ * precisa dos códigos EAP finais de todo mundo. Ver `ItemEap.isGroup`.
  *
  * Altera os itens no lugar, como no original.
  */
 export function aplicarNumeracaoAutomatica(itens: ItemEap[]): ItemEap[] {
-  let numeroGrupo = 0;
-  let numeroNoGrupo = 0;
-  let numeroTopo = 0;
+  const contadores = Array.from({ length: NIVEL_MAX }, () => 0);
+  // Nível 1 começa em 0, os demais em 1 (17/08/2026, pedido do Lucas) —
+  // "0" e "0.1" podem existir, mas "1.0"/"1.1.0" nunca. Só o primeiro
+  // contador nasce em -1 pra o primeiro incremento cair em 0; os outros
+  // níveis mantêm a contagem de sempre (começando em 1).
+  let numeroTopoLegado = -1;
+  let nivelUltimoGrupo = 0;
 
   for (const item of itens) {
     if (!item) continue;
 
-    if (item.isGroup) {
-      numeroGrupo += 1;
-      numeroNoGrupo = 0;
-      item.eap = String(numeroGrupo);
+    const nivelExplicito =
+      Number.isInteger(item.nivel) && item.nivel >= 1 && item.nivel <= NIVEL_MAX;
+
+    if (!nivelExplicito && !item.isGroup && nivelUltimoGrupo === 0) {
+      numeroTopoLegado += 1;
+      item.nivel = 1;
+      item.eap = String(numeroTopoLegado);
       continue;
     }
 
-    if (numeroGrupo > 0) {
-      numeroNoGrupo += 1;
-      item.eap = `${numeroGrupo}.${numeroNoGrupo}`;
-    } else {
-      numeroTopo += 1;
-      item.eap = String(numeroTopo);
-    }
+    const nivel = nivelExplicito
+      ? item.nivel
+      : item.isGroup
+        ? 1
+        : Math.min(nivelUltimoGrupo + 1, NIVEL_MAX);
+
+    item.nivel = nivel;
+
+    for (let i = nivel; i < NIVEL_MAX; i++) contadores[i] = 0;
+    contadores[nivel - 1] += 1;
+    item.eap = contadores
+      .slice(0, nivel)
+      .map((valor, indice) => (indice === 0 ? valor - 1 : valor))
+      .join('.');
+
+    if (item.isGroup) nivelUltimoGrupo = nivel;
+  }
+
+  for (const item of itens) {
+    if (!item) continue;
+    item.isGroup = itens.some((outro) => outro !== item && ehDescendente(item.eap, outro.eap));
   }
 
   return itens;

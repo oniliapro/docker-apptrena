@@ -14,6 +14,17 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
  *    precisam trocar a opção escolhida;
  *  - **Shift + `+`** — insere linha abaixo da atual;
  *  - **Shift + `-`** — remove a linha atual.
+ *  - **Colar texto com quebra de linha** (31/08/2026, pedido do Lucas,
+ *    Mapa de Cotação) — em vez de colar tudo dentro da célula focada,
+ *    emite `colarMultiplasLinhas` com a posição atual e as linhas do
+ *    texto, pra quem usa a diretiva decidir como distribuir cada linha
+ *    pelas linhas de baixo (colar de uma linha só continua colando normal,
+ *    dentro da própria célula).
+ *  - **Ctrl/Cmd + D** (31/08/2026, pedido do Lucas: mapas gigantes onde o
+ *    mesmo Tipo vale pra todos os itens) — mesma tecla de "preencher pra
+ *    baixo" do Excel/Sheets: emite `preencherParaBaixo` com a posição
+ *    atual, pra quem usa a diretiva copiar o valor da célula focada pra
+ *    todas as linhas ABAIXO dela, na mesma coluna.
  *
  * Em vez de marcar cada célula com `data-r`/`data-c` como no original, a
  * posição é descoberta na hora a partir do próprio DOM da tabela: qual
@@ -33,6 +44,7 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
   selector: '[trenaNavegacaoTabela]',
   host: {
     '(keydown)': 'aoTeclar($event)',
+    '(paste)': 'aoColar($event)',
   },
 })
 export class NavegacaoTabela {
@@ -45,9 +57,47 @@ export class NavegacaoTabela {
   readonly inserirLinha = output<number>();
   readonly removerLinha = output<number>();
 
+  /** Colar com quebra de linha — ver comentário da classe. */
+  readonly colarMultiplasLinhas = output<{ linha: number; coluna: number; linhas: string[] }>();
+
+  /** Ctrl/Cmd + D, "preencher pra baixo" — ver comentário da classe. */
+  readonly preencherParaBaixo = output<{ linha: number; coluna: number }>();
+
   protected aoTeclar(evento: KeyboardEvent): void {
+    if (this.tratarPreencherParaBaixo(evento)) return;
     if (this.permiteAtalhos() && this.tratarAtalhos(evento)) return;
     this.tratarNavegacao(evento);
+  }
+
+  private tratarPreencherParaBaixo(evento: KeyboardEvent): boolean {
+    if (!(evento.ctrlKey || evento.metaKey) || evento.key.toLowerCase() !== 'd') return false;
+
+    const posicao = this.posicaoAtual(evento.target as HTMLElement);
+    if (!posicao) return false;
+
+    // Sem isso, o navegador abriria a caixa de "Adicionar aos favoritos".
+    evento.preventDefault();
+    this.preencherParaBaixo.emit(posicao);
+    return true;
+  }
+
+  protected aoColar(evento: ClipboardEvent): void {
+    const texto = evento.clipboardData?.getData('text');
+    if (!texto) return;
+
+    // Sobra do \n final de quem copiou uma lista (Excel, e-mail, etc.) não
+    // deve virar uma linha vazia extra na tabela.
+    const linhas = texto.split(/\r\n|\r|\n/);
+    while (linhas.length > 1 && linhas[linhas.length - 1] === '') linhas.pop();
+
+    // Uma linha só: deixa o navegador colar normal, dentro da própria célula.
+    if (linhas.length <= 1) return;
+
+    const posicao = this.posicaoAtual(evento.target as HTMLElement);
+    if (!posicao) return;
+
+    evento.preventDefault();
+    this.colarMultiplasLinhas.emit({ linha: posicao.linha, coluna: posicao.coluna, linhas });
   }
 
   // ------------------------------------------------------------------

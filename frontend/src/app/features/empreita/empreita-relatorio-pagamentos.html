@@ -1,0 +1,180 @@
+<div class="painel-titulo-linha">
+  <div class="painel-titulo">Pagamentos registrados</div>
+  @if (mostrarBotaoMedicao()) {
+    <button type="button" class="primario" [disabled]="!medicaoHabilitada()" (click)="realizarMedicao.emit()"
+            title="Libera a Medição/Já pago/Pagamento/Saldo após pagamento pra esta empreita">
+      📏 Realizar medição
+    </button>
+  }
+</div>
+
+@if (linhas().length) {
+  <table class="tabela-relatorio-pagamentos">
+    <colgroup>
+      <col class="col-num" />
+      <col class="col-data" />
+      <col class="col-data" />
+      <col class="col-medicao" />
+      <col class="col-valor" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th rowspan="2" class="col-num">Nº</th>
+        <th colspan="2" class="grupo-datas">Datas</th>
+        <th rowspan="2" class="col-medicao" title="Retrato da medição no momento deste pagamento">Medição %</th>
+        <th rowspan="2" class="col-valor">Valor pago</th>
+      </tr>
+      <tr>
+        <th class="grupo-datas">Solicitação</th>
+        <th class="grupo-datas">Pagamento</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (linha of linhas(); track linha.id) {
+        <tr [class.linha-clicavel]="linha.snapshot" (click)="abrirDetalhe(linha)"
+            [title]="linha.snapshot ? 'Ver o retrato completo da empreita neste pagamento' : ''">
+          <td class="centro">
+            {{ linha.numeroPagamento || '—' }}
+            @if (linha.status === 'pendente') {
+              <span class="marca-pendente" title="Ainda não confirmado na aba Pagamentos">pendente</span>
+            }
+          </td>
+          <td class="centro">{{ formatarData(linha.dataSolicitacao) || '—' }}</td>
+          <td class="centro">
+            @if (linha.dataPagamento) {
+              {{ formatarData(linha.dataPagamento) }}
+            } @else {
+              <span class="atenuado">Em aberto</span>
+            }
+          </td>
+          <td class="celula-medicao">
+            @if (linha.pctMedicaoAtual !== null) {
+              <div class="barra barra-dupla barra-compacta">
+                <div class="preenchimento-total" [style.width.%]="larguraBarra(linha.pctMedicaoAtual)"></div>
+                <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(linha.pctMedicaoAcumulado ?? 0)"></div>
+                <span class="percentual">{{ formatarPercentualBarra(linha.pctMedicaoAtual) }}</span>
+              </div>
+            } @else {
+              <span class="atenuado">—</span>
+            }
+          </td>
+          <td class="celula-valor-pago">
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Contrato</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.contratoTotalNoMomento) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Empreiteiro</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.empreiteiro) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Reserva</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.reserva) }}</span>
+            </div>
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Saldo empreita</span>
+              <span class="valor-empilhado"
+                    [class.saldo-positivo]="linha.saldoEmpreita >= 0"
+                    [class.saldo-negativo]="linha.saldoEmpreita < 0">
+                {{ formatarMoeda(linha.saldoEmpreita) }}
+              </span>
+            </div>
+            <div class="linha-empilhada destaque">
+              <span class="rotulo-empilhado">Total</span>
+              <span class="valor-empilhado">{{ formatarMoeda(linha.total) }}</span>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="4" class="rotulo-rodape">TOTAIS</th>
+        <th class="celula-valor-pago">
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Empreiteiro</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalEmpreiteiro()) }}</span>
+          </div>
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Reserva</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalReserva()) }}</span>
+          </div>
+          <div class="linha-empilhada">
+            <span class="rotulo-empilhado">Saldo empreita</span>
+            <span class="valor-empilhado"
+                  [class.saldo-positivo]="saldoEmpreitaFinal() >= 0"
+                  [class.saldo-negativo]="saldoEmpreitaFinal() < 0">
+              {{ formatarMoeda(saldoEmpreitaFinal()) }}
+            </span>
+          </div>
+          <div class="linha-empilhada destaque">
+            <span class="rotulo-empilhado">Total</span>
+            <span class="valor-empilhado">{{ formatarMoeda(totalPago()) }}</span>
+          </div>
+        </th>
+      </tr>
+    </tfoot>
+  </table>
+} @else {
+  <p class="atenuado pequeno">Nenhum pagamento lançado desta empreita ainda.</p>
+}
+
+<!-- ============ Popup — retrato da medição no momento do pagamento (03/09/2026) ============ -->
+@if (linhaDetalhada(); as linha) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharDetalhe()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Retrato da medição — Pagamento {{ linha.numeroPagamento || '—' }}</span>
+        <button type="button" (click)="fecharDetalhe()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          Como a empreita estava no momento em que este pagamento foi gerado — o contrato
+          pode ter mudado desde então.
+        </p>
+
+        <div class="envoltoria">
+          <table class="tabela-detalhe-snapshot">
+            <thead>
+              <tr>
+                <th>Serviço</th>
+                <th>Tipo</th>
+                <th>Etapa (EAP)</th>
+                <th class="valor">Contrato</th>
+                <th class="centro">Acumulado</th>
+                <th class="centro">Atual</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (linha.snapshot; as snapshot) {
+                @for (item of snapshot.itens; track item.empreitaItemId) {
+                  <tr>
+                    <td>{{ item.desc || '(sem descrição)' }}</td>
+                    <td>{{ rotuloTipo(item.tipo) }}</td>
+                    <td>{{ rotuloEtapaSnapshot(item) }}</td>
+                    <td class="valor">{{ formatarMoeda(item.contratoEmp + item.contratoReserva) }}</td>
+                    <td class="centro">{{ item.medicaoAcum.toLocaleString('pt-BR', { minimumFractionDigits: 1 }) }}%</td>
+                    <td class="centro">{{ item.medicaoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 1 }) }}%</td>
+                  </tr>
+                }
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="3" class="rotulo-rodape">Contrato total da empreita</th>
+                <th class="valor" colspan="3">{{ formatarMoeda(linha.contratoTotalNoMomento) }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharDetalhe()">Fechar</button>
+      </div>
+    </div>
+  </div>
+}

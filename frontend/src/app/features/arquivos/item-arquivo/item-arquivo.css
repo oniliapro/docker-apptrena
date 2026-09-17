@@ -1,0 +1,157 @@
+:host {
+  display: contents;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--raio-md);
+  cursor: default;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+.item:hover {
+  background: var(--cor-fundo-alt);
+}
+
+.item-lista {
+  gap: 10px;
+  padding: 6px 8px;
+}
+.item-lista .item-visual {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.item-lista .item-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.item-lista .item-nome {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.item-lista .item-detalhe {
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+  flex: none;
+}
+
+.item-icone {
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.item-icone:hover {
+  border-color: var(--cor-borda);
+}
+.item-icone .item-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--raio-md);
+  background: var(--cor-fundo-alt);
+  overflow: hidden;
+}
+.item-icone .miniatura {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+.item-icone .item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.item-icone .item-nome {
+  cursor: pointer;
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
+}
+.item-icone .item-detalhe {
+  font-size: 10px;
+  color: var(--cor-texto-suave);
+}
+.item-icone .item-acoes {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.item-icone:hover .item-acoes {
+  opacity: 1;
+}
+
+:host-context(.grade-icones-extra-grandes) .item-icone .icone-generico svg {
+  width: 56px;
+  height: 56px;
+}
+
+:host-context(.grade-icones-grandes) .item-icone .icone-generico svg {
+  width: 40px;
+  height: 40px;
+}
+
+:host-context(.grade-icones-medios) .item-icone .icone-generico svg {
+  width: 28px;
+  height: 28px;
+}
+
+:host-context(.grade-icones-pequenos) .item-icone .icone-generico svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icone-generico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cor-aco);
+}
+.icone-generico svg {
+  width: 32px;
+  height: 32px;
+}
+
+.icone-pasta {
+  color: var(--cor-primaria);
+}
+
+.icone-audio-placeholder {
+  color: var(--cor-destaque);
+}
+
+.item-acoes {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.item-acoes button {
+  border: none;
+  background: transparent;
+  color: var(--cor-texto-suave);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--raio-sm);
+  font-size: 12px;
+}
+.item-acoes button:hover {
+  background: var(--cor-borda);
+  color: var(--cor-texto);
+}/*# sourceMappingURL=item-arquivo.css.map */

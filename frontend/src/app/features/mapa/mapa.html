@@ -11,12 +11,11 @@
     <div class="grade-cabecalho">
       <label class="campo">
         <span>Nº do mapa</span>
-        <input type="text" [value]="store.cabecalho().numeroMapa"
-               (change)="editarCabecalho('numeroMapa', $event)" />
+        <input type="text" [value]="store.cabecalho().numeroMapa" disabled />
       </label>
       <label class="campo campo-largo">
         <span>Descrição</span>
-        <input type="text" placeholder="Ex.: Compra de materiais"
+        <input type="text" placeholder="Ex.: Compra de materiais" [disabled]="store.travada()"
                [value]="store.cabecalho().descricao"
                (change)="editarCabecalho('descricao', $event)" />
       </label>
@@ -28,6 +27,10 @@
         <span>Finalização do mapa</span>
         <input type="text" [value]="formatarDataHora(store.cabecalho().confirmedAt) || '—'" disabled />
       </label>
+      <label class="campo">
+        <span>Última edição</span>
+        <input type="text" [value]="formatarDataHora(store.cabecalho().ultimaFinalizacaoEm) || '—'" disabled />
+      </label>
 
       <label class="campo">
         <span>Obra</span>
@@ -35,7 +38,7 @@
       </label>
       <label class="campo">
         <span>Responsável da obra</span>
-        <select [value]="store.cabecalho().responsavelObra"
+        <select [value]="store.cabecalho().responsavelObra" [disabled]="store.travada()"
                 (change)="editarCabecalho('responsavelObra', $event)">
           <option value=""></option>
           @for (nome of store.responsaveisAtivos(); track nome) {
@@ -45,28 +48,95 @@
       </label>
       <label class="campo">
         <span>Responsável da cotação</span>
-        <input type="text" placeholder="Nome de quem cotou"
+        <input type="text" placeholder="Nome de quem cotou" [disabled]="store.travada()"
                [value]="store.cabecalho().responsavelMapa"
                (change)="editarCabecalho('responsavelMapa', $event)" />
       </label>
-      <label class="campo">
+      <div class="campo">
         <span>Frete particular</span>
-        <input type="text" class="valor" placeholder="R$ 0,00"
-               [value]="store.cabecalho().freteParticular ? formatarMoeda(store.cabecalho().freteParticular) : ''"
-               (change)="editarFreteParticular($event)" />
-      </label>
+        <div class="campo-com-checkbox">
+          <input type="text" class="valor" placeholder="R$ 0,00"
+                 [disabled]="store.travada() || !freteParticularHabilitado()"
+                 [value]="store.cabecalho().freteParticular ? formatarMoeda(store.cabecalho().freteParticular) : ''"
+                 (change)="editarFreteParticular($event)" />
+          <label class="checagem-inline pequeno">
+            <input type="checkbox" [checked]="freteParticularHabilitado()" [disabled]="store.travada()"
+                   (change)="alternarFreteParticular($event)" />
+            Considerar
+          </label>
+        </div>
+      </div>
+      @if (freteParticularHabilitado()) {
+        <label class="campo">
+          <span>Freteiro</span>
+          <input type="text" placeholder="Nome do freteiro" [disabled]="store.travada()"
+                 [value]="store.cabecalho().freteiroParticular"
+                 (change)="editarFreteiroParticular($event)" />
+        </label>
+      }
     </div>
   </div>
 
   <!-- ============ Ações ============ -->
   <div class="painel barra-ferramentas">
-    <button type="button" (click)="store.adicionarFornecedor()">➕ Adicionar fornecedor</button>
-    <button type="button" (click)="store.adicionarItem()">➕ Adicionar item</button>
+    <button type="button" [disabled]="store.travada()" (click)="store.adicionarFornecedor()">➕ Adicionar fornecedor</button>
+    <button type="button" [disabled]="store.travada()" (click)="store.adicionarItem()">➕ Adicionar item</button>
 
     <label class="checagem-inline">
-      <input type="checkbox" [checked]="store.cabecalho().modoManual" (change)="alternarModoManual()" />
+      <input type="checkbox" [checked]="store.cabecalho().modoManual" [disabled]="store.travada()" (change)="alternarModoManual()" />
       Compra manual
     </label>
+
+    <label class="checagem-inline" title="Ligado: o frete vira uma linha própria no pagamento gerado. Desligado: o frete é embutido proporcionalmente no valor dos itens de cada fornecedor.">
+      <input type="checkbox" [checked]="store.cabecalho().lancarFreteComoItem" [disabled]="store.travada()" (change)="alternarLancarFreteComoItem()" />
+      Lançar frete como item
+    </label>
+    @if (store.cabecalho().lancarFreteComoItem) {
+      <select class="select-etapa-frete" [value]="store.cabecalho().freteEtapaId" [disabled]="store.travada()"
+              (change)="editarFreteEtapa($event)" title="Etapa da linha de frete no pagamento (opcional)">
+        <option value="">Etapa do frete (opcional)</option>
+        @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+          <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().freteEtapaId">{{ etapa.rotulo }}</option>
+        }
+      </select>
+
+      <label class="campo-categoria-frete" title="Categoria de custo da linha de frete no pagamento gerado">
+        <span class="rotulo-repetido">CATEGORIA FRETE</span>
+        <select class="select-etapa-frete" [value]="store.cabecalho().freteCategoriaTipo" [disabled]="store.travada()"
+                (change)="editarFreteCategoriaTipo($event)">
+          @for (tipo of store.tiposCusto; track tipo.chave) {
+            <option [value]="tipo.chave" [selected]="tipo.chave === store.cabecalho().freteCategoriaTipo">{{ tipo.rotulo }}</option>
+          }
+          <option value="" [selected]="!store.cabecalho().freteCategoriaTipo">S/ categoria</option>
+        </select>
+      </label>
+    }
+
+    <label class="checagem-inline" title="Ligado: imposto e desconto viram uma linha própria no pagamento gerado. Desligado: ficam embutidos proporcionalmente no valor dos itens de cada fornecedor.">
+      <input type="checkbox" [checked]="store.cabecalho().lancarImpostoDescontoComoItem" [disabled]="store.travada()"
+             (change)="alternarLancarImpostoDescontoComoItem()" />
+      Lançar imposto/desconto como item
+    </label>
+    @if (store.cabecalho().lancarImpostoDescontoComoItem) {
+      <select class="select-etapa-frete" [value]="store.cabecalho().impostoDescontoEtapaId" [disabled]="store.travada()"
+              (change)="editarImpostoDescontoEtapa($event)" title="Etapa da linha de imposto/desconto no pagamento (opcional)">
+        <option value="">Etapa do imposto/desconto (opcional)</option>
+        @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+          <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().impostoDescontoEtapaId">{{ etapa.rotulo }}</option>
+        }
+      </select>
+
+      <label class="campo-categoria-frete" title="Categoria de custo da linha de imposto/desconto no pagamento gerado">
+        <span class="rotulo-repetido">CATEGORIA IMPOSTO/DESC.</span>
+        <select class="select-etapa-frete" [value]="store.cabecalho().impostoDescontoCategoriaTipo" [disabled]="store.travada()"
+                (change)="editarImpostoDescontoCategoriaTipo($event)">
+          @for (tipo of store.tiposCusto; track tipo.chave) {
+            <option [value]="tipo.chave" [selected]="tipo.chave === store.cabecalho().impostoDescontoCategoriaTipo">{{ tipo.rotulo }}</option>
+          }
+          <option value="" [selected]="!store.cabecalho().impostoDescontoCategoriaTipo">S/ categoria</option>
+        </select>
+      </label>
+    }
 
     <span class="espacador"></span>
 
@@ -75,7 +145,8 @@
     }
 
     <span class="dica atenuado pequeno" title="Atalhos disponíveis nas células da tabela">
-      ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove
+      ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove ·
+      Ctrl + <kbd>D</kbd> preenche a coluna pra baixo · colar com quebra de linha preenche várias linhas
     </span>
 
     <span class="etiqueta" [class.confirmada]="store.cabecalho().isConfirmed">
@@ -84,14 +155,22 @@
     <button type="button" class="primario" (click)="alternarFinalizacao()">
       {{ store.cabecalho().isConfirmed ? 'Reabrir mapa' : 'Finalizar mapa' }}
     </button>
-    <button type="button" [disabled]="!store.cabecalho().isConfirmed" (click)="gerarPdf()"
-            title="Abre a impressão do navegador — salve como PDF por lá">
-      🖨 Gerar PDF
+    <button type="button" [disabled]="!store.cabecalho().isConfirmed || gerandoPdf()" (click)="baixarPdf()"
+            title="Gera e baixa o PDF do mapa">
+      {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+    </button>
+    <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
+            title="Exporta os itens, preços por fornecedor e o resumo da compra pra uma planilha Excel">
+      {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
     </button>
     <button type="button" [disabled]="!store.cabecalho().isConfirmed || store.gerandoPagamento()"
             (click)="gerarPagamento()"
             title="Cria um pagamento pendente por fornecedor vencedor, pra confirmar depois na aba Pagamentos">
       {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
+    </button>
+    <button type="button" [disabled]="store.duplicando()" (click)="duplicar()"
+            title="Cria um mapa novo, em edição, com os mesmos fornecedores e itens">
+      {{ store.duplicando() ? 'Duplicando…' : '⧉ Duplicar mapa' }}
     </button>
   </div>
 
@@ -99,122 +178,180 @@
     <div class="aviso-info">{{ mensagem }}</div>
   }
 
+  @if (erroPdf(); as mensagemPdf) {
+    <div class="aviso-erro">{{ mensagemPdf }}</div>
+  }
+
+  <!-- Listas de sugestão compartilhadas (17/08/2026, pedido do Lucas) — os campos
+       de busca "Nome", "Etapa" e "Tipo" repetem a mesma lista em toda linha/coluna,
+       então uma `<datalist>` só, referenciada pelo `list` de cada input, basta.
+       "Contato" muda por fornecedor, por isso tem uma `<datalist>` própria acima,
+       dentro do `@for` de cada um. -->
+  <datalist id="lista-fornecedores-cadastrados">
+    @for (nome of store.nomesFornecedoresCadastrados(); track nome) {
+      <option [value]="nome"></option>
+    }
+  </datalist>
+  <datalist id="lista-etapas">
+    @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+      <option [value]="etapa.rotulo"></option>
+    }
+  </datalist>
+
   <!-- ============ Tabela ============ -->
   <div class="envoltoria painel sem-preenchimento">
     <table class="tabela-mapa"
            trenaNavegacaoTabela
-           (inserirLinha)="inserirLinha()"
-           (removerLinha)="removerPorIndice($event)">
+           trenaRedimensionarColunas
+           (inserirLinha)="inserirAbaixo($event)"
+           (removerLinha)="removerPorIndice($event)"
+           (colarMultiplasLinhas)="colarQuebraDeLinha($event)"
+           (preencherParaBaixo)="aoPreencherParaBaixo($event)">
       <thead>
-        <!-- Linha 1: identificação dos fornecedores -->
+        <!-- Linha 1: as 6 primeiras colunas (Ações fica de fora — muito estreita
+             pra caber qualquer coisa legível) viram uma assinatura só, de quem
+             gerou o documento: empresa dona da conta + o próprio AppTrena. O
+             rótulo de cada coluna mora na linha 2, do lado de "Preço"/"Comprar"
+             (mesma altura de caixa que eles, pedido do Lucas 17/08/2026). -->
         <tr>
-          <th rowspan="2" class="col-num">#</th>
-          <th rowspan="2" class="col-desc">Descrição</th>
-          <th rowspan="2" class="col-tipo">Tipo</th>
-          <th rowspan="2" class="col-qtde">Qtde</th>
-          <th rowspan="2" class="col-unid">Un.</th>
-          <th rowspan="2" class="col-etapa">Etapa</th>
+          <th colspan="6" class="assinatura-documento">
+            <div class="bloco-assinatura">
+              <div class="marca-empresa" [title]="nomeEmpresa()">
+                <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+                <span class="nome-marca">{{ nomeEmpresa() }}</span>
+              </div>
+              <span class="separador-assinatura">gerado com</span>
+              <div class="marca-sistema">
+                <span class="quadrado-sistema"></span>
+                <span class="nome-marca">AppTrena</span>
+              </div>
+            </div>
+          </th>
 
           @for (fornecedor of store.fornecedores(); track $index) {
-            <th colspan="3" class="cabecalho-fornecedor" [class.inativo]="!fornecedor.ativo">
+            <th [attr.colspan]="store.cabecalho().modoManual ? 2 : 1" class="cabecalho-fornecedor">
+              <button type="button" class="botao-remover-fornecedor" title="Remover fornecedor"
+                      [disabled]="store.travada()" (click)="removerFornecedor($index, fornecedor)">✖</button>
+
+              <span class="rotulo-ordem-fornecedor">{{ rotuloOrdemFornecedor($index) }}</span>
+
               <div class="bloco-fornecedor">
                 <label class="campo-rotulado">
                   <span>Nome</span>
-                  <select [value]="fornecedor.nome" (change)="editarNomeFornecedor($index, $event)">
-                    <option value=""></option>
-                    @for (nome of store.nomesFornecedoresCadastrados(); track nome) {
-                      <option [value]="nome" [selected]="nome === fornecedor.nome">{{ nome }}</option>
-                    }
-                  </select>
+                  <input type="text" [attr.list]="'lista-fornecedores-cadastrados'"
+                         [value]="fornecedor.nome" [disabled]="store.travada()"
+                         (change)="editarNomeFornecedor($index, $event)" />
                 </label>
 
                 <label class="campo-rotulado">
                   <span>Contato</span>
-                  <select [value]="fornecedor.contato" (change)="editarContato($index, $event)">
-                    <option value=""></option>
+                  <input type="text" [attr.list]="'lista-contatos-' + $index"
+                         [value]="fornecedor.contato" [disabled]="store.travada()"
+                         (change)="editarContato($index, $event)" />
+                  <datalist [id]="'lista-contatos-' + $index">
                     @for (contato of contatosDe(fornecedor); track contato) {
-                      <option [value]="contato" [selected]="contato === fornecedor.contato">{{ contato }}</option>
+                      <option [value]="contato"></option>
                     }
-                  </select>
+                  </datalist>
                 </label>
-              </div>
-
-              <div class="bloco-acoes">
-                <label class="checagem-inline pequeno">
-                  <input type="checkbox" [checked]="fornecedor.ativo"
-                         (change)="alternarAtivo($index, fornecedor)" />
-                  Ativo
-                </label>
-                <button type="button" title="Remover fornecedor"
-                        (click)="removerFornecedor($index, fornecedor)">🗑</button>
+                @if (telefoneDoContato(fornecedor)) {
+                  <span class="telefone-contato">{{ telefoneDoContato(fornecedor) }}</span>
+                }
               </div>
             </th>
           }
 
-          <th rowspan="2" class="col-acoes"></th>
+          <th class="col-acoes"></th>
         </tr>
 
-        <!-- Linha 2: as três colunas de cada fornecedor -->
+        <!-- Linha 2: rótulo das 6 primeiras colunas e Ações (mesma altura de
+             "Preço"/"Comprar" — ver comentário da linha 1), e as duas colunas
+             de cada fornecedor (preço empilhado + comprar). -->
         <tr>
+          <th class="col-num">#</th>
+          <th class="col-desc">Descrição</th>
+          <th class="col-tipo">Tipo</th>
+          <th class="col-qtde">Qtde</th>
+          <th class="col-unid">Un.</th>
+          <th class="col-etapa">Etapa</th>
           @for (fornecedor of store.fornecedores(); track $index) {
-            <th class="borda-esquerda">Unit. s/ imposto</th>
-            <th class="borda-meio">Comprar</th>
-            <th class="borda-direita">Total c/ imposto</th>
+            <th class="borda-esquerda">Preço</th>
+            @if (store.cabecalho().modoManual) {
+              <th class="borda-direita">Comprar</th>
+            }
           }
+          <th class="col-acoes">Ações</th>
         </tr>
       </thead>
 
       <tbody>
         @for (item of store.itens(); track item.id; let i = $index) {
           <tr [class.zebra]="i % 2 === 1">
-            <td class="centro indice">{{ i + 1 }}</td>
+            <td class="centro indice" data-largura-inicial="36">{{ i + 1 }}</td>
             <td>
-              <input type="text" [value]="item.desc" (change)="editarTexto(item, 'desc', $event)" />
+              <textarea class="descricao" trenaAutoAltura rows="1" [disabled]="store.travada()"
+                        [value]="item.desc"
+                        (change)="editarTexto(item, 'desc', $event)"></textarea>
             </td>
-            <td>
-              <select [value]="item.tipo" (change)="editarTipo(item, $event)">
-                <option value=""></option>
+            <td data-largura-inicial="128">
+              <select [value]="item.tipo" [disabled]="store.travada()" (change)="editarTipo(item, $event)">
+                <option value="">—</option>
                 @for (tipo of store.tiposCusto; track tipo.chave) {
-                  <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
+                  <option [value]="tipo.chave">{{ tipo.rotulo }}</option>
                 }
               </select>
             </td>
-            <td>
-              <input type="text" class="valor" placeholder="0,00"
+            <td data-largura-inicial="56">
+              <input type="text" class="valor" placeholder="0,00" [disabled]="store.travada()"
                      [value]="numeroOuVazio(item.qtde)" (change)="editarQuantidade(item, $event)" />
             </td>
-            <td>
-              <input type="text" class="centro" [value]="item.unid"
+            <td data-largura-inicial="52">
+              <input type="text" class="centro" [value]="item.unid" [disabled]="store.travada()"
                      (change)="editarTexto(item, 'unid', $event)" />
             </td>
-            <td>
-              <select [value]="item.eapId" (change)="editarEtapa(item, $event)">
-                <option value=""></option>
-                @for (etapa of store.etapasDisponiveis(); track etapa.id) {
-                  <option [value]="etapa.id" [selected]="etapa.id === item.eapId">{{ etapa.rotulo }}</option>
-                }
-              </select>
+            <td data-largura-inicial="140">
+              <input type="text" list="lista-etapas" [value]="rotuloDaEtapa(item.eapId)" [disabled]="store.travada()"
+                     (change)="editarEtapa(item, $event)" />
             </td>
 
             @for (fornecedor of store.fornecedores(); track $index) {
-              <td class="borda-esquerda" [class.vencedor]="ehVencedorAutomatico(item, $index)">
-                <input type="text" class="valor" placeholder="R$ 0,00"
-                       [value]="precoUnitario(item, $index)"
-                       (change)="editarPreco(item, $index, $event)" />
+              <td class="borda-esquerda celula-preco" data-largura-inicial="120"
+                  [class.borda-direita]="!store.cabecalho().modoManual"
+                  [class.vencedor]="ehVencedorAutomatico(item, $index)">
+                <div class="linha-unit">
+                  <span class="rotulo-preco">Unit.</span>
+                  <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                         [value]="precoUnitario(item, $index)"
+                         (focus)="aoFocarPreco(item, $index)"
+                         (blur)="aoDesfocarPreco()"
+                         (change)="editarPreco(item, $index, $event)" />
+                </div>
+                <div class="linha-total">
+                  <span class="rotulo-preco">Total</span>
+                  <span class="valor-preco">{{ totalDoItem(item, $index) }}</span>
+                </div>
               </td>
-              <td class="borda-meio centro" [class.vencedor]="ehVencedorAutomatico(item, $index)">
-                <input type="checkbox"
-                       [checked]="estaMarcado(item, $index)"
-                       [disabled]="!store.cabecalho().modoManual"
-                       (change)="escolher(item, $index)" />
-              </td>
-              <td class="borda-direita valor" [class.vencedor]="ehVencedorAutomatico(item, $index)">
-                {{ totalDoItem(item, $index) }}
-              </td>
+              @if (store.cabecalho().modoManual) {
+                <td class="borda-direita centro" data-largura-inicial="62" [class.vencedor]="ehVencedorAutomatico(item, $index)">
+                  <input type="checkbox"
+                         [checked]="estaMarcado(item, $index)"
+                         [disabled]="store.travada()"
+                         (change)="escolher(item, $index)" />
+                </td>
+              }
             }
 
-            <td class="centro">
-              <button type="button" title="Remover item" (click)="removerItem(item)">✖</button>
+            <td class="centro acoes-linha" data-largura-inicial="84">
+              <div class="acoes-linha-conteudo">
+                <div class="acoes-mover">
+                  <button type="button" title="Subir" [disabled]="store.travada()" (click)="store.moverItem(item.id, -1)">↑</button>
+                  <button type="button" title="Descer" [disabled]="store.travada()" (click)="store.moverItem(item.id, 1)">↓</button>
+                </div>
+                <div class="acoes-inserir-excluir">
+                  <button type="button" title="Inserir item logo abaixo" [disabled]="store.travada()" (click)="inserirAbaixo(i)">+</button>
+                  <button type="button" title="Remover item" [disabled]="store.travada()" (click)="removerItem(item)">✖</button>
+                </div>
+              </div>
             </td>
           </tr>
         } @empty {
@@ -232,73 +369,97 @@
 
       @if (store.itens().length) {
         <tfoot>
-          <!-- Imposto/Frete/Desconto de cada fornecedor, antes do subtotal -->
+          <!-- Frete/Desconto/BDI de cada fornecedor, empilhados numa célula só.
+               BDI por último de propósito (18/08/2026, pedido do Lucas): ele
+               incide sobre o frete e o desconto (base da nota = itens + frete
+               − desconto, e o BDI é % dessa base) — deixar Frete/Desconto
+               antes deixa essa dependência mais intuitiva de ler, e cada um
+               dos dois mostra embaixo o valor final já com o BDI aplicado,
+               que é o que de fato entra na nota. -->
           <tr class="linha-rodape-editavel">
-            <th [attr.colspan]="6" class="rotulo-rodape">Imposto (%)</th>
+            <th [attr.colspan]="6" class="rotulo-rodape">MODIFICADORES GLOBAIS DE COMPRA</th>
             @for (fornecedor of store.fornecedores(); track $index) {
-              <th colspan="3">
-                <input type="text" class="valor" placeholder="0"
-                       [value]="numeroOuVazio(fornecedor.imposto)"
-                       (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
-              </th>
-            }
-            <th></th>
-          </tr>
-          <tr class="linha-rodape-editavel">
-            <th [attr.colspan]="6" class="rotulo-rodape">Frete</th>
-            @for (fornecedor of store.fornecedores(); track $index) {
-              <th colspan="3">
-                <input type="text" class="valor" placeholder="0,00"
-                       [value]="numeroOuVazio(fornecedor.frete)"
-                       (change)="editarNumeroFornecedor($index, 'frete', $event)" />
-              </th>
-            }
-            <th></th>
-          </tr>
-          <tr class="linha-rodape-editavel">
-            <th [attr.colspan]="6" class="rotulo-rodape">Desconto</th>
-            @for (fornecedor of store.fornecedores(); track $index) {
-              <th colspan="3">
-                <input type="text" class="valor" placeholder="0,00"
-                       [value]="numeroOuVazio(fornecedor.desconto)"
-                       (change)="editarNumeroFornecedor($index, 'desconto', $event)" />
+              <th [attr.colspan]="store.cabecalho().modoManual ? 2 : 1">
+                <div class="pilha-rodape">
+                  <div class="campo-pilha-com-final">
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Frete</span>
+                      <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                             [value]="valorMoedaOuVazio(fornecedor.frete)"
+                             (change)="editarNumeroFornecedor($index, 'frete', $event)" />
+                    </div>
+                    @if (fornecedor.frete > 0) {
+                      <span class="valor-final-bdi">= {{ formatarMoeda(freteFinalComBdi(fornecedor)) }} c/ MARKUP</span>
+                    }
+                  </div>
+                  <div class="campo-pilha-com-final">
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Desconto</span>
+                      <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
+                             [value]="valorMoedaOuVazio(fornecedor.desconto)"
+                             (change)="editarNumeroFornecedor($index, 'desconto', $event)" />
+                    </div>
+                    @if (fornecedor.desconto > 0) {
+                      <span class="valor-final-bdi">= {{ formatarMoeda(descontoFinalComBdi(fornecedor)) }} c/ MARKUP</span>
+                    }
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">MARKUP (%)</span>
+                    <input type="text" class="valor" placeholder="0%" [disabled]="store.travada()"
+                           [value]="valorPercentualOuVazio(fornecedor.imposto)"
+                           (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
+                  </div>
+                </div>
               </th>
             }
             <th></th>
           </tr>
 
-          <!-- Fracionado: só itens (subtotal) -->
+          <!-- Itens mais baratos / Nota / Compra integral, empilhados numa célula só -->
           <tr>
-            <th [attr.colspan]="6" class="rotulo-rodape">Itens mais baratos</th>
-            @for (nota of store.notas().bySupplier; track $index) {
-              <th colspan="3" class="valor">
-                {{ nota.used ? formatarMoeda(store.fracionado()[$index].totalItens) : '' }}
-              </th>
-            }
-            <th></th>
-          </tr>
-
-          <!-- Fracionado: com frete e imposto na nota -->
-          <tr>
-            <th [attr.colspan]="6" class="rotulo-rodape">Nota (itens + frete − desconto)</th>
-            @for (nota of store.notas().bySupplier; track $index) {
-              <th colspan="3" class="valor">
-                {{ nota.used ? formatarMoeda(nota.totalNota) : '' }}
-              </th>
-            }
-            <th></th>
-          </tr>
-
-          <!-- Integral -->
-          <tr class="linha-integral">
-            <th [attr.colspan]="6" class="rotulo-rodape">Compra integral (tudo de um só)</th>
-            @for (total of store.integral(); track $index) {
-              <th colspan="3" class="valor">
-                @if (total > 0) {
-                  {{ formatarMoeda(total) }}
-                } @else {
-                  <span class="atenuado pequeno">não cotou tudo</span>
-                }
+            <th [attr.colspan]="6" class="rotulo-rodape">ANÁLISE DE COMPRA INDIVIDUAL</th>
+            @for (fornecedor of store.fornecedores(); track $index) {
+              <th [attr.colspan]="store.cabecalho().modoManual ? 2 : 1" class="valor">
+                <div class="pilha-rodape">
+                  <div class="campo-pilha campo-pilha-checkbox">
+                    <label class="checagem-inline">
+                      <input type="checkbox" [checked]="fornecedor.ativo" [disabled]="store.travada()"
+                             (change)="alternarAtivo($index, fornecedor)" />
+                      Considerar fornecedor na cotação
+                    </label>
+                  </div>
+                  @if (!fornecedor.ativo) {
+                    <div class="bloco-desconsiderado">
+                      <p class="texto-desconsiderado">Fornecedor foi desconsiderado da análise de compras por critério do usuário</p>
+                    </div>
+                  } @else {
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">{{ rotuloItensReferencia() }}</span>
+                      <span class="valor-pilha">
+                        {{ store.fracionado()[$index].used ? formatarMoeda(store.fracionado()[$index].totalItens) : '—' }}
+                      </span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">{{ rotuloItensReferenciaComFrete() }}</span>
+                      <span class="valor-pilha">
+                        {{ store.fracionado()[$index].used ? formatarMoeda(store.fracionado()[$index].totalItensComFrete) : '—' }}
+                      </span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Compra integral</span>
+                      @if (store.integral()[$index] > 0) {
+                        <span class="valor-pilha">
+                          @if (ehVencedorIntegral($index)) {
+                            🏆
+                          }
+                          {{ formatarMoeda(store.integral()[$index]) }}
+                        </span>
+                      } @else {
+                        <span class="valor-pilha atenuado">não cotou tudo</span>
+                      }
+                    </div>
+                  }
+                </div>
               </th>
             }
             <th></th>
@@ -309,167 +470,297 @@
   </div>
 
 
-    <!-- ============ Rateio por etapa ============ -->
-    @if (linhasEtapa().length) {
-      <div class="painel painel-etapas">
-        <div class="cabecalho-painel">
-          <span class="painel-titulo">Rateio por etapa da obra</span>
-          <button type="button" class="pequeno" (click)="resumo.limparTravas()">
-            Refazer divisão proporcional
-          </button>
-        </div>
-
-        <p class="explicacao atenuado">
-          De qual etapa sai cada real. O frete e o desconto de cada nota são divididos
-          entre as etapas que ela atende — começando proporcional ao valor, mas você pode
-          fixar um percentual e o restante se redistribui entre os demais.
-        </p>
-
-        <div class="envoltoria">
-          <table class="tabela-etapas">
-            <thead>
-              <tr>
-                <th rowspan="2" class="col-etapa-nome">Etapa</th>
-                @for (si of fornecedoresUsados(); track si) {
-                  <th colspan="4" class="cabecalho-forn">{{ nomeFornecedor(si) }}</th>
-                }
-                <th rowspan="2" class="valor">Total da etapa</th>
-              </tr>
-              <tr>
-                @for (si of fornecedoresUsados(); track si) {
-                  <th class="valor">Base</th>
-                  <th>% frete</th>
-                  <th>% desc.</th>
-                  <th class="valor">Total</th>
-                }
-              </tr>
-            </thead>
-
-            <tbody>
-              @for (linha of linhasEtapa(); track linha.etapa) {
-                <tr>
-                  <td class="nome-etapa">{{ linha.etapa }}</td>
-
-                  @for (celula of linha.celulas; track celula.fornecedor) {
-                    <td class="valor">{{ celula.base ? formatarMoeda(celula.base) : '—' }}</td>
-
-                    <td class="celula-pct" [class.travada]="celula.travada">
-                      @if (celula.base > 0) {
-                        <input type="text" class="valor" [value]="percentual(celula.fretePct)"
-                               (change)="editarFretePct(celula.fornecedor, linha.etapa, $event)" />
-                        <button type="button" class="trava"
-                                [title]="celula.travada ? 'Destravar — volta a se redistribuir' : 'Travar este percentual'"
-                                (click)="resumo.alternarTrava(celula.fornecedor, linha.etapa)">
-                          {{ celula.travada ? '🔒' : '🔓' }}
-                        </button>
-                      }
-                    </td>
-
-                    <td class="celula-pct">
-                      @if (celula.base > 0) {
-                        <input type="text" class="valor" [value]="percentual(celula.descPct)"
-                               (change)="editarDescPct(celula.fornecedor, linha.etapa, $event)" />
-                      }
-                    </td>
-
-                    <td class="valor">{{ celula.total ? formatarMoeda(celula.total) : '—' }}</td>
-                  }
-
-                  <td class="valor"><b>{{ formatarMoeda(linha.total) }}</b></td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        @if (store.cabecalho().freteParticular > 0) {
-          <div class="frete-particular">
-            <div class="painel-titulo">Frete particular por fornecedor</div>
-            <p class="explicacao atenuado">
-              Dividido proporcionalmente ao valor comprado de cada um. Não sofre imposto,
-              porque não entra na nota.
-            </p>
-            <div class="linhas-frete">
-              @for (si of fornecedoresUsados(); track si) {
-                <div class="linha-frete">
-                  <span>{{ nomeFornecedor(si) }}</span>
-                  <span class="pct atenuado">{{ percentual(ratearFreteParticular()[si] || 0) }}%</span>
-                  <b>{{ formatarMoeda(freteParticularDe(si)) }}</b>
-                </div>
-              }
-            </div>
-          </div>
-        }
-      </div>
-    }
-
-  <!-- ============ Comparação de cenários ============ -->
+  <!-- ============ Relatórios do mapa ============ -->
   @if (store.itens().length) {
+    <div class="barra-relatorios">
+      <label class="checagem-inline pequeno">
+        <input type="checkbox" [checked]="mostrarRateio()" (change)="mostrarRateio.set(!mostrarRateio())" />
+        Exibir "Rateio por etapa da obra"
+      </label>
+    </div>
+
     <div class="grade-inferior">
-      <div class="painel">
+      <div class="painel painel-cenarios">
         <div class="painel-titulo">Comparação de cenários</div>
 
-        <div class="linha-cenario">
-          <span>Compra fracionada</span>
-          <b>{{ formatarMoeda(store.totalFracionado()) }}</b>
-        </div>
-        <div class="linha-cenario">
-          <span>Melhor compra integral</span>
-          <b>
-            @if (store.melhorIntegral() > 0) {
-              {{ formatarMoeda(store.melhorIntegral()) }}
-            } @else {
-              <span class="atenuado">nenhum fornecedor cotou tudo</span>
-            }
-          </b>
-        </div>
-
-        @if (store.melhorIntegral() > 0) {
-          <div class="linha-cenario destaque" [class.negativa]="economia() < 0">
-            <span>{{ economia() >= 0 ? 'Economia ao fracionar' : 'Custo extra ao fracionar' }}</span>
-            <b>{{ formatarMoeda(economia() < 0 ? -economia() : economia()) }}</b>
+        @for (cenario of cenarios(); track cenario.rotulo) {
+          <div class="linha-cenario" [class.vencedor]="cenario.vencedor">
+            <span>{{ cenario.vencedor ? '🏆 ' : '' }}{{ cenario.rotulo }}</span>
+            <b>
+              @if (cenario.disponivel) {
+                {{ formatarMoeda(cenario.valor) }}
+              } @else {
+                <span class="atenuado">—</span>
+              }
+            </b>
           </div>
         }
-
-        <p class="nota">
-          A compra fracionada inclui o frete particular de
-          {{ formatarMoeda(store.cabecalho().freteParticular) }}, que não sofre
-          imposto por não entrar na nota.
-        </p>
       </div>
 
-      <div class="painel">
+      @if (linhasEtapa().length && mostrarRateio()) {
+        <div class="painel painel-etapas">
+          <div class="cabecalho-painel">
+            <span class="painel-titulo">Rateio por etapa da obra</span>
+            <button type="button" class="pequeno" [disabled]="store.travada()" (click)="resumo.limparTravas()">
+              Refazer divisão proporcional
+            </button>
+          </div>
+
+          <p class="explicacao atenuado">
+            De qual etapa sai cada real, e quanto sobra do orçamento dela depois desta
+            compra. O frete e o desconto de cada nota são divididos entre as etapas que
+            ela atende — começando proporcional ao valor, mas você pode fixar um
+            percentual e o restante se redistribui entre os demais.
+          </p>
+
+          <div class="envoltoria">
+            <table class="tabela-etapas" trenaRedimensionarColunas>
+              <thead>
+                <tr>
+                  <th class="col-etapa-nome">Etapa</th>
+                  @for (si of fornecedoresUsados(); track si) {
+                    <th class="cabecalho-forn">{{ nomeFornecedor(si) }}</th>
+                  }
+                  @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+                    <th class="valor">{{ store.cabecalho().freteiroParticular || 'Freteiro' }}</th>
+                  }
+                  <th class="valor">Total da etapa</th>
+                  <th class="valor">SALDO APÓS MAPA</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (linha of linhasEtapa(); track linha.etapa) {
+                  <tr>
+                    <td class="nome-etapa" data-largura-inicial="140">{{ linha.etapa }}</td>
+
+                    @for (celula of linha.celulas; track celula.fornecedor) {
+                      <td class="valor" data-largura-inicial="140">
+                        <div class="pilha-rodape">
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Base</span>
+                            <span class="valor-pilha">{{ celula.base ? formatarMoeda(celula.base) : '—' }}</span>
+                          </div>
+                          <div class="campo-pilha" [class.travada]="celula.travada">
+                            <span class="rotulo-repetido">Frete</span>
+                            @if (celula.base > 0) {
+                              <button type="button" class="alternar-unidade" [disabled]="store.travada()"
+                                      title="Alternar entre % e R$"
+                                      (click)="resumo.alternarUnidadeFrete(celula.fornecedor, linha.etapa)">
+                                {{ resumo.unidadeFreteDe(celula.fornecedor, linha.etapa) === 'pct' ? '%' : 'R$' }}
+                              </button>
+                              @if (resumo.unidadeFreteDe(celula.fornecedor, linha.etapa) === 'pct') {
+                                <input type="text" class="valor" [value]="celula.fretePct ? formatarPercentual(celula.fretePct) : ''"
+                                       [disabled]="store.travada()"
+                                       (change)="editarFretePct(celula.fornecedor, linha.etapa, $event)" />
+                              } @else {
+                                <input type="text" class="valor" [value]="celula.freteValor ? formatarMoeda(celula.freteValor) : ''"
+                                       [disabled]="store.travada()"
+                                       (change)="editarFreteValor(celula.fornecedor, linha.etapa, store.notas().bySupplier[celula.fornecedor]?.frete || 0, $event)" />
+                              }
+                              <button type="button" class="trava" [disabled]="store.travada()"
+                                      [title]="celula.travada ? 'Destravar — volta a se redistribuir' : 'Travar este percentual'"
+                                      (click)="resumo.alternarTrava(celula.fornecedor, linha.etapa)">
+                                {{ celula.travada ? '🔒' : '🔓' }}
+                              </button>
+                            } @else {
+                              <span class="valor-pilha atenuado">—</span>
+                            }
+                          </div>
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Desconto</span>
+                            @if (celula.base > 0) {
+                              <button type="button" class="alternar-unidade" [disabled]="store.travada()"
+                                      title="Alternar entre % e R$"
+                                      (click)="resumo.alternarUnidadeDesconto(celula.fornecedor, linha.etapa)">
+                                {{ resumo.unidadeDescontoDe(celula.fornecedor, linha.etapa) === 'pct' ? '%' : 'R$' }}
+                              </button>
+                              @if (resumo.unidadeDescontoDe(celula.fornecedor, linha.etapa) === 'pct') {
+                                <input type="text" class="valor" [value]="celula.descPct ? formatarPercentual(celula.descPct) : ''"
+                                       [disabled]="store.travada()"
+                                       (change)="editarDescPct(celula.fornecedor, linha.etapa, $event)" />
+                              } @else {
+                                <input type="text" class="valor" [value]="celula.descValor ? formatarMoeda(celula.descValor) : ''"
+                                       [disabled]="store.travada()"
+                                       (change)="editarDescValor(celula.fornecedor, linha.etapa, store.notas().bySupplier[celula.fornecedor]?.desconto || 0, $event)" />
+                              }
+                            } @else {
+                              <span class="valor-pilha atenuado">—</span>
+                            }
+                          </div>
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Markup</span>
+                            <span class="valor-pilha">{{ celula.markup ? formatarMoeda(celula.markup) : '—' }}</span>
+                          </div>
+                          <div class="campo-pilha campo-pilha-total">
+                            <span class="rotulo-repetido">Total</span>
+                            <span class="valor-pilha total-fornecedor">{{ celula.total ? formatarMoeda(celula.total) : '—' }}</span>
+                          </div>
+                        </div>
+                      </td>
+                    }
+
+                    @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+                      <td class="valor" data-largura-inicial="140">
+                        <div class="pilha-rodape">
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Base</span>
+                            <span class="valor-pilha atenuado">—</span>
+                          </div>
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Frete</span>
+                            <span class="valor-pilha">
+                              {{ freteiroDaEtapa(linha.etapa) ? formatarMoeda(freteiroDaEtapa(linha.etapa)) : '—' }}
+                            </span>
+                          </div>
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Desconto</span>
+                            <span class="valor-pilha atenuado">—</span>
+                          </div>
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">Markup</span>
+                            <span class="valor-pilha atenuado">—</span>
+                          </div>
+                          <div class="campo-pilha campo-pilha-total">
+                            <span class="rotulo-repetido">Total</span>
+                            <span class="valor-pilha total-fornecedor">
+                              {{ freteiroDaEtapa(linha.etapa) ? formatarMoeda(freteiroDaEtapa(linha.etapa)) : '—' }}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    }
+
+                    <td class="valor total-etapa" data-largura-inicial="100">
+                      <b>{{ formatarMoeda(linha.total + freteiroDaEtapa(linha.etapa)) }}</b>
+                    </td>
+
+                    <td class="valor" data-largura-inicial="140">
+                      <div class="pilha-rodape">
+                        @for (tipo of tiposUsados(); track tipo.chave) {
+                          <div class="campo-pilha">
+                            <span class="rotulo-repetido">{{ tipo.rotulo }}</span>
+                            <span class="valor-pilha"
+                                  [class.saldo-positivo]="saldoDaEtapa(linha.etapa, tipo.chave) >= 0"
+                                  [class.saldo-negativo]="saldoDaEtapa(linha.etapa, tipo.chave) < 0">
+                              {{ formatarMoeda(saldoDaEtapa(linha.etapa, tipo.chave)) }}
+                            </span>
+                          </div>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <div class="painel painel-detalhe">
         <div class="painel-titulo">Detalhe por fornecedor</div>
-        <table class="tabela-resumo">
+        <table class="tabela-resumo tabela-largura-fixa">
           <thead>
             <tr>
               <th>Fornecedor</th>
-              <th class="valor">Itens</th>
-              <th class="valor">Frete</th>
-              <th class="valor">Imposto</th>
-              <th class="valor">Total da nota</th>
+              <th class="valor">Detalhe</th>
             </tr>
           </thead>
           <tbody>
             @for (nota of store.notas().bySupplier; track $index) {
               @if (nota.used) {
                 <tr>
-                  <td>{{ store.fornecedores()[$index].nome || '(sem nome)' }}</td>
-                  <td class="valor">{{ formatarMoeda(nota.itensBase) }}</td>
-                  <td class="valor">{{ formatarMoeda(nota.frete) }}</td>
-                  <td class="valor">{{ formatarMoeda(nota.impostoNota) }}</td>
-                  <td class="valor"><b>{{ formatarMoeda(nota.totalNota) }}</b></td>
+                  <td>{{ nomeFornecedor($index) }}</td>
+                  <td class="valor">
+                    <div class="pilha-rodape">
+                      <div class="campo-pilha">
+                        <span class="rotulo-repetido">Itens</span>
+                        <span class="valor-pilha">{{ formatarMoeda(nota.itensBase) }}</span>
+                      </div>
+                      <div class="campo-pilha">
+                        <span class="rotulo-repetido">Frete</span>
+                        <span class="valor-pilha">{{ formatarMoeda(nota.frete) }}</span>
+                      </div>
+                      <div class="campo-pilha">
+                        <span class="rotulo-repetido">Desconto</span>
+                        <span class="valor-pilha">{{ nota.desconto ? '−' + formatarMoeda(nota.desconto) : '—' }}</span>
+                      </div>
+                      <div class="campo-pilha">
+                        <span class="rotulo-repetido">MARKUP</span>
+                        <span class="valor-pilha">{{ formatarMoeda(nota.impostoNota) }}</span>
+                      </div>
+                      <div class="campo-pilha campo-pilha-total">
+                        <span class="rotulo-repetido">Total</span>
+                        <span class="valor-pilha total-fornecedor">{{ formatarMoeda(nota.totalNota) }}</span>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
               }
+            }
+            @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+              <tr>
+                <td>{{ store.cabecalho().freteiroParticular || 'Freteiro' }}</td>
+                <td class="valor">
+                  <div class="pilha-rodape">
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Itens</span>
+                      <span class="valor-pilha atenuado">—</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Frete</span>
+                      <span class="valor-pilha">{{ formatarMoeda(store.cabecalho().freteParticular) }}</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Desconto</span>
+                      <span class="valor-pilha atenuado">—</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">MARKUP</span>
+                      <span class="valor-pilha atenuado">—</span>
+                    </div>
+                    <div class="campo-pilha campo-pilha-total">
+                      <span class="rotulo-repetido">Total</span>
+                      <span class="valor-pilha total-fornecedor">{{ formatarMoeda(store.cabecalho().freteParticular) }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
             }
           </tbody>
           <tfoot>
             <tr>
-              <th>Total</th>
-              <th class="valor">{{ formatarMoeda(store.notas().totals.itensBase) }}</th>
-              <th class="valor">{{ formatarMoeda(store.notas().totals.frete) }}</th>
-              <th class="valor">{{ formatarMoeda(store.notas().totals.impostoNota) }}</th>
-              <th class="valor">{{ formatarMoeda(store.notas().totals.totalNota) }}</th>
+              <th class="rotulo-total-fornecedor">TOTAL</th>
+              <th class="valor">
+                <div class="pilha-rodape">
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Itens</span>
+                    <span class="valor-pilha">{{ formatarMoeda(store.notas().totals.itensBase) }}</span>
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Frete</span>
+                    <span class="valor-pilha">
+                      {{ formatarMoeda(store.notas().totals.frete + (freteParticularVantajoso() ? store.cabecalho().freteParticular : 0)) }}
+                    </span>
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Desconto</span>
+                    <span class="valor-pilha">
+                      {{ store.notas().totals.desconto ? '−' + formatarMoeda(store.notas().totals.desconto) : '—' }}
+                    </span>
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">MARKUP</span>
+                    <span class="valor-pilha">{{ formatarMoeda(store.notas().totals.impostoNota) }}</span>
+                  </div>
+                  <div class="campo-pilha campo-pilha-total">
+                    <span class="rotulo-repetido">Total</span>
+                    <span class="valor-pilha total-fornecedor">
+                      {{ formatarMoeda(store.notas().totals.totalNota + (freteParticularVantajoso() ? store.cabecalho().freteParticular : 0)) }}
+                    </span>
+                  </div>
+                </div>
+              </th>
             </tr>
           </tfoot>
         </table>

@@ -2,11 +2,7 @@ import { computed, signal } from '@angular/core';
 
 import { Alocacao, Fornecedor, ItemMapa, NotaFornecedor } from './mapa.models';
 import { calcularBaseItem } from './mapa-engine';
-import {
-  obterRateiosDoItem,
-  redistribuirFreteParticular,
-  redistribuirPercentuaisPorEtapa,
-} from './mapa-resumos';
+import { obterRateiosDoItem, redistribuirPercentuaisPorEtapa } from './mapa-resumos';
 
 /** Uma célula do cruzamento etapa × fornecedor. */
 export interface CelulaEtapa {
@@ -18,8 +14,14 @@ export interface CelulaEtapa {
   fretePct: number;
   /** Percentual do desconto da nota atribuído a esta etapa. */
   descPct: number;
+  /** `fretePct` já convertido pra R$ — pra exibir/editar em valor em vez de percentual. */
+  freteValor: number;
+  /** `descPct` já convertido pra R$. */
+  descValor: number;
   travada: boolean;
-  /** base + parte do frete − parte do desconto, com imposto. */
+  /** Markup sobre (base + parte do frete − parte do desconto) — mesma taxa da nota do fornecedor. */
+  markup: number;
+  /** base + parte do frete − parte do desconto, com markup. */
   total: number;
 }
 
@@ -49,7 +51,36 @@ export class ResumoEtapas {
   private readonly freteManual = signal<Record<string, number>>({});
   private readonly descManual = signal<Record<string, number>>({});
 
+  /**
+   * Unidade de exibição/edição de cada célula — %, ou R$ (17/08/2026,
+   * pedido do Lucas). Só muda como o número é mostrado e digitado: por
+   * baixo o valor de verdade continua sendo o percentual (`fretePct`/
+   * `descPct`), então trocar a unidade não perde o rateio já feito.
+   */
+  private readonly unidadeFrete = signal<Record<string, 'pct' | 'valor'>>({});
+  private readonly unidadeDesconto = signal<Record<string, 'pct' | 'valor'>>({});
+
   readonly chave = (fornecedor: number, etapa: string) => `${fornecedor}|${etapa}`;
+
+  unidadeFreteDe(fornecedor: number, etapa: string): 'pct' | 'valor' {
+    return this.unidadeFrete()[this.chave(fornecedor, etapa)] ?? 'pct';
+  }
+
+  alternarUnidadeFrete(fornecedor: number, etapa: string): void {
+    const chave = this.chave(fornecedor, etapa);
+    const atual = this.unidadeFrete()[chave] ?? 'pct';
+    this.unidadeFrete.update((m) => ({ ...m, [chave]: atual === 'pct' ? 'valor' : 'pct' }));
+  }
+
+  unidadeDescontoDe(fornecedor: number, etapa: string): 'pct' | 'valor' {
+    return this.unidadeDesconto()[this.chave(fornecedor, etapa)] ?? 'pct';
+  }
+
+  alternarUnidadeDesconto(fornecedor: number, etapa: string): void {
+    const chave = this.chave(fornecedor, etapa);
+    const atual = this.unidadeDesconto()[chave] ?? 'pct';
+    this.unidadeDesconto.update((m) => ({ ...m, [chave]: atual === 'pct' ? 'valor' : 'pct' }));
+  }
 
   estaTravada(fornecedor: number, etapa: string): boolean {
     return Boolean(this.travas()[this.chave(fornecedor, etapa)]);
@@ -159,8 +190,9 @@ export class ResumoEtapas {
         const parcelaDesconto = (Number(nota?.desconto) || 0) * (descPct / 100);
         const taxa = (Number(fornecedores[si]?.imposto) || 0) / 100;
 
-        // Imposto incide sobre base + frete − desconto, igual à nota.
+        // Markup incide sobre base + frete − desconto, igual à nota.
         const baseTributavel = base + parcelaFrete - parcelaDesconto;
+        const markup = baseTributavel * taxa;
 
         return {
           etapa,
@@ -168,8 +200,11 @@ export class ResumoEtapas {
           base,
           fretePct,
           descPct,
+          freteValor: parcelaFrete,
+          descValor: parcelaDesconto,
           travada: this.estaTravada(si, etapa),
-          total: baseTributavel * (1 + taxa),
+          markup,
+          total: baseTributavel + markup,
         };
       });
 
@@ -180,22 +215,5 @@ export class ResumoEtapas {
         total: celulas.reduce((soma, c) => soma + c.total, 0),
       };
     });
-  }
-
-  /** Divisão do frete particular entre os fornecedores usados. */
-  calcularFreteParticular(
-    alocacoes: Alocacao[],
-    itens: ItemMapa[],
-  ): Record<number, number> {
-    const base: Record<number, number> = {};
-
-    for (const alocacao of alocacoes) {
-      const item = itens[alocacao.itemIndex];
-      if (!item) continue;
-      const si = alocacao.supplierIndex;
-      base[si] = (base[si] ?? 0) + calcularBaseItem(item, si);
-    }
-
-    return redistribuirFreteParticular(Object.keys(base).map(Number), base);
   }
 }

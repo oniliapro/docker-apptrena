@@ -1,0 +1,237 @@
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" [subtitulo]="nomeEmpresa() + ' — Medição'"
+                         [geradoEm]="geradoEm" />
+
+@if (eap.carregando() || store.carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (eap.erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else if (store.erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else if (store.payload(); as medicao) {
+
+  <h1 class="titulo-medicao">
+    Medição nº {{ medicao.sequencia }}
+    <span class="etiqueta-status" [class.pendente]="medicao.status === 'rascunho'">
+      {{ medicao.status === 'aprovada' ? 'Aprovada' : 'Rascunho' }}
+    </span>
+  </h1>
+
+  <!-- ============ Dashboard ============ -->
+  <div class="painel dashboard-medicao">
+    @for (tipo of tipos; track tipo.chave) {
+      <div class="grupo-dashboard">
+        <span class="grupo-dashboard-titulo">{{ tipo.rotulo }}</span>
+        <div class="linha-dashboard">
+          <div class="stat-tile">
+            <span class="stat-rotulo">Orçado</span>
+            <span class="stat-valor">{{ formatarMoeda(store.totalOrcadoPorTipo(tipo.chave)) }}</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-rotulo">Acumulado</span>
+            <span class="stat-valor">{{ formatarMoeda(store.totalAcumuladoPorTipoRS(tipo.chave)) }}</span>
+            <span class="stat-percentual">{{ formatarPercentual(store.pctAcumuladoPorTipo(tipo.chave)) }}</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-rotulo">Nova medição</span>
+            <span class="stat-valor">{{ formatarMoeda(store.totalNovaPorTipoRS(tipo.chave)) }}</span>
+            <span class="stat-percentual">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-rotulo">Avanço</span>
+            <span class="stat-valor stat-avanco">{{ formatarMoeda(store.totalAvancoPorTipoRS(tipo.chave)) }}</span>
+            <span class="stat-percentual stat-avanco">{{ formatarPercentual(store.pctAvancoPorTipo(tipo.chave)) }}</span>
+          </div>
+          <div class="stat-tile stat-tile-barra">
+            <span class="stat-rotulo">Progresso</span>
+            <div class="barra barra-dupla">
+              <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctNovaPorTipo(tipo.chave))"></div>
+              <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctAcumuladoPorTipo(tipo.chave))"></div>
+              <span class="percentual">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="grupo-dashboard">
+      <span class="grupo-dashboard-titulo">Geral</span>
+      <div class="linha-dashboard">
+        <div class="stat-tile">
+          <span class="stat-rotulo">Orçado</span>
+          <span class="stat-valor">{{ formatarMoeda(store.totalOrcadoGeral()) }}</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-rotulo">Acumulado</span>
+          <span class="stat-valor">{{ formatarMoeda(store.totalAcumuladoGeralRS()) }}</span>
+          <span class="stat-percentual">{{ formatarPercentual(store.pctTotalAcumuladoGeral()) }}</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-rotulo">Nova medição</span>
+          <span class="stat-valor">{{ formatarMoeda(store.totalNovaGeralRS()) }}</span>
+          <span class="stat-percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-rotulo">Avanço</span>
+          <span class="stat-valor stat-avanco">{{ formatarMoeda(store.totalAvancoGeralRS()) }}</span>
+          <span class="stat-percentual stat-avanco">{{ formatarPercentual(store.pctAvancoGeral()) }}</span>
+        </div>
+        <div class="stat-tile stat-tile-barra">
+          <span class="stat-rotulo">Progresso geral</span>
+          <div class="barra barra-dupla">
+            <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctTotalGeral())"></div>
+            <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctTotalAcumuladoGeral())"></div>
+            <span class="percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Tabela — sempre com as 5 categorias e todos os grupos expandidos ============ -->
+  <div class="envoltoria painel sem-preenchimento">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-descricao">Descrição</th>
+          @for (tipo of tipos; track tipo.chave) {
+            <th class="col-tipo">{{ tipo.rotulo }}</th>
+          }
+          <th class="col-tipo-total">Total</th>
+          <th class="col-resultado">Resultado da Medição</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of eap.itens(); track item.id; let i = $index) {
+          <tr [class.zebra]="!item.isGroup && i % 2 === 1"
+              [class.linha-grupo]="item.isGroup"
+              [class.linha-grupo-fundo-escuro]="item.isGroup && item.nivel <= 3"
+              [class.linha-grupo-fundo-claro]="item.isGroup && item.nivel > 3"
+              [class.linha-grupo-nivel-1]="item.isGroup && item.nivel === 1"
+              [class.linha-grupo-nivel-2]="item.isGroup && item.nivel === 2"
+              [class.linha-grupo-nivel-3]="item.isGroup && item.nivel === 3"
+              [class.linha-grupo-nivel-4]="item.isGroup && item.nivel >= 4">
+            <td class="celula-descricao">
+              <span class="recuo" [style.padding-left.px]="8 + recuo(item) * 14">
+                {{ item.eap }} — {{ item.desc || (item.isGroup ? '(grupo)' : '(sem descrição)') }}
+              </span>
+            </td>
+
+            @for (tipo of tipos; track tipo.chave) {
+              <td class="celula-medicao">
+                <div class="grade-celula">
+                  <span class="rotulo-celula">Orç.</span>
+                  <span class="valor-orcado">{{ valorOrcado(item, tipo.chave) }}</span>
+
+                  <span class="rotulo-celula">Acum.</span>
+                  <span class="valor-acumulado">{{ valorAcumulado(item, tipo.chave) }}</span>
+
+                  <span class="rotulo-celula">Nova</span>
+                  <span class="valor-nova">{{ valorNova(item, tipo.chave) }}</span>
+
+                  <span class="rotulo-celula">Avanço</span>
+                  <span class="valor-avanco">{{ valorAvanco(item, tipo.chave) }}</span>
+                </div>
+              </td>
+            }
+
+            <td class="celula-medicao celula-total-categorias">
+              <div class="grade-celula">
+                <span class="rotulo-celula">Orç.</span>
+                <span class="valor-orcado">{{ formatarMoeda(store.orcadoTotalDoItem(item.id)) }}</span>
+
+                <span class="rotulo-celula">Acum.</span>
+                <span class="valor-acumulado">{{ formatarMoeda(store.acumuladoTotalDoItemRS(item.id)) }}</span>
+
+                <span class="rotulo-celula">Nova</span>
+                <span class="valor-nova">{{ formatarMoeda(store.novaTotalDoItemRS(item.id)) }}</span>
+
+                <span class="rotulo-celula">Avanço</span>
+                <span class="valor-avanco">{{ formatarMoeda(store.avancoTotalDoItemRS(item.id)) }}</span>
+              </div>
+            </td>
+
+            <td class="celula-resultado">
+              <div class="grade-celula">
+                <span class="rotulo-celula">Acum.</span>
+                <span class="valor-acumulado">{{ formatarMoeda(store.acumuladoTotalDoItemRS(item.id)) }}</span>
+
+                <span class="rotulo-celula">Atual</span>
+                <span class="valor-atual">{{ formatarMoeda(store.novaTotalDoItemRS(item.id)) }}</span>
+
+                <span class="rotulo-celula">Avanço</span>
+                <span class="valor-avanco">{{ formatarMoeda(store.avancoTotalDoItemRS(item.id)) }}</span>
+              </div>
+              <div class="barra barra-dupla">
+                <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctTotal(item.id))"></div>
+                <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctTotalAcumulado(item.id))"></div>
+                <span class="percentual">{{ formatarPercentual(store.pctTotal(item.id)) }}</span>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+
+      @if (eap.itens().length) {
+        <tfoot>
+          <tr>
+            <th class="rotulo-rodape">TOTAIS</th>
+
+            @for (tipo of tipos; track tipo.chave) {
+              <th class="celula-medicao">
+                <div class="grade-celula">
+                  <span class="rotulo-celula">Orç.</span>
+                  <span class="valor-orcado">{{ formatarMoeda(store.totalOrcadoPorTipo(tipo.chave)) }}</span>
+
+                  <span class="rotulo-celula">Acum.</span>
+                  <span class="valor-acumulado">{{ formatarMoeda(store.totalAcumuladoPorTipoRS(tipo.chave)) }}</span>
+
+                  <span class="rotulo-celula">Nova</span>
+                  <span class="valor-nova">{{ formatarMoeda(store.totalNovaPorTipoRS(tipo.chave)) }}</span>
+
+                  <span class="rotulo-celula">Avanço</span>
+                  <span class="valor-avanco">{{ formatarMoeda(store.totalAvancoPorTipoRS(tipo.chave)) }}</span>
+                </div>
+              </th>
+            }
+
+            <th class="celula-medicao celula-total-categorias">
+              <div class="grade-celula">
+                <span class="rotulo-celula">Orç.</span>
+                <span class="valor-orcado">{{ formatarMoeda(store.totalOrcadoGeral()) }}</span>
+
+                <span class="rotulo-celula">Acum.</span>
+                <span class="valor-acumulado">{{ formatarMoeda(store.totalAcumuladoGeralRS()) }}</span>
+
+                <span class="rotulo-celula">Nova</span>
+                <span class="valor-nova">{{ formatarMoeda(store.totalNovaGeralRS()) }}</span>
+
+                <span class="rotulo-celula">Avanço</span>
+                <span class="valor-avanco">{{ formatarMoeda(store.totalAvancoGeralRS()) }}</span>
+              </div>
+            </th>
+
+            <th class="celula-resultado">
+              <div class="grade-celula">
+                <span class="rotulo-celula">Acum.</span>
+                <span class="valor-acumulado">{{ formatarMoeda(store.totalAcumuladoGeralRS()) }}</span>
+
+                <span class="rotulo-celula">Atual</span>
+                <span class="valor-atual">{{ formatarMoeda(store.totalNovaGeralRS()) }}</span>
+
+                <span class="rotulo-celula">Avanço</span>
+                <span class="valor-avanco">{{ formatarMoeda(store.totalAvancoGeralRS()) }}</span>
+              </div>
+              <div class="barra barra-dupla">
+                <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctTotalGeral())"></div>
+                <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctTotalAcumuladoGeral())"></div>
+                <span class="percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
+              </div>
+            </th>
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+
+  <footer class="folha-rodape">Medição gerada automaticamente pelo AppTrena — trenadigital.com.br</footer>
+}

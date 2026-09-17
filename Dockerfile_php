@@ -35,6 +35,8 @@ RUN apt-get update && \
 	re2c \
 	libmhash-dev \
 	file \
+	ffmpeg \
+	ghostscript \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -50,7 +52,7 @@ RUN docker-php-ext-configure gd --with-freetype=/usr/include/ --with-jpeg=/usr/i
 	gmp \
 	xsl \
 	soap
-	
+
 # Install PHP extensions for PostgreSQL
 #RUN apt-get update && apt-get install -y libpq-dev \
 #    && docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
@@ -60,13 +62,43 @@ RUN docker-php-ext-configure gd --with-freetype=/usr/include/ --with-jpeg=/usr/i
 #RUN pear install net_socket auth_sasl net_idna2 mail_mime net_smtp crypt_gpg
 #RUN pear install net_idna2-beta kolab/Net_LDAP3
 
-# Instalando e habilitando a extenso Imagick p/ manipular imagens em ormatos, como JPEG, PNG, GIF e BMP, atravs do PHP.
-# RUN apt-get update && \
-#    apt-get install -y libmagickwand-dev --no-install-recommends && pecl install imagick && docker-php-ext-enable imagick
+# Instalando e habilitando a extensão Imagick (usada, entre outras coisas,
+# pra gerar miniatura da 1a página de PDF nos Arquivos Anexados — Imagick
+# delega a rasterização de PDF pro Ghostscript, instalado acima).
+RUN apt-get update && \
+    apt-get install -y libmagickwand-dev --no-install-recommends && \
+    pecl install imagick && \
+    docker-php-ext-enable imagick
+
+# ImageMagick vem com leitura de PDF desabilitada por padrão no Debian
+# (hardening contra exploits antigos de Ghostscript) — sem isso, Imagick
+# lança "not authorized" ao tentar ler um PDF.
+RUN for f in /etc/ImageMagick-6/policy.xml /etc/ImageMagick-7/policy.xml; do \
+        [ -f "$f" ] && sed -i 's/rights="none" pattern="PDF"/rights="read" pattern="PDF"/' "$f" || true; \
+    done
 
 ##Instalando o NODEJS e o NPM
 RUN apt-get update && \
     apt-get install -y nodejs npm
+
+# Chromium headless (22/08/2026) — usado pelo Browsershot (spatie/browsershot,
+# ver RelatorioPdfController) para gerar o PDF de relatório renderizando a
+# própria tela de impressão do Angular num navegador de verdade, em vez de
+# reimplementar em PHP os cálculos que já existem em TypeScript
+# (eap-engine.ts, pagamentos-calc.ts) — ver docs/GERAR-PDF.md.
+#
+# O apt resolve sozinho as dependências de runtime do Chromium (libnss3,
+# libatk, fontes do sistema, etc.) — não é preciso listar cada uma à mão.
+# `fonts-liberation` garante fontes decentes mesmo se as do projeto (Inter/
+# Space Grotesk/IBM Plex Mono, carregadas via <link> no index.html) não
+# carregarem por algum motivo. `fonts-noto-color-emoji` evita o emoji
+# (🏆 no Mapa de Fornecedores) virar uma caixinha vazia no PDF gerado
+# pelo Chromium headless (22/08/2026, achado gerando o primeiro PDF de
+# mapa — a imagem base não vem com nenhuma fonte de emoji).
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends chromium fonts-liberation fonts-noto-color-emoji && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Instalando a extenso igbinary (serializador de dados mais eficiente que o do PHP - verificar verso compatvel com a verso do php)
 RUN cd /usr/src/php/ext \
@@ -85,7 +117,7 @@ RUN set -xe && \
 	docker-php-ext-enable xdebug && \
 	php -v && \
 	php -m
-	
+
 #Download composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

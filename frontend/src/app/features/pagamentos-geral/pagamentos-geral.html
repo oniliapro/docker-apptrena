@@ -3,7 +3,50 @@
     <h1>Pagamentos</h1>
     <div class="atenuado">Todos os lançamentos, de todas as obras</div>
   </div>
-  <a class="botao-novo" routerLink="/obras" title="Escolha a obra para lançar o pagamento">+ Novo pagamento</a>
+  <button type="button" [disabled]="!listaOrdenada().length || exportandoXlsx()" (click)="exportarXlsx()"
+          title="Exporta os pagamentos filtrados abaixo pra uma planilha Excel">
+    {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+  </button>
+  @if (selecao.temSelecao()) {
+    <button type="button" (click)="copiarMensagem()" title="Copia uma mensagem com os pagamentos selecionados, pronta pra colar no WhatsApp">
+      {{ copiado() ? '✔ Copiado!' : '📋 Copiar mensagem (' + selecao.contagem() + ')' }}
+    </button>
+  }
+  <button type="button" class="botao-novo" (click)="novo()">+ Novo pagamento</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltroObra($event)">
+    <option value="">Obra: todas</option>
+    @for (obra of obrasDisponiveis(); track obra) {
+      <option [value]="obra">{{ obra }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroOrigem($event)">
+    <option value="todos">Origem: todas</option>
+    <option value="manual">Manual</option>
+    <option value="mapa">Mapa</option>
+    <option value="empreita">Empreita</option>
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="todos">Status: todos</option>
+    <option value="pendente">Pendente</option>
+    <option value="confirmado">Confirmado</option>
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Solicitação de</span>
+    <input type="date" (change)="mudarFiltroDataDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroDataAte($event)" />
+  </label>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar obra, nº, fornecedor, descrição…" (input)="mudarBusca($event)" />
 </div>
 
 <div class="painel">
@@ -13,23 +56,30 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Obra</th>
-            <th class="centro">Nº</th>
-            <th class="centro">Solicitação</th>
-            <th>Fornecedor</th>
-            <th>Descrição</th>
-            <th class="centro">Origem</th>
-            <th class="valor">Total</th>
-            <th class="centro">Status</th>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
+                     (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
+            </th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('fornecedor')">Fornecedor{{ setaOrdenacao(ordenacao(), 'fornecedor') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('origem')">Origem{{ setaOrdenacao(ordenacao(), 'origem') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (pagamento of pagamentos(); track pagamento.id) {
+          @for (pagamento of listaOrdenada(); track pagamento.id) {
             <tr>
+              <td class="centro">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(pagamento)" (change)="selecao.alternar(pagamento)" />
+              </td>
               <td class="centro">{{ obraNumber(pagamento) }}</td>
               <td class="centro">{{ numero(pagamento) }}</td>
               <td class="centro">{{ dataSolicitacao(pagamento) }}</td>
@@ -48,7 +98,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="9" class="centro atenuado">Nenhum pagamento lançado.</td>
+              <td colspan="10" class="centro atenuado">Nenhum pagamento lançado.</td>
             </tr>
           }
         </tbody>
@@ -56,3 +106,59 @@
     </div>
   }
 </div>
+
+<!-- ============ Formulário — Novo pagamento ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Novo pagamento</span>
+        <button type="button" (click)="fecharFormulario()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          Cria o pagamento com um item único, pelo valor total — depois é só abrir na aba Pagamentos
+          da obra pra detalhar por tipo/etapa, se precisar.
+        </p>
+
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Obra</span>
+            <app-seletor-obra [obras]="obras()" [valor]="obraSelecionadaId()" (mudou)="mudarObraSelecionada($event)" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span>Fornecedor</span>
+            <input type="text" formControlName="fornecedor" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricao" />
+            @if (temErroFormulario('descricao')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span class="obrigatorio">Valor total</span>
+            <input type="number" formControlName="valorTotal" step="0.01" min="0" />
+            @if (temErroFormulario('valorTotal')) {
+              <small class="erro-campo">Informe um valor maior que zero.</small>
+            }
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharFormulario()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Criar pagamento' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

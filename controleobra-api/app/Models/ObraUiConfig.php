@@ -14,7 +14,9 @@ class ObraUiConfig extends Model
     protected $keyType = 'string';
     protected $primaryKey = 'obra_id';
 
-    protected $fillable = ['obra_id', 'show_unit', 'show_total', 'show_bdi', 'show_types', 'orc_real_mode'];
+    protected $fillable = [
+        'obra_id', 'show_unit', 'show_total', 'show_bdi', 'show_types', 'orc_real_mode', 'modo_totais',
+    ];
 
     protected $casts = [
         'show_unit' => 'boolean',

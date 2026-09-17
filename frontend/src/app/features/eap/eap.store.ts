@@ -7,12 +7,13 @@ import {
   aplicarNumeracaoAutomatica,
   cabecalhoVazio,
   criarVazioPorTipo,
+  ehDescendente,
   gerarId,
   normalizarCabecalho,
   normalizarItemEap,
   normalizarUi,
 } from './eap-normalize';
-import { CabecalhoObra, ChaveTipo, EstadoUi, ItemEap, TIPOS_CUSTO } from './eap.models';
+import { CabecalhoObra, ChaveTipo, EstadoUi, ItemEap, PorTipo, TIPOS_CUSTO } from './eap.models';
 
 /**
  * Estado da EAP: cabeçalho da obra, preferências de exibição e itens.
@@ -56,6 +57,20 @@ export class EapStore {
   readonly mostrarColunasTipo = computed(
     () => this.ui().showTypes && this.tiposVisiveis().length > 0,
   );
+
+  /**
+   * Com a EAP confirmada, nenhum campo é editável — só "Reabrir EAP" volta
+   * a permitir mudanças. Decisão tomada com o Lucas em 15/08/2026: antes
+   * só o Orçado congelava (ver `alternarConfirmacao`), mas outros lugares
+   * que liam os dados ao vivo (ex.: o painel "Resumo por categoria")
+   * continuavam mudando se qtde/custo/BDI fossem editados depois de
+   * confirmar — travar tudo na origem evita essa classe inteira de bug,
+   * em vez de precisar caçar cada lugar que lê a cache ao vivo. Checada em
+   * todo método que muda `itens`, `cabecalho` ou `ui` (exceto a própria
+   * `alternarConfirmacao`, que é a única saída do estado travado). Também
+   * exposta ao componente, pra desabilitar os campos na tela.
+   */
+  readonly travada = computed(() => this.cabecalho().isConfirmed);
 
   // ------------------------------------------------------------------
   // Carga e gravação
@@ -115,16 +130,34 @@ export class EapStore {
   // Cabeçalho e preferências
   // ------------------------------------------------------------------
   atualizarCabecalho(campo: keyof CabecalhoObra, valor: unknown): void {
+    if (this.travada()) return;
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
   }
 
   atualizarUi(campo: keyof EstadoUi, valor: unknown): void {
+    if (this.travada()) return;
     this.ui.update((u) => ({ ...u, [campo]: valor }));
     this.salvar();
   }
 
+  /**
+   * Alterna Orçado x Realizado ⇄ Saldo (25/08/2026, correção de bug
+   * apontado pelo Lucas: "botão ver saldo não está funcionando") —
+   * `modoTotais` é só um toggle de EXIBIÇÃO, não uma edição de verdade da
+   * EAP, mas o botão só aparece quando a EAP está confirmada
+   * (`travada() === true`) — passando por `atualizarUi()`, o guard
+   * `if (this.travada()) return` (pensado pra bloquear edições de
+   * conteúdo, tipo BDI/showTypes) sempre bloqueava a troca bem na hora
+   * em que o botão fica visível. Método próprio, sem o guard.
+   */
+  alternarModoTotais(): void {
+    this.ui.update((u) => ({ ...u, modoTotais: u.modoTotais === 'saldo' ? 'detalhado' : 'saldo' }));
+    this.salvar();
+  }
+
   alternarTipoVisivel(chave: ChaveTipo): void {
+    if (this.travada()) return;
     this.ui.update((u) => ({
       ...u,
       visibleTypes: { ...u.visibleTypes, [chave]: !u.visibleTypes[chave] },
@@ -132,13 +165,42 @@ export class EapStore {
     this.salvar();
   }
 
+  /**
+   * Confirmar congela o Orçado (custo direto + BDI) de cada item no valor
+   * do momento, pra não virar um alvo móvel se qtde/custo mudarem depois —
+   * decisão tomada com o Lucas em 14/08/2026 (antes recalculava ao vivo
+   * mesmo depois de confirmada). Reabrir descongela (volta a null em todo
+   * item), e a próxima confirmação grava um snapshot novo.
+   */
   alternarConfirmacao(): void {
+    const confirmando = !this.cabecalho().isConfirmed;
+
+    this.itens.update((lista) =>
+      lista.map((item, i) => ({
+        ...item,
+        orcadoCongelado: confirmando ? this.orcadoAoVivoDoItem(i, item) : null,
+      })),
+    );
+
     this.cabecalho.update((c) => ({
       ...c,
-      isConfirmed: !c.isConfirmed,
-      confirmedAt: !c.isConfirmed ? new Date().toISOString() : '',
+      isConfirmed: confirmando,
+      confirmedAt: confirmando ? new Date().toISOString() : '',
     }));
     this.salvar();
+  }
+
+  /** Orçado (custo direto + BDI) por categoria, calculado ao vivo — usado só para gravar o snapshot na confirmação. */
+  private orcadoAoVivoDoItem(indice: number, item: ItemEap): PorTipo {
+    const cache = this.cache();
+    const totais = item.isGroup ? somarDescendentesDoGrupo(indice, this.itens(), cache) : null;
+
+    return TIPOS_CUSTO.reduce((acc, t) => {
+      acc[t.chave] = item.isGroup
+        ? (totais!.directByType[t.chave] ?? 0) + (totais!.bdiByType[t.chave] ?? 0)
+        : (cache.directByType[indice]?.[t.chave] ?? 0) + (cache.bdiByType[indice]?.[t.chave] ?? 0);
+      return acc;
+    }, criarVazioPorTipo());
   }
 
   // ------------------------------------------------------------------
@@ -147,21 +209,27 @@ export class EapStore {
   /**
    * Insere um item. `posicao` permite inserir no meio da lista (usado
    * pelo atalho Shift + `+`, que insere logo abaixo da linha atual);
-   * omitida, acrescenta ao final.
+   * omitida, acrescenta ao final. Sempre entra como item comum — `isGroup`
+   * é recalculado por `aplicarNumeracaoAutomatica` logo abaixo, então vira
+   * "grupo" sozinho assim que algo for aninhado embaixo dele.
    */
-  adicionarItem(isGroup = false, posicao?: number): void {
+  adicionarItem(posicao?: number): void {
+    if (this.travada()) return;
     this.itens.update((lista) => {
       const novo: ItemEap = {
         id: gerarId(),
-        isGroup,
+        isGroup: false,
+        nivel: 0,
+        adicional: false,
         eap: '',
         desc: '',
-        qtde: isGroup ? 0 : 1,
+        qtde: 1,
         unid: '',
         unit: criarVazioPorTipo(),
         bdiMode: 'pct',
         bdiPercent: 0,
         bdiValue: 0,
+        orcadoCongelado: null,
       };
 
       const destino =
@@ -175,6 +243,7 @@ export class EapStore {
   }
 
   atualizarItem(id: string, alteracao: Partial<ItemEap>): void {
+    if (this.travada()) return;
     this.itens.update((lista) =>
       aplicarNumeracaoAutomatica(
         lista.map((item) => (item.id === id ? { ...item, ...alteracao } : item)),
@@ -183,7 +252,30 @@ export class EapStore {
     this.salvar();
   }
 
+  /**
+   * Marca/desmarca um item como "Adicional" (03/09/2026, pedido do
+   * Lucas) — a marcação se propaga em CASCATA pra todos os descendentes,
+   * em qualquer nível (`ehDescendente`), sem filtrar por `isGroup`:
+   * diferente de outras operações "por grupo" desta tela, aqui um item
+   * comum dentro de um grupo adicional também precisa ficar marcado.
+   */
+  alternarAdicional(id: string): void {
+    if (this.travada()) return;
+    this.itens.update((lista) => {
+      const alvo = lista.find((i) => i.id === id);
+      if (!alvo) return lista;
+      const novoValor = !alvo.adicional;
+      return lista.map((item) =>
+        item.id === id || ehDescendente(alvo.eap, item.eap)
+          ? { ...item, adicional: novoValor }
+          : item,
+      );
+    });
+    this.salvar();
+  }
+
   atualizarCustoUnitario(id: string, tipo: ChaveTipo, valor: number): void {
+    if (this.travada()) return;
     this.itens.update((lista) =>
       lista.map((item) =>
         item.id === id ? { ...item, unit: { ...item.unit, [tipo]: valor } } : item,
@@ -193,12 +285,14 @@ export class EapStore {
   }
 
   removerItem(id: string): void {
+    if (this.travada()) return;
     this.itens.update((lista) => aplicarNumeracaoAutomatica(lista.filter((i) => i.id !== id)));
     this.salvar();
   }
 
   /** Move uma linha; a renumeração da EAP acompanha a nova ordem. */
   moverItem(id: string, direcao: -1 | 1): void {
+    if (this.travada()) return;
     this.itens.update((lista) => {
       const atual = lista.findIndex((i) => i.id === id);
       const destino = atual + direcao;
@@ -212,8 +306,63 @@ export class EapStore {
   }
 
   limpar(): void {
+    if (this.travada()) return;
     this.itens.set([]);
     this.cabecalho.set(cabecalhoVazio());
+    this.salvar();
+  }
+
+  /**
+   * Importa itens vindos da planilha Excel (23/08/2026, ver
+   * `eap-importar.ts::analisarPlanilha`) — `modo: 'adicionar'` acrescenta
+   * ao final da lista atual; `'substituir'` troca tudo. Só um `salvar()`
+   * no final, não um por item (`aplicarNumeracaoAutomatica` já resolve
+   * nível/código/grupo pra lista inteira de uma vez, igual à digitação
+   * manual).
+   */
+  importarItens(itensImportados: ItemEap[], modo: 'adicionar' | 'substituir'): void {
+    if (this.travada()) return;
+    this.itens.update((atual) => {
+      const combinados = modo === 'substituir' ? itensImportados : [...atual, ...itensImportados];
+      return aplicarNumeracaoAutomatica(combinados);
+    });
+    this.salvar();
+  }
+
+  /**
+   * Copia a EAP de outra obra (23/08/2026, pedido do Lucas: "copiar EAP
+   * de outra obra") — substitui todos os itens e a configuração de BDI
+   * pelos da obra de origem. `headerOrigemBruto`/`itensOrigemBrutos` vêm
+   * direto de `ApiService.obterEap(obraOrigemId)`, sem passar pelo store
+   * da obra de origem (só precisamos ler os dados dela uma vez).
+   *
+   * Só copia BDI (é "dados da EAP" no sentido de orçamento) — os campos
+   * de identidade da obra atual (nome, cliente, data base, responsável,
+   * local, período, observações, confirmação) **não** são tocados, e os
+   * itens ganham `id` novo (`normalizarItemEap` não reaproveita o `id` da
+   * obra de origem — ver `gerarId()` ali dentro) e nascem sem Orçado
+   * congelado, mesmo que a EAP de origem estivesse confirmada.
+   */
+  clonarDeOutraObra(headerOrigemBruto: Record<string, unknown>, itensOrigemBrutos: unknown[]): void {
+    if (this.travada()) return;
+
+    const headerOrigem = normalizarCabecalho(headerOrigemBruto);
+    this.cabecalho.update((atual) => ({
+      ...atual,
+      bdiScope: headerOrigem.bdiScope,
+      bdiMode: headerOrigem.bdiMode,
+      bdiPercent: headerOrigem.bdiPercent,
+      bdiValue: headerOrigem.bdiValue,
+      bdiByType: headerOrigem.bdiByType,
+    }));
+
+    const itens = (Array.isArray(itensOrigemBrutos) ? itensOrigemBrutos : []).map((i) => ({
+      ...normalizarItemEap(i as Record<string, unknown>),
+      id: gerarId(),
+      orcadoCongelado: null,
+    }));
+    this.itens.set(aplicarNumeracaoAutomatica(itens));
+
     this.salvar();
   }
 

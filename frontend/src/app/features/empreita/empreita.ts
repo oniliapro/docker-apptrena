@@ -1,35 +1,102 @@
-import { Component, OnInit, computed, inject, input } from '@angular/core';
+import { Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
 
+import { ApiService } from '../../core/services/api.service';
+import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
-import { ChaveTipo, ItemEap } from '../eap/eap.models';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.models';
+import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
+import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
+import {
+  limitarPercentual,
+  pctParaQtde,
+  pctParaValorContrato,
+  qtdeParaPct,
+  valorContratoParaPct,
+} from './empreita-engine';
+import { exportarEmpreitaXlsx, LinhaExportEmpreita } from './empreita-exportar';
+import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
-import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreita } from './empreita.models';
+import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao } from './empreita.models';
 
 /**
  * Empreita — serviços contratados e suas medições.
  *
  * Cada serviço aponta para um item da EAP (usado só como referência de
- * orçado, para comparação). O contrato — empreita e reserva — é lançado
- * pelo usuário categoria a categoria (task #45, 28/07/2026): o sistema
- * não distribui esse valor automaticamente. A medição é em percentual
- * por categoria, e o que se paga é o avanço em relação ao acumulado.
+ * orçado, para comparação) e pertence a UMA categoria de custo só
+ * (`item.tipo` — 25/08/2026, pedido do Lucas: "cada item da lista só vai
+ * ter um tipo"; se precisar de duas categorias no mesmo item da EAP,
+ * lança dois serviços). O contrato — empreita e reserva — é lançado pelo
+ * usuário (task #45, 28/07/2026): o sistema não distribui esse valor
+ * automaticamente. A medição é em percentual, e o que se paga é o avanço
+ * em relação ao acumulado.
  *
- * As colunas **Contrato** e **Reserva** de cada categoria são o
- * diferencial do produto: valores lançados à mão por serviço e por
- * categoria, em vez de uma retenção percentual fixa calculada.
+ * Layout redesenhado em 25/08/2026 (pedido do Lucas): além de
+ * Contrato/Medição, a tabela mostra Já pago (acumulado dos pagamentos
+ * confirmados), o rascunho editável de Pagamento do período, e o Saldo
+ * após pagamento — cada bloco é UMA coluna só, com os campos que antes
+ * eram colunas próprias empilhados dentro da célula (`.subcampo`), tudo
+ * colorido azul/vermelho conforme positivo/negativo. O "Saldo disp." do
+ * Contrato considera as OUTRAS empreitas da mesma obra
+ * (`EmpreitaStore.saldoDispPorEap` → `calcularSaldoDisponivelPorEap` na
+ * engine) — uma empreita nunca é bloqueada por falta de saldo, só fica
+ * vermelha.
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela],
+  imports: [NavegacaoTabela, RedimensionarColunas, EmpreitaRelatorioPagamentos],
   providers: [EmpreitaStore],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',
 })
 export class Empreita implements OnInit {
   protected readonly store = inject(EmpreitaStore);
+  private readonly api = inject(ApiService);
+  private readonly armazenamento = inject(ArmazenamentoService);
   protected readonly formatarMoeda = formatarMoeda;
+  protected readonly tiposCusto = TIPOS_CUSTO;
+
+  /** Empreiteiro por `<select>` (03/09/2026, pedido do Lucas) — só os ATIVOS do cadastro. */
+  protected readonly empreiteirosCadastro = signal<EmpreiteiroCadastro[]>([]);
+  protected readonly empreiteirosAtivos = computed(() =>
+    this.empreiteirosCadastro()
+      .filter((e) => e.ativo !== false)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+  );
+
+  private carregarEmpreiteiros(): void {
+    this.armazenamento.ler(CHAVE_EMPREITEIROS).subscribe({
+      next: (bruto) => {
+        if (!bruto) return;
+        try {
+          const dados = JSON.parse(bruto);
+          if (Array.isArray(dados)) this.empreiteirosCadastro.set(dados.map((d) => normalizarEmpreiteiro(d)));
+        } catch {
+          // ignora — cadastro fica vazio, o select só mostra "(nenhum)"
+        }
+      },
+      error: () => this.empreiteirosCadastro.set([]),
+    });
+  }
+
+  /** Estado do botão "Baixar PDF" (23/08/2026) — ver EmpreitaPdfController. */
+  protected readonly gerandoPdf = signal(false);
+  protected readonly erroPdf = signal<string | null>(null);
+
+  /**
+   * "Simplificar" (01/09/2026, pedido do Lucas) — esconde as colunas
+   * Empreiteiro/Reserva de todos os blocos (Contrato, Já pago, Pagamento,
+   * Saldo após pagamento) e mostra só o Total, tanto na tela ao vivo
+   * quanto no PDF gerado (`baixarPdf()` repassa como query param). Não
+   * persiste nada — vale só pra esta visita/geração.
+   */
+  protected readonly simplificado = signal(false);
+
+  protected alternarSimplificado(): void {
+    this.simplificado.update((v) => !v);
+  }
 
   /**
    * Id da obra — vem do param `:id` da rota avó (/obras/:id), herdado
@@ -44,16 +111,48 @@ export class Empreita implements OnInit {
   readonly empreitaId = input.required<string>({ alias: 'empreitaId' });
 
   /**
-   * Colunas fixas da tabela: #, Serviço, Etapa (EAP), Orçado (2), Contrato
-   * (3), Medição (3), Pagamento do período (3), Saldo, Ações — 16 no
-   * total. Não depende mais de `store.tipos().length`: a discriminação
-   * por categoria agora fica em linhas dentro de cada célula, não em
-   * colunas repetidas (revisão 31/07/2026, modelo do sistema antigo).
+   * Colunas fixas da tabela — 25/08/2026, pedido do Lucas: enquanto
+   * "Realizar pagamento" não foi clicado, só #/Serviço/Tipo/Etapa/
+   * Contrato/Quantidades/Ações (7); depois, Quantidades some e entram
+   * Medição/Já pago/Pagamento/Saldo após pagamento no lugar (10). Antes
+   * (até 02/09/2026) essa troca acontecia junto com `store.travada()` —
+   * 03/09/2026, pedido do Lucas: virou um passo à parte
+   * (`store.pagamentoIniciado()`), depois de confirmar.
    */
-  protected readonly totalColunas = computed(() => 16);
+  protected readonly totalColunas = computed(() => (this.store.pagamentoIniciado() ? 10 : 7));
+
+  /**
+   * Par "Realizar medição"/"Realizar pagamento" (03/09/2026, pedido do
+   * Lucas) — um só habilitado por vez, alternando a cada clique (começa
+   * com Medição habilitado). Persistido (`store.medicaoHabilitada`,
+   * "pode fazer persistir" — antes era um sinal só de tela) — mas
+   * INDEPENDENTE de `store.pagamentoIniciado()`: aquele campo controla
+   * pra sempre se a tabela mostra Quantidades ou Medição/Já pago/
+   * Pagamento/Saldo (uma vez revelada, continua revelada, mesmo
+   * alternando este outro campo).
+   */
+  protected readonly podeRealizarMedicao = computed(() => this.store.medicaoHabilitada());
+
+  protected realizarMedicao(): void {
+    this.store.iniciarPagamento();
+    this.store.definirMedicaoHabilitada(false);
+  }
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
+    this.carregarEmpreiteiros();
+  }
+
+  /**
+   * Avisa antes de fechar/recarregar a aba com gravações pendentes — mesmo
+   * motivo de `Mapa.aoTentarFecharAba` (31/08/2026): editar vários itens em
+   * sequência enfileira uma gravação por edição, e fechar a aba antes da
+   * fila esvaziar cancela as que ainda não saíram.
+   */
+  @HostListener('window:beforeunload', ['$event'])
+  protected aoTentarFecharAba(evento: BeforeUnloadEvent): void {
+    if (!this.store.salvando()) return;
+    evento.preventDefault();
   }
 
   // ------------------------------------------------------------------
@@ -70,27 +169,14 @@ export class Empreita implements OnInit {
     this.store.atualizarItem(item.id, { eapId: (evento.target as HTMLSelectElement).value });
   }
 
-  /** Lança o contrato (empreita ou reserva) de uma categoria, digitado pelo usuário. */
-  protected editarContrato(
-    item: ItemEmpreita,
-    campo: 'contratoEmpPorTipo' | 'contratoReservaPorTipo',
-    tipo: ChaveTipo,
-    evento: Event,
-  ): void {
-    const bruto = (evento.target as HTMLInputElement).value.trim();
-    this.store.atualizarContrato(item.id, campo, tipo, bruto === '' ? null : parsearBR(bruto));
+  protected editarTipo(item: ItemEmpreita, evento: Event): void {
+    this.store.atualizarItem(item.id, { tipo: (evento.target as HTMLSelectElement).value as ChaveTipo });
   }
 
-  protected editarMedicao(
-    item: ItemEmpreita,
-    campo: 'medicaoAcumByType' | 'medicaoAtualByType',
-    tipo: ChaveTipo,
-    evento: Event,
-  ): void {
+  /** Lança o contrato (empreita ou reserva), digitado pelo usuário. */
+  protected editarContrato(item: ItemEmpreita, campo: 'contratoEmp' | 'contratoReserva', evento: Event): void {
     const bruto = (evento.target as HTMLInputElement).value.trim();
-    // Campo vazio guarda null: "sem medição neste período" é diferente
-    // de "medi zero por cento".
-    this.store.atualizarMedicao(item.id, campo, tipo, bruto === '' ? null : parsearBR(bruto));
+    this.store.atualizarContrato(item.id, campo, bruto === '' ? null : parsearBR(bruto));
   }
 
   /** Shift + `+`: novo serviço ao final da lista. */
@@ -109,53 +195,132 @@ export class Empreita implements OnInit {
     this.store.removerItem(item.id);
   }
 
+  /**
+   * Baixa o PDF da Empreita (23/08/2026) — ver EmpreitaPdfController/
+   * empreita-imprimir.ts. Mesmo padrão de `Mapa.baixarPdf()`.
+   */
+  protected baixarPdf(): void {
+    this.erroPdf.set(null);
+    this.gerandoPdf.set(true);
+
+    this.api.baixarEmpreitaPdf(this.empreitaId(), this.simplificado()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `empreita-${this.empreitaId()}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoPdf.set(false);
+      },
+      error: () => {
+        this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoPdf.set(false);
+      },
+    });
+  }
+
+  /**
+   * Fecha o período e já gera o pagamento pendente deste ciclo em seguida
+   * (25/08/2026, pedido do Lucas: "apagar o botão gerar pagamento, o
+   * pagamento deve ser gerado automaticamente ao finalizar um período") —
+   * ver `EmpreitaStore.fecharPeriodo`, que absorveu a lógica que antes vivia
+   * num método `gerarPagamento()` separado.
+   */
+  /**
+   * "Realizar pagamento" (nome novo, 03/09/2026 — antes "Fechar
+   * período", o método interno ficou com o nome antigo porque é
+   * exatamente o que ele continua fazendo: fecha o período de medição E
+   * gera o pagamento). Antes exigia `store.totais().totalPeriodo > 0`
+   * (calculado só a partir do AVANÇO medido) — o Lucas pediu pra
+   * habilitar sempre que houver "Valor a ser pago" de verdade, mesmo sem
+   * avanço medido (ex.: um valor lançado manualmente no rascunho de
+   * Pagamento) — por isso a checagem e o diálogo agora usam
+   * `totaisEstendidos().pagamentoDraftTotal`, que já leva em conta
+   * sobrescritas manuais, em vez de `totais().totalPeriodo`.
+   */
   protected fecharPeriodo(): void {
-    const totais = this.store.totais();
+    const totaisEstendidos = this.store.totaisEstendidos();
 
     if (this.store.temMedicaoInvalida()) {
       window.alert('Há medições menores que o acumulado. Corrija antes de fechar o período.');
       return;
     }
-    if (totais.totalPeriodo <= 0) {
-      window.alert('Nenhum avanço medido neste período.');
+    if (totaisEstendidos.pagamentoDraftTotal <= 0) {
+      window.alert('Nenhum valor a pagar neste período.');
       return;
     }
 
     const mensagem =
-      `Fechar o período?\n\n` +
-      `A pagar: ${formatarMoeda(totais.pagarEmp)}\n` +
-      `Reserva: ${formatarMoeda(totais.reservarPgto)}\n` +
-      `Total: ${formatarMoeda(totais.totalPeriodo)}\n\n` +
-      `As medições atuais passam a ser o acumulado.`;
+      `Realizar o pagamento deste período?\n\n` +
+      `A pagar: ${formatarMoeda(totaisEstendidos.pagamentoDraftEmp)}\n` +
+      `Reserva: ${formatarMoeda(totaisEstendidos.pagamentoDraftReserva)}\n` +
+      `Total: ${formatarMoeda(totaisEstendidos.pagamentoDraftTotal)}\n\n` +
+      `As medições atuais passam a ser o acumulado e um pagamento pendente é gerado automaticamente ` +
+      `(confirme depois na aba Pagamentos).`;
 
     if (!window.confirm(mensagem)) return;
-    this.store.fecharPeriodo();
+    this.store.fecharPeriodo(() => this.store.definirMedicaoHabilitada(true));
   }
 
   /**
-   * Gera o pagamento pendente do avanço medido — precisa rodar ANTES de
-   * "Fechar período" (que zera o avanço). Ver comentário em
-   * `EmpreitaStore.gerarPagamento`.
+   * "Resetar" (31/08/2026, pedido do Lucas): zera o % acumulado de todos
+   * os serviços — útil pra recomeçar a medição de uma empreita (ex.:
+   * contrato remedido do zero). Não desfaz pagamentos já gerados na aba
+   * Pagamentos, só a contagem de % medido daqui pra frente — por isso o
+   * aviso explícito antes de confirmar.
    */
-  protected gerarPagamento(): void {
-    const totais = this.store.totais();
-
-    if (this.store.temMedicaoInvalida()) {
-      window.alert('Há medições menores que o acumulado. Corrija antes de gerar o pagamento.');
+  protected resetarAcumulado(): void {
+    if (
+      !window.confirm(
+        'Zerar o % acumulado de TODOS os serviços desta empreita?\n\n' +
+          'A medição volta a começar do zero. Pagamentos já gerados na aba Pagamentos não são desfeitos.',
+      )
+    ) {
       return;
     }
-    if (totais.pagarEmp <= 0) {
-      window.alert('Nenhum avanço medido pra pagar ao empreiteiro neste período.');
-      return;
+    this.store.resetarAcumulado();
+  }
+
+  /**
+   * Exporta os serviços e os totais calculados pra planilha Excel
+   * (31/08/2026, pedido do Lucas) — ver `empreita-exportar.ts`. Usa a
+   * MESMA fonte que a tela (`store.linhasEstendidas()`), então a
+   * planilha bate exatamente com o que está sendo exibido.
+   */
+  protected readonly exportandoXlsx = signal(false);
+
+  protected async exportarXlsx(): Promise<void> {
+    this.exportandoXlsx.set(true);
+    try {
+      const linhas: LinhaExportEmpreita[] = this.store.itens().map((item, i) => {
+        const linha = this.store.linhasEstendidas()[i];
+        const itemEap = this.itemEapDoServico(item);
+        return {
+          desc: item.desc,
+          tipo: this.tiposCusto.find((t) => t.chave === item.tipo)?.rotulo ?? '',
+          etapa: itemEap ? this.rotuloEap(itemEap) : '',
+          qtdeContratada: item.qtdeContratada,
+          contratoEmp: item.contratoEmp,
+          contratoReserva: item.contratoReserva,
+          orcado: linha.orcado,
+          acumulado: linha.acumulado,
+          atual: linha.atual,
+          avanco: linha.avanco,
+          pagar: linha.pagar,
+          reservar: linha.reservar,
+          jaPagoEmpreiteiro: linha.jaPago.empreiteiro,
+          jaPagoReserva: linha.jaPago.reserva,
+          jaPagoDivergencia: linha.jaPago.divergencia,
+          medido: linha.medido,
+        };
+      });
+      await exportarEmpreitaXlsx(linhas, this.store.totaisEstendidos(), this.empreitaId());
+    } catch {
+      window.alert('Não foi possível gerar a planilha.');
+    } finally {
+      this.exportandoXlsx.set(false);
     }
-
-    const mensagem =
-      `Gerar pagamento ao empreiteiro com o avanço deste período?\n\n` +
-      `A pagar: ${formatarMoeda(totais.pagarEmp)}\n\n` +
-      `Cria um pagamento pendente, pra confirmar depois na aba Pagamentos.`;
-
-    if (!window.confirm(mensagem)) return;
-    this.store.gerarPagamento();
   }
 
   // ------------------------------------------------------------------
@@ -166,60 +331,36 @@ export class Empreita implements OnInit {
     return eap || desc || '—';
   }
 
-  protected linha(indice: number): LinhaEmpreita {
-    return this.store.linhas()[indice];
+  protected linha(indice: number): LinhaEmpreitaEstendida {
+    return this.store.linhasEstendidas()[indice];
+  }
+
+  /**
+   * "% avanço" agregado do período (03/09/2026, pedido do Lucas: faltava
+   * em "Medição deste período") — mesma ponderação por `contratoEmp` já
+   * usada em "% Medida" na lista de Empreitas (a Reserva fica de fora: é
+   * retenção discricionária, desvinculada do avanço físico).
+   */
+  protected readonly percentualAvancoPeriodo = computed(() => {
+    const itens = this.store.itens();
+    const linhas = this.store.linhasEstendidas();
+    let somaPonderada = 0;
+    let somaContrato = 0;
+    for (let i = 0; i < itens.length; i++) {
+      const contrato = itens[i].contratoEmp || 0;
+      if (contrato <= 0) continue;
+      somaPonderada += linhas[i].avanco * contrato;
+      somaContrato += contrato;
+    }
+    return somaContrato > 0 ? somaPonderada / somaContrato : 0;
+  });
+
+  private itemEapDoServico(item: ItemEmpreita): ItemEap | undefined {
+    return this.store.itensEap().find((i) => i.id === item.eapId);
   }
 
   protected rotuloTipo(chave: ChaveTipo): string {
-    return this.store.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? chave;
-  }
-
-  /** Rótulo curto de cada categoria, para caber na linha empilhada da célula. */
-  private static readonly ABREVIACOES: Record<ChaveTipo, string> = {
-    material: 'Mat.',
-    maoDeObra: 'M.O.',
-    equipamento: 'Equip.',
-    outros: 'Out.',
-    administracao: 'Adm.',
-  };
-
-  protected rotuloAbrev(chave: ChaveTipo): string {
-    return Empreita.ABREVIACOES[chave] ?? chave;
-  }
-
-  /** Orçado da EAP, por categoria — só referência, não editável. */
-  protected valorOrcadoPorTipo(indice: number, tipo: ChaveTipo): string {
-    return this.moedaOuVazio(Number(this.linha(indice).orcadoPorTipo[tipo]) || 0);
-  }
-
-  /** Contrato total (empreiteiro + reserva) da categoria, calculado. */
-  protected valorContratoTotalPorTipo(indice: number, tipo: ChaveTipo): string {
-    return this.moedaOuVazio(Number(this.linha(indice).contratoPorTipo[tipo]) || 0);
-  }
-
-  protected valorAvancoPorTipo(indice: number, tipo: ChaveTipo): string {
-    const valor = this.linha(indice).avancoPorTipo[tipo];
-    return this.percentualOuVazio(valor ?? 0);
-  }
-
-  protected valorPagarPorTipo(indice: number, tipo: ChaveTipo): string {
-    return this.moedaOuVazio(Number(this.linha(indice).pagarPorTipo[tipo]) || 0);
-  }
-
-  protected valorReservarPorTipo(indice: number, tipo: ChaveTipo): string {
-    return this.moedaOuVazio(Number(this.linha(indice).reservarPorTipo[tipo]) || 0);
-  }
-
-  protected valorPagamentoTotalPorTipo(indice: number, tipo: ChaveTipo): string {
-    const linha = this.linha(indice);
-    const valor = (Number(linha.pagarPorTipo[tipo]) || 0) + (Number(linha.reservarPorTipo[tipo]) || 0);
-    return this.moedaOuVazio(valor);
-  }
-
-  /** Quanto ainda falta contratar em relação ao orçado da EAP. */
-  protected saldo(indice: number): number {
-    const linha = this.linha(indice);
-    return linha.orcadoTotal - linha.valorTotal;
+    return this.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? chave;
   }
 
   protected percentualOuVazio(valor: number | null | undefined): string {
@@ -231,19 +372,206 @@ export class Empreita implements OnInit {
     return valor ? formatarMoeda(valor) : '';
   }
 
-  protected valorMedicaoAtual(item: ItemEmpreita, tipo: ChaveTipo): string {
-    return this.percentualOuVazio(item.medicaoAtualByType?.[tipo]);
+  /**
+   * Igual `moedaOuVazio`, mas SEMPRE formata, mesmo R$0,00 (03/09/2026,
+   * pedido do Lucas: "permitir que os valores de pagamento apareçam,
+   * mesmo se uma empreita não tiver medição") — usado só nos campos de
+   * Já pago/Pagamento/Saldo após pagamento, onde 0 é uma resposta válida
+   * ("ainda não tem nada"), não "campo vazio pra digitar" (esses
+   * continuam usando `moedaOuVazio`, ex.: Contrato/Saldo disp.).
+   */
+  protected moedaSempre(valor: number): string {
+    return formatarMoeda(valor);
   }
 
-  protected valorMedicaoAcumulada(item: ItemEmpreita, tipo: ChaveTipo): string {
-    return this.percentualOuVazio(item.medicaoAcumByType?.[tipo]);
+  protected valorContrato(item: ItemEmpreita, campo: 'contratoEmp' | 'contratoReserva'): string {
+    return this.moedaOuVazio(Number(item[campo]) || 0);
   }
 
-  protected valorContrato(
-    item: ItemEmpreita,
-    campo: 'contratoEmpPorTipo' | 'contratoReservaPorTipo',
-    tipo: ChaveTipo,
-  ): string {
-    return this.moedaOuVazio(Number(item[campo]?.[tipo]) || 0);
+  protected valorContratoTotal(indice: number): string {
+    return this.moedaOuVazio(this.linha(indice).contrato);
+  }
+
+  // ---- Saldo disp. (Contrato) ----
+  protected valorSaldoDisp(indice: number): number {
+    return this.linha(indice).saldoDisp;
+  }
+
+  // ---- Quantidades (só em edição — 25/08/2026, pedido do Lucas) ----
+  protected valorQtdeEap(item: ItemEmpreita): string {
+    const valor = this.itemEapDoServico(item)?.qtde;
+    return this.percentualOuVazio(valor ?? null);
+  }
+
+  protected valorUnidEap(item: ItemEmpreita): string {
+    return this.itemEapDoServico(item)?.unid ?? '';
+  }
+
+  protected numQtdeDisp(indice: number): number {
+    return this.linha(indice).qtdeDisp;
+  }
+
+  protected valorQtdeDisp(indice: number, item: ItemEmpreita): string {
+    const valor = Number(this.numQtdeDisp(indice).toFixed(2));
+    if (!valor) return '';
+    const unid = this.itemEapDoServico(item)?.unid ? ` ${this.itemEapDoServico(item)?.unid}` : '';
+    return `${String(valor).replace('.', ',')}${unid}`;
+  }
+
+  // ---- Medição de contrato: toggle R$ ⇄ % ⇄ Qtde ----
+  protected readonly unidadeMedicaoPorItem = signal<Record<string, UnidadeMedicao>>({});
+
+  protected unidadeMedicaoDe(itemId: string): UnidadeMedicao {
+    return this.unidadeMedicaoPorItem()[itemId] ?? 'pct';
+  }
+
+  private static readonly CICLO_UNIDADE: Record<UnidadeMedicao, UnidadeMedicao> = {
+    pct: 'valor',
+    valor: 'qtde',
+    qtde: 'pct',
+  };
+
+  protected alternarUnidadeMedicao(itemId: string): void {
+    this.unidadeMedicaoPorItem.update((m) => ({ ...m, [itemId]: Empreita.CICLO_UNIDADE[this.unidadeMedicaoDe(itemId)] }));
+  }
+
+  protected rotuloUnidadeMedicao(unidade: UnidadeMedicao): string {
+    return unidade === 'pct' ? '%' : unidade === 'valor' ? 'R$' : 'Qtde';
+  }
+
+  private exibirMedicao(indice: number, item: ItemEmpreita, pct: number | null | undefined): string {
+    if (pct === null || pct === undefined) return '';
+    const unidade = this.unidadeMedicaoDe(item.id);
+
+    if (unidade === 'pct') return this.percentualOuVazio(pct);
+
+    if (unidade === 'valor') {
+      const contratoTotal = this.linha(indice).contrato;
+      return this.moedaOuVazio(pctParaValorContrato(pct, contratoTotal));
+    }
+
+    // qtde — referência é a Quantidade contratada DESTE serviço, não a
+    // quantidade total do item da EAP (25/08/2026, pedido do Lucas: o
+    // contrato pode cobrir só uma parte do item).
+    const qtdeTotal = Number(item.qtdeContratada) || 0;
+    const qtde = Number(pctParaQtde(pct, qtdeTotal).toFixed(2));
+    if (!qtde) return '';
+    const itemEap = this.itemEapDoServico(item);
+    const unid = itemEap?.unid ? ` ${itemEap.unid}` : '';
+    return `${String(qtde).replace('.', ',')}${unid}`;
+  }
+
+  protected valorMedicaoAcumuladaExibida(indice: number, item: ItemEmpreita): string {
+    return this.exibirMedicao(indice, item, item.medicaoAcum);
+  }
+
+  protected valorMedicaoAtualExibida(indice: number, item: ItemEmpreita): string {
+    return this.exibirMedicao(indice, item, item.medicaoAtual);
+  }
+
+  protected valorAvanco(indice: number): string {
+    return this.percentualOuVazio(this.linha(indice).avanco);
+  }
+
+  /**
+   * Converte o texto digitado (na unidade ativa da linha) de volta pra
+   * percentual, antes de gravar. Só "Atual" — o "Acumulado" não é mais
+   * editável pelo usuário (25/08/2026, pedido do Lucas: "o sistema que
+   * preenche automaticamente" — vira o novo acumulado sozinho quando o
+   * período é fechado, ver `EmpreitaStore.avancarPeriodo`).
+   */
+  protected editarMedicao(indice: number, item: ItemEmpreita, campo: 'medicaoAtual', evento: Event): void {
+    const bruto = (evento.target as HTMLInputElement).value.trim();
+    if (bruto === '') {
+      this.store.atualizarMedicao(item.id, campo, null);
+      return;
+    }
+
+    const numero = parsearBR(bruto);
+    const unidade = this.unidadeMedicaoDe(item.id);
+    let pct = numero;
+    if (unidade === 'valor') {
+      const contratoTotal = this.linha(indice).contrato;
+      pct = valorContratoParaPct(numero, contratoTotal);
+    } else if (unidade === 'qtde') {
+      const qtdeTotal = Number(item.qtdeContratada) || 0;
+      pct = qtdeParaPct(numero, qtdeTotal);
+    }
+
+    this.store.atualizarMedicao(item.id, campo, limitarPercentual(pct));
+  }
+
+  // ---- Quantidade contratada (referência do toggle Qtde) ----
+  protected valorQtdeContratadaExibida(item: ItemEmpreita): string {
+    const valor = item.qtdeContratada;
+    if (valor === null || valor === undefined) return '';
+    const itemEap = this.itemEapDoServico(item);
+    const unid = itemEap?.unid ? ` ${itemEap.unid}` : '';
+    return `${String(valor).replace('.', ',')}${unid}`;
+  }
+
+  protected editarQtdeContratada(item: ItemEmpreita, evento: Event): void {
+    const bruto = (evento.target as HTMLInputElement).value.trim();
+    this.store.atualizarQtdeContratada(item.id, bruto === '' ? null : parsearBR(bruto));
+  }
+
+  // ---- Já pago (acumulado dos pagamentos confirmados) ----
+  protected valorJaPagoEmpreiteiro(indice: number): string {
+    return this.moedaSempre(this.linha(indice).jaPago.empreiteiro);
+  }
+
+  protected valorJaPagoReserva(indice: number): string {
+    return this.moedaSempre(this.linha(indice).jaPago.reserva);
+  }
+
+  protected valorJaPagoDivergencia(indice: number): string {
+    return this.moedaSempre(this.linha(indice).jaPago.divergencia);
+  }
+
+  protected numDivergencia(indice: number): number {
+    return this.linha(indice).jaPago.divergencia;
+  }
+
+  protected valorJaPagoTotal(indice: number): string {
+    return this.moedaSempre(this.linha(indice).jaPago.total);
+  }
+
+  // ---- Pagamento (rascunho do período, editável) ----
+  protected valorMedido(indice: number): string {
+    return this.moedaSempre(this.linha(indice).medido);
+  }
+
+  protected numMedido(indice: number): number {
+    return this.linha(indice).medido;
+  }
+
+  protected valorPagamentoDraftExibido(indice: number, campo: 'pagamentoEmpDraft' | 'pagamentoReservaDraft'): string {
+    return this.moedaSempre(this.linha(indice)[campo]);
+  }
+
+  protected valorPagamentoDraftTotal(indice: number): string {
+    return this.moedaSempre(this.linha(indice).pagamentoDraftTotal);
+  }
+
+  protected editarPagamentoDraft(item: ItemEmpreita, campo: 'pagamentoEmp' | 'pagamentoReserva', evento: Event): void {
+    const bruto = (evento.target as HTMLInputElement).value.trim();
+    this.store.atualizarPagamentoDraft(item.id, campo, bruto === '' ? null : parsearBR(bruto));
+  }
+
+  // ---- Saldo após pagamento ----
+  protected valorSaldoAposPagamentoEtapa(indice: number): number {
+    return this.linha(indice).saldoAposPagamentoEtapa;
+  }
+
+  protected valorSaldoAposPagamentoEmp(indice: number): number {
+    return this.linha(indice).saldoAposPagamentoEmp;
+  }
+
+  protected valorSaldoAposPagamentoReserva(indice: number): number {
+    return this.linha(indice).saldoAposPagamentoReserva;
+  }
+
+  protected valorSaldoAposPagamentoTotal(indice: number): number {
+    return this.linha(indice).saldoAposPagamentoTotal;
   }
 }

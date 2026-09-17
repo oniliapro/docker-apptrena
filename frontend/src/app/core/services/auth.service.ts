@@ -84,6 +84,22 @@ export class AuthService {
     });
   }
 
+  /**
+   * Define o token diretamente em memória, sem persistir no
+   * localStorage nem passar pelo fluxo normal de login (22/08/2026).
+   *
+   * Usado só pela rota de impressão de relatório
+   * (`/imprimir/obras/:id/relatorios`), que roda dentro de um Chromium
+   * headless (via Browsershot, ver RelatorioPdfController no backend) —
+   * um contexto de navegador sem sessão nenhuma. O token vem de curta
+   * duração (2 minutos) na query string dessa rota; gravá-lo só no
+   * signal (e não no localStorage) evita deixá-lo em qualquer
+   * armazenamento persistente, mesmo que efêmero nesse navegador.
+   */
+  definirTokenParaImpressao(token: string): void {
+    this._token.set(token);
+  }
+
   private guardarSessao(resposta: RespostaLogin): void {
     this._token.set(resposta.token);
     this._usuario.set(resposta.user);

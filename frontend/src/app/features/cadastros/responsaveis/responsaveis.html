@@ -30,13 +30,15 @@
     <div class="mensagem atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th>Nome</th>
-            <th>Registro (CREA/CAU)</th>
-            <th>Telefone</th>
-            <th>E-mail</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('codigo')">Código{{ store.setaOrdenacao(store.ordenacao(), 'codigo') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('registro')">Registro (CREA/CAU){{ store.setaOrdenacao(store.ordenacao(), 'registro') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('atuacao')">Atuação{{ store.setaOrdenacao(store.ordenacao(), 'atuacao') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('telefone')">Telefone{{ store.setaOrdenacao(store.ordenacao(), 'telefone') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('email')">E-mail{{ store.setaOrdenacao(store.ordenacao(), 'email') }}</th>
             <th class="centro">Ativo</th>
             <th class="centro">Ações</th>
           </tr>
@@ -44,8 +46,10 @@
         <tbody>
           @for (registro of store.listaFiltrada(); track registro.id) {
             <tr [class.inativo]="!registro.ativo">
+              <td class="centro mono">{{ registro.codigo || '—' }}</td>
               <td class="nome">{{ registro.nome }}</td>
               <td class="mono">{{ registro.registro || '—' }}</td>
+              <td>{{ registro.atuacao || '—' }}</td>
               <td class="mono">{{ registro.telefone ? formatarTelefone(registro.telefone) : '—' }}</td>
               <td>{{ registro.email || '—' }}</td>
               <td class="centro">
@@ -60,7 +64,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="centro atenuado vazio">Nenhum responsável cadastrado.</td>
+              <td colspan="8" class="centro atenuado vazio">Nenhum responsável cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -83,7 +87,12 @@
 
       <div class="modal-corpo">
         <div class="grade">
-          <label class="campo campo-total">
+          <label class="campo">
+            <span>Código interno</span>
+            <input type="text" formControlName="codigo" readonly class="somente-leitura" />
+          </label>
+
+          <label class="campo campo-largo">
             <span class="obrigatorio">Nome completo</span>
             <input type="text" formControlName="nome" />
             @if (temErro('nome')) {
@@ -94,6 +103,11 @@
           <label class="campo">
             <span>Registro profissional</span>
             <input type="text" formControlName="registro" placeholder="Ex.: CREA-DF 12345" />
+          </label>
+
+          <label class="campo">
+            <span>Atuação</span>
+            <input type="text" formControlName="atuacao" placeholder="Ex.: Estrutural, Elétrica…" />
           </label>
 
           <label class="campo">

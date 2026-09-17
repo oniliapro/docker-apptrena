@@ -1,0 +1,228 @@
+@if (carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+  <form [formGroup]="formulario" (ngSubmit)="salvar()">
+    <h2 class="titulo-secao">Cadastro da empresa</h2>
+
+    <div class="grade">
+      <label class="campo campo-largo">
+        <span class="obrigatorio">Nome fantasia</span>
+        <input type="text" formControlName="nome" />
+        @if (temErro('nome')) {
+          <small class="erro-campo">Informe o nome da empresa.</small>
+        }
+      </label>
+
+      <label class="campo campo-largo">
+        <span>Razão social</span>
+        <input type="text" formControlName="razaoSocial" />
+      </label>
+
+      <label class="campo">
+        <span>CNPJ</span>
+        <input type="text" formControlName="cnpj" inputmode="numeric"
+               placeholder="00.000.000/0000-00" (input)="mascararCnpj($event)" />
+        @if (temErro('cnpj')) {
+          <small class="erro-campo">CNPJ inválido — confira os números.</small>
+        }
+      </label>
+
+      <label class="campo">
+        <span>Inscrição estadual</span>
+        <input type="text" formControlName="inscricaoEstadual" />
+      </label>
+
+      <label class="campo campo-largo">
+        <span>Endereço</span>
+        <input type="text" formControlName="endereco" />
+      </label>
+
+      <label class="campo">
+        <span>Telefone</span>
+        <input type="text" formControlName="telefone" inputmode="numeric"
+               placeholder="(00) 00000-0000" (input)="mascararTelefone($event)" />
+      </label>
+
+      <label class="campo">
+        <span>E-mail de contato</span>
+        <input type="email" formControlName="emailContato" />
+        @if (temErro('emailContato')) {
+          <small class="erro-campo">E-mail inválido.</small>
+        }
+      </label>
+    </div>
+
+    <h2 class="titulo-secao">Identidade visual</h2>
+
+    <div class="grade">
+      <label class="campo">
+        <span>Cor primária</span>
+        <div class="campo-cor">
+          <input type="color" formControlName="corPrimaria" />
+          <input type="text" formControlName="corPrimaria" class="hex" maxlength="7" />
+        </div>
+      </label>
+
+      <label class="campo">
+        <span>Cor secundária</span>
+        <div class="campo-cor">
+          <input type="color" formControlName="corSecundaria" />
+          <input type="text" formControlName="corSecundaria" class="hex" maxlength="7" />
+        </div>
+      </label>
+
+      <label class="campo">
+        <span>Fonte</span>
+        <select formControlName="fonte">
+          @for (f of fontes; track f.chave) {
+            <option [value]="f.chave">{{ f.rotulo }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="grade">
+      <div class="campo-upload">
+        <span>Logomarca</span>
+        <div class="preview-upload">
+          @if (previewLogo() || logoUrlAtual(); as url) {
+            <img [src]="url" alt="Logomarca" />
+          } @else {
+            <span class="sem-arquivo">Sem logomarca</span>
+          }
+        </div>
+        <input type="file" accept="image/*" (change)="selecionarLogo($event)" />
+      </div>
+
+      <div class="campo-upload">
+        <span>Papel timbrado</span>
+        <div class="preview-upload">
+          @if (previewPapelTimbrado() || papelTimbradoUrlAtual(); as url) {
+            <img [src]="url" alt="Papel timbrado" />
+          } @else {
+            <span class="sem-arquivo">Sem papel timbrado</span>
+          }
+        </div>
+        <input type="file" accept="image/*" (change)="selecionarPapelTimbrado($event)" />
+      </div>
+    </div>
+
+    <div class="barra-salvar">
+      @if (salvoAgora()) {
+        <span class="confirmacao-salvo">Salvo com sucesso.</span>
+      }
+      <button type="submit" class="primario" [disabled]="salvando()">
+        {{ salvando() ? 'Salvando…' : 'Salvar dados da empresa' }}
+      </button>
+    </div>
+  </form>
+
+  <h2 class="titulo-secao">Representantes legais</h2>
+  <p class="atenuado pequeno">
+    Usados no futuro módulo de contratos e propostas, para preencher automaticamente quem assina.
+  </p>
+
+  <div class="envoltoria">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Cargo</th>
+          <th>CPF</th>
+          <th>E-mail</th>
+          <th>Telefone</th>
+          <th class="centro">Ativo</th>
+          <th class="centro">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of representantes(); track r.id) {
+          <tr [class.inativo]="!r.ativo">
+            <td>{{ r.nome }}</td>
+            <td>{{ r.cargo || '—' }}</td>
+            <td>{{ r.cpf ? formatarDocumento(r.cpf) : '—' }}</td>
+            <td>{{ r.email || '—' }}</td>
+            <td>{{ r.telefone ? formatarTelefone(r.telefone) : '—' }}</td>
+            <td class="centro">
+              <button type="button" class="chave" [class.ligada]="r.ativo"
+                      (click)="alternarAtivoRepresentante(r)"
+                      [title]="r.ativo ? 'Inativar' : 'Ativar'"></button>
+            </td>
+            <td class="centro acoes">
+              <button type="button" title="Editar" (click)="editarRepresentante(r)">✎</button>
+              <button type="button" title="Excluir" (click)="excluirRepresentante(r)">✖</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="centro atenuado">Nenhum representante cadastrado ainda.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <button type="button" class="botao-novo" (click)="novoRepresentante()">+ Novo representante</button>
+
+  @if (formularioRepresentanteAberto()) {
+    <div class="modal modal-interno">
+      <div class="modal-fundo" (click)="fecharRepresentante()"></div>
+
+      <form class="modal-cartao" [formGroup]="formularioRepresentante" (ngSubmit)="salvarRepresentante()">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">
+            {{ editandoRepresentanteId() ? 'Editar representante' : 'Novo representante' }}
+          </span>
+          <button type="button" (click)="fecharRepresentante()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <div class="grade">
+            <label class="campo campo-largo">
+              <span class="obrigatorio">Nome</span>
+              <input type="text" formControlName="nome" />
+              @if (temErroRepresentante('nome')) {
+                <small class="erro-campo">Informe o nome.</small>
+              }
+            </label>
+
+            <label class="campo">
+              <span>Cargo</span>
+              <input type="text" formControlName="cargo" placeholder="Ex.: Sócio-administrador" />
+            </label>
+
+            <label class="campo">
+              <span>CPF</span>
+              <input type="text" formControlName="cpf" inputmode="numeric"
+                     placeholder="000.000.000-00" (input)="mascararCpfRepresentante($event)" />
+              @if (temErroRepresentante('cpf')) {
+                <small class="erro-campo">CPF inválido — confira os números.</small>
+              }
+            </label>
+
+            <label class="campo">
+              <span>E-mail</span>
+              <input type="email" formControlName="email" />
+              @if (temErroRepresentante('email')) {
+                <small class="erro-campo">E-mail inválido.</small>
+              }
+            </label>
+
+            <label class="campo">
+              <span>Telefone</span>
+              <input type="text" formControlName="telefone" inputmode="numeric"
+                     placeholder="(00) 00000-0000" (input)="mascararTelefoneRepresentante($event)" />
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharRepresentante()">Cancelar</button>
+          <button class="primario" type="submit">Salvar</button>
+        </div>
+      </form>
+    </div>
+  }
+}

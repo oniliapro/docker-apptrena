@@ -1,0 +1,37 @@
+@if (carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+  <h2 class="titulo-secao">Plano contratado</h2>
+
+  <div class="grade-plano">
+    <div class="item-plano">
+      <span class="rotulo">Plano</span>
+      <span class="valor">{{ empresa()?.plano || '—' }}</span>
+    </div>
+    <div class="item-plano">
+      <span class="rotulo">Status</span>
+      <span class="valor">{{ statusRotulo() }}</span>
+    </div>
+    @if (diasRestantesTrial(); as dias) {
+      <div class="item-plano">
+        <span class="rotulo">Teste expira em</span>
+        <span class="valor">{{ dias }} dia(s)</span>
+      </div>
+    } @else if (empresa()?.assinatura_valida_ate) {
+      <div class="item-plano">
+        <span class="rotulo">Renovação</span>
+        <span class="valor">{{ formatarData(empresa()!.assinatura_valida_ate) }}</span>
+      </div>
+    }
+  </div>
+
+  <h2 class="titulo-secao">Precisa mudar de plano?</h2>
+  <p class="atenuado pequeno">
+    Fale com a gente pelo WhatsApp para upgrade, downgrade ou cancelamento do plano contratado.
+  </p>
+  <a class="botao-whatsapp" [href]="linkWhatsapp()" target="_blank" rel="noopener">
+    Solicitar atendimento
+  </a>
+}

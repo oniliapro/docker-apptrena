@@ -1,0 +1,163 @@
+<div class="cabecalho">
+  <div>
+    <h1>Recebimentos</h1>
+    <div class="atenuado">Todos os lançamentos, de todas as obras</div>
+  </div>
+  <button type="button" [disabled]="!listaOrdenada().length || exportandoXlsx()" (click)="exportarXlsx()"
+          title="Exporta os recebimentos filtrados abaixo pra uma planilha Excel">
+    {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
+  </button>
+  @if (selecao.temSelecao()) {
+    <button type="button" (click)="copiarMensagem()" title="Copia uma mensagem com os recebimentos selecionados, pronta pra colar no WhatsApp">
+      {{ copiado() ? '✔ Copiado!' : '📋 Copiar mensagem (' + selecao.contagem() + ')' }}
+    </button>
+  }
+  <button type="button" class="botao-novo" (click)="novo()">+ Novo recebimento</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltroObra($event)">
+    <option value="">Obra: todas</option>
+    @for (obra of obrasDisponiveis(); track obra) {
+      <option [value]="obra">{{ obra }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroOrigem($event)">
+    <option value="todos">Origem: todas</option>
+    <option value="manual">Manual</option>
+    <option value="medicao">Medição</option>
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="todos">Status: todos</option>
+    <option value="pendente">Pendente</option>
+    <option value="confirmado">Confirmado</option>
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Solicitação de</span>
+    <input type="date" (change)="mudarFiltroDataDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroDataAte($event)" />
+  </label>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar obra, nº, cliente, descrição…" (input)="mudarBusca($event)" />
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table trenaRedimensionarColunas>
+        <thead>
+          <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
+                     (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
+            </th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('origem')">Origem{{ setaOrdenacao(ordenacao(), 'origem') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (recebimento of listaOrdenada(); track recebimento.id) {
+            <tr>
+              <td class="centro">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
+              </td>
+              <td class="centro">{{ obraNumber(recebimento) }}</td>
+              <td class="centro">{{ numero(recebimento) }}</td>
+              <td class="centro">{{ dataSolicitacao(recebimento) }}</td>
+              <td>{{ cliente(recebimento) }}</td>
+              <td>{{ descricao(recebimento) }}</td>
+              <td class="centro">{{ origemRotulo(recebimento) }}</td>
+              <td class="valor"><b>{{ formatarMoeda(valorTotal(recebimento)) }}</b></td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="pendente(recebimento)">
+                  {{ pendente(recebimento) ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </td>
+              <td class="centro">
+                <a class="link-medicoes" [routerLink]="rotaOrigem(recebimento)">Ver</a>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="10" class="centro atenuado">Nenhum recebimento lançado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ============ Formulário — Novo recebimento ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Novo recebimento</span>
+        <button type="button" (click)="fecharFormulario()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          Cria o recebimento com um item único, pelo valor total — depois é só abrir na aba Recebimentos
+          da obra pra detalhar por tipo/etapa, se precisar.
+        </p>
+
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Obra</span>
+            <app-seletor-obra [obras]="obras()" [valor]="obraSelecionadaId()" (mudou)="mudarObraSelecionada($event)" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span>Cliente</span>
+            <input type="text" formControlName="cliente" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricao" />
+            @if (temErroFormulario('descricao')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span class="obrigatorio">Valor total</span>
+            <input type="number" formControlName="valorTotal" step="0.01" min="0" />
+            @if (temErroFormulario('valorTotal')) {
+              <small class="erro-campo">Informe um valor maior que zero.</small>
+            }
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharFormulario()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Criar recebimento' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

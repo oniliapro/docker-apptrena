@@ -1,0 +1,16 @@
+@if (papelTimbradoUrl(); as url) {
+  <img class="faixa-papel-timbrado" [src]="url" alt="Papel timbrado" />
+}
+
+<header class="folha-cabecalho">
+  <div class="identidade-empresa">
+    @if (logoUrl(); as url) {
+      <img class="logo-imagem" [src]="url" [alt]="perfil()?.nome || 'Logomarca'" />
+    }
+    <div>
+      <div class="logo-texto">{{ perfil()?.nome || 'AppTrena' }}</div>
+      <div class="subtitulo">{{ subtitulo() }}</div>
+    </div>
+  </div>
+  <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm()) }}</div>
+</header>

@@ -5,7 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\EapItem;
 use App\Models\Obra;
+use App\Models\ObraAcesso;
+use App\Models\Pasta;
+use App\Models\Tag;
 use App\Models\TipoCusto;
+use App\Models\User;
+use App\Services\PastaRaizes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,15 +26,51 @@ use Illuminate\Support\Str;
  */
 class ObraController extends Controller
 {
-    public function index()
+    /**
+     * 31/08/2026, "Controle de permissões" — obra é "aberta por exceção":
+     * um usuário secundário vê toda obra, EXCETO as que têm uma linha
+     * explícita negando `pode_ver` (ver `PermissaoService::podeObra`).
+     * Pedido do Lucas: quem não acessa uma obra não pode nem enxergá-la
+     * na lista.
+     */
+    public function index(Request $request)
     {
-        return Obra::orderBy('obra_nome')->get();
+        $query = Obra::orderBy('obra_nome');
+
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('id', $obraIdsNegados);
+        }
+
+        return $query->get();
     }
 
     public function store(Request $request)
     {
         $obra = Obra::create($this->validated($request));
+        $this->criarPastasDeTagsAtivas($obra);
+
         return response()->json($obra, 201);
+    }
+
+    /**
+     * 06/09/2026 — tags cadastradas ANTES desta obra existir também
+     * ganham uma pasta aqui (o oposto do que `TagController::store` faz
+     * pras obras que já existiam quando a tag foi criada). Sem isso, uma
+     * tag só apareceria em obras que já existiam no momento em que ela
+     * foi cadastrada.
+     */
+    private function criarPastasDeTagsAtivas(Obra $obra): void
+    {
+        $compartilhada = PastaRaizes::compartilhada($obra);
+
+        foreach (Tag::where('ativo', true)->get() as $tag) {
+            Pasta::firstOrCreate(
+                ['obra_id' => $obra->id, 'tag_id' => $tag->id],
+                ['parent_id' => $compartilhada->id, 'owner_user_id' => null, 'nome' => $tag->nome],
+            );
+        }
     }
 
     public function show(Obra $obra)
@@ -79,6 +120,7 @@ class ObraController extends Controller
             'obra_nome' => 'nullable|string|max:180',
             'cliente' => 'nullable|string|max:120',
             'data_base' => 'nullable|date',
+            'prazo_meses' => 'nullable|integer|min:1|max:600',
             'responsavel' => 'nullable|string|max:120',
             'local_obra' => 'nullable|string|max:180',
             'periodo' => 'nullable|string|max:80',
@@ -110,7 +152,7 @@ class ObraController extends Controller
     public function showEap(Obra $obra)
     {
         $tipos = TipoCusto::orderBy('ordem')->pluck('chave')->all();
-        $obra->load(['bdiPorTipo', 'uiConfig', 'tiposVisiveis', 'eapItens.custosPorTipo']);
+        $obra->load(['bdiPorTipo', 'uiConfig', 'tiposVisiveis', 'eapItens.custosPorTipo', 'eapItens.orcadosCongelados']);
 
         $bdiByType = [];
         foreach ($tipos as $chave) {
@@ -137,9 +179,23 @@ class ObraController extends Controller
                 $unit[$chave] = (float) ($custo->valor_unitario ?? 0);
             }
 
+            // Ausência de qualquer linha em orcadosCongelados = item nunca
+            // confirmado (ou EAP reaberta depois) — Orçado continua ao vivo.
+            $orcadoCongelado = null;
+            if ($item->orcadosCongelados->isNotEmpty()) {
+                $orcadoCongelado = [];
+                foreach ($tipos as $chave) {
+                    $tipoId = TipoCusto::where('chave', $chave)->value('id');
+                    $congelado = $item->orcadosCongelados->firstWhere('tipo_custo_id', $tipoId);
+                    $orcadoCongelado[$chave] = (float) ($congelado->valor ?? 0);
+                }
+            }
+
             return [
                 'id' => $item->id,
                 'isGroup' => (bool) $item->is_group,
+                'nivel' => (int) $item->nivel,
+                'adicional' => (bool) $item->adicional,
                 'eap' => $item->codigo_eap,
                 'desc' => $item->descricao,
                 'qtde' => (float) $item->quantidade,
@@ -148,6 +204,7 @@ class ObraController extends Controller
                 'bdiMode' => $item->bdi_mode,
                 'bdiPercent' => (float) $item->bdi_percent,
                 'bdiValue' => (float) $item->bdi_value,
+                'orcadoCongelado' => $orcadoCongelado,
             ];
         })->values();
 
@@ -175,6 +232,7 @@ class ObraController extends Controller
                 'showBDI' => (bool) ($obra->uiConfig->show_bdi ?? true),
                 'showTypes' => (bool) ($obra->uiConfig->show_types ?? true),
                 'orcRealMode' => $obra->uiConfig->orc_real_mode ?? 'value',
+                'modoTotais' => $obra->uiConfig->modo_totais ?? 'detalhado',
                 'visibleTypes' => $visibleTypes,
             ],
             'eapItems' => $eapItems,
@@ -237,6 +295,7 @@ class ObraController extends Controller
                 'show_bdi' => $ui['showBDI'] ?? true,
                 'show_types' => $ui['showTypes'] ?? true,
                 'orc_real_mode' => $ui['orcRealMode'] ?? 'value',
+                'modo_totais' => $ui['modoTotais'] ?? 'detalhado',
             ]);
 
             foreach ((array) ($ui['visibleTypes'] ?? []) as $chave => $visivel) {
@@ -260,6 +319,8 @@ class ObraController extends Controller
                         'obra_id' => $obra->id,
                         'ordem' => $ordem,
                         'is_group' => $raw['isGroup'] ?? false,
+                        'nivel' => $raw['nivel'] ?? 0,
+                        'adicional' => $raw['adicional'] ?? false,
                         'codigo_eap' => $raw['eap'] ?? '',
                         'descricao' => $raw['desc'] ?? '',
                         'quantidade' => $raw['qtde'] ?? 0,
@@ -277,6 +338,21 @@ class ObraController extends Controller
                         ['valor_unitario' => $valor]
                     );
                 }
+
+                // Orçado congelado: presente (não-null) => grava/atualiza o
+                // snapshot; ausente => apaga (item foi reaberto/nunca
+                // confirmado, volta a recalcular ao vivo).
+                if (isset($raw['orcadoCongelado']) && is_array($raw['orcadoCongelado'])) {
+                    foreach ($raw['orcadoCongelado'] as $chave => $valor) {
+                        if (!isset($tipoIds[$chave])) continue;
+                        $item->orcadosCongelados()->updateOrCreate(
+                            ['tipo_custo_id' => $tipoIds[$chave]],
+                            ['valor' => $valor]
+                        );
+                    }
+                } else {
+                    $item->orcadosCongelados()->delete();
+                }
             }
 
             // remove itens que não vieram mais no payload (mesma semântica de "array é a fonte da verdade")
@@ -284,5 +360,70 @@ class ObraController extends Controller
         });
 
         return $this->showEap($obra);
+    }
+
+    /**
+     * GET /api/obras/{obra}/acessos (31/08/2026, "Controle de
+     * permissões") — todo usuário secundário da empresa, com
+     * `podeVer`/`podeLancar` NESTA obra. Sem linha em `obra_acessos` =
+     * acesso liberado por padrão (`true`) — o modelo é "aberto por
+     * exceção" (ver `PermissaoService::podeObra`): por padrão todo
+     * mundo acessa toda obra, só quem tem uma linha explícita fica
+     * restrito.
+     */
+    public function listarAcessos(Request $request, Obra $obra)
+    {
+        $this->garantirPodeGerenciar($request);
+
+        $acessos = $obra->acessos()->get()->keyBy('user_id');
+
+        return User::where('empresa_id', $obra->empresa_id)
+            ->where('papel', 'secundario')
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $usuario) use ($acessos) {
+                $acesso = $acessos->get($usuario->id);
+                return [
+                    'userId' => $usuario->id,
+                    'nome' => $usuario->name,
+                    'email' => $usuario->email,
+                    'podeVer' => $acesso ? (bool) $acesso->pode_ver : true,
+                    'podeLancar' => $acesso ? (bool) $acesso->pode_lancar : true,
+                ];
+            })
+            ->values();
+    }
+
+    /** PUT /api/obras/{obra}/acessos — grava em lote, upsert por usuário. */
+    public function syncAcessos(Request $request, Obra $obra)
+    {
+        $this->garantirPodeGerenciar($request);
+
+        $data = $request->validate([
+            'usuarios' => 'required|array',
+            'usuarios.*.userId' => 'required|integer|exists:users,id',
+            'usuarios.*.podeVer' => 'nullable|boolean',
+            'usuarios.*.podeLancar' => 'nullable|boolean',
+        ]);
+
+        foreach ($data['usuarios'] as $linha) {
+            ObraAcesso::updateOrCreate(
+                ['obra_id' => $obra->id, 'user_id' => $linha['userId']],
+                [
+                    'empresa_id' => $obra->empresa_id,
+                    'pode_ver' => $linha['podeVer'] ?? false,
+                    'pode_lancar' => $linha['podeLancar'] ?? false,
+                ],
+            );
+        }
+
+        return $this->listarAcessos($request, $obra);
+    }
+
+    private function garantirPodeGerenciar(Request $request): User
+    {
+        $ator = $request->user();
+        abort_unless($ator && ($ator->ehAdmin() || $ator->pode_gerenciar_permissoes), 403, 'Sem permissão para gerenciar acessos.');
+        return $ator;
     }
 }

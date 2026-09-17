@@ -1,0 +1,414 @@
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Empreita" [geradoEm]="geradoEm" />
+
+@if (store.carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (store.erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+
+<!-- Mesma estrutura de empreita.html — classes reaproveitadas de
+     empreita.scss (importado via @use), sem os inputs/selects/botões
+     editáveis (tudo aqui é só leitura). Layout espelhado do redesenho de
+     25/08/2026: 5 colunas de bloco, um serviço = uma categoria só. -->
+<div class="painel">
+  <div class="grade-cabecalho">
+    <label class="campo">
+      <span>Nº da empreita</span>
+      <span class="valor-campo">{{ store.cabecalho().numeroEmpreita || '—' }}</span>
+    </label>
+    <label class="campo campo-largo">
+      <span>Descrição</span>
+      <span class="valor-campo">{{ store.cabecalho().descricaoEmpreita || '—' }}</span>
+    </label>
+    <label class="campo">
+      <span>Nº da obra</span>
+      <span class="valor-campo">{{ store.cabecalho().obraNumber || '—' }}</span>
+    </label>
+    <label class="campo">
+      <span>Empreiteiro</span>
+      <span class="valor-campo">{{ store.cabecalho().empreiteiro || '—' }}</span>
+    </label>
+    <label class="campo">
+      <span>Data</span>
+      <span class="valor-campo">{{ formatarData(store.cabecalho().data) || '—' }}</span>
+    </label>
+  </div>
+</div>
+
+<div class="envoltoria painel sem-preenchimento">
+  <table class="tabela-empreita">
+    <colgroup>
+      <col class="col-num" />
+      <col class="col-desc" />
+      <col class="col-tipo" />
+      <col class="col-eap" />
+      <col class="col-grupo" />
+      @if (!store.travada()) {
+        <col class="col-grupo" />
+      } @else {
+        <col class="col-grupo" />
+        <col class="col-grupo" />
+        <col class="col-grupo" />
+        <col class="col-grupo" />
+      }
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-desc">Serviço</th>
+        <th class="col-tipo">Tipo</th>
+        <th class="col-eap">Etapa (EAP)</th>
+        <th class="grupo-contrato">Contrato (R$)</th>
+        @if (!store.travada()) {
+          <th class="grupo-quantidades">Quantidades</th>
+        } @else {
+          <th class="grupo-medicao">Medição de contrato</th>
+          <th class="grupo-ja-pago">Já pago (R$)</th>
+          <th class="grupo-pagamento">Pagamento (R$)</th>
+          <th class="grupo-saldo-apos">Saldo após pagamento (R$)</th>
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (item of store.itens(); track item.id; let i = $index) {
+        <tr [class.zebra]="i % 2 === 1">
+          <td class="centro indice">{{ i + 1 }}</td>
+          <td class="descricao">{{ item.desc || '—' }}</td>
+          <td class="descricao">{{ rotuloTipo(item.tipo) }}</td>
+          <td class="etapa">{{ rotuloEapDoItem(item.eapId) }}</td>
+
+          <!-- Contrato -->
+          <td class="celula-grupo">
+            <div class="subcampo">
+              <span class="rotulo-subcampo">Saldo disp.</span>
+              <span class="valor-subcampo"
+                    [class.saldo-positivo]="valorSaldoDisp(i) >= 0"
+                    [class.saldo-negativo]="valorSaldoDisp(i) < 0">
+                {{ moedaOuVazio(valorSaldoDisp(i)) }}
+              </span>
+            </div>
+            @if (!simplificado()) {
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Empreiteiro</span>
+                <span class="valor-subcampo">{{ valorContrato(item, 'contratoEmp') }}</span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Reserva</span>
+                <span class="valor-subcampo">{{ valorContrato(item, 'contratoReserva') }}</span>
+              </div>
+            }
+            <div class="subcampo destaque">
+              <span class="rotulo-subcampo">Total</span>
+              <span class="valor-subcampo">{{ valorContratoTotal(i) }}</span>
+            </div>
+          </td>
+
+          @if (!store.travada()) {
+            <!-- Quantidades (só em edição) -->
+            <td class="celula-grupo">
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Qtde. EAP</span>
+                <span class="valor-subcampo">{{ valorQtdeEap(item) }}</span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Un. EAP</span>
+                <span class="valor-subcampo">{{ valorUnidEap(item) }}</span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Qtde. disp.</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="numQtdeDisp(i) >= 0"
+                      [class.saldo-negativo]="numQtdeDisp(i) < 0">
+                  {{ valorQtdeDisp(i, item) }}
+                </span>
+              </div>
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Qtde. contrat.</span>
+                <span class="valor-subcampo">{{ valorQtdeContratadaExibida(item) }}</span>
+              </div>
+            </td>
+          } @else {
+            <!-- Medição de contrato -->
+            <td class="celula-grupo">
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Qtde. contrat.</span>
+                <span class="valor-subcampo">{{ valorQtdeContratadaExibida(item) }}</span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Acumulado</span>
+                <span class="valor-subcampo">{{ valorMedicaoAcumulada(item) }}</span>
+              </div>
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Atual</span>
+                <span class="valor-subcampo">{{ valorMedicaoAtual(item) }}</span>
+              </div>
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Avanço</span>
+                <span class="valor-subcampo">{{ valorAvanco(i) }}</span>
+              </div>
+            </td>
+
+            <!-- Já pago -->
+            <td class="celula-grupo">
+              @if (!simplificado()) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <span class="valor-subcampo">{{ valorJaPagoEmpreiteiro(i) }}</span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <span class="valor-subcampo">{{ valorJaPagoReserva(i) }}</span>
+                </div>
+              }
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Divergência</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="numDivergencia(i) >= 0"
+                      [class.saldo-negativo]="numDivergencia(i) < 0">
+                  {{ valorJaPagoDivergencia(i) }}
+                </span>
+              </div>
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Total</span>
+                <span class="valor-subcampo">{{ valorJaPagoTotal(i) }}</span>
+              </div>
+            </td>
+
+            <!-- Pagamento -->
+            <td class="celula-grupo">
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Medido</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="numMedido(i) >= 0"
+                      [class.saldo-negativo]="numMedido(i) < 0">
+                  {{ valorMedido(i) }}
+                </span>
+              </div>
+              @if (!simplificado()) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <span class="valor-subcampo">{{ valorPagamentoDraftExibido(i, 'pagamentoEmpDraft') }}</span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <span class="valor-subcampo">{{ valorPagamentoDraftExibido(i, 'pagamentoReservaDraft') }}</span>
+                </div>
+              }
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Total</span>
+                <span class="valor-subcampo">{{ valorPagamentoDraftTotal(i) }}</span>
+              </div>
+            </td>
+
+            <!-- Saldo após pagamento -->
+            <td class="celula-grupo">
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Etapa</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="valorSaldoAposPagamentoEtapa(i) >= 0"
+                      [class.saldo-negativo]="valorSaldoAposPagamentoEtapa(i) < 0">
+                  {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
+                </span>
+              </div>
+              @if (!simplificado()) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Empreiteiro</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
+                  </span>
+                </div>
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Reserva</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
+                        [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
+                    {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
+                  </span>
+                </div>
+              }
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Total</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="valorSaldoAposPagamentoTotal(i) >= 0"
+                      [class.saldo-negativo]="valorSaldoAposPagamentoTotal(i) < 0">
+                  {{ moedaOuVazio(valorSaldoAposPagamentoTotal(i)) }}
+                </span>
+              </div>
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr>
+          <td [attr.colspan]="store.travada() ? 8 : 5" class="centro atenuado vazio">Nenhum serviço lançado.</td>
+        </tr>
+      }
+    </tbody>
+
+    @if (store.itens().length) {
+      <tfoot>
+        <tr>
+          <th colspan="4" class="rotulo-rodape">TOTAIS</th>
+
+          <th class="celula-grupo-rodape">
+            <div class="subcampo-rodape">Saldo disp. <span class="atenuado">—</span></div>
+            @if (!simplificado()) {
+              <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totais().valorEmp) }}</b></div>
+              <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totais().valorReserva) }}</b></div>
+            }
+            <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
+          </th>
+
+          @if (!store.travada()) {
+            <th class="celula-grupo-rodape">
+              <div class="subcampo-rodape">Qtde. EAP <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape">Un. EAP <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape">Qtde. disp. <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape destaque">Qtde. contrat. <span class="atenuado">—</span></div>
+            </th>
+          } @else {
+            <th class="celula-grupo-rodape">
+              <div class="subcampo-rodape">Qtde. contrat. <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape">Acumulado <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape">Atual <span class="atenuado">—</span></div>
+              <div class="subcampo-rodape destaque">Avanço <span class="atenuado">—</span></div>
+            </th>
+
+            <th class="celula-grupo-rodape">
+              @if (!simplificado()) {
+                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoEmpreiteiro) }}</b></div>
+                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoReserva) }}</b></div>
+              }
+              <div class="subcampo-rodape">
+                Divergência
+                <b [class.saldo-positivo]="store.totaisEstendidos().jaPagoDivergencia >= 0"
+                   [class.saldo-negativo]="store.totaisEstendidos().jaPagoDivergencia < 0">
+                  {{ formatarMoeda(store.totaisEstendidos().jaPagoDivergencia) }}
+                </b>
+              </div>
+              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoTotal) }}</b></div>
+            </th>
+
+            <th class="celula-grupo-rodape">
+              <div class="subcampo-rodape">
+                Medido
+                <b [class.saldo-positivo]="store.totaisEstendidos().medidoTotal >= 0"
+                   [class.saldo-negativo]="store.totaisEstendidos().medidoTotal < 0">
+                  {{ formatarMoeda(store.totaisEstendidos().medidoTotal) }}
+                </b>
+              </div>
+              @if (!simplificado()) {
+                <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftEmp) }}</b></div>
+                <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftReserva) }}</b></div>
+              }
+              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftTotal) }}</b></div>
+            </th>
+
+            <th class="celula-grupo-rodape">
+              <div class="subcampo-rodape">Etapa <span class="atenuado">—</span></div>
+              @if (!simplificado()) {
+                <div class="subcampo-rodape">
+                  Empreiteiro
+                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
+                  </b>
+                </div>
+                <div class="subcampo-rodape">
+                  Reserva
+                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
+                  </b>
+                </div>
+              }
+              <div class="subcampo-rodape destaque">
+                Total
+                <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoTotal >= 0"
+                   [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoTotal < 0">
+                  {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoTotal) }}
+                </b>
+              </div>
+            </th>
+          }
+        </tr>
+      </tfoot>
+    }
+  </table>
+</div>
+
+@if (store.itens().length) {
+  <div class="grade-inferior">
+    <div class="painel">
+      <div class="painel-titulo">Medição deste período</div>
+
+      <div class="linha-resumo">
+        <span>A pagar ao empreiteiro</span>
+        <b>{{ formatarMoeda(store.totais().pagarEmp) }}</b>
+      </div>
+      <div class="linha-resumo">
+        <span>Reserva discricionária</span>
+        <b>{{ formatarMoeda(store.totais().reservarPgto) }}</b>
+      </div>
+      <div class="linha-resumo destaque">
+        <span>Total do período</span>
+        <b>{{ formatarMoeda(store.totais().totalPeriodo) }}</b>
+      </div>
+    </div>
+
+    <div class="painel">
+      <div class="painel-titulo">Contrato x orçado</div>
+      <table class="tabela-resumo">
+        <thead>
+          <tr>
+            <th>Serviço</th>
+            <th class="valor">Orçado (EAP)</th>
+            <th class="valor">Contratado</th>
+            <th class="valor">Diferença</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of store.itens(); track item.id; let i = $index) {
+            <tr>
+              <td>{{ item.desc || '(sem descrição)' }}</td>
+              <td class="valor">{{ formatarMoeda(linha(i).orcado) }}</td>
+              <td class="valor">{{ formatarMoeda(linha(i).valorTotal) }}</td>
+              <td class="valor"
+                  [class.acima]="linha(i).orcado > 0 && linha(i).valorTotal > linha(i).orcado">
+                @if (linha(i).orcado > 0) {
+                  {{ formatarMoeda(linha(i).valorTotal - linha(i).orcado) }}
+                } @else {
+                  <span class="atenuado pequeno">sem orçado</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <th class="valor">{{ formatarMoeda(store.totais().orcadoTotal) }}</th>
+            <th class="valor">{{ formatarMoeda(store.totais().valorTotal) }}</th>
+            <th class="valor">
+              {{ formatarMoeda(store.totais().valorTotal - store.totais().orcadoTotal) }}
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="painel painel-relatorio-pagamentos">
+      <app-empreita-relatorio-pagamentos
+        [pagamentos]="store.pagamentosDaEmpreita()"
+        [contratoTotalEmpreita]="store.totais().valorTotal" />
+    </div>
+  </div>
+}
+
+}
+
+<footer class="folha-rodape">
+  Gerado automaticamente pelo AppTrena — os valores refletem os dados no momento da geração.
+</footer>

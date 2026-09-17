@@ -251,6 +251,13 @@
   }
 
   input { height: 30px; font-size: 13px; padding: 4px 8px; }
+
+  input.somente-leitura {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+    font-family: var(--fonte-mono);
+    cursor: not-allowed;
+  }
 }
 
 .erro-campo {
@@ -261,6 +268,78 @@
 }
 
 .pequeno { font-size: 11px; }
+
+// ---- Abas do modal: Dados gerais / Dados de recebimento (19/08/2026, pedido do Lucas) ----
+.abas-cadastro {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+
+  button {
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    &.ativo { color: var(--cor-primaria); border-bottom-color: var(--cor-primaria); }
+    &:hover:not(.ativo) { color: var(--cor-texto); }
+  }
+}
+
+.contagem-aba {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--cor-primaria);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.secao-recebimento { display: flex; flex-direction: column; gap: 12px; }
+
+.bloco-recebimento {
+  padding: 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-fundo-alt);
+}
+
+.linha-recebimento-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  button[title='Remover'] {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+}
+
+.tipo-pessoa-compacto {
+  margin-bottom: 0;
+  max-width: 280px;
+
+  button { padding: 6px; font-size: 11px; }
+}
 
 // ---- Lista de contatos (FormArray) ----
 .secao-contatos {

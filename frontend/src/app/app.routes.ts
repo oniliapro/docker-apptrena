@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
+import { permissaoModuloGuard } from './core/guards/permissao-modulo.guard';
+import { permissaoObraGuard } from './core/guards/permissao-obra.guard';
 import { AppShell } from './layout/app-shell/app-shell';
 
 /** Rota de tela ainda não construída, com o título exibido no cabeçalho. */
@@ -22,10 +24,14 @@ const reservada = (caminho: string, titulo: string) => ({
 const abasDaObra: Routes = [
   { path: '', redirectTo: 'eap', pathMatch: 'full' },
   {
+    // EAP — exceção de "Controle de permissões" (31/08/2026): sempre
+    // visível a quem tem acesso à obra (o guard de obra já roda no pai,
+    // `obras/:id`), sem `permissaoModuloGuard` — só a edição dentro da
+    // tela é que segue a regra normal de módulo.
     path: 'eap',
     loadComponent: () => import('./features/eap/eap').then((m) => m.Eap),
   },
-  reservada('cronograma', 'Cronograma'),
+  { ...reservada('cronograma', 'Cronograma'), canActivate: [permissaoModuloGuard('cronograma')] },
   {
     // Matriz EAP x período (item 3 do roteiro, 04/08/2026) — cruza os
     // itens da EAP com os pagamentos confirmados da obra, agrupados por
@@ -33,50 +39,85 @@ const abasDaObra: Routes = [
     // escopo tomadas na ausência da spec original.
     path: 'desembolso',
     data: { titulo: 'Cronograma de desembolso' },
+    canActivate: [permissaoModuloGuard('desembolso')],
     loadComponent: () =>
       import('./features/cronograma-desembolso/cronograma-desembolso').then(
         (m) => m.CronogramaDesembolso,
       ),
   },
-  reservada('medicoes', 'Medições de Obra'),
+  {
+    // Lista de medições desta obra (23/08/2026, pedido do Lucas — mesmo
+    // padrão de mapas/empreitas: lista + editor em rotas irmãs).
+    path: 'medicoes',
+    data: { titulo: 'Medições da obra' },
+    canActivate: [permissaoModuloGuard('medicoes')],
+    loadComponent: () => import('./features/medicoes/medicoes-obra').then((m) => m.MedicoesObra),
+  },
+  {
+    path: 'medicoes/:medicaoId',
+    data: { titulo: 'Medição' },
+    canActivate: [permissaoModuloGuard('medicoes')],
+    loadComponent: () => import('./features/medicoes/medicao').then((m) => m.Medicao),
+  },
   {
     // Lista de empreitas desta obra (uma obra pode ter várias — task
     // "várias por obra", 31/07/2026). O editor de uma empreita
     // específica vive em 'empreitas/:empreitaId', logo abaixo.
     path: 'empreitas',
     data: { titulo: 'Empreitas da obra' },
+    canActivate: [permissaoModuloGuard('empreitas')],
     loadComponent: () =>
       import('./features/empreita/empreitas-obra').then((m) => m.EmpreitasObra),
   },
   {
     path: 'empreitas/:empreitaId',
     data: { titulo: 'Empreita' },
+    canActivate: [permissaoModuloGuard('empreitas')],
     loadComponent: () => import('./features/empreita/empreita').then((m) => m.Empreita),
   },
   {
     // Lista de mapas desta obra (mesma ideia: várias por obra).
     path: 'mapas',
     data: { titulo: 'Mapas da obra' },
+    canActivate: [permissaoModuloGuard('mapas')],
     loadComponent: () => import('./features/mapa/mapas-obra').then((m) => m.MapasObra),
   },
   {
     path: 'mapas/:mapaId',
     data: { titulo: 'Mapa' },
+    canActivate: [permissaoModuloGuard('mapas')],
     loadComponent: () => import('./features/mapa/mapa').then((m) => m.Mapa),
   },
-  reservada('compras', 'Compras'),
   {
     path: 'pagamentos',
     data: { titulo: 'Pagamentos da obra' },
+    canActivate: [permissaoModuloGuard('pagamentos')],
     loadComponent: () => import('./features/pagamentos/pagamentos').then((m) => m.Pagamentos),
   },
-  reservada('diarios', 'Diários desta obra'),
+  {
+    // Recebimentos (01/09/2026, pedido do Lucas) — mirror exato da aba de
+    // Pagamentos acima, ver features/recebimentos/.
+    path: 'recebimentos',
+    data: { titulo: 'Recebimentos da obra' },
+    canActivate: [permissaoModuloGuard('recebimentos')],
+    loadComponent: () => import('./features/recebimentos/recebimentos').then((m) => m.Recebimentos),
+  },
+  {
+    ...reservada('diarios', 'Diários desta obra'),
+    canActivate: [permissaoModuloGuard('diario_obra')],
+  },
   {
     path: 'relatorios',
     data: { titulo: 'Relatórios da obra' },
+    canActivate: [permissaoModuloGuard('relatorios')],
     loadComponent: () => import('./features/relatorios/relatorios').then((m) => m.Relatorios),
   },
-  reservada('arquivos', 'Arquivos anexados'),
+  {
+    path: 'arquivos',
+    data: { titulo: 'Arquivos anexados' },
+    canActivate: [permissaoModuloGuard('arquivos')],
+    loadComponent: () => import('./features/arquivos/arquivos').then((m) => m.Arquivos),
+  },
 ];
 
 export const routes: Routes = [
@@ -87,6 +128,69 @@ export const routes: Routes = [
   {
     path: 'cadastro',
     loadComponent: () => import('./features/auth/cadastro/cadastro').then((m) => m.Cadastro),
+  },
+  {
+    // Versão "para imprimir" do relatório Orçado x Realizado — SEM o
+    // AppShell (nada de menu lateral/cabeçalho) e SEM o authGuard
+    // (22/08/2026). Existe só para ser aberta pelo Chromium headless que
+    // o backend controla (RelatorioPdfController, via Browsershot) na
+    // geração do PDF — a autenticação vem de um token de vida curta na
+    // query string (`?token=...`), lido por RelatoriosImprimir e
+    // aplicado via AuthService.definirTokenParaImpressao. Não é uma tela
+    // pensada para uso manual: um humano abrindo esta URL sem o token
+    // certo só veria erros 401 da API, como qualquer sessão não
+    // autenticada.
+    path: 'imprimir/obras/:id/relatorios',
+    loadComponent: () =>
+      import('./features/relatorios/relatorios-imprimir').then((m) => m.RelatoriosImprimir),
+  },
+  {
+    // Versão "para imprimir" do Mapa de Fornecedores (22/08/2026) — mesma
+    // ideia da rota de relatórios acima: sem AppShell, sem authGuard,
+    // autenticada só pelo token de vida curta na query string. Ver
+    // MapaPdfController/MapaImprimir e docs/GERAR-PDF.md.
+    path: 'imprimir/obras/:id/mapas/:mapaId',
+    loadComponent: () => import('./features/mapa/mapa-imprimir').then((m) => m.MapaImprimir),
+  },
+  {
+    // Versão "para imprimir" do Cronograma de Desembolso (23/08/2026) —
+    // mesma ideia das rotas acima. Ver CronogramaPdfController.
+    path: 'imprimir/obras/:id/desembolso',
+    loadComponent: () =>
+      import('./features/cronograma-desembolso/cronograma-desembolso-imprimir').then(
+        (m) => m.CronogramaDesembolsoImprimir,
+      ),
+  },
+  {
+    // Versão "para imprimir" da EAP (23/08/2026) — mesma ideia das rotas
+    // acima. Ver EapPdfController.
+    path: 'imprimir/obras/:id/eap',
+    loadComponent: () => import('./features/eap/eap-imprimir').then((m) => m.EapImprimir),
+  },
+  {
+    // Versão "para imprimir" da Empreita (23/08/2026) — mesma ideia das
+    // rotas acima. Ver EmpreitaPdfController.
+    path: 'imprimir/obras/:id/empreitas/:empreitaId',
+    loadComponent: () =>
+      import('./features/empreita/empreita-imprimir').then((m) => m.EmpreitaImprimir),
+  },
+  {
+    // Versão "para imprimir" de uma Medição (24/08/2026) — mesma ideia das
+    // rotas acima. Ver MedicaoPdfController.
+    path: 'imprimir/obras/:id/medicoes/:medicaoId',
+    loadComponent: () =>
+      import('./features/medicoes/medicao-imprimir').then((m) => m.MedicaoImprimir),
+  },
+  {
+    // Acesso PÚBLICO (sem login, sem AppShell) do contratante da obra
+    // (cliente final) ao Diário de Obra (08/09/2026) — autorizado só
+    // pelo token na própria URL, o mesmo padrão de segurança das rotas
+    // "imprimir" acima (nada de authGuard aqui: a pessoa não tem, e não
+    // precisa ter, uma conta no AppTrena). Sempre somente leitura — ver
+    // PublicoDiario e PublicoDiarioController.
+    path: 'publico/diario/:token',
+    loadComponent: () =>
+      import('./features/publico-diario/publico-diario').then((m) => m.PublicoDiario),
   },
   {
     path: '',
@@ -111,11 +215,13 @@ export const routes: Routes = [
       {
         path: 'obras',
         data: { titulo: 'Obras' },
+        canActivate: [permissaoModuloGuard('obras')],
         loadComponent: () => import('./features/obras/obras').then((m) => m.Obras),
       },
       {
         path: 'obras/:id',
         data: { titulo: 'Obra' },
+        canActivate: [permissaoObraGuard()],
         loadComponent: () =>
           import('./features/obras/obra-detalhe/obra-detalhe').then((m) => m.ObraDetalhe),
         children: abasDaObra,
@@ -143,16 +249,19 @@ export const routes: Routes = [
       {
         path: 'mapas',
         data: { titulo: 'Mapas' },
+        canActivate: [permissaoModuloGuard('mapas')],
         loadComponent: () => import('./features/mapas/mapas').then((m) => m.Mapas),
       },
       {
         path: 'empreitas',
         data: { titulo: 'Empreitas' },
+        canActivate: [permissaoModuloGuard('empreitas')],
         loadComponent: () => import('./features/empreitas/empreitas').then((m) => m.Empreitas),
       },
       {
         path: 'empreitas/:id/medicoes',
         data: { titulo: 'Medições da empreita' },
+        canActivate: [permissaoModuloGuard('empreitas')],
         loadComponent: () =>
           import('./features/empreitas/medicoes/medicoes').then((m) => m.Medicoes),
       },
@@ -164,12 +273,23 @@ export const routes: Routes = [
       {
         path: 'pagamentos',
         data: { titulo: 'Pagamentos' },
+        canActivate: [permissaoModuloGuard('pagamentos')],
         loadComponent: () =>
           import('./features/pagamentos-geral/pagamentos-geral').then((m) => m.PagamentosGeral),
       },
       {
+        // Recebimentos (01/09/2026, pedido do Lucas) — mirror exato da lista
+        // geral de Pagamentos acima.
+        path: 'recebimentos',
+        data: { titulo: 'Recebimentos' },
+        canActivate: [permissaoModuloGuard('recebimentos')],
+        loadComponent: () =>
+          import('./features/recebimentos/recebimentos-geral').then((m) => m.RecebimentosGeral),
+      },
+      {
         path: 'diario-obra',
         data: { titulo: 'Diários de obra' },
+        canActivate: [permissaoModuloGuard('diario_obra')],
         loadComponent: () =>
           import('./features/diario-obra/diario-obra').then((m) => m.DiarioObra),
       },

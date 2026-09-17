@@ -17,6 +17,50 @@
   font-size: 11.5px;
 }
 
+// Resultado da importação de Excel (23/08/2026) — mesmo padrão de
+// mapa.scss/empreita.scss.
+.aviso-info {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 11.5px;
+}
+
+// Lista de obras do modal "Copiar EAP de outra obra" (23/08/2026).
+.lista-obras-copiar {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+}
+
+.item-obra-copiar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--cor-borda);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--cor-fundo-alt); }
+  &:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+li:last-child .item-obra-copiar { border-bottom: none; }
+
+.nome-obra-copiar { font-weight: 600; }
+
 // ---- Cabeçalho da obra ----
 .grade-cabecalho {
   display: grid;
@@ -98,17 +142,67 @@
   }
 }
 
+// Rolagem vertical própria, com altura limitada — é o que faz o
+// cabeçalho fixo (`.tabela-eap thead th` mais abaixo) funcionar de
+// verdade, ver o comentário lá. `100vh` menos uma folga pro que fica
+// acima da tabela na página (barra de topo do app, abas da obra, barra
+// de ferramentas da EAP) — aumentada de 260px pra 180px em 23/08/2026
+// (pedido do Lucas: a janela ficava baixa demais, exigia rolar cedo
+// demais numa EAP grande).
+.envoltoria {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
 // ---- Tabela ----
 .tabela-eap {
   width: 100%;
   min-width: 900px;
-  border-collapse: collapse;
+  // `separate`, não `collapse` — limitação conhecida do CSS: bordas
+  // "colapsadas" não respeitam `position: sticky` direito, causando o
+  // bug que o Lucas viu (16/08/2026): linhas do corpo aparecendo por
+  // trás do cabeçalho ao rolar, e a área clicável da alça de
+  // redimensionar desalinhando assim que o cabeçalho gruda no topo.
+  border-collapse: separate;
+  border-spacing: 0;
 
   th {
     text-align: center;
     padding: 8px 6px;
     border-right: 1px solid var(--cor-superficie);
   }
+
+  // Cabeçalho fixo — pedido do Lucas (16/08/2026): numa EAP com muitos
+  // itens, rolar perde de vista qual coluna é qual. `position: sticky`
+  // vai na própria célula (`<thead>` sozinho não “gruda” de forma
+  // confiável entre navegadores), com `top: 0`/`34px` relativo a quem
+  // rola — não é a página, é `.envoltoria` logo abaixo (rolagem própria,
+  // com altura limitada): `.envoltoria` já tem `overflow-x: auto` (pra
+  // rolar na horizontal quando uma coluna redimensionada não cabe), e
+  // isso por si só já impede `position: sticky` de grudar na janela —
+  // overflow em qualquer eixo faz o elemento virar a própria referência
+  // de rolagem, mesmo que hoje ele não role de verdade na vertical
+  // (efeito colateral conhecido do CSS). Em vez de brigar com isso,
+  // assumi a rolagem vertical própria também. A 2ª linha do cabeçalho
+  // (categorias/BDI) gruda embaixo da 1ª: como a altura de cada linha é
+  // fixada em 34px logo abaixo, dá pra somar sem precisar medir nada por
+  // JS. `RedimensionarColunas` continua funcionando normalmente — ele
+  // mexe na largura das colunas, não na posição/altura do cabeçalho.
+  thead th {
+    position: sticky;
+    z-index: 5;
+    // Opaco explícito: com `border-collapse: separate`, cada célula
+    // pinta a própria borda, então precisa garantir que o fundo cubra a
+    // célula inteira (inclusive embaixo da borda) — sem isso, ainda dava
+    // pra ver as linhas do corpo passando por trás bem na linha da borda.
+    background: var(--cor-fundo-alt);
+  }
+
+  thead tr:nth-child(1) { height: 34px; }
+  thead tr:nth-child(1) th { top: 0; }
+
+  thead tr:nth-child(2) { height: 34px; }
+  thead tr:nth-child(2) th { top: 34px; }
 
   td {
     padding: 3px 5px;
@@ -117,9 +211,10 @@
     font-size: 12px;
   }
 
-  input {
+  input, select {
     border: 1px solid transparent;
     background: transparent;
+    color: inherit;
     height: 22px;
     text-align: center;
 
@@ -128,12 +223,52 @@
   }
 
   input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
-  input.descricao { text-align: left; }
+
+  // Descrição virou <textarea> (16/08/2026): antes cortava com reticências
+  // (só o `title` no hover mostrava inteiro); agora sempre mostra o texto
+  // completo, crescendo em altura quando não cabe numa linha só — ver
+  // `AutoAlturaTextarea`. `resize: none` porque o crescimento já é
+  // automático; puxar a alça manual bagunçaria com isso.
+  textarea.descricao {
+    display: block;
+    width: 100%;
+    min-height: 22px;
+    margin: 0;
+    padding: 2px 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    line-height: 1.35;
+    resize: none;
+    overflow: hidden;
+
+    &:hover { border-color: var(--cor-borda); }
+    &:focus { background: #fff; }
+  }
+}
+
+// Botão de recolher/expandir grupo (17/08/2026, pedido do Lucas) — fica
+// posicionado à esquerda do texto, na mesma coluna de recuo do item (por
+// isso o `left` dinâmico, igual ao `padding-left` da descrição). Só
+// grupos ganham o botão; itens-folha não têm o que recolher.
+.celula-descricao { position: relative; }
+
+.botao-colapsar {
+  position: absolute;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+  z-index: 1;
 }
 
 // Faixas de cabeçalho por grupo de colunas
-.grupo-unit { background: #eff3ed; }
-.grupo-total { background: #eaf1f4; }
+.grupo-custo { background: #eff3ed; }
 .grupo-bdi { background: #fbf1e2; }
 .grupo-orc-real { background: #e4eee3; }
 
@@ -192,16 +327,81 @@
   color: var(--cor-texto);
 }
 
-// Linha de grupo: os textos brancos já cuidam do resto (regra `.linha-grupo`
-// mais abaixo), só o rótulo precisa de um pouco mais de contraste aqui.
-.linha-grupo {
-  .rotulo-real, .rotulo-orc { color: rgba(255, 255, 255, 0.7); }
-  .valor-real { color: var(--cor-destaque); }
-  .valor-orc { color: #fff; }
+// ---- Bloco "Saldo (Orçado − Realizado)" por categoria (EAP confirmada,
+// alternativa ao bloco Real./Orç. acima — botão "Ver Saldo" na barra de
+// ferramentas, 23/08/2026, pedido do Lucas) — um valor só por célula, em
+// vez de duas linhas empilhadas, pra ver de relance se a etapa vai
+// estourar o planejamento.
+.celula-saldo {
+  min-width: 92px;
+  text-align: right;
+  vertical-align: middle;
 }
 
-.col-grupo { width: 46px; }
+.valor-saldo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+}
+
+// Mesmas classes/cores já usadas no Mapa (`saldoDaEtapa`, `mapa.scss`) —
+// vermelho quando o realizado já passou do orçado.
+.saldo-positivo { color: var(--cor-aco); font-weight: 700; }
+.saldo-negativo { color: var(--cor-perigo); font-weight: 700; }
+
+// ---- Bloco "Custo (unitário x total)" por categoria (EAP em edição) ----
+// Mesmo padrão visual do bloco Orçado x Realizado: cada célula empilha
+// Unit. (editável) em cima e Total (calculado) embaixo, em vez de abrir
+// uma coluna nova pra cada um — pedido do Lucas (15/08/2026).
+.celula-custo {
+  min-width: 92px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+// Rótulo (Unit./Total, ou BDI/Aplic. mais abaixo) numa coluna de largura
+// fixa, valor na coluna seguinte — cada linha é sua própria grade, mas
+// como as duas usam a mesma largura fixa pro rótulo, elas alinham entre
+// si mesmo quando uma delas não tem valor nenhum (ex.: "Unit." fica só
+// com o rótulo numa linha de grupo, sem input) — sem isso, o rótulo
+// sozinho ficava colado na borda direita em vez de alinhado com o de
+// cima, porque `justify-content: flex-end` empurra o que sobrar todo pra
+// direita (bug visto pelo Lucas, 16/08/2026).
+.linha-unit, .linha-total {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: baseline;
+  column-gap: 5px;
+  white-space: nowrap;
+}
+
+.linha-unit { margin-bottom: 2px; }
+
+.linha-unit input.valor { width: 100%; }
+
+.rotulo-custo {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+  text-align: right;
+}
+
+.valor-custo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  color: var(--cor-texto);
+  text-align: right;
+}
+
+.col-nivel { width: 56px; }
+.col-adicional { width: 62px; }
 .col-eap { width: 54px; }
+
+.select-nivel {
+  width: 100%;
+  text-align: center;
+}
 .col-descricao { min-width: 220px; }
 .col-qtde { width: 70px; }
 .col-unid { width: 56px; }
@@ -213,41 +413,136 @@
   color: var(--cor-aco);
 }
 
-.zebra td { background: #fafaf8; }
+.zebra td { background: var(--cor-zebra); }
 
-// Linhas de grupo: destaque forte, já que somam os descendentes
+// Linhas de grupo: destaque forte, já que somam os descendentes. "Grupo"
+// não é mais escolha do usuário (ver `ItemEap.isGroup`) — toda linha com
+// algo aninhado embaixo vira grupo sozinha. O fundo azul fica mais claro
+// conforme o nível aumenta (decisão de 15/08/2026). Só o nível 4 (fundo
+// bem claro) troca pra texto escuro — até o nível 3 o fundo ainda é
+// escuro/médio o bastante pra texto claro ler melhor. Ajustado depois que
+// o Lucas reportou os níveis 1-3 difíceis de ler (16/08/2026): o nível 3
+// tinha um tom médio que não tinha contraste bom nem com texto claro nem
+// escuro — escurecido, e o limiar claro/escuro moveu de "nível > 2" pra
+// "nível > 3".
+// Sem borda própria de propósito (tinha 2px sólida antes, removida
+// 16/08/2026 a pedido do Lucas) — um grupo só muda fundo e texto, a
+// espessura/cor da borda continua igual à de qualquer outra linha.
 .linha-grupo {
-  td {
-    background: var(--cor-primaria-escura) !important;
-    color: #fff;
-    font-weight: 700;
-    border-top: 2px solid #0a1a20;
-    border-bottom: 2px solid #0a1a20;
-  }
+  td { font-weight: 700; }
 
-  input {
-    color: #fff;
-    text-transform: uppercase;
-    font-weight: 700;
-
-    &:hover { border-color: rgba(255, 255, 255, 0.3); }
-    &:focus {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: rgba(255, 255, 255, 0.5);
-    }
-  }
-
-  .indice { color: var(--cor-destaque); }
-  .pequeno { color: rgba(255, 255, 255, 0.75); }
+  input, textarea { font-weight: 700; text-transform: uppercase; }
 }
 
-.celula-bdi {
+.linha-grupo-nivel-1 td { background: var(--cor-primaria-escura) !important; }
+.linha-grupo-nivel-2 td { background: var(--cor-primaria) !important; }
+.linha-grupo-nivel-3 td { background: #2f5568 !important; }
+.linha-grupo-nivel-4 td { background: var(--cor-primaria-clara) !important; }
+
+.linha-grupo-fundo-escuro {
+  td { color: #fff; }
+  input, textarea, select {
+    color: #fff;
+    &:hover { border-color: rgba(255, 255, 255, 0.3); }
+    // Enquanto edita, vira um campo normal (fundo branco, texto escuro) —
+    // texto branco sobre o fundo quase branco do foco ficava ilegível
+    // (bug visto pelo Lucas, 16/08/2026). Só depois de confirmar (perder
+    // o foco) é que volta a bater com a cor do nível.
+    &:focus {
+      background: #fff;
+      color: var(--cor-texto);
+      border-color: var(--cor-primaria);
+    }
+  }
+  // Botões (alternar %/R$ do BDI, mover/excluir) — sem isso eles ficam com
+  // o fundo branco padrão do botão global, destacando estranho em cima do
+  // fundo escuro da linha (bug visto pelo Lucas na coluna de BDI, 16/08/2026).
+  .alternar-bdi, .acoes-mover button, .acoes-inserir-excluir button, .botao-colapsar {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+    &:hover { background: rgba(255, 255, 255, 0.22); }
+  }
+  .indice { color: var(--cor-destaque); }
+  .pequeno { color: rgba(255, 255, 255, 0.75); }
+  .rotulo-real, .rotulo-orc, .rotulo-custo { color: rgba(255, 255, 255, 0.7); }
+  // `.link-realizado` é o botão do Realizado (agora clicável também nas
+  // linhas de grupo, 17/08/2026) — mesma cor de destaque que `.valor-real`
+  // já usava aqui, só que também muda no hover, já que é um link de verdade.
+  .valor-real, .link-realizado { color: var(--cor-destaque); }
+  .link-realizado:hover { color: #fff; }
+  .valor-orc, .valor-custo { color: #fff; }
+  // Mesmo motivo do `.valor-real` acima: o azul-aço padrão do saldo
+  // positivo se perde no fundo escuro (mesma família de cor); o
+  // vermelho do negativo já contrasta bem, sem precisar mudar.
+  .saldo-positivo { color: var(--cor-destaque); }
+}
+
+.linha-grupo-fundo-claro {
+  td { color: var(--cor-primaria-escura); }
+  input, textarea, select {
+    color: var(--cor-primaria-escura);
+    &:hover { border-color: rgba(18, 38, 47, 0.3); }
+    // Mesma lógica do fundo escuro: durante a edição vira um campo
+    // normal (fundo branco, texto escuro padrão), independente do nível.
+    &:focus {
+      background: #fff;
+      color: var(--cor-texto);
+      border-color: var(--cor-primaria);
+    }
+  }
+  .alternar-bdi, .acoes-mover button, .acoes-inserir-excluir button, .botao-colapsar {
+    background: rgba(18, 38, 47, 0.08);
+    border-color: rgba(18, 38, 47, 0.3);
+    color: var(--cor-primaria-escura);
+    &:hover { background: rgba(18, 38, 47, 0.16); }
+  }
+  .indice { color: var(--cor-primaria); }
+  .pequeno { color: rgba(18, 38, 47, 0.7); }
+  .rotulo-real, .rotulo-orc, .rotulo-custo { color: rgba(18, 38, 47, 0.6); }
+  .valor-real, .link-realizado { color: var(--cor-primaria); }
+  .link-realizado:hover { color: var(--cor-primaria-escura); }
+  .valor-orc, .valor-custo { color: var(--cor-primaria-escura); }
+}
+
+// ---- Célula "BDI (item x aplicado)" ----
+// Mesmo padrão de célula empilhada do Custo: BDI do item (editável) em
+// cima, aplicado (calculado) embaixo — antes eram duas colunas separadas
+// (pedido do Lucas, 16/08/2026).
+.celula-bdi-aplicado {
+  min-width: 100px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+// Mesma grade de largura fixa pro rótulo que `.linha-unit`/`.linha-total`
+// usam, pelo mesmo motivo: alinhar "BDI" e "Aplic." entre si mesmo numa
+// linha de grupo (sem o botão %/R$ nem o input).
+.linha-bdi-item, .linha-bdi-aplicado {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: baseline;
+  column-gap: 5px;
+  white-space: nowrap;
+}
+
+.linha-bdi-item { margin-bottom: 2px; }
+
+// Botão %/R$ + input do BDI do item viram um só item da grade (a coluna
+// de valor), senão a linha teria 3 itens em vez de 2 e a grade não bateria
+// mais com a de "Aplic." embaixo.
+.valor-bdi-editavel {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
-  justify-content: center;
+  min-width: 0;
+}
 
-  input { flex: 1; min-width: 0; }
+.valor-bdi-editavel input.valor {
+  flex: 1;
+  min-width: 0;
+  max-width: 56px;
 }
 
 .alternar-bdi {
@@ -259,8 +554,23 @@
   border-radius: 3px;
 }
 
-.acoes-linha {
-  white-space: nowrap;
+// Mover pra cima/baixo empilhados (mais intuitivo que lado a lado, pedido
+// do Lucas 16/08/2026) — excluir fica separado, ao lado da dupla.
+//
+// O `<td>` continua com `display: table-cell` (o padrão) de propósito, em
+// vez de `display: flex` — botar flex direto nele quebra o
+// `vertical-align: middle` herdado de `.tabela-eap td` (flex ignora essa
+// propriedade), o que fazia os botões ficarem colados no topo da célula
+// sempre que a linha cresce por causa da Descrição em várias linhas (bug
+// visto pelo Lucas, 16/08/2026). Quem vira flex é o `<div>` de dentro; o
+// `<td>` só centraliza esse bloco, na vertical (`vertical-align`) e na
+// horizontal (`.centro` → `text-align`).
+.acoes-linha { white-space: nowrap; }
+
+.acoes-linha-conteudo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 
   button {
     width: 22px;
@@ -268,6 +578,32 @@
     font-size: 10px;
     line-height: 1;
     border-radius: 3px;
+  }
+}
+
+.acoes-mover, .acoes-inserir-excluir {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+// Fundo "+" azul claro, fundo "✖" vermelho (17/08/2026, pedido do Lucas —
+// era só o texto, o pedido era pintar o fundo do botão mesmo). O "✖" do
+// teclado é visualmente maior que o "+", então ganha uma fonte menor pra
+// os dois parecerem do mesmo tamanho (o "✖" lido como um "+" rotacionado).
+.acoes-inserir-excluir {
+  button:first-child {
+    background: #4a90d9;
+    border-color: #4a90d9;
+    color: #fff;
+    &:hover { background: #3a7dc4; }
+  }
+  button:last-child {
+    background: var(--cor-perigo);
+    border-color: var(--cor-perigo);
+    color: #fff;
+    font-size: 8px;
+    &:hover { background: #a83a26; }
   }
 }
 
@@ -289,15 +625,36 @@ tfoot th {
 }
 
 // ---- Painéis inferiores ----
+// BDI à esquerda, espaço vazio no meio, Resumo por categoria à direita,
+// sempre grudado na borda direita, sem redimensionamento manual (pedido
+// do Lucas, 16/08/2026). `width: fit-content` não estava ficando fino de
+// verdade — por segurança, a largura de `.painel-resumo` agora é um valor
+// fixo calculado à mão, batendo com a soma das colunas de `.tabela-resumo`
+// mais abaixo (padding do painel + bordas da tabela): se mexer nas
+// larguras das colunas, ajustar aqui também. `margin-left: auto` empurra
+// a caixa (já fina) pro fim da linha, sobrando o espaço vazio do meio.
 .grade-inferior {
-  display: grid;
-  grid-template-columns: 360px 1fr;
+  display: flex;
+  align-items: flex-start;
   gap: 14px;
-  align-items: start;
+}
+
+.painel-bdi { flex: 0 0 360px; }
+
+.painel-resumo {
+  flex: 0 0 auto;
+  // 96px (categoria) + 3 × 140px (valor) + 24px (padding do painel) +
+  // ~4px (bordas da tabela) — ver `.tabela-resumo`.
+  width: 544px;
+  max-width: calc(100% - 360px - 14px);
+  margin-left: auto;
+  overflow-x: auto;
 }
 
 @media (max-width: 900px) {
-  .grade-inferior { grid-template-columns: 1fr; }
+  .grade-inferior { flex-direction: column; }
+  .painel-bdi { flex-basis: auto; width: 100%; }
+  .painel-resumo { margin-left: 0; width: 100% !important; max-width: none; }
 }
 
 .escolha-escopo {
@@ -352,9 +709,21 @@ tfoot th {
 }
 
 .tabela-resumo {
-  width: 100%;
+  // Larguras mínimas, sem redimensionamento manual (pedido do Lucas,
+  // 16/08/2026 — mais fina, mas sem prejudicar a leitura). A coluna de
+  // categoria cabe exatamente "Administração" (a mais longa das 5); as
+  // de valor cabem exatamente um número de 10 dígitos com 2 casas
+  // decimais formatado em reais ("R$ 9.999.999.999,99", o maior valor
+  // que a EAP calcula sem estourar) — sem sobra, porque a fonte mono do
+  // rodapé em negrito não muda de largura por caractere (é assim que
+  // fonte monoespaçada funciona, negrito incluso). `table-layout: fixed`
+  // faz o navegador respeitar essas larguras à risca, em vez de só
+  // usá-las como sugestão (table-layout: auto).
+  table-layout: fixed;
 
-  th, td { padding: 5px 8px; font-size: 11.5px; }
+  th, td { padding: 5px 8px; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+  th:first-child, td:first-child { width: 96px; }
+  th:not(:first-child), td:not(:first-child) { width: 140px; }
   tfoot th { border-top: 2px solid var(--cor-borda-forte); }
 }
 
@@ -372,7 +741,7 @@ tfoot th {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(520px, 92vw);
+  width: min(920px, 94vw);
   max-height: 80vh;
   background: #fff;
   border: 1px solid var(--cor-borda);
@@ -385,7 +754,7 @@ tfoot th {
 
 .modal-cabecalho {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
@@ -393,7 +762,31 @@ tfoot th {
   background: var(--cor-fundo-alt);
 }
 
+.modal-cabecalho-titulos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .modal-titulo { font-weight: 700; font-size: 13px; }
+
+// Total dos pagamentos / direcionado à etapa, empilhados abaixo do título
+// (19/08/2026, pedido do Lucas).
+.modal-totais-empilhados {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+}
+
+.modal-filtros {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
 
 .modal-corpo {
   padding: 10px 14px;
@@ -408,19 +801,99 @@ tfoot th {
   border-top: 1px solid var(--cor-borda);
 }
 
-.linha-pagamento-vinculado {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--cor-fundo-alt);
-  font-size: 12.5px;
+// ---- Tabela de pagamentos vinculados (modal da EAP) ----
+.tabela-pagamentos-vinculados {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
 
-  &:last-child { border-bottom: none; }
+  th {
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--cor-borda-forte);
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  td { padding: 6px 8px; border-bottom: 1px solid var(--cor-fundo-alt); vertical-align: top; }
+
+  tr:last-child td { border-bottom: none; }
+
+  th.valor, td.valor { text-align: right; }
 }
 
-.descricao-pagamento { font-weight: 600; }
+.marca-pendente {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+// "Direcionado à etapa": passar o mouse mostra o detalhamento dos itens
+// daquela compra que caíram na etapa clicada (pedido do Lucas, 18/08/2026).
+// A abertura em si é CSS puro (:hover); só a escolha de abrir pra cima ou
+// pra baixo usa uma classe posta via JS no mouseenter
+// (`Eap.ajustarPosicaoHover`), porque isso depende da posição da linha na
+// tela, que CSS sozinho não sabe.
+.valor-direcionado-hover {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  border-bottom: 1px dotted var(--cor-aco);
+
+  // Abre à direita do valor (aproximadamente à direita do cursor, já que
+  // é ali que o mouse está ao entrar no hover) — antes abria embaixo,
+  // alinhado à direita da célula, e ficava fácil de perder de vista.
+  .detalhe-hover {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    left: calc(100% + 8px);
+    width: max-content;
+    max-width: 380px;
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-md);
+    box-shadow: var(--sombra-md);
+    padding: 6px;
+    text-align: left;
+  }
+
+  // Linha perto do fim do modal: abre pra cima em vez de pra baixo, senão
+  // o detalhamento fica cortado pelo fim da área rolável (18/08/2026).
+  &.abrir-para-cima .detalhe-hover {
+    top: auto;
+    bottom: 0;
+  }
+
+  &:hover .detalhe-hover,
+  &:focus-within .detalhe-hover { display: block; }
+}
+
+.tabela-detalhe-itens {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-weight: 400;
+
+  th {
+    text-align: left;
+    padding: 3px 6px;
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  td { padding: 3px 6px; border-top: 1px solid var(--cor-fundo-alt); }
+
+  th.valor, td.valor { text-align: right; }
+}
 
 // Dica de atalhos: presente mas discreta — quem já sabe não precisa ver.
 .dica {

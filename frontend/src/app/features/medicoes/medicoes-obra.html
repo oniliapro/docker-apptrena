@@ -1,0 +1,55 @@
+<div class="cabecalho">
+  <div>
+    <h1>Medições</h1>
+    <div class="atenuado">Medição física acumulada desta obra</div>
+  </div>
+  <button class="botao-novo" type="button" [disabled]="existeRascunho() || criando()" (click)="novaMedicao()"
+          [title]="existeRascunho() ? 'Aprove ou exclua a medição em rascunho antes de criar outra' : ''">
+    {{ criando() ? 'Criando…' : '+ Nova medição' }}
+  </button>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th class="centro">Nº</th>
+          <th class="centro">Data</th>
+          <th class="centro">Status</th>
+          <th class="centro">Aprovada em</th>
+          <th class="centro">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (medicao of listaOrdenada(); track medicao.id) {
+          <tr class="linha-clicavel" (click)="abrir(medicao)">
+            <td class="centro mono">{{ medicao.sequencia }}</td>
+            <td class="centro">{{ medicao.dataMedicao ? formatarData(medicao.dataMedicao) : '—' }}</td>
+            <td class="centro">
+              <span class="etiqueta-status" [class.pendente]="medicao.status === 'rascunho'">
+                {{ medicao.status === 'aprovada' ? 'Aprovada' : 'Rascunho' }}
+              </span>
+            </td>
+            <td class="centro">{{ medicao.aprovadoEm ? formatarData(medicao.aprovadoEm) : '—' }}</td>
+            <td class="centro">
+              @if (podeExcluir(medicao)) {
+                <button type="button" title="Excluir" (click)="excluir(medicao, $event)">✖</button>
+              } @else {
+                <span class="atenuado" title="Só a medição mais recente pode ser excluída">—</span>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="centro atenuado">Nenhuma medição registrada nesta obra ainda.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

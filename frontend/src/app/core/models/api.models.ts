@@ -60,6 +60,8 @@ export interface Obra {
   obra_nome?: string | null;
   cliente?: string | null;
   data_base?: string | null;
+  /** Prazo da obra em meses (24/08/2026) — usado pelo Cronograma de Desembolso pra limitar até quando gerar períodos. */
+  prazo_meses?: number | null;
   responsavel?: string | null;
   local_obra?: string | null;
   periodo?: string | null;
@@ -97,6 +99,10 @@ export interface EapPayload {
 export interface EapItem {
   id?: string;
   isGroup: boolean;
+  /** Nível hierárquico (1-4) escolhido pelo usuário — ver `ItemEap.nivel`. */
+  nivel?: number;
+  /** Serviço adicional (fora do escopo original), marcado em cascata — ver `ItemEap.adicional`. */
+  adicional?: boolean;
   eap: string;
   desc: string;
   qtde: number;
@@ -105,7 +111,58 @@ export interface EapItem {
   bdiMode?: ModoBdi;
   bdiPercent?: number;
   bdiValue?: number;
+  /** Snapshot do Orçado por categoria, gravado na confirmação — ver `ItemEap.orcadoCongelado`. */
+  orcadoCongelado?: Partial<Record<ChaveTipoCusto, number>> | null;
   [extra: string]: unknown;
+}
+
+/**
+ * Resumo de uma medição — devolvido por `GET obras/{id}/medicoes` (lista,
+ * sem os itens) e como o "topo" do payload de `GET/PUT medicoes/{id}` e
+ * `POST medicoes/{id}/aprovar` (23/08/2026, ver `MedicaoController`).
+ */
+export interface MedicaoResumo {
+  id: string;
+  obraId: string;
+  sequencia: number;
+  dataMedicao: string | null;
+  status: 'rascunho' | 'aprovada';
+  aprovadoEm: string | null;
+}
+
+export interface ValorMedicaoItemTipo {
+  valor: number;
+  manual: boolean;
+}
+
+export interface MedicaoItemPayload {
+  eapItemId: string;
+  ordem: number;
+  valores: Partial<Record<ChaveTipoCusto, ValorMedicaoItemTipo>>;
+}
+
+/** Payload completo — `GET medicoes/{id}` e resposta de `PUT`/`aprovar`. */
+export interface MedicaoPayload extends MedicaoResumo {
+  itens: MedicaoItemPayload[];
+  /** Valores da última medição aprovada anterior — chave é o `eapItemId`. */
+  acumuladoAnterior: Record<string, Partial<Record<ChaveTipoCusto, number>>>;
+}
+
+/** Corpo de `PUT medicoes/{id}` e `POST medicoes/{id}/aprovar`. */
+export interface MedicaoSalvarPayload {
+  itens: Array<{
+    eapItemId: string;
+    valores: Partial<Record<ChaveTipoCusto, { valor: number; manual: boolean }>>;
+  }>;
+}
+
+/** Valor planejado de desembolso, discriminado por categoria — Cronograma de Desembolso (24/08/2026). */
+export interface PlanejamentoCronograma {
+  eapItemId: string;
+  /** Data de início do período em que foi planejado (ISO "AAAA-MM-DD"). */
+  periodoInicio: string;
+  tipo: ChaveTipoCusto;
+  valor: number;
 }
 
 export interface Mapa {
@@ -123,9 +180,89 @@ export interface Pagamento {
   [campo: string]: unknown;
 }
 
+export interface Recebimento {
+  id: string;
+  [campo: string]: unknown;
+}
+
 export interface FotoDiario {
   id?: string;
   url: string;
+}
+
+/** 'rascunho' (editável, ainda sem assinatura) | 'finalizado' (assinado automaticamente por quem finalizou). */
+export type StatusRegistroDiario = 'rascunho' | 'finalizado';
+
+export interface DiarioResponsavelPresente {
+  id?: string;
+  registro_id?: string;
+  nome: string;
+  empresa?: string | null;
+  funcao?: string | null;
+  /** Referência ao contrato/empreita, pra amarrar quem estava presente ao vínculo contratual (item A da especificação). */
+  contrato_referencia?: string | null;
+  presente?: boolean;
+}
+
+/** Cadastro simples da empresa (08/09/2026) — reutilizado entre obras e lançamentos. GET/POST /equipamentos-catalogo. */
+export interface EquipamentoCatalogoItem {
+  id: string;
+  nome: string;
+  tipo?: string | null;
+}
+
+export interface DiarioEquipamentoUso {
+  id?: string;
+  registro_id?: string;
+  equipamento_id: string;
+  quantidade?: number;
+  /** Presente quando o backend faz eager-load (`equipamentosUso.equipamento`). */
+  equipamento?: EquipamentoCatalogoItem | null;
+}
+
+export type TipoOcorrenciaDiario = 'nao_conformidade' | 'mudanca_projeto' | 'interferencia' | 'interrupcao';
+
+export const TIPOS_OCORRENCIA_DIARIO: ReadonlyArray<{ chave: TipoOcorrenciaDiario; rotulo: string }> = [
+  { chave: 'nao_conformidade', rotulo: 'Não conformidade' },
+  { chave: 'mudanca_projeto', rotulo: 'Mudança de projeto' },
+  { chave: 'interferencia', rotulo: 'Interferência' },
+  { chave: 'interrupcao', rotulo: 'Interrupção' },
+];
+
+export interface DiarioOcorrencia {
+  id?: string;
+  registro_id?: string;
+  tipo: TipoOcorrenciaDiario;
+  descricao: string;
+  responsavel?: string | null;
+  motivo?: string | null;
+  danos_materiais?: string | null;
+}
+
+export type StatusPendenciaDiario = 'aberta' | 'concluida';
+
+export interface DiarioPendencia {
+  id?: string;
+  registro_id?: string;
+  descricao: string;
+  responsavel?: string | null;
+  /** ISO "AAAA-MM-DD". */
+  prazo?: string | null;
+  status?: StatusPendenciaDiario;
+}
+
+/**
+ * Observação da contratada sobre o lançamento — por padrão NÃO visível
+ * ao contratante da obra (`visivel_contratante = false`). Ver
+ * `DiarioComentarioInterno` no backend.
+ */
+export interface DiarioComentarioInterno {
+  id?: string;
+  registro_id?: string;
+  autor_user_id?: number | string | null;
+  texto: string;
+  visivel_contratante?: boolean;
+  created_at?: string;
 }
 
 export interface RegistroDiario {
@@ -136,9 +273,64 @@ export interface RegistroDiario {
   autor?: string | null;
   titulo?: string | null;
   descricao?: string | null;
+  impacto_cronograma?: string | null;
+  quantidade_operarios?: number | null;
+  status?: StatusRegistroDiario;
+  assinado_em?: string | null;
+  assinado_por_user_id?: number | string | null;
+  /** Presente quando o backend faz eager-load (`assinadoPor:id,name`). */
+  assinadoPor?: { id: number | string; name?: string } | null;
   fotos?: FotoDiario[];
+  responsaveisPresentes?: DiarioResponsavelPresente[];
+  equipamentosUso?: DiarioEquipamentoUso[];
+  ocorrencias?: DiarioOcorrencia[];
+  pendencias?: DiarioPendencia[];
+  comentariosInternos?: DiarioComentarioInterno[];
   /** Presente quando o backend faz eager-load da obra (usado no dashboard). */
   obra?: { obra_nome?: string | null } | null;
+}
+
+/**
+ * Link de acesso somente-leitura do contratante da obra (cliente final)
+ * ao Diário — sem login, autorizado só pelo token (08/09/2026). Quem
+ * gera/revoga é sempre alguém do lado da contratada — ver
+ * `ObraContratanteLinkController`.
+ */
+export interface ObraContratanteLink {
+  id: string;
+  obra_id: string;
+  token: string;
+  nome_contato?: string | null;
+  telefone_whatsapp?: string | null;
+  expira_em?: string | null;
+  revogado_em?: string | null;
+  criado_por_user_id?: number | string | null;
+  created_at?: string;
+}
+
+// ---------------- Acesso público do contratante (sem login) ----------------
+/** GET /publico/diario/{token} — dados da obra + datas com lançamento finalizado (calendário). */
+export interface PublicoObraResumo {
+  obra: { nome?: string | null; cliente?: string | null; local?: string | null };
+  datas_com_lancamento: string[];
+}
+
+/** GET /publico/diario/{token}/dia/{data} — um item da lista do dia. */
+export interface PublicoLancamentoResumo {
+  id: string;
+  data: string;
+  titulo?: string | null;
+  clima?: string | null;
+  assinado_em?: string | null;
+  assinado_por_user_id?: number | string | null;
+  assinadoPor?: { id: number | string; name?: string } | null;
+  created_at?: string;
+}
+
+/** GET /publico/diario/{token}/lancamento/{registroId} — detalhe completo, só o que é permitido ao contratante ver. */
+export interface PublicoLancamentoDetalhe {
+  registro: RegistroDiario;
+  comentarios: Array<{ id: string; texto: string; created_at?: string }>;
 }
 
 /** Resposta de POST /api/login — token Sanctum. */
@@ -152,6 +344,10 @@ export interface UsuarioAutenticado {
   name?: string;
   email?: string;
   empresa_id?: number | string | null;
+  /** 'admin' (dono da empresa) ou 'secundario' — ver "Controle de permissões" (31/08/2026). */
+  papel?: string;
+  /** Só é relevante pra papel 'secundario' — ver PermissoesService. */
+  podeGerenciarPermissoes?: boolean;
 
   /**
    * Vem em dois formatos, dependendo do endpoint:
@@ -167,6 +363,46 @@ export interface UsuarioAutenticado {
   empresa?: Empresa | string | null;
 }
 
+/**
+ * "Controle de permissões" (31/08/2026, pedido do Lucas) — ver
+ * `PermissoesService` (fonte única consultada por `app-shell` e pelos
+ * guards de rota) e `UsuarioController`/`AuthController::minhasPermissoes`
+ * no backend.
+ */
+export interface PermissaoModulo {
+  modulo: string;
+  podeUsar: boolean;
+  podeCriar: boolean;
+  podeEditar: boolean;
+  podeExcluir: boolean;
+  podeReabrir: boolean;
+}
+
+export interface UsuarioSecundario {
+  id: number;
+  nome: string;
+  email: string;
+  papel: string;
+  ativo: boolean;
+  podeGerenciarPermissoes: boolean;
+}
+
+export interface AcessoObraUsuario {
+  userId: number;
+  nome: string;
+  email: string;
+  podeVer: boolean;
+  podeLancar: boolean;
+}
+
+/** GET /me/permissoes. */
+export interface MinhasPermissoes {
+  ehAdmin: boolean;
+  podeGerenciarPermissoes: boolean;
+  modulos: Record<string, Omit<PermissaoModulo, 'modulo'>>;
+  obras: Record<string, { podeVer: boolean; podeLancar: boolean }>;
+}
+
 /** Extrai o objeto da empresa, ignorando quando vier só o nome. */
 export function dadosDaEmpresa(usuario: UsuarioAutenticado | null | undefined): Empresa | null {
   const empresa = usuario?.empresa;
@@ -180,10 +416,11 @@ export function nomeDaEmpresa(usuario: UsuarioAutenticado | null | undefined): s
   return typeof empresa === 'string' ? empresa : (empresa.nome ?? '');
 }
 
-/** Dados de assinatura exibidos no KPI do dashboard. */
+/** Dados de assinatura exibidos no KPI do dashboard e na aba "Plano" das Configurações. */
 export interface Empresa {
   id?: number | string;
   nome?: string | null;
+  plano?: string | null;
   assinatura_status?: string | null;
   assinatura_valida_ate?: string | null;
 }
@@ -227,4 +464,34 @@ export interface RespostaLeituraFornecedor {
     endereco?: string | null;
     especialidade?: string | null;
   };
+}
+
+/**
+ * Aba "Dados da empresa" do popup de Configurações (26/08/2026) —
+ * `GET/POST /api/empresa/perfil`.
+ */
+export interface RepresentanteLegal {
+  id: string;
+  nome: string;
+  cargo: string;
+  cpf: string;
+  email: string;
+  telefone: string;
+  ativo: boolean;
+}
+
+export interface PerfilEmpresa {
+  nome: string;
+  razaoSocial: string;
+  cnpj: string;
+  inscricaoEstadual: string;
+  endereco: string;
+  telefone: string;
+  emailContato: string;
+  corPrimaria: string;
+  corSecundaria: string;
+  fonte: string;
+  logoUrl: string | null;
+  papelTimbradoUrl: string | null;
+  representantes: RepresentanteLegal[];
 }

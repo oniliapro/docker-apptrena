@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(MSYS_NO_PATHCONV=1 docker exec controleobra-phpfpm sh -c \"pkill -f 'php -S' || true\")",
+      "Bash(curl -s -o /dev/null -w \"via nginx \\(8088\\) agora: HTTP %{http_code} time=%{time_total}s\\\\n\" -m 30 http://127.0.0.1:8088/api/me)",
+      "Bash(MSYS_NO_PATHCONV=1 docker exec controleobra-phpfpm sh -c \"grep -n '\\\\[2026-08-15 03:3' storage/logs/laravel.log | tail -20\")",
+      "Bash(docker restart *)"
+    ]
+  }
+}

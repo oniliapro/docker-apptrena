@@ -3,7 +3,50 @@
     <h1>Mapas</h1>
     <div class="atenuado">Cotações de fornecedores já criadas</div>
   </div>
-  <a class="botao-novo" routerLink="/obras" title="Escolha a obra para criar o mapa">+ Novo mapa</a>
+  <button type="button" class="botao-novo" (click)="novo()">+ Novo mapa</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltroObra($event)">
+    <option value="">Obra: todas</option>
+    @for (obra of obrasDisponiveis(); track obra) {
+      <option [value]="obra">{{ obra }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="">Status: todos</option>
+    <option value="em_edicao">Em edição</option>
+    <option value="finalizado">Finalizado</option>
+  </select>
+
+  <select (change)="mudarFiltroResponsavel($event)">
+    <option value="">Responsável: todos</option>
+    @for (nome of responsaveisDisponiveis(); track nome) {
+      <option [value]="nome">{{ nome }}</option>
+    }
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Início de</span>
+    <input type="date" (change)="mudarFiltroInicioDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroInicioAte($event)" />
+  </label>
+
+  <label class="campo-data-filtro">
+    <span>Finalização de</span>
+    <input type="date" (change)="mudarFiltroFinalizacaoDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroFinalizacaoAte($event)" />
+  </label>
+
+  <span class="espacador"></span>
+  <input class="busca" type="search" placeholder="Buscar nº, descrição, obra…" (input)="mudarBusca($event)" />
 </div>
 
 <div class="painel">
@@ -13,25 +56,37 @@
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
     <div class="envoltoria">
-      <table>
+      <table trenaRedimensionarColunas>
         <thead>
           <tr>
-            <th class="centro">Nº</th>
-            <th>Descrição</th>
-            <th>Obra</th>
-            <th class="centro">Finalização</th>
-            <th class="valor">Total</th>
-            <th class="centro">Pagtos.</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('codigo')">Código{{ setaOrdenacao(ordenacao(), 'codigo') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('inicio')">Início{{ setaOrdenacao(ordenacao(), 'inicio') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('finalizacao')">Finalização{{ setaOrdenacao(ordenacao(), 'finalizacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('responsavelMapa')">Responsável{{ setaOrdenacao(ordenacao(), 'responsavelMapa') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('pagamentos')">Pagtos.{{ setaOrdenacao(ordenacao(), 'pagamentos') }}</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (mapa of mapas(); track mapa.id) {
+          @for (mapa of listaOrdenada(); track mapa.id) {
             <tr>
+              <td class="centro mono">{{ codigo(mapa) }}</td>
               <td class="centro">{{ numero(mapa) }}</td>
               <td>{{ descricao(mapa) }}</td>
               <td>{{ obraDoMapa(mapa) }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="!mapa['is_confirmed']">
+                  {{ statusMapa(mapa) }}
+                </span>
+              </td>
+              <td class="centro">{{ dataInicio(mapa) }}</td>
               <td class="centro">{{ dataFinalizacao(mapa) }}</td>
+              <td>{{ responsavelCotacao(mapa) }}</td>
               <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
               <td class="centro">
                 @if (quantidadePagamentos(mapa)) {
@@ -49,7 +104,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="centro atenuado">Nenhum mapa cadastrado.</td>
+              <td colspan="11" class="centro atenuado">Nenhum mapa cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -69,7 +124,7 @@
       </div>
 
       <div class="modal-corpo">
-        <table class="tabela-popup">
+        <table class="tabela-popup" trenaRedimensionarColunas>
           <thead>
             <tr>
               <th>Nº</th>
@@ -100,5 +155,61 @@
         </table>
       </div>
     </div>
+  </div>
+}
+
+<!-- ============ Formulário — Novo mapa ============ -->
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+
+    <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Novo mapa</span>
+        <button type="button" (click)="fecharFormulario()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Obra</span>
+            <app-seletor-obra [obras]="obras()" [valor]="obraSelecionadaId()" (mudou)="mudarObraSelecionada($event)" />
+          </label>
+
+          <label class="campo">
+            <span>Nº do mapa</span>
+            <input type="text" formControlName="numeroMapa" readonly class="somente-leitura" />
+          </label>
+
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Descrição</span>
+            <input type="text" formControlName="descricao" placeholder="Ex.: Estrutura e alvenaria" />
+            @if (temErroFormulario('descricao')) {
+              <small class="erro-campo">Informe a descrição.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Responsável da obra</span>
+            <input type="text" formControlName="responsavelObra" />
+          </label>
+
+          <label class="campo">
+            <span class="obrigatorio">Responsável do mapa</span>
+            <input type="text" formControlName="responsavelMapa" />
+            @if (temErroFormulario('responsavelMapa')) {
+              <small class="erro-campo">Informe o responsável.</small>
+            }
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharFormulario()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Criar mapa' }}
+        </button>
+      </div>
+    </form>
   </div>
 }

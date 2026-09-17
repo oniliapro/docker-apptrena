@@ -1,0 +1,119 @@
+<div class="modal">
+  <div class="modal-fundo" (click)="fecharClick()"></div>
+
+  <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarClick()">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">{{ modoNovo() ? 'Nova obra' : 'Editar obra' }}</span>
+
+      <div class="acoes-cabecalho">
+        @if (!modoNovo()) {
+          <span class="etiqueta" [class.confirmada]="confirmada()">
+            {{ confirmada() ? 'Obra confirmada' : 'Em edição' }}
+          </span>
+        }
+        @if (podeVerAcessos()) {
+          <button type="button" [disabled]="confirmada()" (click)="abrirAcessos()"
+                  title="Escolher quais usuários acessam esta obra (só com a obra em edição)">
+            Quem acessa esta obra
+          </button>
+        }
+        @if (!modoNovo()) {
+          <button type="button" class="primario" (click)="alternarConfirmacao.emit()">
+            {{ confirmada() ? 'Reabrir obra' : 'Confirmar obra' }}
+          </button>
+        }
+      </div>
+
+      <button type="button" class="fechar" (click)="fecharClick()">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      <datalist id="lista-clientes-obra">
+        @for (cliente of clientesAtivos(); track cliente.id) {
+          <option [value]="cliente.nome"></option>
+        }
+      </datalist>
+      <datalist id="lista-responsaveis-obra">
+        @for (responsavel of responsaveisAtivos(); track responsavel.id) {
+          <option [value]="responsavel.nome"></option>
+        }
+      </datalist>
+
+      <div class="grade">
+        <label class="campo">
+          <span>Código</span>
+          @if (modoNovo()) {
+            <input type="text" formControlName="mapNumber" readonly class="somente-leitura" />
+          } @else {
+            <input type="text" formControlName="mapNumber" />
+          }
+        </label>
+
+        <label class="campo campo-largo">
+          <span class="obrigatorio">Nome da obra</span>
+          <input type="text" formControlName="obraNome" />
+          @if (temErro('obraNome')) {
+            <small class="erro-campo">Informe o nome da obra.</small>
+          }
+        </label>
+
+        <label class="campo campo-largo">
+          <span>Cliente</span>
+          <input type="text" formControlName="cliente" list="lista-clientes-obra"
+                 placeholder="Buscar cliente cadastrado…" />
+        </label>
+
+        <label class="campo">
+          <span>Responsável</span>
+          <input type="text" formControlName="responsavel" list="lista-responsaveis-obra"
+                 placeholder="Buscar responsável cadastrado…" />
+        </label>
+
+        <label class="campo">
+          <span>Data base (início)</span>
+          <input type="date" formControlName="dataBase" />
+        </label>
+
+        <label class="campo campo-largo">
+          <span>Local da obra</span>
+          <input type="text" formControlName="localObra" />
+        </label>
+
+        <label class="campo">
+          <span>Prazo / período</span>
+          <input type="text" formControlName="periodo" placeholder="Ex.: até 30/11/2026" />
+        </label>
+
+        <label class="campo">
+          <span>Status</span>
+          <select formControlName="status">
+            @for (opcao of statusOpcoes; track opcao.chave) {
+              <option [value]="opcao.chave">{{ opcao.rotulo }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="campo campo-total">
+          <span>Observações</span>
+          <input type="text" formControlName="obs" />
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-rodape">
+      <button type="button" (click)="fecharClick()">{{ modoNovo() ? 'Cancelar' : 'Fechar' }}</button>
+      <button class="primario" type="submit" [disabled]="salvando()">
+        {{ salvando() ? 'Salvando…' : (modoNovo() ? 'Cadastrar obra' : 'Salvar') }}
+      </button>
+    </div>
+  </form>
+</div>
+
+@if (acessosAberto()) {
+  <app-gerenciar-acessos-obra
+    [acessos]="acessosCarregados()"
+    [carregando]="carregandoAcessos()"
+    [salvando]="salvandoAcessos()"
+    (salvar)="salvarAcessos($event)"
+    (fechar)="fecharAcessos()" />
+}

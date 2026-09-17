@@ -25,11 +25,29 @@
  * assim que deu para testá-las contra o original.
  */
 
+import { obterRateiosDoItem } from './mapa-resumos';
 import { Alocacao, Fornecedor, Fracionado, ItemMapa, NotaFornecedor, TotaisNotas, Vencedor } from './mapa.models';
 
 /** Alíquota do fornecedor como fração (18 → 0,18). */
 export function obterTaxaImposto(fornecedores: Fornecedor[], si: number): number {
   return (Number(fornecedores?.[si]?.imposto) || 0) / 100;
+}
+
+/**
+ * Nome do fornecedor pra exibir em relatórios e pagamentos gerados —
+ * desambiguado pelo contato quando o mesmo nome aparece mais de uma vez
+ * na cotação (pedido do Lucas, 17/08/2026: duas linhas "AC Coelho" com
+ * vendedores diferentes ficavam indistinguíveis nos relatórios). Só
+ * fornecedores com o nome repetido ganham o "(contato)" — um nome único
+ * continua aparecendo sozinho, sem parênteses.
+ */
+export function rotuloFornecedor(fornecedores: Fornecedor[], indice: number): string {
+  const fornecedor = fornecedores[indice];
+  if (!fornecedor) return `Fornecedor ${indice + 1}`;
+
+  const nome = fornecedor.nome || `Fornecedor ${indice + 1}`;
+  const repetido = fornecedores.filter((f) => f.nome === fornecedor.nome).length > 1;
+  return repetido && fornecedor.contato ? `${nome} (${fornecedor.contato})` : nome;
 }
 
 /** Quantidade × preço unitário, sem imposto. */
@@ -121,6 +139,36 @@ export function obterAlocacoesAutomaticas(
   fornecedores: Fornecedor[],
 ): Alocacao[] {
   return obterAlocacoes(itens, fornecedores, false);
+}
+
+/**
+ * Desconto de cada fornecedor, só quando ele de fato leva TODOS os itens
+ * com quantidade nesta alocação — desconto é global do fornecedor (não
+ * por item), e negociado pra compra integral; se ele ficou só com parte
+ * da compra (fracionado), o desconto não vale (18/08/2026, pedido do
+ * Lucas — "o desconto só é aplicado na compra integral"). Cobre tanto o
+ * caso "garantido" (alocação já é a compra integral) quanto o caso raro
+ * em que um fornecedor acaba levando tudo mesmo numa alocação fracionada
+ * (por ser o mais barato item a item em toda a lista).
+ */
+export function descontosAplicaveis(
+  alocacoes: Alocacao[],
+  itens: ItemMapa[],
+  fornecedores: Fornecedor[],
+): number[] {
+  const totalItensComQtde = itens.filter((item) => (Number(item.qtde) || 0) > 0).length;
+  const contagemPorFornecedor = new Map<number, number>();
+  for (const alocacao of alocacoes) {
+    contagemPorFornecedor.set(
+      alocacao.supplierIndex,
+      (contagemPorFornecedor.get(alocacao.supplierIndex) ?? 0) + 1,
+    );
+  }
+
+  return fornecedores.map((fornecedor, si) => {
+    const levouTudo = totalItensComQtde > 0 && contagemPorFornecedor.get(si) === totalItensComQtde;
+    return levouTudo ? Number(fornecedor.desconto) || 0 : 0;
+  });
 }
 
 /**
@@ -216,16 +264,31 @@ export function calcularNotasPorFornecedor(
 
 /**
  * Cenário **fracionado**: cada item comprado de quem ofereceu mais
- * barato, dividindo a compra entre vários fornecedores.
+ * barato (ou, em modo manual, de quem foi marcado) — calculado por
+ * fornecedor INDEPENDENTE de quem venceu a comparação de cenários, pra
+ * sempre mostrar "quanto essa loja tem de mais barato" mesmo quando a
+ * compra recomendada é integral em outra loja (18/08/2026, pedido do
+ * Lucas — "Análise de compra individual" usava a alocação recomendada
+ * pra decidir se calculava essa célula, então uma loja B com alguns itens
+ * mais baratos que a loja A vencedora simplesmente sumia da tela).
  *
- * O desconto entra como zero aqui de propósito: descontos costumam ser
- * negociados para a compra integral, e assumi-los numa compra dividida
- * inflaria a economia aparente do cenário.
+ * `totalItensComFrete` só aplica o desconto do fornecedor quando ele leva
+ * TODOS os itens desta alocação (`descontosAplicaveis`) — desconto é
+ * global e negociado pra compra integral, então numa referência de
+ * "mais barato" (que é, por definição, uma fatia da compra) ele não
+ * entra, a menos que essa loja realmente seja a mais barata em cada
+ * item (19/08/2026, pedido do Lucas — corrige o cálculo que aplicava o
+ * desconto mesmo quando a loja só cobria parte da compra).
  */
 export function calcularFracionado(
   itens: ItemMapa[],
   fornecedores: Fornecedor[],
   modoManual: boolean,
+  // `true` (padrão de sempre): cada nota inclui o frete da própria loja.
+  // `false` (17/08/2026, pedido do Lucas): a compra usa frete particular em
+  // vez do frete de cada loja — cobrar os dois seria contar o frete em
+  // dobro, já que o freteiro vira um pagamento independente.
+  incluirFreteLoja = true,
 ): Fracionado[] {
   const resultado: Fracionado[] = fornecedores.map(() => ({
     totalItens: 0,
@@ -245,8 +308,8 @@ export function calcularFracionado(
     alocacoes,
     itens,
     fornecedores,
-    true,
-    fornecedores.map(() => 0),
+    incluirFreteLoja,
+    descontosAplicaveis(alocacoes, itens, fornecedores),
   );
 
   notas.bySupplier.forEach((nota, si) => {
@@ -288,4 +351,69 @@ export function calcularIntegral(itens: ItemMapa[], fornecedores: Fornecedor[]):
       Number(fornecedor.desconto) || 0,
     ).totalNota;
   });
+}
+
+/**
+ * Total de um cenário de compra fracionada, com o frete que cabe a cada
+ * um (da loja, ou particular) — a base de "Comparação de cenários"
+ * (17/08/2026, pedido do Lucas). `incluirFreteLoja=false` soma
+ * `freteParticular` no lugar do frete de cada loja, sem imposto (mesma
+ * regra do frete particular de sempre — não entra na nota).
+ */
+export function calcularTotalCenario(
+  itens: ItemMapa[],
+  fornecedores: Fornecedor[],
+  alocacoes: Alocacao[],
+  incluirFreteLoja: boolean,
+  freteParticular: number,
+): number {
+  const notas = calcularNotasPorFornecedor(
+    alocacoes,
+    itens,
+    fornecedores,
+    incluirFreteLoja,
+    fornecedores.map(() => 0),
+  );
+  const frete = incluirFreteLoja ? 0 : Number(freteParticular) || 0;
+  return notas.totals.totalNota + frete;
+}
+
+/**
+ * Divide o frete particular entre as etapas da obra, proporcional ao
+ * total (com imposto, pelo fornecedor efetivamente alocado) que cada
+ * etapa representa no mapa inteiro — pedido do Lucas, 17/08/2026: o
+ * freteiro entra no rateio "como se fosse um fornecedor", mas o cálculo
+ * dele é mais simples que o de uma nota (não tem trava manual de
+ * percentual — é sempre proporcional).
+ *
+ * @returns mapa etapaKey (`item.eapId`, ou `ETAPA_SEM_NOME`) → valor
+ */
+export function ratearFreteiro(
+  itens: ItemMapa[],
+  fornecedores: Fornecedor[],
+  alocacoes: Alocacao[],
+  freteParticular: number,
+): Map<string, number> {
+  const totalPorEtapa = new Map<string, number>();
+
+  for (const alocacao of alocacoes) {
+    const item = itens[alocacao.itemIndex];
+    if (!item) continue;
+    const total = calcularTotalItem(item, alocacao.supplierIndex, fornecedores);
+    for (const rateio of obterRateiosDoItem(item)) {
+      totalPorEtapa.set(
+        rateio.etapaKey,
+        (totalPorEtapa.get(rateio.etapaKey) ?? 0) + total * rateio.fator,
+      );
+    }
+  }
+
+  const totalGeral = Array.from(totalPorEtapa.values()).reduce((soma, v) => soma + v, 0);
+  const resultado = new Map<string, number>();
+  if (totalGeral <= 0) return resultado;
+
+  for (const [etapa, valor] of totalPorEtapa) {
+    resultado.set(etapa, (Number(freteParticular) || 0) * (valor / totalGeral));
+  }
+  return resultado;
 }

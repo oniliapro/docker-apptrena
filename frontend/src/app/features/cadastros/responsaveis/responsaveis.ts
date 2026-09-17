@@ -5,6 +5,7 @@ import { apenasDigitos, formatarTelefone } from '../../../core/utils/documento';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
 import { Responsavel } from '../cadastros.models';
+import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 
 const CHAVE = 'controleObra.responsaveis.v1';
 
@@ -17,7 +18,7 @@ const CHAVE = 'controleObra.responsaveis.v1';
  */
 @Component({
   selector: 'app-responsaveis',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   providers: [CadastroStore],
   templateUrl: './responsaveis.html',
   styleUrl: './responsaveis.scss',
@@ -31,8 +32,10 @@ export class Responsaveis implements OnInit {
   protected readonly formatarTelefone = formatarTelefone;
 
   protected readonly formulario = this.fb.nonNullable.group({
+    codigo: [''],
     nome: ['', [Validators.required]],
     registro: [''],
+    atuacao: [''],
     telefone: [''],
     email: ['', [Validators.email]],
     observacoes: [''],
@@ -42,6 +45,7 @@ export class Responsaveis implements OnInit {
     this.store.configurar(CHAVE, (bruto) => this.normalizar(bruto), [
       'nome',
       'registro',
+      'atuacao',
       'email',
     ]);
     this.store.carregar();
@@ -50,8 +54,10 @@ export class Responsaveis implements OnInit {
   private normalizar(bruto: Record<string, unknown>): Responsavel {
     return {
       id: bruto['id'] ? String(bruto['id']) : gerarId(),
+      codigo: String(bruto['codigo'] ?? ''),
       nome: String(bruto['nome'] ?? ''),
       registro: String(bruto['registro'] ?? ''),
+      atuacao: String(bruto['atuacao'] ?? ''),
       telefone: apenasDigitos(bruto['telefone']),
       email: String(bruto['email'] ?? ''),
       ativo: bruto['ativo'] !== false,
@@ -59,17 +65,33 @@ export class Responsaveis implements OnInit {
     };
   }
 
+  /**
+   * Código interno (ex.: "RESP-014") gerado pelo sistema — mesmo padrão
+   * do "CLI-NNN" dos Clientes (19/08/2026, pedido do Lucas): sequencial,
+   * maior número já usado em "RESP-NNN" entre os cadastros existentes, +1.
+   */
+  private proximoCodigo(): string {
+    const maior = this.store.registros().reduce((max, responsavel) => {
+      const combinacao = /^RESP-(\d+)$/.exec(responsavel.codigo?.trim() ?? '');
+      const numero = combinacao ? Number(combinacao[1]) : 0;
+      return numero > max ? numero : max;
+    }, 0);
+    return `RESP-${String(maior + 1).padStart(3, '0')}`;
+  }
+
   protected novo(): void {
     this.editandoId.set(null);
-    this.formulario.reset();
+    this.formulario.reset({ codigo: this.proximoCodigo() });
     this.formularioAberto.set(true);
   }
 
   protected editar(registro: Responsavel): void {
     this.editandoId.set(registro.id);
     this.formulario.reset({
+      codigo: registro.codigo,
       nome: registro.nome,
       registro: registro.registro,
+      atuacao: registro.atuacao,
       telefone: formatarTelefone(registro.telefone),
       email: registro.email,
       observacoes: registro.observacoes,
@@ -100,8 +122,10 @@ export class Responsaveis implements OnInit {
 
     this.store.gravar({
       id: id ?? '',
+      codigo: valores.codigo.trim() || this.proximoCodigo(),
       nome: valores.nome.trim(),
       registro: valores.registro.trim(),
+      atuacao: valores.atuacao.trim(),
       telefone: apenasDigitos(valores.telefone),
       email: valores.email.trim(),
       ativo: id ? (this.store.obter(id)?.ativo ?? true) : true,

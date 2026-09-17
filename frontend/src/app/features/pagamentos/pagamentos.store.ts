@@ -87,7 +87,19 @@ export class PagamentosStore {
     this.cabecalho.set({ obraNumber });
   }
 
-  inserirOuAtualizar(pagamento: Pagamento, idEditando: string | null): void {
+  /**
+   * `onSucesso` (06/09/2026, mesmo padrão de `EmpreitaStore.fecharPeriodo`)
+   * — chamado só quando o pagamento REALMENTE foi salvo, com o objeto já
+   * normalizado (id de verdade, inclusive numa criação). Usado por
+   * `Pagamentos.salvarModal` pra arquivar uma nota fiscal pendente
+   * (`EventoSalvarPagamento.anexoNotaPendente`) só depois de existir um
+   * `id` de pagamento de verdade pra usar como `origemId`.
+   */
+  inserirOuAtualizar(
+    pagamento: Pagamento,
+    idEditando: string | null,
+    onSucesso?: (salvo: Pagamento) => void,
+  ): void {
     const payload = paraPayloadApi(pagamento, this.obraId);
     const requisicao = idEditando
       ? this.api.atualizarPagamento(idEditando, payload)
@@ -100,6 +112,7 @@ export class PagamentosStore {
           if (!idEditando) return [...lista, normalizado];
           return lista.map((p) => (p.id === idEditando ? normalizado : p));
         });
+        onSucesso?.(normalizado);
       },
       error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
     });

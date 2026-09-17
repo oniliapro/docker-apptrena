@@ -1,0 +1,167 @@
+@if (store.carregando() && !store.conteudo()) {
+  <p class="atenuado">Carregando arquivos…</p>
+} @else if (store.erro()) {
+  <p class="atenuado">{{ store.erro() }}</p>
+} @else if (store.conteudo(); as conteudo) {
+  <div class="arquivos-tela">
+    <!-- ---- Alternância própria / compartilhada ---- -->
+    <div class="raizes-nav">
+      <button type="button" [class.ativo]="estaNaPropria()" (click)="irParaPropria()">Arquivos próprios</button>
+      <button type="button" [class.ativo]="!estaNaPropria()" (click)="irParaCompartilhada()">Arquivos compartilhados</button>
+    </div>
+
+    <!-- ---- Barra de ferramentas ---- -->
+    <div class="barra-ferramentas">
+      <nav class="breadcrumb">
+        @for (pasta of conteudo.breadcrumb; track pasta.id; let ultimo = $last) {
+          <button type="button" [disabled]="ultimo" (click)="store.navegarPara(pasta.id)">{{ pasta.nome }}</button>
+          @if (!ultimo) { <span class="separador">/</span> }
+        }
+      </nav>
+
+      <div class="acoes-barra">
+        <button type="button" (click)="abrirFormNovaPasta()">+ Nova pasta</button>
+
+        <label class="botao-upload">
+          Enviar arquivos
+          <input type="file" multiple hidden (change)="onArquivosSelecionados($event)" />
+        </label>
+
+        <select
+          class="seletor-modo"
+          [value]="store.modoExibicao()"
+          (change)="definirModo($any($event.target).value)"
+        >
+          @for (modo of modos; track modo.chave) {
+            <option [value]="modo.chave">{{ modo.rotulo }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (criandoPasta()) {
+      <div class="form-nova-pasta">
+        <input
+          type="text"
+          placeholder="Nome da pasta"
+          [value]="nomeNovaPasta()"
+          (input)="nomeNovaPasta.set($any($event.target).value)"
+          (keyup.enter)="confirmarNovaPasta()"
+        />
+        <button type="button" (click)="confirmarNovaPasta()">Criar</button>
+        <button type="button" (click)="criandoPasta.set(false)">Cancelar</button>
+      </div>
+    }
+
+    @if (store.uploadsEmAndamento().length) {
+      <div class="uploads-progresso">
+        @for (upload of store.uploadsEmAndamento(); track upload.nome) {
+          <div class="linha-upload">
+            <span class="nome-upload">{{ upload.nome }}</span>
+            <div class="barra-progresso"><div class="barra-progresso-preenchida" [style.width.%]="upload.progresso"></div></div>
+            <span class="pequeno atenuado">{{ upload.progresso }}%</span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ---- Corpo: vazio, Detalhes (tabela), ou Lista/Ícones (item-arquivo) ---- -->
+    @if (!itens().length) {
+      <p class="atenuado pasta-vazia">Esta pasta está vazia.</p>
+    } @else if (store.modoExibicao() === 'detalhes') {
+      <table class="tabela-detalhes">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>Tamanho</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of itens(); track item.id) {
+            <tr>
+              <td class="celula-nome" (dblclick)="abrirItem(item)">
+                <span [class.nome-pasta]="item.tipo === 'pasta'" (click)="abrirItem(item)">{{ item.nome }}</span>
+              </td>
+              <td>{{ item.tipo === 'pasta' ? 'Pasta' : item.arquivo!.extensao.toUpperCase() }}</td>
+              <td>{{ item.arquivo ? formatarTamanho(item.arquivo.tamanho_bytes) : '—' }}</td>
+              <td class="celula-acoes">
+                @if (item.arquivo) {
+                  <button type="button" title="Baixar" (click)="baixarItem(item)">⭳</button>
+                }
+                <button type="button" title="Mover" (click)="abrirMover(item)">⇄</button>
+                <button type="button" title="Renomear" (click)="renomearItem(item)">✎</button>
+                <button type="button" title="Excluir" (click)="excluirItem(item)">✖</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <div
+        class="grade-itens"
+        [class.grade-lista]="store.modoExibicao() === 'lista'"
+        [class]="'grade-' + store.modoExibicao()"
+      >
+        @for (item of itens(); track item.id) {
+          <app-item-arquivo
+            [item]="item"
+            [modoExibicao]="store.modoExibicao()"
+            (abrir)="abrirItem(item)"
+            (renomear)="renomearItem(item)"
+            (excluir)="excluirItem(item)"
+            (mover)="abrirMover(item)"
+            (baixar)="baixarItem(item)"
+          />
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- ---- Preview ---- -->
+@if (previewAberto(); as arquivo) {
+  <app-preview-modal [arquivo]="arquivo" (fechar)="fecharPreview()" (baixar)="baixarDoPreview()" />
+}
+
+<!-- ---- Mover para... ---- -->
+@if (moverAlvo(); as alvo) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharMover()"></div>
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Mover "{{ moverAlvoNome() }}" para…</span>
+        <button type="button" (click)="fecharMover()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        @if (moverConteudo(); as destino) {
+          <nav class="breadcrumb">
+            @for (pasta of destino.breadcrumb; track pasta.id; let ultimo = $last) {
+              <button type="button" [disabled]="ultimo" (click)="navegarMover(pasta.id)">{{ pasta.nome }}</button>
+              @if (!ultimo) { <span class="separador">/</span> }
+            }
+          </nav>
+
+          @if (destino.subpastas.length) {
+            <ul class="lista-mover">
+              @for (sub of destino.subpastas; track sub.id) {
+                <li>
+                  <button type="button" (click)="navegarMover(sub.id)">{{ sub.nome }}</button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="atenuado pequeno">Nenhuma subpasta aqui.</p>
+          }
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="confirmarMover()">Mover para cá</button>
+        <button type="button" (click)="fecharMover()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}

@@ -14,11 +14,11 @@
     </div>
 
     <nav class="nav">
-      @for (item of itens; track item.id) {
+      @for (item of itens(); track item.id) {
         @if (item.filhos) {
           <!-- Grupo expansível -->
           <div class="item" [class.aberto]="grupoAberto(item.id)">
-            <div class="link" (click)="alternarGrupo(item.id, $event)">
+            <div class="link" (click)="alternarGrupo(item.id, $event)" [title]="recolhida() ? item.texto : ''">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
               </svg>
@@ -33,6 +33,15 @@
                 <a [routerLink]="filho.rota" routerLinkActive="ativo">{{ filho.texto }}</a>
               }
             </div>
+
+            @if (recolhida() && popupGrupoAberto() === item.id) {
+              <div class="submenu-popup" role="menu" [style.top.px]="popupGrupoTopoPx()">
+                <div class="submenu-popup-titulo">{{ item.texto }}</div>
+                @for (filho of item.filhos; track filho.rota) {
+                  <a [routerLink]="filho.rota" routerLinkActive="ativo" role="menuitem">{{ filho.texto }}</a>
+                }
+              </div>
+            }
           </div>
         } @else {
           <!-- Item simples -->
@@ -43,6 +52,12 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
                     <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                  </svg>
+                }
+                @case ('predio') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="4" y="3" width="16" height="18" rx="1" />
+                    <path d="M9 21v-4h6v4M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2" />
                   </svg>
                 }
                 @case ('camadas') {
@@ -170,3 +185,7 @@
     <router-outlet />
   </main>
 </div>
+
+@if (configuracoesAberto()) {
+  <app-configuracoes (fechar)="fecharConfiguracoes()" />
+}

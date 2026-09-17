@@ -1,0 +1,47 @@
+@let arq = arquivo();
+
+<div class="modal">
+  <div class="modal-fundo" (click)="fechar.emit()"></div>
+
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">{{ arq.nome_original }}</span>
+      <button type="button" (click)="fechar.emit()">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      @if (carregando()) {
+        <p class="atenuado pequeno">Carregando…</p>
+      } @else if (erro() || !urlStream()) {
+        <p class="atenuado pequeno">Não foi possível carregar este arquivo.</p>
+      } @else {
+        @switch (categoria()) {
+          @case ('imagem') {
+            <img class="preview-conteudo" [src]="urlStream()" [alt]="arq.nome_original" />
+          }
+          @case ('video') {
+            <video class="preview-conteudo" [src]="urlStream()" controls autoplay></video>
+          }
+          @case ('audio') {
+            <audio class="preview-audio" [src]="urlStream()" controls autoplay></audio>
+          }
+          @case ('pdf') {
+            <iframe class="preview-pdf" [src]="urlPdfSegura()" title="Preview do PDF"></iframe>
+          }
+          @default {
+            <p class="atenuado pequeno">
+              Não é possível pré-visualizar este formato ({{ arq.extensao.toUpperCase() }}) — baixe o arquivo para abri-lo.
+            </p>
+          }
+        }
+      }
+      <p class="pequeno atenuado tamanho-arquivo">{{ formatarTamanho(arq.tamanho_bytes) }}</p>
+    </div>
+
+    <div class="modal-rodape">
+      <button type="button" (click)="baixar.emit()">Baixar</button>
+      <button type="button" [disabled]="!urlStream()" (click)="abrirNovaAba()">Abrir em nova aba</button>
+      <button type="button" (click)="fechar.emit()">Fechar</button>
+    </div>
+  </div>
+</div>

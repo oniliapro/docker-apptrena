@@ -1,0 +1,86 @@
+// Layout para papel (A4), usado só pelo Chromium headless que gera o PDF
+// (ver RelatorioPdfController). 22/08/2026: em vez de reinventar um
+// design próprio (o que tinha divergido visivelmente da tela normal —
+// "cartões"/tabela pareciam parecidos mas não iguais, faltava a barra de
+// consumo), este arquivo importa o SCSS de verdade da tela normal
+// (`relatorios.scss`) via `@use` — cada regra de lá (`.grade-resumo`,
+// `.cartao`, `.barra`, `.preenchimento`…) é compilada de novo aqui,
+// isolada pelo encapsulamento de estilo deste componente. Resultado:
+// qualquer ajuste visual feito na tela normal também vale pro PDF, sem
+// precisar lembrar de replicar em dois lugares. `.painel`/`.painel-titulo`
+// nem precisam disso — já são classes GLOBAIS (`_base.scss`), valem aqui
+// de graça.
+@use '../relatorios/relatorios.scss';
+
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  // Sem isso, a maioria dos motores de impressão remove fundo colorido
+  // (cartões, barra de consumo, destaque de estouro) por padrão, pra
+  // economizar tinta — o Chromium do Browsershot respeita esta propriedade.
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
+// ---- Cabeçalho/rodapé do documento — só existem na versão impressa
+// (a tela normal usa o AppShell pra isso, que aqui não existe). ----
+.dados-obra {
+  margin-bottom: 8mm;
+  page-break-inside: avoid;
+
+  h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 4mm;
+    color: var(--cor-texto);
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2mm 8mm;
+    margin: 0;
+
+    > div { display: flex; gap: 4px; font-size: 11px; }
+    dt { font-weight: 600; margin: 0; }
+    dd { margin: 0; color: var(--cor-texto-suave); }
+  }
+}
+
+.folha-rodape {
+  margin-top: 10mm;
+  padding-top: 4mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8.5px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+// ---- Ajustes de papel sobre o que veio de relatorios.scss ----
+// `table-layout: fixed` + larguras (mesma correção do mapa-imprimir.scss,
+// 22/08/2026, pedido do Lucas — sem isso a largura de cada coluna vem do
+// conteúdo e pode mudar se a tabela quebrar de página) e quebra de
+// página controlada, que a tela normal não precisa (ela rola, não pagina).
+.grade-resumo, .painel { page-break-inside: avoid; }
+
+table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 10.5px;
+}
+
+th:first-child, td:first-child { width: 30%; }
+th:not(:first-child), td:not(:first-child) { width: 17.5%; }
+
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }
+th, td { overflow-wrap: break-word; }

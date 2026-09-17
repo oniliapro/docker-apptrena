@@ -37,6 +37,15 @@ export interface ItemMapa {
   choice: number | null;
 }
 
+/**
+ * Coluna alvo de um "colar com quebra de linha" (31/08/2026, pedido do
+ * Lucas): cada linha do texto colado vira uma linha da tabela, na MESMA
+ * coluna onde o colar aconteceu — ver `MapaStore.colarEmColuna`.
+ */
+export type ColunaMapaColavel =
+  | { tipo: 'desc' | 'unid' | 'qtde' | 'tipoCusto' | 'etapa' }
+  | { tipo: 'preco'; fornecedorIndice: number };
+
 /** Item vencedor de uma linha: qual fornecedor e por quanto. */
 export interface Vencedor {
   indice: number;
@@ -125,10 +134,53 @@ export interface CabecalhoMapa {
   criadoEm: string;
   /** Frete pago por fora da nota — não sofre imposto. */
   freteParticular: number;
+  /** Nome do freteiro (transportador) responsável pelo frete particular. */
+  freteiroParticular: string;
+  /**
+   * Quando ligado (padrão — sempre foi assim), o frete de cada
+   * fornecedor vira uma linha própria no pagamento gerado, com etapa
+   * opcional (`freteEtapaId`). Desligado, o frete não vira linha: é
+   * distribuído proporcionalmente entre os itens de cada fornecedor,
+   * embutido no valor de cada um (pedido do Lucas, 16/08/2026 — ver
+   * `MapaStore.construirLinhasDoFornecedor`).
+   */
+  lancarFreteComoItem: boolean;
+  /** Etapa da linha de frete no pagamento — só usada quando `lancarFreteComoItem` está ligado. */
+  freteEtapaId: string;
+  /**
+   * Categoria de custo da linha de frete no pagamento gerado — só usada
+   * quando `lancarFreteComoItem` está ligado (19/08/2026, pedido do
+   * Lucas). Vazio = "S/ categoria" (comportamento de sempre: a linha
+   * nasce sem tipo definido).
+   */
+  freteCategoriaTipo: ChaveTipo | '';
+  /**
+   * Mesma ideia de `lancarFreteComoItem`, só que pro imposto+desconto da
+   * nota (01/09/2026, pedido do Lucas) — os dois sempre andaram juntos
+   * numa linha só ("Impostos e desconto da nota"/parte de "Impostos,
+   * frete e desconto da nota"), então ganham UM toggle só, independente
+   * do de frete: ligado, viram uma linha própria no pagamento gerado
+   * (com etapa/categoria opcionais); desligado, ficam embutidos
+   * proporcionalmente no valor dos itens de cada fornecedor — mesmo
+   * comportamento de sempre, agora dá pra desligar.
+   */
+  lancarImpostoDescontoComoItem: boolean;
+  /** Etapa da linha de imposto/desconto no pagamento — só usada quando `lancarImpostoDescontoComoItem` está ligado. */
+  impostoDescontoEtapaId: string;
+  /** Categoria de custo da linha de imposto/desconto no pagamento gerado — só usada quando `lancarImpostoDescontoComoItem` está ligado. */
+  impostoDescontoCategoriaTipo: ChaveTipo | '';
   /** Quando ligado, o usuário escolhe o fornecedor de cada item. */
   modoManual: boolean;
   /** Mapa finalizado: trava edição e libera Gerar PDF / Gerar Pagamento. */
   isConfirmed: boolean;
-  /** Data/hora em que o mapa foi finalizado — também automática, com hora. */
+  /**
+   * Data/hora da PRIMEIRA finalização — trava nesse valor pra sempre
+   * (20/08/2026, pedido do Lucas: antes era regravada a cada "Finalizar
+   * mapa", perdendo a data original sempre que o mapa era reaberto e
+   * finalizado de novo). Quem acompanha finalizações seguintes é
+   * `ultimaFinalizacaoEm`.
+   */
   confirmedAt: string;
+  /** Data/hora da finalização mais recente — atualiza a cada "Finalizar mapa", inclusive a primeira. */
+  ultimaFinalizacaoEm: string;
 }

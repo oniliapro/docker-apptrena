@@ -14,16 +14,25 @@ import { environment } from '../../../environments/environment';
 import { nomeDaEmpresa } from '../../core/models/api.models';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { AuthService } from '../../core/services/auth.service';
+import { PermissoesService } from '../../core/services/permissoes.service';
+import { Configuracoes } from '../../features/configuracoes/configuracoes';
 
 const CHAVE_UI_SHELL = 'trenaapp.ui.shell.v1';
 
-/** Item de menu. `filhos` presente = grupo expansível (ex.: Cadastros). */
+/**
+ * Item de menu. `filhos` presente = grupo expansível (ex.: Cadastros).
+ * `moduloChave` ausente = sempre visível, sem gate de "Controle de
+ * permissões" (31/08/2026) — hoje é o caso de "Principal" e dos 4
+ * cadastros que ainda não têm backend relacional próprio
+ * (Clientes/Responsáveis/Empreiteiros/Fornecedores).
+ */
 interface ItemNavegacao {
   id: string;
   rota?: string;
   icone: string;
   texto: string;
-  filhos?: Array<{ rota: string; texto: string }>;
+  moduloChave?: string;
+  filhos?: Array<{ rota: string; texto: string; moduloChave?: string }>;
 }
 
 /**
@@ -40,7 +49,7 @@ interface ItemNavegacao {
  */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Configuracoes],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
   host: {
@@ -52,6 +61,7 @@ export class AppShell {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly rota = inject(ActivatedRoute);
+  private readonly permissoes = inject(PermissoesService);
 
   protected readonly menuLancarAberto = signal(false);
 
@@ -91,6 +101,25 @@ export class AppShell {
   /** Ids dos grupos expandidos. Cadastros já abre aberto. */
   protected readonly gruposAbertos = signal<Set<string>>(new Set(['cadastros']));
 
+  /**
+   * Id do grupo com o popup flutuante aberto — só existe com a barra
+   * lateral recolhida (20/08/2026, pedido do Lucas). Recolhida, o
+   * submenu inline vira `display:none` (não tem espaço pro texto), então
+   * clicar em "Cadastros" não mostrava nada; agora abre um popup ao lado
+   * do ícone com as subopções por extenso. Null = nenhum popup aberto.
+   */
+  protected readonly popupGrupoAberto = signal<string | null>(null);
+
+  /**
+   * Posição vertical (viewport) do popup — `.nav` tem `overflow-y: auto`,
+   * o que faz o navegador também clipar overflow-x (regra do CSS: um dos
+   * eixos não-"visible" força o outro a "auto"), cortando um popup
+   * `position: absolute` que tentasse escapar pela lateral. `position:
+   * fixed` não sofre esse corte, mas precisa da posição calculada na
+   * hora do clique.
+   */
+  protected readonly popupGrupoTopoPx = signal(0);
+
   /** Nome da empresa para a trilha; cai para um rótulo genérico. */
   protected readonly empresa = computed(() => nomeDaEmpresa(this.usuario()) || 'Construtora');
 
@@ -103,7 +132,13 @@ export class AppShell {
     return (primeira + ultima).toUpperCase();
   });
 
-  protected readonly itens: ReadonlyArray<ItemNavegacao> = [
+  /**
+   * Todos os itens, sem filtro — Clientes/Responsáveis/Empreiteiros/
+   * Fornecedores não têm `moduloChave` de propósito (ainda fora do
+   * "Controle de permissões", ver `PermissaoService::MODULOS` no
+   * backend), então nunca são escondidos.
+   */
+  private readonly todosOsItens: ReadonlyArray<ItemNavegacao> = [
     { id: 'principal', rota: '/inicio', icone: 'grade', texto: 'Principal' },
     {
       id: 'cadastros',
@@ -111,18 +146,69 @@ export class AppShell {
       texto: 'Cadastros',
       filhos: [
         { rota: '/clientes', texto: 'Clientes' },
-        { rota: '/obras', texto: 'Obras' },
         { rota: '/responsaveis', texto: 'Responsáveis' },
         { rota: '/empreiteiros', texto: 'Empreiteiros' },
         { rota: '/fornecedores', texto: 'Fornecedores' },
       ],
     },
-    { id: 'mapas', rota: '/mapas', icone: 'camadas', texto: 'Mapas' },
-    { id: 'empreitas', rota: '/empreitas', icone: 'ferramenta', texto: 'Empreitas' },
-    { id: 'pagamentos', rota: '/pagamentos', icone: 'moeda', texto: 'Pagamentos' },
-    { id: 'diarios', rota: '/diario-obra', icone: 'caderno', texto: 'Diários de obra' },
-    { id: 'relatorios', rota: '/relatorios', icone: 'grafico', texto: 'Relatórios' },
+    // Fora de Cadastros (19/08/2026, pedido do Lucas) — Obras é o ponto de
+    // entrada mais usado do sistema (todo o resto vive dentro de uma
+    // obra), não faz sentido ficar escondido num submenu que precisa
+    // abrir primeiro.
+    { id: 'obras', rota: '/obras', icone: 'predio', texto: 'Obras', moduloChave: 'obras' },
+    { id: 'mapas', rota: '/mapas', icone: 'camadas', texto: 'Mapas', moduloChave: 'mapas' },
+    {
+      id: 'empreitas',
+      rota: '/empreitas',
+      icone: 'ferramenta',
+      texto: 'Empreitas',
+      moduloChave: 'empreitas',
+    },
+    {
+      id: 'pagamentos',
+      rota: '/pagamentos',
+      icone: 'moeda',
+      texto: 'Pagamentos',
+      moduloChave: 'pagamentos',
+    },
+    {
+      id: 'recebimentos',
+      rota: '/recebimentos',
+      icone: 'moeda',
+      texto: 'Recebimentos',
+      moduloChave: 'recebimentos',
+    },
+    {
+      id: 'diarios',
+      rota: '/diario-obra',
+      icone: 'caderno',
+      texto: 'Diários de obra',
+      moduloChave: 'diario_obra',
+    },
+    {
+      id: 'relatorios',
+      rota: '/relatorios',
+      icone: 'grafico',
+      texto: 'Relatórios',
+      moduloChave: 'relatorios',
+    },
   ];
+
+  /**
+   * "Controle de permissões" (31/08/2026) — esconde item e sub-item sem
+   * `pode_usar` no módulo correspondente (admin sempre vê tudo). Um
+   * grupo com `filhos` só some por inteiro se NENHUM filho sobrar.
+   */
+  protected readonly itens = computed<ReadonlyArray<ItemNavegacao>>(() => {
+    const podeVerItem = (item: { moduloChave?: string }) =>
+      !item.moduloChave || this.permissoes.podeModulo(item.moduloChave, 'usar');
+
+    return this.todosOsItens
+      .map((item) =>
+        item.filhos ? { ...item, filhos: item.filhos.filter(podeVerItem) } : item,
+      )
+      .filter((item) => podeVerItem(item) && (!item.filhos || item.filhos.length > 0));
+  });
 
   protected grupoAberto(id: string): boolean {
     return this.gruposAbertos().has(id);
@@ -130,6 +216,21 @@ export class AppShell {
 
   protected alternarGrupo(id: string, evento: Event): void {
     evento.stopPropagation();
+
+    // Barra recolhida: não tem como expandir inline (o submenu fica
+    // escondido, sem espaço pro texto) — abre num popup ao lado do
+    // ícone, em vez do `gruposAbertos` normal.
+    if (this.recolhida()) {
+      if (this.popupGrupoAberto() === id) {
+        this.popupGrupoAberto.set(null);
+        return;
+      }
+      const alvo = evento.currentTarget as HTMLElement;
+      this.popupGrupoTopoPx.set(alvo.getBoundingClientRect().top);
+      this.popupGrupoAberto.set(id);
+      return;
+    }
+
     this.gruposAbertos.update((atual) => {
       const novo = new Set(atual);
       if (novo.has(id)) novo.delete(id);
@@ -153,6 +254,7 @@ export class AppShell {
   protected fecharMenus(): void {
     if (this.menuUsuarioAberto()) this.menuUsuarioAberto.set(false);
     if (this.menuLancarAberto()) this.menuLancarAberto.set(false);
+    if (this.popupGrupoAberto()) this.popupGrupoAberto.set(null);
   }
 
   protected alternarMenuUsuario(evento: Event): void {
@@ -165,9 +267,15 @@ export class AppShell {
     if (this.menuUsuarioAberto()) this.menuUsuarioAberto.set(false);
   }
 
+  protected readonly configuracoesAberto = signal(false);
+
   protected abrirConfiguracoes(): void {
-    window.alert('Configurações: em breve.');
+    this.configuracoesAberto.set(true);
     this.fecharMenuUsuario();
+  }
+
+  protected fecharConfiguracoes(): void {
+    this.configuracoesAberto.set(false);
   }
 
   protected sair(): void {

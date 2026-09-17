@@ -1,0 +1,48 @@
+<h2 class="titulo-secao">Tags</h2>
+<p class="atenuado pequeno">
+  Usadas pra organizar anexos de Pagamentos e Recebimentos (ex.: controle de notas fiscais).
+  Criar uma tag aqui cria automaticamente uma pasta com o mesmo nome dentro de
+  "Arquivos compartilhados" de toda obra.
+</p>
+
+@if (carregando()) {
+  <div class="atenuado">Carregando…</div>
+} @else {
+  @if (erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <div class="envoltoria">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th class="centro">Ativa</th>
+          <th class="centro">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tag of tags(); track tag.id) {
+          <tr [class.inativo]="!tag.ativo">
+            <td>{{ tag.nome }}</td>
+            <td class="centro">
+              <button type="button" class="chave" [class.ligada]="tag.ativo"
+                      (click)="alternarAtivo(tag)"
+                      [title]="tag.ativo ? 'Inativar' : 'Ativar'"></button>
+            </td>
+            <td class="centro acoes">
+              <button type="button" title="Renomear" (click)="renomear(tag)">✎</button>
+              <button type="button" title="Excluir" (click)="excluir(tag)">✖</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="3" class="centro atenuado">Nenhuma tag cadastrada ainda.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <button type="button" class="botao-novo" (click)="nova()">+ Nova tag</button>
+}

@@ -10,6 +10,7 @@
 import {
   ItemPagamento,
   ItemPagamentoCalculado,
+  MedicaoSnapshotEmpreita,
   ModoValor,
   Pagamento,
   TIPOS_CUSTO_PAGAMENTO,
@@ -56,6 +57,12 @@ export function normalizarItemPagamento(bruto: Partial<ItemPagamento> & Record<s
     eapId: String(bruto?.eapId ?? ''),
     valor: numeroSeguro(bruto?.valor),
     modoValor: normalizarModoValor(bruto?.modoValor),
+    parcela: bruto?.parcela === 'empreiteiro' || bruto?.parcela === 'reserva' ? bruto.parcela : null,
+    empreitaItemId: String(bruto?.empreitaItemId ?? ''),
+    valorReferencia:
+      bruto?.valorReferencia === null || bruto?.valorReferencia === undefined
+        ? null
+        : numeroSeguro(bruto.valorReferencia),
   };
 }
 
@@ -100,6 +107,8 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
   return {
     id: p['id'] ? String(p['id']) : gerarId(),
     numeroPagamento: String(p['numeroPagamento'] ?? p['numero'] ?? ''),
+    obraId: p['obraId'] ? String(p['obraId']) : undefined,
+    obraNome: p['obraNome'] ? String(p['obraNome']) : undefined,
     obraNumber: String(p['obraNumber'] ?? p['obra'] ?? ''),
     dataSolicitacao: String(p['dataSolicitacao'] ?? data),
     dataPagamento: String(p['dataPagamento'] ?? data),
@@ -113,6 +122,8 @@ export function normalizarPagamento(bruto: Record<string, unknown>): Pagamento {
     // nada — só entra como pendente o que for explicitamente marcado assim
     // (hoje, só o que a aba Mapas gera). Qualquer outra coisa é confirmado.
     status: p['status'] === 'pendente' ? 'pendente' : 'confirmado',
+    medicaoSnapshot: (p['medicaoSnapshot'] as MedicaoSnapshotEmpreita | null | undefined) ?? null,
+    anexosCount: numeroSeguro(p['anexosCount']),
   };
 }
 
@@ -162,6 +173,7 @@ export function paraPayloadApi(pagamento: Pagamento, obraId: string): Record<str
     mapa_id: origemTipo === 'mapa' ? origemRefId : null,
     empreita_id: origemTipo === 'empreita' ? origemRefId : null,
     status: pagamento.status,
+    medicao_snapshot: pagamento.medicaoSnapshot ?? null,
     itens: pagamento.itens.map((item) => ({
       id: item.id,
       descricao: item.descricao,
@@ -169,6 +181,9 @@ export function paraPayloadApi(pagamento: Pagamento, obraId: string): Record<str
       eapId: item.eapId || null,
       valor: item.valor,
       modoValor: item.modoValor,
+      parcela: item.parcela || null,
+      empreitaItemId: item.empreitaItemId || null,
+      valorReferencia: item.valorReferencia ?? null,
     })),
   };
 }

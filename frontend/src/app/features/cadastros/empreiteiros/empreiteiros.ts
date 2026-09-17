@@ -1,5 +1,12 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 
 import {
   apenasDigitos,
@@ -9,9 +16,54 @@ import {
 } from '../../../core/utils/documento';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
-import { Empreiteiro, TipoPessoa } from '../cadastros.models';
+import { DadosRecebimento, Empreiteiro, TipoPessoa, rotuloTipoPessoa } from '../cadastros.models';
+import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
+import { valoresDistintos } from '../../../shared/filtros/filtros';
 
 const CHAVE = 'controleObra.empreiteiros.v1';
+
+/**
+ * Exportados (02/09/2026) pra `Empreita` também poder ler o cadastro —
+ * ela precisa da Chave PIX pra montar a mensagem de solicitação de
+ * pagamento, e o cadastro ainda mora só na ponte chave-valor (sem
+ * endpoint relacional próprio, ver `CadastroStore`), então ler direto
+ * pela mesma chave/normalizador é mais simples do que instanciar outro
+ * `CadastroStore` só pra leitura.
+ */
+export const CHAVE_EMPREITEIROS = CHAVE;
+
+export function normalizarEmpreiteiro(bruto: Record<string, unknown>): Empreiteiro {
+  const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+  const recebimentosBrutos = Array.isArray(bruto['dadosRecebimento']) ? bruto['dadosRecebimento'] : [];
+
+  return {
+    id: bruto['id'] ? String(bruto['id']) : gerarId(),
+    codigo: String(bruto['codigo'] ?? ''),
+    nome: String(bruto['nome'] ?? ''),
+    tipo: tipo === 'PJ' ? 'PJ' : 'PF',
+    documento: apenasDigitos(bruto['documento']),
+    telefone: apenasDigitos(bruto['telefone']),
+    email: String(bruto['email'] ?? ''),
+    especialidade: String(bruto['especialidade'] ?? ''),
+    ativo: bruto['ativo'] !== false,
+    observacoes: String(bruto['observacoes'] ?? ''),
+    dadosRecebimento: recebimentosBrutos.map((r) => normalizarDadosRecebimento(r as Record<string, unknown>)),
+  };
+}
+
+function normalizarDadosRecebimento(bruto: Record<string, unknown>): DadosRecebimento {
+  const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+  return {
+    id: bruto['id'] ? String(bruto['id']) : gerarId(),
+    tipo: tipo === 'PJ' ? 'PJ' : 'PF',
+    nomeTitular: String(bruto['nomeTitular'] ?? ''),
+    documento: apenasDigitos(bruto['documento']),
+    banco: String(bruto['banco'] ?? ''),
+    agencia: String(bruto['agencia'] ?? ''),
+    conta: String(bruto['conta'] ?? ''),
+    chavePix: String(bruto['chavePix'] ?? ''),
+  };
+}
 
 /** Documento é opcional, mas se preenchido tem que ser válido. */
 function documentoValido(controle: AbstractControl): ValidationErrors | null {
@@ -30,7 +82,7 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-empreiteiros',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RedimensionarColunas],
   providers: [CadastroStore],
   templateUrl: './empreiteiros.html',
   styleUrl: './empreiteiros.scss',
@@ -44,8 +96,13 @@ export class Empreiteiros implements OnInit {
 
   protected readonly formatarDocumento = formatarDocumento;
   protected readonly formatarTelefone = formatarTelefone;
+  protected readonly rotuloTipoPessoa = rotuloTipoPessoa;
+
+  /** Aba ativa no modal — "Dados de recebimento" é nova (19/08/2026, pedido do Lucas). */
+  protected readonly abaAtiva = signal<'geral' | 'recebimento'>('geral');
 
   protected readonly formulario = this.fb.nonNullable.group({
+    codigo: [''],
     nome: ['', [Validators.required]],
     tipo: ['PF' as TipoPessoa],
     documento: ['', [documentoValido]],
@@ -53,6 +110,7 @@ export class Empreiteiros implements OnInit {
     telefone: [''],
     email: ['', [Validators.email]],
     observacoes: [''],
+    dadosRecebimento: this.fb.array<ReturnType<typeof this.novoControleRecebimento>>([]),
   });
 
   ngOnInit(): void {
@@ -60,35 +118,79 @@ export class Empreiteiros implements OnInit {
       'nome',
       'especialidade',
       'documento',
+      'codigo',
     ]);
     this.store.carregar();
   }
 
   private normalizar(bruto: Record<string, unknown>): Empreiteiro {
-    const tipo = String(bruto['tipo'] ?? '').toUpperCase();
+    return normalizarEmpreiteiro(bruto);
+  }
 
-    return {
-      id: bruto['id'] ? String(bruto['id']) : gerarId(),
-      nome: String(bruto['nome'] ?? ''),
-      tipo: tipo === 'PJ' ? 'PJ' : 'PF',
-      documento: apenasDigitos(bruto['documento']),
-      telefone: apenasDigitos(bruto['telefone']),
-      email: String(bruto['email'] ?? ''),
-      especialidade: String(bruto['especialidade'] ?? ''),
-      ativo: bruto['ativo'] !== false,
-      observacoes: String(bruto['observacoes'] ?? ''),
-    };
+  /**
+   * Código interno (ex.: "EMP-014") gerado pelo sistema — mesmo padrão do
+   * "CLI-NNN" dos Clientes (19/08/2026, pedido do Lucas).
+   */
+  private proximoCodigo(): string {
+    const maior = this.store.registros().reduce((max, empreiteiro) => {
+      const combinacao = /^EMP-(\d+)$/.exec(empreiteiro.codigo?.trim() ?? '');
+      const numero = combinacao ? Number(combinacao[1]) : 0;
+      return numero > max ? numero : max;
+    }, 0);
+    return `EMP-${String(maior + 1).padStart(3, '0')}`;
+  }
+
+  // ------------------------------------------------------------------
+  // Dados de recebimento (FormArray) — mais de um por cadastro
+  // (19/08/2026, pedido do Lucas).
+  // ------------------------------------------------------------------
+  private novoControleRecebimento(dados?: DadosRecebimento) {
+    return this.fb.nonNullable.group({
+      id: [dados?.id ?? gerarId()],
+      tipo: [(dados?.tipo ?? 'PF') as TipoPessoa],
+      nomeTitular: [dados?.nomeTitular ?? ''],
+      documento: [dados ? formatarDocumento(dados.documento) : ''],
+      banco: [dados?.banco ?? ''],
+      agencia: [dados?.agencia ?? ''],
+      conta: [dados?.conta ?? ''],
+      chavePix: [dados?.chavePix ?? ''],
+    });
+  }
+
+  protected get dadosRecebimento(): FormArray<ReturnType<typeof this.novoControleRecebimento>> {
+    return this.formulario.controls.dadosRecebimento;
+  }
+
+  protected adicionarRecebimento(): void {
+    this.dadosRecebimento.push(this.novoControleRecebimento());
+  }
+
+  protected removerRecebimento(indice: number): void {
+    this.dadosRecebimento.removeAt(indice);
+  }
+
+  protected mascararDocumentoRecebimento(indice: number, evento: Event): void {
+    const alvo = evento.target as HTMLInputElement;
+    const formatado = formatarDocumento(alvo.value);
+    alvo.value = formatado;
+    this.dadosRecebimento.at(indice).get('documento')?.setValue(formatado);
   }
 
   protected novo(): void {
     this.editandoId.set(null);
-    this.formulario.reset({ tipo: 'PF' });
+    this.dadosRecebimento.clear();
+    this.formulario.reset({ tipo: 'PF', codigo: this.proximoCodigo() });
+    this.abaAtiva.set('geral');
     this.formularioAberto.set(true);
   }
 
   protected editar(registro: Empreiteiro): void {
     this.editandoId.set(registro.id);
+    this.dadosRecebimento.clear();
+    for (const dados of registro.dadosRecebimento) this.dadosRecebimento.push(this.novoControleRecebimento(dados));
+
     this.formulario.reset({
+      codigo: registro.codigo,
       nome: registro.nome,
       tipo: registro.tipo,
       documento: formatarDocumento(registro.documento),
@@ -97,6 +199,7 @@ export class Empreiteiros implements OnInit {
       email: registro.email,
       observacoes: registro.observacoes,
     });
+    this.abaAtiva.set('geral');
     this.formularioAberto.set(true);
   }
 
@@ -136,8 +239,22 @@ export class Empreiteiros implements OnInit {
     const valores = this.formulario.getRawValue();
     const id = this.editandoId();
 
+    const dadosRecebimento: DadosRecebimento[] = valores.dadosRecebimento
+      .filter((r) => r.nomeTitular.trim() || r.documento.trim() || r.banco.trim() || r.chavePix.trim())
+      .map((r) => ({
+        id: r.id,
+        tipo: r.tipo,
+        nomeTitular: r.nomeTitular.trim(),
+        documento: apenasDigitos(r.documento),
+        banco: r.banco.trim(),
+        agencia: r.agencia.trim(),
+        conta: r.conta.trim(),
+        chavePix: r.chavePix.trim(),
+      }));
+
     this.store.gravar({
       id: id ?? '',
+      codigo: valores.codigo.trim() || this.proximoCodigo(),
       nome: valores.nome.trim(),
       tipo: valores.tipo,
       documento: apenasDigitos(valores.documento),
@@ -146,6 +263,7 @@ export class Empreiteiros implements OnInit {
       especialidade: valores.especialidade.trim(),
       ativo: id ? (this.store.obter(id)?.ativo ?? true) : true,
       observacoes: valores.observacoes.trim(),
+      dadosRecebimento,
     });
 
     this.fechar();
@@ -177,5 +295,34 @@ export class Empreiteiros implements OnInit {
     this.store.filtroAtivos.set(
       (evento.target as HTMLSelectElement).value as 'todos' | 'ativos' | 'inativos',
     );
+  }
+
+  protected readonly especialidadesDisponiveis = computed(() =>
+    valoresDistintos(this.store.registros(), (e) => e.especialidade),
+  );
+
+  private readonly filtroTipoAtual = signal<TipoPessoa | ''>('');
+  private readonly filtroEspecialidadeAtual = signal('');
+
+  private aplicarFiltroExtra(): void {
+    const tipo = this.filtroTipoAtual();
+    const especialidade = this.filtroEspecialidadeAtual();
+    if (!tipo && !especialidade) {
+      this.store.filtroExtra.set(null);
+      return;
+    }
+    this.store.filtroExtra.set(
+      (e) => (!tipo || e.tipo === tipo) && (!especialidade || e.especialidade === especialidade),
+    );
+  }
+
+  protected mudarFiltroTipo(evento: Event): void {
+    this.filtroTipoAtual.set((evento.target as HTMLSelectElement).value as TipoPessoa | '');
+    this.aplicarFiltroExtra();
+  }
+
+  protected mudarFiltroEspecialidade(evento: Event): void {
+    this.filtroEspecialidadeAtual.set((evento.target as HTMLSelectElement).value);
+    this.aplicarFiltroExtra();
   }
 }

@@ -45,7 +45,7 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumError": "20kB"
                 }
               ],
               "outputHashing": "all",
@@ -76,7 +76,7 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumError": "20kB"
                 }
               ],
               "outputHashing": "all",
@@ -98,6 +98,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["angular"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "trenaapp-angular:build:production"

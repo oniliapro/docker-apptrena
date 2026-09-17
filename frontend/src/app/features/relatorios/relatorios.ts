@@ -14,6 +14,7 @@ import {
 import { CabecalhoObra, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { calcularSomaItens, normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 
 /**
  * Relatórios — consolida o que já existe nos outros módulos.
@@ -29,7 +30,7 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
  */
 @Component({
   selector: 'app-relatorios',
-  imports: [RouterLink, DecimalPipe],
+  imports: [RouterLink, DecimalPipe, RedimensionarColunas],
   templateUrl: './relatorios.html',
   styleUrl: './relatorios.scss',
 })
@@ -48,6 +49,10 @@ export class Relatorios implements OnInit {
 
   protected readonly carregando = signal(true);
   protected readonly erro = signal<string | null>(null);
+
+  /** Estado do botão "Baixar PDF" (22/08/2026) — ver RelatorioPdfController. */
+  protected readonly gerandoPdf = signal(false);
+  protected readonly erroPdf = signal<string | null>(null);
 
   private readonly itensEap = signal<ItemEap[]>([]);
   private readonly cabecalhoEap = signal<CabecalhoObra>(cabecalhoVazio());
@@ -175,5 +180,31 @@ export class Relatorios implements OnInit {
 
   protected estourou(chave: string): boolean {
     return this.saldoDe(chave) < 0;
+  }
+
+  /**
+   * Baixa o PDF do relatório (22/08/2026) — gerado no backend
+   * renderizando a tela de impressão num Chromium headless (ver
+   * RelatorioPdfController). Pode levar alguns segundos.
+   */
+  protected baixarPdf(): void {
+    this.erroPdf.set(null);
+    this.gerandoPdf.set(true);
+
+    this.api.baixarRelatorioPdf(this.obraId()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `relatorio-${this.obraId()}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoPdf.set(false);
+      },
+      error: () => {
+        this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoPdf.set(false);
+      },
+    });
   }
 }

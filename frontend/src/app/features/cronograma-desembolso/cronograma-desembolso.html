@@ -13,21 +13,78 @@
     <div>
       <h2>Cronograma de desembolso</h2>
       <div class="atenuado pequeno">
-        Valor desembolsado por item da EAP, mês a mês — só pagamentos já confirmados entram na conta.
+        Realizado (pagamentos confirmados) empilhado com o planejado — clique no valor planejado
+        pra editar.
       </div>
+    </div>
+    <div class="acoes-cronograma">
+      <button type="button" (click)="alternarTodosOsColapsos()">
+        {{ existeGrupoColapsado() ? '⊞ Expandir tudo' : '⊟ Recolher tudo' }}
+      </button>
+      <button type="button" [disabled]="periodos().length === 0 || gerandoPdf()" (click)="baixarPdf()"
+              title="Gera e baixa o PDF do cronograma">
+        {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
+      </button>
     </div>
   </div>
 
+  <div class="painel barra-ferramentas">
+    <div class="linha-ferramentas">
+      <label class="campo-inline">
+        <span>Início do cronograma</span>
+        <input type="date" [value]="dataBaseParaInput()" (change)="salvarDataBase($event)" />
+      </label>
+      <label class="campo-inline">
+        <span>Prazo da obra (meses)</span>
+        <input type="number" min="1" step="1" placeholder="Ex.: 18" [value]="obra()?.prazo_meses ?? ''"
+               (change)="salvarPrazo($event)" />
+      </label>
+      <label class="campo-inline">
+        <span>Unidade do período</span>
+        <select [value]="unidadePeriodo()" (change)="mudarUnidadePeriodo($event)">
+          @for (u of unidadesPeriodo; track u.chave) {
+            <option [value]="u.chave">{{ u.rotulo }}</option>
+          }
+        </select>
+      </label>
+      @if (salvandoObra()) {
+        <span class="atenuado pequeno">salvando…</span>
+      }
+    </div>
+
+    <div class="linha-ferramentas linha-replanejamento">
+      <span class="rotulo-grupo">Replanejamento</span>
+      <button type="button" [disabled]="aplicandoValoresReais()" (click)="usarValoresReaisNoPlanejamento()"
+              title="Copia o Realizado pro Planejado, categoria a categoria, nos períodos já iniciados — pra alinhar o ponto atual antes de planejar o restante">
+        {{ aplicandoValoresReais() ? 'Aplicando…' : '⇄ Usar valores reais no planejamento' }}
+      </button>
+      <button type="button" class="perigo" [disabled]="zerandoPlanejamento() || !planejamentos().length"
+              (click)="zerarPlanejamento()" title="Apaga todo o planejamento desta obra">
+        {{ zerandoPlanejamento() ? 'Zerando…' : '🗑 Zerar planejamento' }}
+      </button>
+    </div>
+  </div>
+
+  @if (erroPdf(); as mensagemPdf) {
+    <div class="aviso-erro">{{ mensagemPdf }}</div>
+  }
+
+  @if (realizadoForaDoPrazo() > 0) {
+    <div class="aviso-erro">
+      Há {{ formatarMoeda(realizadoForaDoPrazo()) }} em pagamentos confirmados fora do prazo
+      configurado (antes da data base ou depois do prazo da obra) — não aparecem em nenhuma coluna
+      abaixo. Ajuste o prazo se precisar incluí-los.
+    </div>
+  }
+
   @if (periodos().length === 0) {
     <div class="painel vazio atenuado">
-      Nenhum pagamento confirmado nesta obra ainda — o cronograma aparece
-      aqui assim que houver ao menos um pagamento confirmado na aba
-      Pagamentos.
+      Preencha a data base e o prazo da obra acima pra gerar as colunas do cronograma.
     </div>
   } @else {
     <div class="painel sem-preenchimento">
       <div class="envoltoria">
-        <table class="tabela-cronograma">
+        <table class="tabela-cronograma" trenaRedimensionarColunas>
           <thead>
             <tr>
               <th class="col-eap">Item da EAP</th>
@@ -36,21 +93,63 @@
                 <th class="valor">{{ periodo.rotulo }}</th>
               }
               <th class="valor total-realizado">Total realizado</th>
+              <th class="valor total-planejado">Total planejado</th>
             </tr>
           </thead>
           <tbody>
-            @for (linha of linhas(); track linha.item.id) {
-              <tr [class.linha-grupo]="linha.item.isGroup">
-                <td class="col-eap">{{ rotuloEap(linha.item) }}</td>
+            @for (linha of linhas(); track linha.item.id; let i = $index) {
+              @if (!itensOcultos().has(linha.item.id)) {
+              <tr [class.linha-grupo]="linha.item.isGroup" [class.zebra]="!linha.item.isGroup && i % 2 === 1">
+                <td class="col-eap celula-eap">
+                  @if (linha.item.isGroup) {
+                    <button type="button" class="botao-colapsar" [style.left.px]="recuo(linha.item) * 14"
+                            [title]="estaColapsado(linha.item) ? 'Expandir' : 'Recolher'"
+                            (click)="alternarColapso(linha.item)">
+                      {{ estaColapsado(linha.item) ? '+' : '−' }}
+                    </button>
+                  }
+                  <span [style.padding-left.px]="recuo(linha.item) * 14 + (linha.item.isGroup ? 15 : 0)">{{ rotuloEap(linha.item) }}</span>
+                </td>
                 <td class="valor valor-orc">{{ valorOuTraco(linha.orcado) }}</td>
                 @for (periodo of periodos(); track periodo.chave) {
-                  <td class="valor">{{ valorOuTraco(linha.porPeriodo[periodo.chave] ?? 0) }}</td>
+                  <td class="celula-periodo">
+                    <div class="linha-realizado">
+                      <span class="rotulo-empilhado">Real.</span>
+                      @if (linha.porPeriodoRealizado[periodo.chave]) {
+                        <button type="button" class="link-realizado" (click)="abrirPagamentosDoPeriodo(linha.item, periodo)">
+                          {{ formatarMoeda(linha.porPeriodoRealizado[periodo.chave]) }}
+                        </button>
+                      } @else {
+                        <span class="valor-realizado">—</span>
+                      }
+                    </div>
+                    <div class="linha-planejado">
+                      <span class="rotulo-empilhado">Plan.</span>
+                      @if (linha.item.isGroup) {
+                        <span class="valor-planejado">{{ valorOuTraco(linha.porPeriodoPlanejado[periodo.chave] ?? 0) }}</span>
+                      } @else {
+                        <button type="button" class="botao-planejado" (click)="abrirPopupPlanejamento(linha.item, periodo)">
+                          {{ valorOuTraco(linha.porPeriodoPlanejado[periodo.chave] ?? 0) }}
+                        </button>
+                      }
+                    </div>
+                  </td>
                 }
-                <td class="valor valor-real total-realizado">{{ valorOuTraco(linha.totalRealizado) }}</td>
+                <td class="valor valor-real total-realizado">
+                  @if (linha.totalRealizado) {
+                    <button type="button" class="link-realizado" (click)="abrirPagamentosDoItem(linha.item)">
+                      {{ formatarMoeda(linha.totalRealizado) }}
+                    </button>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="valor valor-plan total-planejado">{{ valorOuTraco(linha.totalPlanejado) }}</td>
               </tr>
+              }
             } @empty {
               <tr>
-                <td [attr.colspan]="periodos().length + 3" class="centro atenuado">
+                <td [attr.colspan]="periodos().length + 4" class="centro atenuado">
                   Nenhum item lançado na EAP ainda.
                 </td>
               </tr>
@@ -61,12 +160,206 @@
               <th class="col-eap">Total</th>
               <th class="valor">{{ formatarMoeda(totalOrcado()) }}</th>
               @for (periodo of periodos(); track periodo.chave) {
-                <th class="valor">{{ formatarMoeda(totalDoPeriodo(periodo.chave)) }}</th>
+                <th class="celula-periodo">
+                  <div class="linha-realizado">
+                    <span class="rotulo-empilhado">Real.</span>
+                    @if (totalRealizadoDoPeriodo(periodo.chave)) {
+                      <button type="button" class="link-realizado" (click)="abrirPagamentosTotaisDoPeriodo(periodo)">
+                        {{ formatarMoeda(totalRealizadoDoPeriodo(periodo.chave)) }}
+                      </button>
+                    } @else {
+                      <span class="valor-realizado">—</span>
+                    }
+                  </div>
+                  <div class="linha-planejado">
+                    <span class="rotulo-empilhado">Plan.</span>
+                    <span class="valor-planejado">{{ formatarMoeda(totalPlanejadoDoPeriodo(periodo.chave)) }}</span>
+                  </div>
+                </th>
               }
-              <th class="valor total-realizado">{{ formatarMoeda(totalRealizadoGeral()) }}</th>
+              <th class="valor total-realizado">
+                @if (totalRealizadoGeral()) {
+                  <button type="button" class="link-realizado" (click)="abrirPagamentosTotais()">
+                    {{ formatarMoeda(totalRealizadoGeral()) }}
+                  </button>
+                } @else {
+                  —
+                }
+              </th>
+              <th class="valor total-planejado">{{ formatarMoeda(totalPlanejadoGeral()) }}</th>
             </tr>
           </tfoot>
         </table>
+      </div>
+    </div>
+  }
+
+  <!-- ============ Popup — valor planejado + saldo remanescente por categoria ============ -->
+  @if (popupAberto(); as aberto) {
+    <div class="modal">
+      <div class="modal-fundo" (click)="fecharPopupPlanejamento()"></div>
+
+      <div class="modal-cartao modal-pequeno">
+        <div class="modal-cabecalho">
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Planejar desembolso</span>
+            <span class="pequeno atenuado">{{ rotuloEap(aberto.item) }} — {{ aberto.periodo.rotulo }}</span>
+          </div>
+          <button type="button" (click)="fecharPopupPlanejamento()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <p class="atenuado pequeno">
+            Saldo remanescente = orçado − realizado − já planejado em outros períodos (referência,
+            não muda gravando o planejado).
+          </p>
+
+          <div class="grade-planejamento-categorias">
+            <span class="rotulo-coluna-planejamento">Categoria</span>
+            <span class="rotulo-coluna-planejamento">Saldo remanescente</span>
+            <span class="rotulo-coluna-planejamento">Planejado neste período</span>
+
+            @for (tipo of eap.tiposVisiveis(); track tipo.chave) {
+              <span class="rotulo-categoria-planejamento">{{ tipo.rotulo }}</span>
+              <span class="valor-saldo">{{ formatarMoeda(saldoRemanescentePorCategoria(aberto.item, aberto.periodo, tipo.chave)) }}</span>
+              <div class="campo-planejamento">
+                <button type="button" class="alternar-unidade" (click)="alternarUnidadePlanejamento(tipo.chave)"
+                        [title]="unidadePlanejamento(tipo.chave) === 'valor' ? 'Trocar para %' : 'Trocar para R$'">
+                  {{ unidadePlanejamento(tipo.chave) === 'valor' ? 'R$' : '%' }}
+                </button>
+                <input type="text" class="valor" [disabled]="salvandoPlanejamento()"
+                       [value]="valorPlanejadoExibido(aberto.item, tipo.chave)"
+                       (change)="salvarPlanejamentoPorTipo(aberto.item, tipo.chave, $event)" />
+              </div>
+            }
+          </div>
+
+          @if (salvandoPlanejamento()) {
+            <span class="atenuado pequeno">salvando…</span>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharPopupPlanejamento()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============ Modal: pagamentos vinculados — mesmo padrão da EAP ============ -->
+  @if (filtroPagamentosAberto(); as filtro) {
+    <div class="modal">
+      <div class="modal-fundo" (click)="fecharModalPagamentos()"></div>
+
+      <div class="modal-cartao">
+        <div class="modal-cabecalho">
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Pagamentos vinculados — {{ filtro.titulo }}</span>
+            <div class="modal-totais-empilhados">
+              <span>Total dos pagamentos: <b>{{ formatarMoeda(totalValorPagamentosPopup()) }}</b></span>
+              <span>Direcionado à etapa: <b>{{ formatarMoeda(totalValorDirecionadoPopup()) }}</b></span>
+            </div>
+          </div>
+          <button type="button" (click)="fecharModalPagamentos()">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <div class="modal-filtros">
+            <select (change)="mudarFiltroPopupBeneficiado($event)">
+              <option value="">Beneficiado: todos</option>
+              @for (beneficiado of beneficiariosPopupDisponiveis(); track beneficiado) {
+                <option [value]="beneficiado">{{ beneficiado }}</option>
+              }
+            </select>
+            <label class="campo-data-filtro">
+              <span>Solicitação de</span>
+              <input type="date" (change)="mudarFiltroPopupDataDe($event)" />
+            </label>
+            <label class="campo-data-filtro">
+              <span>até</span>
+              <input type="date" (change)="mudarFiltroPopupDataAte($event)" />
+            </label>
+          </div>
+
+          @if (pagamentosVinculados().length) {
+            <table class="tabela-pagamentos-vinculados">
+              <thead>
+                <tr>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('numeroPagamento')">
+                    Pagamento{{ setaOrdenacao(ordenacaoPagamentos(), 'numeroPagamento') }}
+                  </th>
+                  <th class="valor ordenavel" (click)="alternarOrdenacaoPagamentos('valorDirecionado')">
+                    Direcionado à etapa{{ setaOrdenacao(ordenacaoPagamentos(), 'valorDirecionado') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('fornecedor')">
+                    Beneficiado{{ setaOrdenacao(ordenacaoPagamentos(), 'fornecedor') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('dataSolicitacao')">
+                    Solicitação{{ setaOrdenacao(ordenacaoPagamentos(), 'dataSolicitacao') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('dataPagamento')">
+                    Pagamento{{ setaOrdenacao(ordenacaoPagamentos(), 'dataPagamento') }}
+                  </th>
+                  <th class="ordenavel" (click)="alternarOrdenacaoPagamentos('descricao')">
+                    Descrição{{ setaOrdenacao(ordenacaoPagamentos(), 'descricao') }}
+                  </th>
+                  <th class="valor ordenavel" (click)="alternarOrdenacaoPagamentos('valorTotal')">
+                    Valor total{{ setaOrdenacao(ordenacaoPagamentos(), 'valorTotal') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of pagamentosVinculados(); track p.numeroPagamento) {
+                  <tr>
+                    <td>
+                      {{ p.numeroPagamento }}
+                      @if (p.pendente) { <span class="marca-pendente">pendente</span> }
+                    </td>
+                    <td class="valor">
+                      <span class="valor-direcionado-hover"
+                            (mouseenter)="ajustarPosicaoHover($event, p.itensDirecionados.length)">
+                        <b>{{ formatarMoeda(p.valorDirecionado) }}</b>
+                        <div class="detalhe-hover">
+                          <table class="tabela-detalhe-itens">
+                            <thead>
+                              <tr>
+                                <th>Item</th>
+                                <th>Tipo</th>
+                                <th>Etapa</th>
+                                <th class="valor">Valor</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (i of p.itensDirecionados; track $index) {
+                                <tr>
+                                  <td>{{ i.descricao }}</td>
+                                  <td>{{ rotuloTipo(i.tipo) }}</td>
+                                  <td>{{ i.etapa }}</td>
+                                  <td class="valor">{{ formatarMoeda(i.valor) }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </span>
+                    </td>
+                    <td>{{ p.fornecedor }}</td>
+                    <td>{{ formatarData(p.dataSolicitacao) }}</td>
+                    <td>{{ formatarData(p.dataPagamento) }}</td>
+                    <td>{{ p.descricao }}</td>
+                    <td class="valor">{{ formatarMoeda(p.valorTotal) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="atenuado pequeno">Nenhum pagamento vinculado a este item ainda.</p>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharModalPagamentos()">Fechar</button>
+        </div>
       </div>
     </div>
   }

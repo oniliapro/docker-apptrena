@@ -1,11 +1,23 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { Empreita, Pagamento } from '../../core/models/api.models';
+import { Empreita, Obra, Pagamento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
+import {
+  EstadoOrdenacao,
+  alternarOrdenacao,
+  ordenarPor,
+  setaOrdenacao,
+} from '../../shared/ordenacao/ordenacao';
+import { valoresDistintos } from '../../shared/filtros/filtros';
+
+type ColunaEmpreita = 'obra' | 'numero' | 'descricao' | 'total' | 'totalPago';
 
 interface ServicoEmpreita {
   desc?: string;
@@ -27,12 +39,14 @@ interface ServicoEmpreita {
  */
 @Component({
   selector: 'app-empreitas',
-  imports: [RouterLink],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
   templateUrl: './empreitas.html',
   styleUrl: './empreitas.scss',
 })
 export class Empreitas implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly empreitas = signal<Empreita[]>([]);
   protected readonly carregando = signal(true);
@@ -46,8 +60,65 @@ export class Empreitas implements OnInit {
   /** `empreitaId -> pagamentos` gerados a partir dela (ver comentário acima). */
   protected readonly pagamentosPorEmpreita = signal<Map<string, Pagamento[]>>(new Map());
 
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaEmpreita> | null>(null);
+  protected readonly setaOrdenacao = setaOrdenacao;
+  protected readonly busca = signal('');
+
+  protected readonly filtroObra = signal('');
+  protected readonly filtroEmpreiteiro = signal('');
+
+  protected readonly obrasDisponiveis = computed(() =>
+    valoresDistintos(this.empreitas(), (e) => this.obra(e)).filter((v) => v !== '—'),
+  );
+  protected readonly empreiteirosDisponiveis = computed(() =>
+    valoresDistintos(this.empreitas(), (e) => this.empreiteiro(e)).filter((v) => v !== '—'),
+  );
+
+  protected alternarOrdenacaoColuna(coluna: ColunaEmpreita): void {
+    this.ordenacao.update((atual) => alternarOrdenacao(atual, coluna));
+  }
+
+  protected mudarBusca(evento: Event): void {
+    this.busca.set((evento.target as HTMLInputElement).value);
+  }
+
+  protected mudarFiltroObra(evento: Event): void {
+    this.filtroObra.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected mudarFiltroEmpreiteiro(evento: Event): void {
+    this.filtroEmpreiteiro.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected readonly listaOrdenada = computed(() => {
+    const termo = this.busca().trim().toLowerCase();
+    const obra = this.filtroObra();
+    const empreiteiro = this.filtroEmpreiteiro();
+
+    const filtrada = this.empreitas().filter((e) => {
+      if (obra && this.obra(e) !== obra) return false;
+      if (empreiteiro && this.empreiteiro(e) !== empreiteiro) return false;
+      if (!termo) return true;
+      return [this.obra(e), this.numero(e), this.descricao(e)].join(' ').toLowerCase().includes(termo);
+    });
+
+    return ordenarPor(filtrada, this.ordenacao(), (e, coluna) => {
+      switch (coluna) {
+        case 'obra': return this.obra(e);
+        case 'numero': return this.numero(e);
+        case 'descricao': return this.descricao(e);
+        case 'total': return this.total(e);
+        case 'totalPago': return this.totalPago(e);
+      }
+    });
+  });
+
   ngOnInit(): void {
     this.carregar();
+    this.api.listarObras().subscribe({
+      next: (obras) => this.obras.set(obras),
+      error: () => {},
+    });
   }
 
   private carregar(): void {
@@ -63,6 +134,76 @@ export class Empreitas implements OnInit {
       error: () => {
         this.erro.set('Não foi possível carregar as empreitas.');
         this.carregando.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Formulário — Nova empreita (26/08/2026, pedido do Lucas: criar direto
+  // da lista geral, escolhendo a obra ali mesmo — mesmo formulário de
+  // `EmpreitasObra`, com um seletor de obra a mais).
+  // ------------------------------------------------------------------
+  protected readonly obras = signal<Obra[]>([]);
+  protected readonly formularioAberto = signal(false);
+  protected readonly salvando = signal(false);
+  protected readonly obraSelecionadaId = signal('');
+
+  protected readonly formulario = this.fb.nonNullable.group({
+    numeroEmpreita: [''],
+    descricaoEmpreita: ['', [Validators.required]],
+    empreiteiro: [''],
+    dataMedicao: [''],
+  });
+
+  protected novo(): void {
+    this.obraSelecionadaId.set('');
+    this.formulario.reset();
+    this.formularioAberto.set(true);
+  }
+
+  protected fecharFormulario(): void {
+    this.formularioAberto.set(false);
+  }
+
+  protected mudarObraSelecionada(obraId: string): void {
+    this.obraSelecionadaId.set(obraId);
+  }
+
+  protected temErroFormulario(campo: string): boolean {
+    const controle = this.formulario.get(campo);
+    return Boolean(controle?.invalid && (controle.dirty || controle.touched));
+  }
+
+  protected salvarNovo(): void {
+    if (!this.obraSelecionadaId()) {
+      window.alert('Escolha a obra antes de salvar.');
+      return;
+    }
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    const v = this.formulario.getRawValue();
+    const obraId = this.obraSelecionadaId();
+    const payload = {
+      obra_id: obraId,
+      numero_empreita: v.numeroEmpreita.trim(),
+      descricao_empreita: v.descricaoEmpreita.trim(),
+      empreiteiro: v.empreiteiro.trim(),
+      medicao_date: v.dataMedicao || null,
+    };
+
+    this.salvando.set(true);
+    this.api.criarEmpreita(payload).subscribe({
+      next: (empreita) => {
+        this.salvando.set(false);
+        this.fecharFormulario();
+        this.router.navigate(['/obras', obraId, 'empreitas', empreita.id]);
+      },
+      error: () => {
+        this.salvando.set(false);
+        window.alert('Não foi possível criar a empreita.');
       },
     });
   }
@@ -97,6 +238,10 @@ export class Empreitas implements OnInit {
   /** Id da obra dona da empreita — usado pra montar o link de drill-down. */
   protected obraId(e: Empreita): string {
     return String(e['obra_id'] ?? '');
+  }
+
+  protected empreiteiro(e: Empreita): string {
+    return String(e['empreiteiro'] ?? '—');
   }
 
   protected alternarServicos(): void {

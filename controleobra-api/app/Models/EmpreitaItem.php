@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmpreitaItem extends Model
 {
@@ -19,15 +18,19 @@ class EmpreitaItem extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'id', 'empreita_id', 'ordem', 'eap_item_id', 'descricao', 'valor_emp',
-        'valor_reserva', 'medicao_acum_legacy', 'medicao_atual_legacy',
+        'id', 'empreita_id', 'ordem', 'eap_item_id', 'tipo_custo_id', 'qtde_contratada', 'descricao',
+        'contrato_emp', 'contrato_reserva', 'medicao_acum', 'medicao_atual',
+        'pagamento_emp', 'pagamento_reserva',
     ];
 
     protected $casts = [
-        'valor_emp' => 'float',
-        'valor_reserva' => 'float',
-        'medicao_acum_legacy' => 'float',
-        'medicao_atual_legacy' => 'float',
+        'qtde_contratada' => 'float',
+        'contrato_emp' => 'float',
+        'contrato_reserva' => 'float',
+        'medicao_acum' => 'float',
+        'medicao_atual' => 'float',
+        'pagamento_emp' => 'float',
+        'pagamento_reserva' => 'float',
     ];
 
     public function empreita(): BelongsTo
@@ -40,13 +43,8 @@ class EmpreitaItem extends Model
         return $this->belongsTo(EapItem::class);
     }
 
-    public function medicoesPorTipo(): HasMany
+    public function tipoCusto(): BelongsTo
     {
-        return $this->hasMany(EmpreitaItemMedicaoTipo::class);
-    }
-
-    public function contratoPorTipo(): HasMany
-    {
-        return $this->hasMany(EmpreitaItemContratoTipo::class);
+        return $this->belongsTo(TipoCusto::class);
     }
 }

@@ -1,0 +1,458 @@
+<header class="folha-cabecalho">
+  <div>
+    <div class="logo-texto">Mapa de Cotação</div>
+    <div class="bloco-assinatura subtitulo-assinatura">
+      <div class="marca-empresa" [title]="nomeEmpresa()">
+        @if (logoEmpresaUrl(); as url) {
+          <img class="logo-marca-empresa" [src]="url" [alt]="nomeEmpresa()" />
+        } @else {
+          <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+        }
+        <span class="nome-marca">{{ nomeEmpresa() }}</span>
+      </div>
+      <span class="separador-assinatura">gerado com</span>
+      <div class="marca-sistema">
+        <span class="quadrado-sistema"></span>
+        <span class="nome-marca">AppTrena</span>
+      </div>
+    </div>
+  </div>
+  <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm) }}</div>
+</header>
+
+@if (store.carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (store.erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+
+<!-- Mesma estrutura de mapa.html — classes reaproveitadas de mapa.scss
+     (importado via @use em mapa-imprimir.scss), só sem os botões/inputs
+     editáveis (tudo aqui é `disabled`, sem (change)/(click)). -->
+<div class="painel painel-cabecalho-mapa">
+  <div class="grade-cabecalho">
+    <label class="campo">
+      <span>Nº do mapa</span>
+      <input type="text" [value]="store.cabecalho().numeroMapa" disabled />
+    </label>
+    <label class="campo campo-largo">
+      <span>Descrição</span>
+      <input type="text" [value]="store.cabecalho().descricao" disabled />
+    </label>
+    <label class="campo">
+      <span>Início do mapa</span>
+      <input type="text" [value]="formatarDataHora(store.cabecalho().criadoEm) || '—'" disabled />
+    </label>
+    <label class="campo">
+      <span>Finalização do mapa</span>
+      <input type="text" [value]="formatarDataHora(store.cabecalho().confirmedAt) || '—'" disabled />
+    </label>
+    <label class="campo">
+      <span>Última edição</span>
+      <input type="text" [value]="formatarDataHora(store.cabecalho().ultimaFinalizacaoEm) || '—'" disabled />
+    </label>
+
+    <label class="campo">
+      <span>Obra</span>
+      <input type="text" [value]="store.nomeDaObra()" disabled />
+    </label>
+    <label class="campo">
+      <span>Responsável da obra</span>
+      <input type="text" [value]="store.cabecalho().responsavelObra" disabled />
+    </label>
+    <label class="campo">
+      <span>Responsável da cotação</span>
+      <input type="text" [value]="store.cabecalho().responsavelMapa" disabled />
+    </label>
+    @if (store.cabecalho().freteParticular) {
+      <div class="campo">
+        <span>Frete particular</span>
+        <div class="campo-com-checkbox">
+          <input type="text" class="valor" [value]="formatarMoeda(store.cabecalho().freteParticular)" disabled />
+          <label class="checagem-inline pequeno">
+            <input type="checkbox" checked disabled />
+            Considerar
+          </label>
+        </div>
+      </div>
+      <label class="campo">
+        <span>Freteiro</span>
+        <input type="text" [value]="store.cabecalho().freteiroParticular" disabled />
+      </label>
+    }
+  </div>
+</div>
+
+<!-- ============ Tabela ============ -->
+<div class="envoltoria painel sem-preenchimento">
+  <table class="tabela-mapa">
+    <!-- `table-layout: fixed` só respeita largura de célula da PRIMEIRA linha
+         da tabela (spec CSS 17.5.2.1) — e a 1ª linha daqui é a da assinatura
+         (`colspan="6"`), não a linha com `.col-num`/`.col-qtde`/`.col-unid`
+         logo abaixo. Sem `<colgroup>`, essas larguras (observações 1-3,
+         22/08/2026) eram ignoradas pelo Chromium; `<col>` vale independente
+         de qual linha define a largura. -->
+    <colgroup>
+      <col class="col-num" />
+      <col class="col-desc" />
+      <col class="col-tipo" />
+      <col class="col-qtde" />
+      <col class="col-unid" />
+      <col class="col-etapa" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th colspan="6" class="assinatura-documento">Mapa de Cotações</th>
+
+        @for (fornecedor of store.fornecedores(); track $index) {
+          <th class="cabecalho-fornecedor">
+            <span class="rotulo-ordem-fornecedor">{{ nomeFornecedor($index) }}</span>
+            <div class="bloco-fornecedor">
+              <span class="valor-contato">{{ fornecedor.contato || '—' }}</span>
+              @if (telefoneDoContato(fornecedor)) {
+                <span class="telefone-contato">{{ telefoneDoContato(fornecedor) }}</span>
+              }
+            </div>
+          </th>
+        }
+      </tr>
+
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-desc">Descrição</th>
+        <th class="col-tipo">Tipo</th>
+        <th class="col-qtde">Qtde</th>
+        <th class="col-unid">Un.</th>
+        <th class="col-etapa">Etapa</th>
+        @for (fornecedor of store.fornecedores(); track $index) {
+          <th class="borda-esquerda">Preço</th>
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (item of store.itens(); track item.id; let i = $index) {
+        <tr [class.zebra]="i % 2 === 1">
+          <td class="centro indice">{{ i + 1 }}</td>
+          <td>
+            <div class="descricao">{{ item.desc || '—' }}</div>
+          </td>
+          <td class="tipo">{{ rotuloTipo(item.tipo) }}</td>
+          <td>{{ numeroOuVazio(item.qtde) }}</td>
+          <td class="centro unidade">{{ item.unid }}</td>
+          <td class="etapa">{{ item.etapa }}</td>
+
+          @for (fornecedor of store.fornecedores(); track $index) {
+            <td class="borda-esquerda celula-preco" [class.vencedor]="estaMarcado(item, $index)">
+              <div class="linha-unit">
+                <span class="rotulo-preco">Unit.</span>
+                <span class="valor-preco">{{ precoUnitario(item, $index) }}</span>
+              </div>
+              <div class="linha-total">
+                <span class="rotulo-preco">Total</span>
+                <span class="valor-preco">{{ totalDoItem(item, $index) }}</span>
+              </div>
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr>
+          <td [attr.colspan]="6 + store.fornecedores().length" class="centro atenuado vazio">Nenhum item cotado.</td>
+        </tr>
+      }
+    </tbody>
+
+    @if (store.itens().length) {
+      <tfoot>
+        <tr>
+          <th colspan="6" class="rotulo-rodape">MODIFICADORES GLOBAIS DE COMPRA</th>
+          @for (fornecedor of store.fornecedores(); track $index) {
+            <th>
+              <div class="pilha-rodape">
+                <div class="campo-pilha-com-final">
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Frete</span>
+                    <span class="valor-pilha">{{ valorMoedaOuVazio(fornecedor.frete) }}</span>
+                  </div>
+                  @if (fornecedor.frete > 0) {
+                    <span class="valor-final-bdi">= {{ formatarMoeda(freteFinalComBdi(fornecedor)) }} c/ MARKUP</span>
+                  }
+                </div>
+                <div class="campo-pilha-com-final">
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Desconto</span>
+                    <span class="valor-pilha">{{ valorMoedaOuVazio(fornecedor.desconto) }}</span>
+                  </div>
+                  @if (fornecedor.desconto > 0) {
+                    <span class="valor-final-bdi">= {{ formatarMoeda(descontoFinalComBdi(fornecedor)) }} c/ MARKUP</span>
+                  }
+                </div>
+                <div class="campo-pilha">
+                  <span class="rotulo-repetido">MARKUP (%)</span>
+                  <span class="valor-pilha">{{ valorPercentualOuVazio(fornecedor.imposto) }}</span>
+                </div>
+              </div>
+            </th>
+          }
+        </tr>
+
+        <tr>
+          <th colspan="6" class="rotulo-rodape">ANÁLISE DE COMPRA INDIVIDUAL</th>
+          @for (fornecedor of store.fornecedores(); track $index) {
+            <th class="valor analise-individual">
+              <div class="pilha-rodape">
+                @if (!fornecedor.ativo) {
+                  <div class="bloco-desconsiderado">
+                    <p class="texto-desconsiderado">Fornecedor foi desconsiderado da análise de compras por critério do usuário</p>
+                  </div>
+                } @else {
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">{{ rotuloItensReferencia() }}</span>
+                    <span class="valor-pilha">
+                      {{ store.fracionado()[$index].used ? formatarMoeda(store.fracionado()[$index].totalItens) : '—' }}
+                    </span>
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">{{ rotuloItensReferenciaComFrete() }}</span>
+                    <span class="valor-pilha">
+                      {{ store.fracionado()[$index].used ? formatarMoeda(store.fracionado()[$index].totalItensComFrete) : '—' }}
+                    </span>
+                  </div>
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Compra integral</span>
+                    @if (store.integral()[$index] > 0) {
+                      <span class="valor-pilha">
+                        {{ ehVencedorIntegral($index) ? '🏆 ' : '' }}{{ formatarMoeda(store.integral()[$index]) }}
+                      </span>
+                    } @else {
+                      <span class="valor-pilha atenuado">não cotou tudo</span>
+                    }
+                  </div>
+                }
+              </div>
+            </th>
+          }
+        </tr>
+      </tfoot>
+    }
+  </table>
+</div>
+
+<!-- ============ Relatórios do mapa ============ -->
+@if (store.itens().length) {
+  <div class="quebra-antes">
+    @if (linhasEtapa().length) {
+      <div class="painel painel-etapas">
+        <span class="painel-titulo">Rateio por etapa da obra</span>
+
+        <div class="envoltoria">
+          <table class="tabela-etapas">
+            <thead>
+              <tr>
+                <th class="col-etapa-nome">Etapa</th>
+                @for (si of todosFornecedores(); track si) {
+                  <th class="cabecalho-forn">{{ nomeFornecedor(si) }}</th>
+                }
+                @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+                  <th class="valor">{{ store.cabecalho().freteiroParticular || 'Freteiro' }}</th>
+                }
+                <th class="valor col-total-etapa">Total da etapa</th>
+                <th class="valor col-saldo-etapa">SALDO APÓS MAPA</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (linha of linhasEtapa(); track linha.etapa; let i = $index) {
+                <tr [class.zebra]="i % 2 === 1">
+                  <td class="nome-etapa">{{ linha.etapa }}</td>
+
+                  @for (si of todosFornecedores(); track si) {
+                    @let celula = celulaDoFornecedor(linha, si);
+                    <td class="valor">
+                      <div class="pilha-rodape">
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">Base</span>
+                          <span class="valor-pilha">{{ celula.base ? formatarMoeda(celula.base) : '—' }}</span>
+                        </div>
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">Frete</span>
+                          <span class="valor-pilha">{{ celula.freteValor ? formatarMoeda(celula.freteValor) : '—' }}</span>
+                        </div>
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">Desconto</span>
+                          <span class="valor-pilha">{{ celula.descValor ? formatarMoeda(celula.descValor) : '—' }}</span>
+                        </div>
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">Markup</span>
+                          <span class="valor-pilha">{{ celula.markup ? formatarMoeda(celula.markup) : '—' }}</span>
+                        </div>
+                        <div class="campo-pilha campo-pilha-total">
+                          <span class="rotulo-repetido">Total</span>
+                          <span class="valor-pilha total-fornecedor">{{ celula.total ? formatarMoeda(celula.total) : '—' }}</span>
+                        </div>
+                      </div>
+                    </td>
+                  }
+
+                  @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+                    <td class="valor">
+                      <div class="pilha-rodape">
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">Frete</span>
+                          <span class="valor-pilha">
+                            {{ freteiroDaEtapa(linha.etapa) ? formatarMoeda(freteiroDaEtapa(linha.etapa)) : '—' }}
+                          </span>
+                        </div>
+                        <div class="campo-pilha campo-pilha-total">
+                          <span class="rotulo-repetido">Total</span>
+                          <span class="valor-pilha total-fornecedor">
+                            {{ freteiroDaEtapa(linha.etapa) ? formatarMoeda(freteiroDaEtapa(linha.etapa)) : '—' }}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                  }
+
+                  <td class="valor total-etapa">
+                    <b>{{ formatarMoeda(linha.total + freteiroDaEtapa(linha.etapa)) }}</b>
+                  </td>
+
+                  <td class="valor coluna-saldo">
+                    <div class="pilha-rodape">
+                      @for (tipo of tiposUsados(); track tipo.chave) {
+                        <div class="campo-pilha">
+                          <span class="rotulo-repetido">{{ tipo.rotulo }}</span>
+                          <span class="valor-pilha"
+                                [class.saldo-positivo]="saldoDaEtapa(linha.etapa, tipo.chave) >= 0"
+                                [class.saldo-negativo]="saldoDaEtapa(linha.etapa, tipo.chave) < 0">
+                            {{ formatarMoeda(saldoDaEtapa(linha.etapa, tipo.chave)) }}
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <div class="grade-inferior">
+    <div class="painel painel-cenarios">
+      <div class="painel-titulo">Comparação de cenários</div>
+
+      @for (cenario of cenarios(); track cenario.rotulo) {
+        <div class="linha-cenario" [class.vencedor]="cenario.vencedor">
+          <span>{{ cenario.vencedor ? '🏆 ' : '' }}{{ cenario.rotulo }}</span>
+          <b>{{ cenario.disponivel ? formatarMoeda(cenario.valor) : '—' }}</b>
+        </div>
+      }
+    </div>
+
+    <div class="painel painel-detalhe">
+      <div class="painel-titulo">Detalhe por fornecedor</div>
+      <table class="tabela-resumo tabela-largura-fixa">
+        <thead>
+          <tr>
+            <th>Fornecedor</th>
+            <th class="valor">Detalhe</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (nota of store.notas().bySupplier; track $index) {
+            @if (nota.used) {
+              <tr>
+                <td>{{ nomeFornecedor($index) }}</td>
+                <td class="valor">
+                  <div class="pilha-rodape">
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Itens</span>
+                      <span class="valor-pilha">{{ formatarMoeda(nota.itensBase) }}</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Frete</span>
+                      <span class="valor-pilha">{{ formatarMoeda(nota.frete) }}</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">Desconto</span>
+                      <span class="valor-pilha">{{ nota.desconto ? '−' + formatarMoeda(nota.desconto) : '—' }}</span>
+                    </div>
+                    <div class="campo-pilha">
+                      <span class="rotulo-repetido">MARKUP</span>
+                      <span class="valor-pilha">{{ formatarMoeda(nota.impostoNota) }}</span>
+                    </div>
+                    <div class="campo-pilha campo-pilha-total">
+                      <span class="rotulo-repetido">Total</span>
+                      <span class="valor-pilha total-fornecedor">{{ formatarMoeda(nota.totalNota) }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+          @if (freteParticularVantajoso() && store.cabecalho().freteParticular > 0) {
+            <tr>
+              <td>{{ store.cabecalho().freteiroParticular || 'Freteiro' }}</td>
+              <td class="valor">
+                <div class="pilha-rodape">
+                  <div class="campo-pilha">
+                    <span class="rotulo-repetido">Frete</span>
+                    <span class="valor-pilha">{{ formatarMoeda(store.cabecalho().freteParticular) }}</span>
+                  </div>
+                  <div class="campo-pilha campo-pilha-total">
+                    <span class="rotulo-repetido">Total</span>
+                    <span class="valor-pilha total-fornecedor">{{ formatarMoeda(store.cabecalho().freteParticular) }}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th class="rotulo-total-fornecedor">TOTAL</th>
+            <th class="valor">
+              <div class="pilha-rodape">
+                <div class="campo-pilha">
+                  <span class="rotulo-repetido">Itens</span>
+                  <span class="valor-pilha">{{ formatarMoeda(store.notas().totals.itensBase) }}</span>
+                </div>
+                <div class="campo-pilha">
+                  <span class="rotulo-repetido">Frete</span>
+                  <span class="valor-pilha">
+                    {{ formatarMoeda(store.notas().totals.frete + (freteParticularVantajoso() ? store.cabecalho().freteParticular : 0)) }}
+                  </span>
+                </div>
+                <div class="campo-pilha">
+                  <span class="rotulo-repetido">Desconto</span>
+                  <span class="valor-pilha">
+                    {{ store.notas().totals.desconto ? '−' + formatarMoeda(store.notas().totals.desconto) : '—' }}
+                  </span>
+                </div>
+                <div class="campo-pilha">
+                  <span class="rotulo-repetido">MARKUP</span>
+                  <span class="valor-pilha">{{ formatarMoeda(store.notas().totals.impostoNota) }}</span>
+                </div>
+                <div class="campo-pilha campo-pilha-total">
+                  <span class="rotulo-repetido">Total</span>
+                  <span class="valor-pilha total-fornecedor">
+                    {{ formatarMoeda(store.notas().totals.totalNota + (freteParticularVantajoso() ? store.cabecalho().freteParticular : 0)) }}
+                  </span>
+                </div>
+              </div>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    </div>
+  </div>
+}
+
+<footer class="folha-rodape">
+  Gerado automaticamente pelo AppTrena — os valores refletem os dados no momento da geração.
+</footer>
+
+}

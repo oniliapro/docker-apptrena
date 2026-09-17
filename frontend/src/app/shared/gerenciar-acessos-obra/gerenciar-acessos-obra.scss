@@ -1,0 +1,78 @@
+// Extraído de `obra-detalhe.scss` (07/09/2026) junto com o modal em si —
+// ver `gerenciar-acessos-obra.ts` pro porquê da extração. Não aninha
+// nenhum outro modal `position: fixed` por dentro, então a centralização
+// por `transform` (ao contrário de `editar-pagamento-modal.scss`/
+// `pagamentos.scss`/`recebimentos.scss`) é segura aqui.
+:host { display: block; }
+
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(620px, 94vw);
+  max-height: 88vh;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo { padding: 16px; overflow: auto; }
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.nota-acessos { margin: 0 0 12px; }
+
+.envoltoria { overflow-x: auto; }
+
+.tabela-acessos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    padding: 6px 8px;
+    text-align: left;
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    background: var(--cor-fundo-alt);
+  }
+
+  td { padding: 6px 8px; border-top: 1px solid var(--cor-fundo-alt); }
+
+  input[type='checkbox'] { width: 16px; height: 16px; cursor: pointer; }
+}
+
+.centro { text-align: center; }

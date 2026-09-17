@@ -4,84 +4,31 @@
   } @else if (erro(); as mensagem) {
     <div class="atenuado">{{ mensagem }}</div>
   } @else if (obra(); as o) {
-    <form [formGroup]="formulario">
-      <div class="linha-topo">
-        <input class="obra-nome" type="text" formControlName="obraNome"
-               placeholder="Nome da obra" (change)="editarCampo('obraNome', $event)" />
-
-        <span class="espacador"></span>
-
-        @if (salvando()) {
-          <span class="atenuado pequeno">salvando…</span>
-        }
-
-        <span class="etiqueta" [class.confirmada]="confirmada()">
-          {{ confirmada() ? 'Obra confirmada' : 'Em edição' }}
-        </span>
-        <button type="button" class="primario" (click)="alternarConfirmacao()">
-          {{ confirmada() ? 'Reabrir obra' : 'Confirmar obra' }}
-        </button>
-      </div>
-
-      <div class="grade-cabecalho">
-        <label class="campo">
-          <span>Nº da obra</span>
-          <input type="text" formControlName="mapNumber" (change)="editarCampo('mapNumber', $event)" />
-        </label>
-
-        <label class="campo">
-          <span>Cliente</span>
-          <select formControlName="cliente" (change)="editarCampo('cliente', $event)">
-            <option value="">— selecione —</option>
-            @if (clienteNaoListado()) {
-              <option [value]="o.cliente">{{ o.cliente }} (inativo/não cadastrado)</option>
-            }
-            @for (cliente of clientesAtivos(); track cliente.id) {
-              <option [value]="cliente.nome">{{ cliente.nome }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="campo">
-          <span>Local da obra</span>
-          <input type="text" formControlName="localObra" (change)="editarCampo('localObra', $event)" />
-        </label>
-
-        <label class="campo">
-          <span>Responsável</span>
-          <select formControlName="responsavel" (change)="editarCampo('responsavel', $event)">
-            <option value="">— selecione —</option>
-            @if (responsavelNaoListado()) {
-              <option [value]="o.responsavel">{{ o.responsavel }} (inativo/não cadastrado)</option>
-            }
-            @for (responsavel of responsaveisAtivos(); track responsavel.id) {
-              <option [value]="responsavel.nome">{{ responsavel.nome }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="campo">
-          <span>Data base</span>
-          <input type="date" formControlName="dataBase" (change)="editarCampo('dataBase', $event)" />
-        </label>
-
-        <label class="campo">
-          <span>Período</span>
-          <input type="text" formControlName="periodo" placeholder="Ex.: Jan/2026"
-                 (change)="editarCampo('periodo', $event)" />
-        </label>
-
-        <label class="campo campo-largo">
-          <span>Observações</span>
-          <input type="text" formControlName="obs" (change)="editarCampo('obs', $event)" />
-        </label>
-      </div>
-    </form>
+    <div class="linha-topo">
+      <h1 class="nome-obra">{{ o.obra_nome || '(sem nome)' }}</h1>
+      <span class="etiqueta-status">{{ rotuloStatusObra(o.status) }}</span>
+      <span class="espacador"></span>
+      @if (salvando()) {
+        <span class="atenuado pequeno">salvando…</span>
+      }
+      <button type="button" (click)="abrirEditar()">✎ Editar obra</button>
+    </div>
   }
 </div>
 
+@if (editarAberto()) {
+  <app-cadastro-obra-modal
+    [obra]="obra()"
+    [clientesAtivos]="clientesAtivos()"
+    [responsaveisAtivos]="responsaveisAtivos()"
+    [salvando]="salvando()"
+    (salvar)="salvarEdicao($event)"
+    (fechar)="fecharEditar()"
+    (alternarConfirmacao)="alternarConfirmacao()" />
+}
+
 <nav class="abas">
-  @for (aba of abas; track aba.caminho) {
+  @for (aba of abas(); track aba.caminho) {
     <a [routerLink]="aba.caminho" routerLinkActive="ativa">{{ aba.rotulo }}</a>
   }
 </nav>

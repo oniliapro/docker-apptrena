@@ -1,0 +1,82 @@
+:host { display: block; }
+
+.anexos {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px dashed var(--cor-borda-forte);
+  border-radius: var(--raio-md);
+  background: var(--cor-fundo);
+}
+
+.painel-titulo {
+  margin-bottom: 8px;
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.lista-anexos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.grupo-tag {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rotulo-grupo-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria-escura);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.item-anexo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+  cursor: pointer;
+
+  &:hover { background: var(--cor-fundo-alt); }
+
+  button {
+    width: 24px;
+    padding: 2px 0;
+    font-size: 11px;
+    line-height: 1;
+    flex: 0 0 auto;
+  }
+}
+
+.nome-anexo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.linha-anexar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  select { width: auto; height: 28px; }
+  input[type='file'] { width: auto; height: 28px; flex: 1; min-width: 200px; }
+}

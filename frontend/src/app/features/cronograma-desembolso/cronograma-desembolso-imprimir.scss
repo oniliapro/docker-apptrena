@@ -1,0 +1,132 @@
+// Layout para papel (A4 paisagem — cada pagamento confirmado vira uma
+// coluna de mês, e uma obra com muitos meses lançados fica larga), usado
+// só pelo Chromium headless que gera o PDF (ver CronogramaPdfController).
+// 23/08/2026, mesmo padrão de mapa-imprimir.scss/relatorios-imprimir.scss
+// (ver docs/GERAR-PDF.md): em vez de um design próprio, importa o SCSS de
+// verdade da tela normal via `@use` e só ajusta o que é específico de
+// papel.
+@use '../cronograma-desembolso/cronograma-desembolso.scss';
+
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 10mm 8mm;
+}
+
+// ---- Cabeçalho/rodapé do documento — só existem na versão impressa
+// (a tela normal usa o AppShell pra isso, que aqui não existe). ----
+.folha-rodape {
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+// ---- Ajustes de papel sobre o que veio de cronograma-desembolso.scss ----
+
+.envoltoria { overflow-x: visible; }
+
+// `table-layout: fixed` (mesmo motivo do Mapa/Relatório: sem isso a
+// largura de cada coluna vem do conteúdo, e muda quando a tabela quebra
+// de página) + `<colgroup>` — "Item da EAP" com folga pro texto mais
+// comprido da tabela, as colunas de valor (Orçado + 1 por mês + Total)
+// dividindo o resto em partes iguais.
+.tabela-cronograma {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+
+  // `table-layout: fixed` distribui a largura da tabela PROPORCIONAL a
+  // esses números (não precisa somar 100% — o navegador normaliza pela
+  // soma de tudo), então funciona igual com qualquer quantidade de
+  // períodos. Com muitos períodos (unidade "dia", prazo longo) a tabela
+  // fica larga demais pra uma folha de qualquer forma — limitação aceita,
+  // o PDF sempre gera na unidade "mês" independente do que estiver
+  // selecionado na tela (não há como saber, o PDF é uma página nova sem
+  // o estado da tela normal).
+  .col-eap { width: 18%; }
+  .col-valor { width: 6%; }
+  .col-periodo { width: 5%; }
+  .col-total-valor { width: 7%; }
+}
+
+th, td { overflow-wrap: break-word; white-space: normal; }
+
+// Coluna Orçado/Total realizado/Total planejado (24/08/2026, achado
+// gerando o PDF de teste: com 12+ colunas de período a coluna fica
+// estreita demais pro valor inteiro numa linha só, e o `nowrap` de
+// `cronograma-desembolso.scss` — que é quem define `td.valor, th.valor`
+// — fazia o número vazar por cima da coluna vizinha). Precisa do
+// prefixo `.tabela-cronograma` pra ter especificidade maior que aquela
+// regra (mesmo motivo do ajuste já feito abaixo pro cabeçalho "Total
+// realizado"/"Total planejado"). "R$ 12.350,00" tem espaço entre "R$" e
+// o número — a quebra cai ali, nunca no meio dos dígitos.
+.tabela-cronograma th.valor, .tabela-cronograma td.valor { white-space: normal; }
+
+// Célula empilhada Real./Plan. — fonte reduzida pra caber com muitas
+// colunas de período numa folha A4 (24/08/2026, achado gerando o PDF de
+// teste: 12+ períodos deixavam cada coluna estreita demais pro tamanho
+// de fonte da tela, "REAL. —"/"PLAN. R$ 3.000,00" vazando por cima da
+// célula vizinha). Mesmo ajuste já feito no Mapa/EAP pra esse tipo de
+// vazamento: rótulo pode quebrar linha, só o VALOR fica travado numa
+// linha só (rótulo é secundário, valor partido no meio fica ilegível).
+.celula-periodo {
+  padding: 3px 4px !important;
+}
+
+.linha-realizado, .linha-planejado {
+  white-space: normal;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rotulo-empilhado { font-size: 7px; }
+
+// Sem `nowrap` aqui (24/08/2026, achado gerando o PDF de teste com 12
+// colunas de período): o valor não cabia na coluna e vazava visualmente
+// por cima da vizinha. "R$ 12.350,00" tem um espaço entre "R$" e o
+// número — deixando quebrar ali, o pior caso é "R$" numa linha e o
+// número inteiro (nunca partido no meio) na linha de baixo, o que é
+// sempre mais legível que sobrepor texto.
+.valor-realizado, .valor-planejado, .link-realizado {
+  font-size: 8px;
+  white-space: normal;
+}
+
+th.total-realizado, th.total-planejado,
+td.total-realizado, td.total-planejado {
+  font-size: 8.5px;
+}
+
+// Cabeçalho "Total realizado"/"Total planejado" — colunas estreitas
+// demais pro texto inteiro numa linha (mesmo motivo acima); aqui é só
+// rótulo, sem valor, então pode quebrar livremente. Precisa do prefixo
+// `.tabela-cronograma` pra ter especificidade maior que a regra `td.valor,
+// th.valor { white-space: nowrap }` de cronograma-desembolso.scss (ela
+// também está aninhada dentro de `.tabela-cronograma`, então um seletor
+// solto aqui perdia — achado gerando o PDF de teste, cabeçalho ainda
+// vazando por cima da coluna vizinha mesmo depois do primeiro ajuste).
+.tabela-cronograma thead th.total-realizado,
+.tabela-cronograma thead th.total-planejado {
+  white-space: normal;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }
+
+// Recolher/expandir some no papel (ver .ts) — sem o botão, o recuo por
+// `padding-left` já é suficiente pra mostrar a hierarquia.
+.botao-colapsar { display: none; }

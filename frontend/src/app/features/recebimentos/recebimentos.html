@@ -1,0 +1,293 @@
+<h1>Recebimentos</h1>
+
+<div class="painel barra-ferramentas">
+  <label class="campo-obra">
+    <span>Nº da obra</span>
+    <input
+      type="text"
+      [value]="store.cabecalho().obraNumber"
+      (change)="trocarObra($event)" />
+  </label>
+
+  <label class="checagem-inline">
+    <input type="checkbox" [checked]="mostrarEtapas()" (change)="alternarEtapas()" />
+    Mostrar etapas
+  </label>
+
+  <select (change)="mudarFiltroCliente($event)">
+    <option value="">Cliente: todos</option>
+    @for (cliente of clientesDisponiveis(); track cliente) {
+      <option [value]="cliente">{{ cliente }}</option>
+    }
+  </select>
+
+  <select (change)="mudarFiltroStatus($event)">
+    <option value="todos">Status: todos</option>
+    <option value="pendente">Pendente</option>
+    <option value="confirmado">Confirmado</option>
+  </select>
+
+  <label class="campo-data-filtro">
+    <span>Solicitação de</span>
+    <input type="date" (change)="mudarFiltroDataDe($event)" />
+  </label>
+  <label class="campo-data-filtro">
+    <span>até</span>
+    <input type="date" (change)="mudarFiltroDataAte($event)" />
+  </label>
+
+  <input class="busca" type="search" placeholder="Buscar nº, cliente, descrição…" (input)="mudarBusca($event)" />
+
+  <span class="espacador"></span>
+
+  @if (selecao.temSelecao()) {
+    <button type="button" (click)="copiarMensagem()" title="Copia uma mensagem com os recebimentos selecionados, pronta pra colar no WhatsApp">
+      {{ copiado() ? '✔ Copiado!' : '📋 Copiar mensagem (' + selecao.contagem() + ')' }}
+    </button>
+  }
+  <button class="primario" type="button" (click)="novoRecebimento()">+ Novo recebimento</button>
+</div>
+
+<div class="painel">
+  @if (store.carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else {
+    @if (store.erro(); as mensagem) {
+      <div class="aviso-erro">{{ mensagem }}</div>
+    }
+
+    <div class="envoltoria">
+      <table trenaRedimensionarColunas>
+        <thead>
+          <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaExibida())"
+                     (change)="selecao.alternarTodos(listaExibida())" title="Selecionar todos" />
+            </th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numeroRecebimento')">Nº{{ setaOrdenacao(ordenacao(), 'numeroRecebimento') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
+            @if (mostrarEtapas()) { <th>Etapas</th> }
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorTotal')">Total{{ setaOrdenacao(ordenacao(), 'valorTotal') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataRecebimento')">Recebimento{{ setaOrdenacao(ordenacao(), 'dataRecebimento') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('status')">Status{{ setaOrdenacao(ordenacao(), 'status') }}</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (recebimento of listaExibida(); track recebimento.id) {
+            <tr>
+              <td class="centro">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
+              </td>
+              <td class="centro">{{ obraDoRecebimento(recebimento) }}</td>
+              <td class="centro">{{ recebimento.numeroRecebimento || '—' }}</td>
+              <td class="centro">{{ formatarDataPtBr(recebimento.dataSolicitacao) }}</td>
+              <td>{{ recebimento.descricao || '—' }}</td>
+
+              @if (mostrarEtapas()) {
+                <td>
+                  @for (grupo of etapasAgrupadas(recebimento); track grupo.eapId) {
+                    <div class="lista-linha">
+                      <span>{{ grupo.rotulo }}</span>
+                      <span>{{ formatarMoeda(grupo.valor) }}</span>
+                    </div>
+                  } @empty {
+                    <span class="atenuado">—</span>
+                  }
+                </td>
+              }
+
+              <td class="valor"><b>{{ formatarMoeda(recebimento.valorTotal) }}</b></td>
+              <td>{{ recebimento.cliente || '—' }}</td>
+              <td class="centro">{{ formatarDataPtBr(recebimento.dataRecebimento) }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="recebimento.status === 'pendente'">
+                  {{ recebimento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </td>
+              <td class="centro acoes-linha">
+                @if (recebimento.status === 'pendente') {
+                  <button type="button" title="Confirmar recebimento"
+                          (click)="confirmar(recebimento)">✔</button>
+                }
+                <button type="button" title="Editar" (click)="editar(recebimento)">✎</button>
+                <button type="button" title="Excluir" (click)="remover(recebimento)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="mostrarEtapas() ? 11 : 10" class="centro atenuado">
+                Nenhum recebimento lançado.
+              </td>
+            </tr>
+          }
+        </tbody>
+
+        <tfoot>
+          <tr class="bloco-topo bloco-base">
+            <th [attr.colspan]="mostrarEtapas() ? 6 : 5" class="rotulo-rodape">TOTAL</th>
+            <th class="valor"><b>{{ formatarMoeda(store.total()) }}</b></th>
+            <th colspan="4"></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+</div>
+
+@if (rascunho(); as r) {
+  <div class="modal">
+    <div class="modal-fundo" (click)="fecharModal()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">{{ editando() ? 'Editar recebimento' : 'Novo recebimento' }}</span>
+        <button type="button" (click)="fecharModal()">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade-campos">
+          <label class="campo">
+            <span>Nº do recebimento</span>
+            <input type="text" [value]="r.numeroRecebimento"
+                   (change)="atualizarCampo('numeroRecebimento', $event)" />
+          </label>
+          <label class="campo">
+            <span>Data da solicitação</span>
+            <input type="date" [value]="r.dataSolicitacao"
+                   (change)="atualizarCampo('dataSolicitacao', $event)" />
+          </label>
+          <label class="campo">
+            <span>Data do recebimento</span>
+            <input type="date" [value]="somenteData(r.dataRecebimento)"
+                   (change)="atualizarCampo('dataRecebimento', $event)" />
+          </label>
+          <label class="campo">
+            <span>Cliente</span>
+            <input type="text" [value]="r.cliente"
+                   (change)="atualizarCampo('cliente', $event)" />
+          </label>
+          <label class="campo campo-largo">
+            <span>Descrição</span>
+            <input type="text" [value]="r.descricao"
+                   (change)="atualizarCampo('descricao', $event)" />
+          </label>
+          <label class="campo">
+            <span>Valor total</span>
+            <input type="text" class="valor" placeholder="R$ 0,00"
+                   [value]="r.valorTotal ? formatarMoeda(r.valorTotal) : ''"
+                   (change)="atualizarValorTotal($event)" />
+          </label>
+        </div>
+
+        <div class="cabecalho-itens">
+          <span class="painel-titulo">Itens do recebimento</span>
+          <button type="button" (click)="adicionarItem()">+ Adicionar item</button>
+        </div>
+
+        <div class="envoltoria">
+          <table trenaNavegacaoTabela
+                 trenaRedimensionarColunas
+                 (inserirLinha)="adicionarItem()"
+                 (removerLinha)="removerItemPorIndice($event)">
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Etapa (EAP)</th>
+                <th>Tipo</th>
+                <th class="valor">Valor</th>
+                <th class="centro">Modo</th>
+                <th class="centro"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of r.itens; track item.id) {
+                <tr>
+                  <td>
+                    <input type="text" [value]="item.descricao"
+                           placeholder="Ex.: Medição de etapa"
+                           (change)="atualizarItem(item.id, 'descricao', $event)" />
+                  </td>
+                  <td>
+                    @if (store.snapshotEap().length) {
+                      <select [value]="item.eapId" (change)="atualizarItem(item.id, 'eapId', $event)">
+                        <option value=""></option>
+                        @for (eap of store.snapshotEap(); track eap.id) {
+                          <option [value]="eap.id" [selected]="eap.id === item.eapId">{{ recuoEap(eap) }}{{ rotuloEapItem(eap) }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <select disabled>
+                        <option>(Cadastre a EAP primeiro)</option>
+                      </select>
+                    }
+                  </td>
+                  <td>
+                    <select [value]="item.tipo" (change)="atualizarItem(item.id, 'tipo', $event)">
+                      <option value=""></option>
+                      @for (tipo of tipos; track tipo.chave) {
+                        <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <input type="text" class="valor"
+                           [value]="valorItemEditado(item)"
+                           [placeholder]="item.modoValor === 'percentual' ? '0,00 %' : 'R$ 0,00'"
+                           (change)="atualizarItem(item.id, 'valor', $event)" />
+                    @if (item.modoValor === 'percentual') {
+                      <span class="atenuado pequeno">= {{ formatarMoeda(valorResolvido(item)) }}</span>
+                    }
+                  </td>
+                  <td class="centro">
+                    <button type="button" (click)="alternarModoItem(item.id)">
+                      {{ item.modoValor === 'percentual' ? '%' : 'R$' }}
+                    </button>
+                  </td>
+                  <td class="centro">
+                    <button type="button" title="Remover" (click)="removerItem(item.id)">✖</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="centro atenuado">Sem itens</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="resumo">
+          <div><span>Soma dos itens</span><b>{{ formatarMoeda(somaItens()) }}</b></div>
+          <div><span>Valor total</span><b>{{ formatarMoeda(r.valorTotal) }}</b></div>
+          <div [class.divergente]="diferencaAberta()">
+            <span>Diferença</span><b>{{ formatarMoeda(diferenca()) }}</b>
+          </div>
+        </div>
+
+        @if (diferencaAberta()) {
+          <p class="aviso-erro">
+            A soma dos itens precisa ser igual ao valor total para salvar.
+          </p>
+        }
+
+        @if (editando()) {
+          <app-anexos-lancamento origemTipo="recebimento" [origemId]="r.id" />
+        } @else {
+          <p class="atenuado pequeno aviso-anexo-apos-salvar">
+            Salve o recebimento primeiro pra poder anexar arquivos (o nome do arquivo usa o número do recebimento).
+          </p>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharModal()">Cancelar</button>
+        <button class="primario" type="button" (click)="salvar()">Salvar recebimento</button>
+      </div>
+    </div>
+  </div>
+}
