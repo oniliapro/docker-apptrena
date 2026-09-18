@@ -119,7 +119,7 @@ export class PublicoRdo implements OnInit {
   ngOnInit(): void {
     this.token = this.rota.snapshot.paramMap.get('token') ?? '';
 
-    this.http.get<RespostaPublica>(`${this.base}/api/publico/rdo/${this.token}`).subscribe({
+    this.http.get<RespostaPublica>(`${this.base}/publico/rdo/${this.token}`).subscribe({
       next: (resposta) => {
         this.obra.set(resposta.obra);
         this.registros.set(resposta.registros ?? []);
@@ -146,7 +146,7 @@ export class PublicoRdo implements OnInit {
 
   protected abrir(registro: ResumoRegistro): void {
     this.http
-      .get<RdoRegistro>(`${this.base}/api/publico/rdo/${this.token}/registro/${registro.id}`)
+      .get<RdoRegistro>(`${this.base}/publico/rdo/${this.token}/registro/${registro.id}`)
       .subscribe({
         next: (completo) => this.selecionado.set(completo),
         error: () => this.erro.set('Não foi possível abrir este relatório.'),

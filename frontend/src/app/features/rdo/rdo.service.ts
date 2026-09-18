@@ -48,22 +48,22 @@ export class RdoService {
       params = params.set('obra_id', obraId);
     }
 
-    return this.http.get<RdoRegistro[]>(`${this.base}/api/rdo`, { params });
+    return this.http.get<RdoRegistro[]>(`${this.base}/rdo`, { params });
   }
 
   obter(id: string): Observable<RdoRegistro> {
-    return this.http.get<RdoRegistro>(`${this.base}/api/rdo/${id}`);
+    return this.http.get<RdoRegistro>(`${this.base}/rdo/${id}`);
   }
 
   /** Cabeçalho, próximo número e pré-preenchimento vindo do RDO anterior. */
   preparar(obraId: string): Observable<RdoPreparo> {
     const params = new HttpParams().set('obra_id', obraId);
 
-    return this.http.get<RdoPreparo>(`${this.base}/api/rdo/preparar`, { params });
+    return this.http.get<RdoPreparo>(`${this.base}/rdo/preparar`, { params });
   }
 
   criar(payload: Record<string, unknown>, fotos: FotoSelecionada[]): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/api/rdo`, this.montarCorpo(payload, fotos));
+    return this.http.post<RdoRegistro>(`${this.base}/rdo`, this.montarCorpo(payload, fotos));
   }
 
   /**
@@ -71,20 +71,20 @@ export class RdoService {
    * popula $_FILES em requisições PUT.
    */
   atualizar(id: string, payload: Record<string, unknown>, fotos: FotoSelecionada[]): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/api/rdo/${id}`, this.montarCorpo(payload, fotos));
+    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}`, this.montarCorpo(payload, fotos));
   }
 
   /** Finalizar É assinar — não existe ação separada de assinatura. */
   finalizar(id: string): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/api/rdo/${id}/finalizar`, {});
+    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}/finalizar`, {});
   }
 
   excluir(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/api/rdo/${id}`);
+    return this.http.delete<void>(`${this.base}/rdo/${id}`);
   }
 
   removerFoto(id: string, fotoId: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/api/rdo/${id}/fotos/${fotoId}`);
+    return this.http.delete<void>(`${this.base}/rdo/${id}/fotos/${fotoId}`);
   }
 
   /**
@@ -92,17 +92,17 @@ export class RdoService {
    * Sanctum no cabeçalho — um <a href> não carregaria a autenticação.
    */
   baixarPdf(id: string): Observable<Blob> {
-    return this.http.get(`${this.base}/api/rdo/${id}/pdf`, { responseType: 'blob' });
+    return this.http.get(`${this.base}/rdo/${id}/pdf`, { responseType: 'blob' });
   }
 
   obterCabecalho(obraId: string): Observable<RdoObraDados> {
     const params = new HttpParams().set('obra_id', obraId);
 
-    return this.http.get<RdoObraDados>(`${this.base}/api/rdo/obra-dados`, { params });
+    return this.http.get<RdoObraDados>(`${this.base}/rdo/obra-dados`, { params });
   }
 
   salvarCabecalho(obraId: string, dados: RdoObraDados): Observable<RdoObraDados> {
-    return this.http.post<RdoObraDados>(`${this.base}/api/rdo/obra-dados`, {
+    return this.http.post<RdoObraDados>(`${this.base}/rdo/obra-dados`, {
       ...dados,
       obra_id: obraId,
     });
@@ -111,18 +111,18 @@ export class RdoService {
   listarLinks(obraId: string): Observable<RdoContratanteLink[]> {
     const params = new HttpParams().set('obra_id', obraId);
 
-    return this.http.get<RdoContratanteLink[]>(`${this.base}/api/rdo/links`, { params });
+    return this.http.get<RdoContratanteLink[]>(`${this.base}/rdo/links`, { params });
   }
 
   criarLink(obraId: string, email: string | null): Observable<RdoContratanteLink> {
-    return this.http.post<RdoContratanteLink>(`${this.base}/api/rdo/links`, {
+    return this.http.post<RdoContratanteLink>(`${this.base}/rdo/links`, {
       obra_id: obraId,
       email,
     });
   }
 
   revogarLink(id: string): Observable<RdoContratanteLink> {
-    return this.http.post<RdoContratanteLink>(`${this.base}/api/rdo/links/${id}/revogar`, {});
+    return this.http.post<RdoContratanteLink>(`${this.base}/rdo/links/${id}/revogar`, {});
   }
 
   /**
