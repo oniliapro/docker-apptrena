@@ -1,0 +1,346 @@
+/*
+  RDO em papel A4.
+
+  Só é usado pelo Chromium headless que gera o PDF (RdoPdfController) e por
+  quem abrir /imprimir/rdo/:id direto no navegador. Por isso o CSS aqui é de
+  documento — medidas em mm, quebra de página controlada, preto no branco —
+  e não da interface do sistema.
+
+  Campos da planilha-modelo de RDO que o mercado usa, identidade visual do
+  AppTrena (navy + âmbar, cantos retos): decisão da Onilia em 17/09/2026 —
+  "mesmos campos, layout próprio".
+*/
+
+@page {
+  size: A4 portrait;
+  margin: 10mm 10mm 12mm;
+}
+
+:host {
+  display: block;
+  background: #fff;
+  color: #1f2724;
+  font-family: Inter, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.35;
+}
+
+.carregando {
+  padding: 20mm;
+  text-align: center;
+  color: #5b6560;
+}
+
+.folha { max-width: 190mm; margin: 0 auto; }
+
+/* ---------- Cabeçalho ---------- */
+
+.cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6mm;
+  padding-bottom: 2.5mm;
+  border-bottom: 1.2pt solid #1b3a4b;
+  margin-bottom: 3mm;
+}
+
+.empresa {
+  display: flex;
+  align-items: flex-start;
+  gap: 3mm;
+}
+
+.logo {
+  max-height: 14mm;
+  max-width: 34mm;
+  object-fit: contain;
+}
+
+.empresa-nome {
+  margin: 0;
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: #1b3a4b;
+}
+
+.empresa-linha {
+  margin: 0.4mm 0 0;
+  font-size: 7.5pt;
+  color: #5b6560;
+}
+
+.documento { text-align: right; }
+
+.documento-titulo {
+  margin: 0;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5b6560;
+}
+
+.documento-numero {
+  margin: 0.5mm 0 0;
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1b3a4b;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.documento-data {
+  margin: 0.3mm 0 0;
+  font-size: 9.5pt;
+  font-weight: 600;
+  color: #1f2724;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Identificação ---------- */
+
+.identificacao {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0;
+  border: 0.6pt solid #c9ccc4;
+  margin-bottom: 3mm;
+}
+
+.campo {
+  padding: 1.4mm 2mm;
+  border-right: 0.6pt solid #c9ccc4;
+  border-bottom: 0.6pt solid #c9ccc4;
+  min-height: 8mm;
+
+  /* A borda do container já fecha o retângulo à direita e embaixo; sem isto
+     a linha final fica com espessura dobrada. */
+  &:nth-child(3n) { border-right: none; }
+  &:nth-last-child(-n + 3) { border-bottom: none; }
+}
+
+.rotulo {
+  display: block;
+  font-size: 6.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5b6560;
+}
+
+.valor {
+  display: block;
+  font-size: 9pt;
+  margin-top: 0.3mm;
+
+  &.destaque { font-weight: 700; color: #1b3a4b; }
+}
+
+/* ---------- Seções ---------- */
+
+.secao {
+  margin-bottom: 3mm;
+  break-inside: avoid;
+
+  h2 {
+    margin: 0 0 1.2mm;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: #1b3a4b;
+    padding: 1mm 2mm;
+  }
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+
+  th, td {
+    border: 0.6pt solid #c9ccc4;
+    padding: 1mm 1.6mm;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background: #eceee8;
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #1b3a4b;
+    font-weight: 700;
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; width: 14mm; }
+
+  .vazia td { height: 5mm; }
+}
+
+.clima td {
+  text-align: center;
+  font-weight: 600;
+}
+
+.tres-colunas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2mm;
+}
+
+.etapas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 4mm;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 1.2mm;
+    font-size: 8.5pt;
+  }
+
+  .concluida { color: #4c7a54; }
+}
+
+.caixa {
+  display: inline-grid;
+  place-items: center;
+  width: 3.2mm;
+  height: 3.2mm;
+  border: 0.6pt solid #5b6560;
+  font-size: 7pt;
+  line-height: 1;
+}
+
+.lista-numerada {
+  margin: 0;
+  padding-left: 5mm;
+  font-size: 8.5pt;
+
+  li {
+    margin-bottom: 1.2mm;
+    break-inside: avoid;
+  }
+}
+
+.meta {
+  display: inline;
+  color: #5b6560;
+  font-size: 8pt;
+  margin-left: 1mm;
+}
+
+.observacao {
+  margin: 1.2mm 0 0;
+  font-size: 8.5pt;
+}
+
+.vazio {
+  margin: 0;
+  font-size: 8.5pt;
+  color: #5b6560;
+  font-style: italic;
+}
+
+/* ---------- Fotos ---------- */
+
+.fotos-tarefa,
+.fotos-dia {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm;
+  margin-top: 1.2mm;
+
+  figure { margin: 0; width: 38mm; break-inside: avoid; }
+
+  figcaption {
+    font-size: 6.8pt;
+    color: #5b6560;
+    margin-top: 0.6mm;
+    line-height: 1.2;
+  }
+}
+
+.fotos-dia figure { width: 44mm; }
+
+.quadro {
+  position: relative;
+  width: 100%;
+  height: 28mm;
+  border: 0.6pt solid #c9ccc4;
+  overflow: hidden;
+
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+
+.fotos-dia .quadro { height: 32mm; }
+
+/* Croqui: o ponto que o engenheiro marcou sobre a foto. */
+.marcador {
+  position: absolute;
+  width: 2.6mm;
+  height: 2.6mm;
+  margin: -1.3mm 0 0 -1.3mm;
+  border-radius: 50%;
+  background: #e8a33d;
+  border: 0.5pt solid #fff;
+  box-shadow: 0 0 0 0.5pt #c4462f;
+}
+
+/* ---------- Assinaturas ---------- */
+
+.assinaturas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6mm;
+  margin-top: 10mm;
+  break-inside: avoid;
+}
+
+.assinatura { text-align: center; }
+
+.linha-assinatura {
+  height: 10mm;
+  border-bottom: 0.8pt solid #1f2724;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.8mm;
+}
+
+.assinado {
+  font-size: 9pt;
+  color: #1b3a4b;
+  font-weight: 600;
+}
+
+.assinatura-papel {
+  margin: 1.2mm 0 0;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5b6560;
+}
+
+.assinatura-registro {
+  margin: 0.4mm 0 0;
+  font-size: 6.8pt;
+  color: #5b6560;
+}
+
+/* ---------- Rodapé ---------- */
+
+.rodape {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6mm;
+  padding-top: 1.5mm;
+  border-top: 0.6pt solid #c9ccc4;
+  font-size: 6.8pt;
+  color: #5b6560;
+}

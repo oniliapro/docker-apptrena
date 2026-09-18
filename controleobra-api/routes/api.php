@@ -298,3 +298,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('arquivos/{arquivo}/preview-url', [ArquivoController::class, 'previewUrl'])
         ->middleware(['permissaoModulo:arquivos,usar', 'permissaoObra:ver']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Relatório Diário de Obra (RDO) — 17/09/2026
+|--------------------------------------------------------------------------
+|
+| As rotas do módulo vivem em routes/rdo.php, e não aqui, para que este
+| arquivo compartilhado precise de uma linha só. Ver o cabeçalho daquele
+| arquivo.
+*/
+require __DIR__.'/rdo.php';

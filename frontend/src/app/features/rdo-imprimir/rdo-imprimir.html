@@ -1,0 +1,308 @@
+<!--
+  Documento RDO em A4. Campos da planilha-modelo do mercado, identidade
+  visual do AppTrena (decisão da Onilia, 17/09/2026).
+-->
+
+@if (rdo(); as r) {
+  <article class="folha">
+
+    <!-- Cabeçalho: empresa + identificação do documento -->
+    <header class="cabecalho">
+      <div class="empresa">
+        @if (empresa()?.logoUrl) {
+          <img class="logo" [src]="empresa()?.logoUrl" alt="">
+        }
+        <div>
+          <p class="empresa-nome">{{ empresa()?.razaoSocial || empresa()?.nome || 'AppTrena' }}</p>
+          @if (empresa()?.endereco) { <p class="empresa-linha">{{ empresa()?.endereco }}</p> }
+          @if (empresa()?.emailContato) { <p class="empresa-linha">{{ empresa()?.emailContato }}</p> }
+          @if (empresa()?.cnpj) { <p class="empresa-linha">CNPJ {{ empresa()?.cnpj }}</p> }
+        </div>
+      </div>
+
+      <div class="documento">
+        <p class="documento-titulo">Relatório Diário de Obra</p>
+        <p class="documento-numero">Nº {{ numeroFormatado() }}</p>
+        <p class="documento-data">{{ r.data | date: 'dd/MM/yyyy' }}</p>
+      </div>
+    </header>
+
+    <!-- Identificação da obra -->
+    <section class="identificacao">
+      <div class="campo largo">
+        <span class="rotulo">Obra</span>
+        <span class="valor">{{ r.obra?.obra_nome || '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">Contrato</span>
+        <span class="valor">{{ cabecalho()?.numero_contrato || '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">Responsável técnico</span>
+        <span class="valor">{{ cabecalho()?.responsavel_tecnico || '—' }}</span>
+      </div>
+
+      <div class="campo largo">
+        <span class="rotulo">Endereço</span>
+        <span class="valor">{{ r.obra?.local_obra || '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">Início</span>
+        <span class="valor">{{ cabecalho()?.data_inicio ? (cabecalho()?.data_inicio | date: 'dd/MM/yyyy') : '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">Prazo</span>
+        <span class="valor">{{ cabecalho()?.prazo || '—' }}</span>
+      </div>
+
+      <div class="campo largo">
+        <span class="rotulo">Contratante</span>
+        <span class="valor">{{ cabecalho()?.contratante_nome || r.obra?.cliente || '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">CREA</span>
+        <span class="valor">{{ cabecalho()?.crea || '—' }}</span>
+      </div>
+      <div class="campo">
+        <span class="rotulo">Nº da ART</span>
+        <span class="valor">{{ cabecalho()?.art || '—' }}</span>
+      </div>
+    </section>
+
+    <!-- Clima por turno -->
+    <section class="secao">
+      <h2>Condições climáticas</h2>
+      <table class="tabela clima">
+        <thead><tr><th>Manhã</th><th>Tarde</th><th>Noite</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>{{ rotuloClima(r.clima_manha) }}</td>
+            <td>{{ rotuloClima(r.clima_tarde) }}</td>
+            <td>{{ rotuloClima(r.clima_noite) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      @if (r.impacto_cronograma) {
+        <p class="observacao"><strong>Impacto no cronograma:</strong> {{ r.impacto_cronograma }}</p>
+      }
+    </section>
+
+    <!-- Etapas -->
+    @if (r.etapas?.length) {
+      <section class="secao">
+        <h2>Etapas da obra</h2>
+        <ul class="etapas">
+          @for (e of r.etapas; track e.id) {
+            <li [class.concluida]="e.concluida">
+              <span class="caixa">{{ e.concluida ? '✓' : '' }}</span>{{ e.nome }}
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- Mão de obra e equipamentos, nas três colunas do RDO -->
+    <section class="secao">
+      <h2>Mão de obra e equipamentos</h2>
+      <div class="tres-colunas">
+        <table class="tabela">
+          <thead><tr><th colspan="2">Mão de obra indireta</th></tr>
+                 <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
+          <tbody>
+            @for (m of maoDeObraDe('indireta'); track m.id) {
+              <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
+            }
+            @for (vazio of preenchimento(maoDeObraDe('indireta').length, 4); track vazio) {
+              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
+            }
+          </tbody>
+        </table>
+
+        <table class="tabela">
+          <thead><tr><th colspan="2">Mão de obra direta</th></tr>
+                 <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
+          <tbody>
+            @for (m of maoDeObraDe('direta'); track m.id) {
+              <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
+            }
+            @for (vazio of preenchimento(maoDeObraDe('direta').length, 4); track vazio) {
+              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
+            }
+          </tbody>
+        </table>
+
+        <table class="tabela">
+          <thead><tr><th colspan="2">Equipamentos</th></tr>
+                 <tr><th>Descrição</th><th class="num">Qtde</th></tr></thead>
+          <tbody>
+            @for (eq of r.equipamentos; track eq.id) {
+              <tr><td>{{ eq.descricao }}</td><td class="num">{{ eq.quantidade }}</td></tr>
+            }
+            @for (vazio of preenchimento((r.equipamentos ?? []).length, 4); track vazio) {
+              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tarefas -->
+    <section class="secao">
+      <h2>Tarefas realizadas</h2>
+      @if (r.tarefas?.length) {
+        <ol class="lista-numerada">
+          @for (t of r.tarefas; track t.id) {
+            <li>
+              {{ t.descricao }}
+              @if (fotosDaTarefa(t.id).length) {
+                <div class="fotos-tarefa">
+                  @for (foto of fotosDaTarefa(t.id); track foto.id) {
+                    <figure>
+                      <div class="quadro">
+                        <img [src]="foto.url" alt="">
+                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                          <span class="marcador"
+                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                        }
+                      </div>
+                      @if (foto.legenda || foto.marcador_nota) {
+                        <figcaption>{{ foto.legenda }}{{ foto.marcador_nota ? ' — ' + foto.marcador_nota : '' }}</figcaption>
+                      }
+                    </figure>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="vazio">Sem tarefas registradas.</p>
+      }
+    </section>
+
+    <!-- Ocorrências -->
+    <section class="secao">
+      <h2>Ocorrências</h2>
+      @if (r.ocorrencias?.length) {
+        <ol class="lista-numerada">
+          @for (oc of r.ocorrencias; track oc.id) {
+            <li>
+              <strong>{{ rotuloOcorrencia(oc.tipo) }}.</strong> {{ oc.descricao }}
+              @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}.</span> }
+              @if (oc.motivo) { <span class="meta">Motivo: {{ oc.motivo }}.</span> }
+              @if (oc.danos_materiais) { <span class="meta">Danos: {{ oc.danos_materiais }}.</span> }
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="vazio">Sem ocorrências registradas.</p>
+      }
+    </section>
+
+    @if (r.pendencias?.length) {
+      <section class="secao">
+        <h2>Pendências</h2>
+        <table class="tabela">
+          <thead><tr><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Situação</th></tr></thead>
+          <tbody>
+            @for (p of r.pendencias; track p.id) {
+              <tr>
+                <td>{{ p.descricao }}</td>
+                <td>{{ p.responsavel || '—' }}</td>
+                <td>{{ p.prazo ? (p.prazo | date: 'dd/MM/yyyy') : '—' }}</td>
+                <td>{{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
+
+    @if (r.responsaveis_presentes?.length) {
+      <section class="secao">
+        <h2>Responsáveis presentes</h2>
+        <table class="tabela">
+          <thead><tr><th>Nome</th><th>Empresa</th><th>Função</th><th>Contrato</th></tr></thead>
+          <tbody>
+            @for (re of r.responsaveis_presentes; track re.id) {
+              <tr>
+                <td>{{ re.nome }}</td>
+                <td>{{ re.empresa || '—' }}</td>
+                <td>{{ re.funcao || '—' }}</td>
+                <td>{{ re.contrato_referencia || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
+
+    @if (fotosDoDia().length) {
+      <section class="secao">
+        <h2>Registro fotográfico do dia</h2>
+        <div class="fotos-dia">
+          @for (foto of fotosDoDia(); track foto.id) {
+            <figure>
+              <div class="quadro">
+                <img [src]="foto.url" alt="">
+                @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                  <span class="marcador"
+                        [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                        [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                }
+              </div>
+              @if (foto.legenda) { <figcaption>{{ foto.legenda }}</figcaption> }
+            </figure>
+          }
+        </div>
+      </section>
+    }
+
+    @if (r.observacoes) {
+      <section class="secao">
+        <h2>Observações</h2>
+        <p class="observacao">{{ r.observacoes }}</p>
+      </section>
+    }
+
+    <!--
+      Assinaturas. Só a da contratada é preenchida pelo sistema — o
+      contratante não assina digitalmente (decisão de 08/09/2026), então a
+      linha dele fica em branco para assinatura à mão, se as partes quiserem.
+    -->
+    <section class="assinaturas">
+      <div class="assinatura">
+        <div class="linha-assinatura">
+          @if (r.assinante_nome) {
+            <span class="assinado">{{ r.assinante_nome }}</span>
+          }
+        </div>
+        <p class="assinatura-papel">Responsável técnico</p>
+        @if (r.assinante_crea) { <p class="assinatura-registro">CREA {{ r.assinante_crea }}</p> }
+        @if (r.assinado_em) {
+          <p class="assinatura-registro">
+            Assinado eletronicamente em {{ r.assinado_em | date: 'dd/MM/yyyy HH:mm' }}
+          </p>
+        }
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-papel">Contratada</p>
+      </div>
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+        <p class="assinatura-papel">Contratante</p>
+      </div>
+    </section>
+
+    <footer class="rodape">
+      <span>{{ r.obra?.obra_nome }} — RDO nº {{ numeroFormatado() }} — {{ r.data | date: 'dd/MM/yyyy' }}</span>
+      <span>Gerado pelo AppTrena</span>
+    </footer>
+  </article>
+} @else {
+  <p class="carregando">Carregando relatório…</p>
+}

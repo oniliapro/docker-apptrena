@@ -1,0 +1,664 @@
+/*
+  RDO — dois layouts no mesmo template (pedido de 08/09/2026: desktop e
+  celular como formatos distintos, não um responsivo que só encolhe).
+
+  Desktop: todas as seções abertas, lado a lado quando cabe. Quem lança do
+  escritório precisa ver o documento inteiro.
+
+  Celular (abaixo de $quebra-mobile): as seções viram acordeão, uma por vez,
+  com alvos de toque grandes. Quem está no canteiro preenche com uma mão só e
+  não pode rolar dez telas para achar um campo.
+*/
+
+:host {
+  display: block;
+  padding-bottom: 4rem;
+}
+
+.rdo-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--cor-primaria);
+  }
+}
+
+.rdo-subtitulo {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.rdo-topo-acoes {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.campo-obra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+
+  select { min-width: 210px; }
+}
+
+.painel {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--sombra-sm);
+
+  h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    color: var(--cor-primaria);
+  }
+
+  h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cor-texto-suave);
+  }
+}
+
+.alerta {
+  padding: 0.6rem 0.8rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.alerta-erro {
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  border: 1px solid var(--cor-perigo);
+}
+
+.alerta-ok {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  border: 1px solid var(--cor-sucesso);
+}
+
+.dica {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave);
+}
+
+.carregando,
+.vazio {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+/* ---------- Seções (acordeão no celular) ---------- */
+
+.secao-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: default;
+  text-align: left;
+
+  h2 { margin: 0; }
+}
+
+.secao-resumo {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.secao-corpo { margin-top: 0.75rem; }
+
+/* ---------- Grades de campo ---------- */
+
+.grade-cabecalho,
+.grade-identificacao,
+.grade-dupla,
+.grade-tripla {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.grade-cabecalho { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.grade-identificacao { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.grade-dupla { grid-template-columns: 1fr 1fr; }
+.grade-tripla { grid-template-columns: repeat(3, 1fr); }
+
+.largo,
+.campo-largo { grid-column: 1 / -1; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
+.campo-largo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.5rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.4rem 0.5rem;
+  width: 100%;
+
+  &:focus-visible {
+    outline: 2px solid var(--cor-aco);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    background: var(--cor-fundo-alt);
+    color: var(--cor-texto-suave);
+  }
+}
+
+textarea { resize: vertical; }
+
+.campo-qtde {
+  max-width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+
+  input { width: auto; }
+}
+
+.clima {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin: 0.5rem 0;
+
+  legend {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cor-texto-suave);
+    padding: 0 0.3rem;
+  }
+}
+
+.clima-grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+/* ---------- Linhas repetíveis ---------- */
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.bloco {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--cor-fundo);
+}
+
+.colunas-mao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.coluna-mao {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+}
+
+/* ---------- Botões ---------- */
+
+button {
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid transparent;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.botao-secundario {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-borda-forte);
+}
+
+.botao-adicionar {
+  background: none;
+  color: var(--cor-aco);
+  border: 1px dashed var(--cor-borda-forte);
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
+.botao-remover {
+  background: none;
+  color: var(--cor-perigo);
+  border-color: transparent;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.botao-foto {
+  display: inline-block;
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  width: auto;
+}
+
+.rdo-acoes {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ---------- Tarefas ---------- */
+
+.tarefa {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin-bottom: 0.6rem;
+  background: var(--cor-fundo);
+}
+
+.tarefa-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tarefa-numero {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--cor-primaria);
+  color: #fff;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tarefa-fotos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding-left: 1.8rem;
+}
+
+/* ---------- Fotos: miniaturas circulares ---------- */
+
+.miniaturas,
+.galeria-edicao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.miniatura {
+  margin: 0;
+  width: 84px;
+  text-align: center;
+  cursor: pointer;
+
+  figcaption {
+    margin-top: 0.25rem;
+    font-size: 0.68rem;
+    color: var(--cor-texto-suave);
+    line-height: 1.25;
+    word-break: break-word;
+  }
+}
+
+.miniatura-circulo {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--cor-borda-forte);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.miniatura-edicao {
+  margin: 0;
+  width: 132px;
+
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+  }
+
+  input { font-size: 0.72rem; padding: 0.25rem 0.35rem; }
+  .botao-remover { font-size: 0.7rem; align-self: flex-start; }
+}
+
+.miniatura-imagem {
+  position: relative;
+  width: 132px;
+  height: 100px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: crosshair;
+
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+
+/* Croqui: ponto marcado sobre a foto. Posicionado em %, por isso acompanha
+   qualquer tamanho de exibição. */
+.marcador {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--cor-destaque);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--cor-perigo);
+  pointer-events: none;
+}
+
+.marcador-grande {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+}
+
+/* ---------- Popup da foto ---------- */
+
+.popup-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 47, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 60;
+}
+
+.popup {
+  position: relative;
+  background: var(--cor-superficie);
+  border-radius: 4px;
+  padding: 1rem;
+  max-width: min(92vw, 900px);
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.popup-imagem {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+  }
+}
+
+.popup-fechar {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+}
+
+.popup-legenda { margin: 0.6rem 0 0; font-size: 0.9rem; }
+.popup-nota { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--cor-texto-suave); }
+
+/* ---------- Lista de relatórios ---------- */
+
+.rdo-lista h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--cor-primaria);
+}
+
+.registro {
+  border-left: 3px solid var(--cor-sucesso);
+
+  &.rascunho { border-left-color: var(--cor-alerta); }
+}
+
+.registro-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.registro-numero {
+  font-weight: 700;
+  color: var(--cor-primaria);
+  margin-right: 0.5rem;
+}
+
+.registro-data {
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.registro-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.registro-clima {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave);
+}
+
+.registro-etapas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.5rem;
+}
+
+.etapa-chip {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+
+  &.concluida {
+    background: var(--cor-sucesso-bg);
+    color: var(--cor-sucesso);
+    border-color: var(--cor-sucesso);
+    text-decoration: line-through;
+  }
+}
+
+.registro-tarefa {
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--cor-borda);
+
+  p { margin: 0; font-size: 0.85rem; }
+}
+
+.registro-ocorrencias {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--cor-borda);
+
+  p { margin: 0.2rem 0; font-size: 0.82rem; }
+}
+
+.etiqueta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+
+.etiqueta-rascunho {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+
+.etiqueta-assinado {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.link-item {
+  font-size: 0.78rem;
+
+  code {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    background: var(--cor-fundo-alt);
+    padding: 0.2rem 0.35rem;
+    border-radius: 3px;
+    word-break: break-all;
+    flex: 1;
+  }
+
+  &.revogado { opacity: 0.55; }
+}
+
+.link-email { color: var(--cor-texto-suave); }
+
+/* ---------- Celular: acordeão ---------- */
+
+/* 860px = $quebra-mobile em styles/_tokens.scss. Literal aqui porque
+   nenhum componente do projeto importa o arquivo de tokens — todos usam só
+   as custom properties, e custom property não funciona dentro de @media. */
+@media (max-width: 860px) {
+  .rdo-topo { flex-direction: column; align-items: stretch; }
+  .rdo-topo-acoes { flex-direction: column; align-items: stretch; }
+  .campo-obra select { min-width: 0; width: 100%; }
+
+  .grade-dupla,
+  .grade-tripla,
+  .clima-grade,
+  .colunas-mao {
+    grid-template-columns: 1fr;
+  }
+
+  /* Uma seção por vez: o corpo só aparece na que está aberta. */
+  .secao .secao-corpo { display: none; }
+  .secao.aberta .secao-corpo { display: block; }
+
+  .secao-cabecalho {
+    cursor: pointer;
+    padding: 0.2rem 0;
+    min-height: 44px; /* alvo de toque */
+
+    &::after {
+      content: '▾';
+      color: var(--cor-texto-suave);
+      margin-left: 0.5rem;
+    }
+  }
+
+  .secao.aberta .secao-cabecalho::after { content: '▴'; }
+
+  /* Alvos maiores para quem está de luva, em pé, no canteiro. */
+  input,
+  select,
+  textarea { font-size: 16px; padding: 0.55rem 0.6rem; } /* 16px evita zoom no iOS */
+  button { min-height: 40px; }
+  .botao-foto { display: block; text-align: center; width: 100%; }
+
+  .tarefa-fotos { padding-left: 0; }
+  .registro-acoes { width: 100%; }
+}

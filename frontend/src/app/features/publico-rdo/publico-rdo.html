@@ -1,0 +1,222 @@
+<!--
+  Acompanhamento do contratante. Somente leitura — não existe aqui nenhum
+  controle que escreva, e o contratante não assina nada.
+-->
+
+<header class="topo">
+  <div>
+    <p class="marca">AppTrena</p>
+    <h1>{{ obra()?.nome || 'Acompanhamento da obra' }}</h1>
+    @if (obra()?.local) { <p class="local">{{ obra()?.local }}</p> }
+  </div>
+</header>
+
+@if (carregando()) {
+  <p class="aviso">Carregando…</p>
+} @else if (erro()) {
+  <p class="aviso aviso-erro">{{ erro() }}</p>
+} @else {
+
+  <section class="calendario">
+    <div class="calendario-topo">
+      <button type="button" (click)="mudarMes(-1)" aria-label="Mês anterior">‹</button>
+      <h2>{{ rotuloMes() }}</h2>
+      <button type="button" (click)="mudarMes(1)" aria-label="Próximo mês">›</button>
+    </div>
+
+    <div class="grade">
+      @for (dia of diasSemana; track dia) {
+        <div class="cabecalho-dia">{{ dia }}</div>
+      }
+
+      @for (semana of semanas(); track $index) {
+        @for (celula of semana; track celula.data) {
+          <div class="celula"
+               [class.fora]="!celula.doMes"
+               [class.com-registro]="celula.registros.length">
+            <span class="numero">{{ celula.dia }}</span>
+
+            @for (registro of celula.registros; track registro.id) {
+              <button type="button" class="marca-dia" (click)="abrir(registro)">
+                RDO {{ registro.numero }}
+              </button>
+            }
+          </div>
+        }
+      }
+    </div>
+
+    <p class="legenda">
+      <span class="ponto"></span> dias com relatório — clique para abrir
+    </p>
+  </section>
+
+  @if (!registros().length) {
+    <p class="aviso">Ainda não há relatórios publicados para esta obra.</p>
+  }
+}
+
+<!-- Detalhe do relatório -->
+@if (selecionado(); as rdo) {
+  <div class="modal-fundo" (click)="fechar()">
+    <article class="modal" (click)="$event.stopPropagation()">
+      <button type="button" class="modal-fechar" (click)="fechar()" aria-label="Fechar">×</button>
+
+      <header class="modal-topo">
+        <h2>Relatório Diário de Obra nº {{ rdo.numero }}</h2>
+        <p class="modal-data">{{ rdo.data | date: 'dd/MM/yyyy' }}</p>
+        @if (rdo.assinante_nome) {
+          <p class="assinatura">
+            Assinado por {{ rdo.assinante_nome }}
+            @if (rdo.assinante_crea) { — CREA {{ rdo.assinante_crea }} }
+          </p>
+        }
+      </header>
+
+      <p class="clima">
+        Manhã: {{ rotuloClima(rdo.clima_manha) }} ·
+        Tarde: {{ rotuloClima(rdo.clima_tarde) }} ·
+        Noite: {{ rotuloClima(rdo.clima_noite) }}
+      </p>
+
+      @if (rdo.impacto_cronograma) {
+        <p class="impacto"><strong>Impacto no cronograma:</strong> {{ rdo.impacto_cronograma }}</p>
+      }
+
+      @if (rdo.etapas?.length) {
+        <section class="bloco">
+          <h3>Etapas</h3>
+          <p class="chips">
+            @for (e of rdo.etapas; track e.id) {
+              <span class="chip" [class.concluida]="e.concluida">{{ e.nome }}</span>
+            }
+          </p>
+        </section>
+      }
+
+      @if (rdo.tarefas?.length) {
+        <section class="bloco">
+          <h3>Tarefas realizadas</h3>
+          @for (tarefa of rdo.tarefas; track tarefa.id) {
+            <div class="tarefa">
+              <p><strong>{{ tarefa.ordem }}.</strong> {{ tarefa.descricao }}</p>
+
+              @if (fotosDaTarefa(rdo, tarefa.id).length) {
+                <div class="miniaturas">
+                  @for (foto of fotosDaTarefa(rdo, tarefa.id); track foto.id) {
+                    <figure class="miniatura" (click)="ampliar(foto)">
+                      <div class="circulo">
+                        <img [src]="foto.url" [alt]="foto.legenda || 'Foto da tarefa'">
+                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                          <span class="marcador"
+                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                        }
+                      </div>
+                      <figcaption>{{ foto.legenda || '—' }}</figcaption>
+                    </figure>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      @if (fotosDoDia(rdo).length) {
+        <section class="bloco">
+          <h3>Fotos do dia</h3>
+          <div class="miniaturas">
+            @for (foto of fotosDoDia(rdo); track foto.id) {
+              <figure class="miniatura" (click)="ampliar(foto)">
+                <div class="circulo"><img [src]="foto.url" [alt]="foto.legenda || 'Foto do dia'"></div>
+                <figcaption>{{ foto.legenda || '—' }}</figcaption>
+              </figure>
+            }
+          </div>
+        </section>
+      }
+
+      @if (rdo.mao_de_obra?.length) {
+        <section class="bloco">
+          <h3>Mão de obra</h3>
+          <table class="tabela">
+            <thead><tr><th>Função</th><th>Tipo</th><th class="num">Qtde</th></tr></thead>
+            <tbody>
+              @for (m of rdo.mao_de_obra; track m.id) {
+                <tr>
+                  <td>{{ m.funcao }}</td>
+                  <td>{{ m.categoria === 'indireta' ? 'Indireta' : 'Direta' }}</td>
+                  <td class="num">{{ m.quantidade }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
+
+      @if (rdo.equipamentos?.length) {
+        <section class="bloco">
+          <h3>Equipamentos</h3>
+          <table class="tabela">
+            <tbody>
+              @for (e of rdo.equipamentos; track e.id) {
+                <tr><td>{{ e.descricao }}</td><td class="num">{{ e.quantidade }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
+
+      @if (rdo.ocorrencias?.length) {
+        <section class="bloco">
+          <h3>Ocorrências</h3>
+          @for (oc of rdo.ocorrencias; track oc.id) {
+            <p class="ocorrencia">
+              <strong>{{ oc.ordem }}. {{ rotuloOcorrencia(oc.tipo) }}:</strong> {{ oc.descricao }}
+              @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}</span> }
+            </p>
+          }
+        </section>
+      }
+
+      @if (rdo.pendencias?.length) {
+        <section class="bloco">
+          <h3>Pendências</h3>
+          @for (p of rdo.pendencias; track p.id) {
+            <p class="ocorrencia">
+              {{ p.descricao }}
+              @if (p.responsavel) { <span class="meta">{{ p.responsavel }}</span> }
+              @if (p.prazo) { <span class="meta">prazo {{ p.prazo | date: 'dd/MM/yyyy' }}</span> }
+            </p>
+          }
+        </section>
+      }
+
+      @if (rdo.comentarios_internos?.length) {
+        <section class="bloco">
+          <h3>Observações</h3>
+          @for (c of rdo.comentarios_internos; track c.id) { <p>{{ c.texto }}</p> }
+        </section>
+      }
+    </article>
+  </div>
+}
+
+@if (fotoAmpliada(); as foto) {
+  <div class="modal-fundo foto-fundo" (click)="fecharFoto()">
+    <div class="foto-grande" (click)="$event.stopPropagation()">
+      <button type="button" class="modal-fechar" (click)="fecharFoto()" aria-label="Fechar">×</button>
+      <div class="foto-quadro">
+        <img [src]="foto.url" [alt]="foto.legenda || 'Foto do relatório'">
+        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+          <span class="marcador marcador-grande"
+                [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+        }
+      </div>
+      @if (foto.legenda) { <p class="foto-legenda">{{ foto.legenda }}</p> }
+      @if (foto.marcador_nota) { <p class="foto-nota">Ponto marcado: {{ foto.marcador_nota }}</p> }
+    </div>
+  </div>
+}

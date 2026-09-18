@@ -168,6 +168,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/eap/eap-imprimir').then((m) => m.EapImprimir),
   },
   {
+    // Versão "para imprimir" do RDO (17/09/2026) — é esta rota que o Chromium
+    // headless do RdoPdfController abre para gerar o PDF. Mesma ideia das
+    // rotas de impressão acima: fora do AppShell, CSS de A4.
+    path: 'imprimir/rdo/:id',
+    loadComponent: () => import('./features/rdo-imprimir/rdo-imprimir').then((m) => m.RdoImprimir),
+  },
+  {
     // Versão "para imprimir" da Empreita (23/08/2026) — mesma ideia das
     // rotas acima. Ver EmpreitaPdfController.
     path: 'imprimir/obras/:id/empreitas/:empreitaId',
@@ -191,6 +198,13 @@ export const routes: Routes = [
     path: 'publico/diario/:token',
     loadComponent: () =>
       import('./features/publico-diario/publico-diario').then((m) => m.PublicoDiario),
+  },
+  {
+    // Acompanhamento do contratante no RDO novo (17/09/2026). Mesmo regime da
+    // rota acima: fora do AppShell e sem authGuard, porque quem abre é o dono
+    // da obra, que não tem conta no AppTrena. Somente leitura.
+    path: 'publico/rdo/:token',
+    loadComponent: () => import('./features/publico-rdo/publico-rdo').then((m) => m.PublicoRdo),
   },
   {
     path: '',
@@ -292,6 +306,17 @@ export const routes: Routes = [
         canActivate: [permissaoModuloGuard('diario_obra')],
         loadComponent: () =>
           import('./features/diario-obra/diario-obra').then((m) => m.DiarioObra),
+      },
+      {
+        // Relatório Diário de Obra (RDO) — módulo reconstruído em
+        // 17/09/2026. Rota nova, ao lado da antiga: o `diario-obra` acima
+        // continua funcionando até a migração terminar, para não tirar do ar
+        // o que já está em uso. Reaproveita a permissão `diario_obra`, então
+        // quem já tinha acesso ao Diário entra aqui sem mexer em permissão.
+        path: 'rdo',
+        data: { titulo: 'Relatório Diário de Obra' },
+        canActivate: [permissaoModuloGuard('diario_obra')],
+        loadComponent: () => import('./features/rdo/rdo').then((m) => m.Rdo),
       },
       // Relatórios também mudou para /obras/:id/relatorios (mesma task,
       // 28/07/2026): o relatório cruza a EAP com os Pagamentos de UMA
