@@ -21,11 +21,10 @@ use Spatie\Browsershot\Browsershot;
  */
 class RdoPdfController extends Controller
 {
-    public function gerar(Request $request, string $id)
+    public function gerar(Request $request, RdoRegistro $rdo)
     {
-        // findOrFail passa pelo global scope de empresa — um id de outra
-        // empresa não é encontrado, então não há como imprimir RDO alheio.
-        $rdo = RdoRegistro::findOrFail($id);
+        // O route-model-binding passa pelo global scope de empresa — um id de
+        // outra empresa não é encontrado, então não há como imprimir RDO alheio.
         $user = $request->user();
 
         $tokenTemporario = $user->createToken(

@@ -43,7 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permissaoModulo:diario_obra,usar');
 
     // Cabeçalho técnico da obra (contrato, responsável técnico, CREA, ART).
-    // Declarado antes de `rdo/{id}` para não ser capturado pelo curinga.
+    // Declarado antes de `rdo/{rdo}` para não ser capturado pelo curinga.
     Route::get('rdo/obra-dados', [RdoObraDadosController::class, 'show'])
         ->middleware('permissaoModulo:diario_obra,usar');
     Route::post('rdo/obra-dados', [RdoObraDadosController::class, 'salvar'])
@@ -57,21 +57,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('rdo/links/{id}/revogar', [RdoContratanteLinkController::class, 'revogar'])
         ->middleware('permissaoModulo:diario_obra,editar');
 
-    Route::get('rdo/{id}', [RdoController::class, 'show'])
+    // O parâmetro se chama {rdo} (e não {id}) e o controller tipa
+    // RdoRegistro: assim o route-model-binding resolve o registro ANTES
+    // do middleware `permissaoObra`, que descobre a obra pelo `obra_id`
+    // do model. Com `{id}` cru ele não tinha como saber de que obra se
+    // trata (o id é do RDO, não da obra) e barrava o salvamento com 500.
+    // A URL não muda — só o nome do parâmetro —, então o frontend segue igual.
+    Route::get('rdo/{rdo}', [RdoController::class, 'show'])
         ->middleware('permissaoModulo:diario_obra,usar');
-    Route::get('rdo/{id}/pdf', [RdoPdfController::class, 'gerar'])
+    Route::get('rdo/{rdo}/pdf', [RdoPdfController::class, 'gerar'])
         ->middleware('permissaoModulo:diario_obra,usar');
 
     // Escrita. `update` é POST e não PUT de propósito: o formulário envia
     // fotos junto (multipart), e o PHP não popula $_FILES em requisições PUT.
     Route::post('rdo', [RdoController::class, 'store'])
         ->middleware(['permissaoModulo:diario_obra,criar', 'permissaoObra:lancar']);
-    Route::post('rdo/{id}', [RdoController::class, 'update'])
+    Route::post('rdo/{rdo}', [RdoController::class, 'update'])
         ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
-    Route::post('rdo/{id}/finalizar', [RdoController::class, 'finalizar'])
+    Route::post('rdo/{rdo}/finalizar', [RdoController::class, 'finalizar'])
         ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
-    Route::delete('rdo/{id}', [RdoController::class, 'destroy'])
+    Route::delete('rdo/{rdo}', [RdoController::class, 'destroy'])
         ->middleware(['permissaoModulo:diario_obra,excluir', 'permissaoObra:lancar']);
-    Route::delete('rdo/{id}/fotos/{fotoId}', [RdoController::class, 'removerFoto'])
+    Route::delete('rdo/{rdo}/fotos/{fotoId}', [RdoController::class, 'removerFoto'])
         ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
 });

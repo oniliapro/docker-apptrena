@@ -85,11 +85,9 @@ class RdoController extends Controller
         return $query->limit($data['limite'] ?? 30)->get();
     }
 
-    public function show(string $id)
+    public function show(RdoRegistro $rdo)
     {
-        $rdo = RdoRegistro::with(self::RELACOES)->findOrFail($id);
-
-        return $rdo;
+        return $rdo->load(self::RELACOES);
     }
 
     /**
@@ -181,9 +179,8 @@ class RdoController extends Controller
      * linha. Fotos já salvas NÃO são apagadas aqui: são removidas uma a uma
      * por `removerFoto`, para não perder arquivo por engano num salvamento.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, RdoRegistro $rdo)
     {
-        $rdo = RdoRegistro::findOrFail($id);
         $data = $this->validarPayload($request, false);
         $usuario = $request->user();
 
@@ -210,9 +207,8 @@ class RdoController extends Controller
      * documento precisa continuar dizendo quem assinou mesmo que o cadastro
      * mude depois.
      */
-    public function finalizar(Request $request, string $id)
+    public function finalizar(Request $request, RdoRegistro $rdo)
     {
-        $rdo = RdoRegistro::findOrFail($id);
         $usuario = $request->user();
 
         if ($rdo->estaFinalizado()) {
@@ -234,9 +230,9 @@ class RdoController extends Controller
         return $rdo->fresh(self::RELACOES);
     }
 
-    public function destroy(string $id)
+    public function destroy(RdoRegistro $rdo)
     {
-        $rdo = RdoRegistro::with('fotos')->findOrFail($id);
+        $rdo->load('fotos');
 
         foreach ($rdo->fotos as $foto) {
             Storage::disk('public')->delete($foto->caminho);
@@ -247,9 +243,8 @@ class RdoController extends Controller
         return response()->noContent();
     }
 
-    public function removerFoto(string $id, string $fotoId)
+    public function removerFoto(RdoRegistro $rdo, string $fotoId)
     {
-        $rdo = RdoRegistro::findOrFail($id);
         $foto = RdoFoto::where('rdo_id', $rdo->id)->findOrFail($fotoId);
 
         Storage::disk('public')->delete($foto->caminho);
@@ -396,6 +391,18 @@ class RdoController extends Controller
             $catalogoId = null;
             if (!empty($item['equipamento_id'])) {
                 $catalogoId = RdoEquipamentoCatalogo::find($item['equipamento_id'])?->id;
+            }
+
+            // Equipamento digitado à mão entra no catálogo da empresa, para
+            // aparecer sugerido no próximo RDO. Sem isto o catálogo nunca era
+            // alimentado por ninguém (não existe tela de cadastro dele) e a
+            // sugestão vinha sempre vazia — verificado em 18/09/2026.
+            // `firstOrCreate` pelo nome evita duplicar a cada lançamento; a
+            // comparação usa o collation da coluna, que não diferencia caixa.
+            if (!$catalogoId && $usuario?->empresa_id) {
+                $catalogoId = RdoEquipamentoCatalogo::firstOrCreate(
+                    ['empresa_id' => $usuario->empresa_id, 'nome' => trim($item['descricao'])],
+                )->id;
             }
 
             RdoEquipamento::create([

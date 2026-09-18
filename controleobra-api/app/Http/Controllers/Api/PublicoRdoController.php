@@ -68,6 +68,13 @@ class PublicoRdoController extends Controller
             $rdo->comentariosInternos()->where('visivel_contratante', true)->get()
         );
 
+        // Esta rota não tem login: quem chega aqui tem só o token. Ids internos
+        // (empresa, autor, quem assinou) não acrescentam nada para o
+        // contratante e não têm por que sair daqui — o nome de quem assinou,
+        // que é o que importa no documento, continua em `assinante_nome`.
+        // Verificado em 18/09/2026: sem isto, os três saíam no payload.
+        $rdo->makeHidden(['empresa_id', 'autor_user_id', 'assinado_por_user_id']);
+
         return $rdo;
     }
 
