@@ -888,3 +888,63 @@ AppTrena/
   cabeçalho e dado usavam estruturas parecidas mas não idênticas, e
   ficavam desalinhados horizontalmente; agora alinham de verdade porque
   são literalmente a mesma estrutura só com conteúdo diferente.
+- 19/09/2026 (lote F0 do plano de melhorias pedido pela equipe, item a
+  item): (1) **Tags** — nome duplicado agora dá 422 com mensagem clara
+  ("Já existe uma tag com esse nome", validação por empresa) em vez de
+  500 genérico; o índice único do MySQL não diferencia maiúsculas/acentos,
+  então "Nota fiscal" e "Nota Fiscal" colidem; o front mostra o motivo
+  real do servidor (422/401/403/5xx). (2) **Mapa** — "lançar frete como
+  item" e "lançar imposto como item" passam a nascer DESLIGADOS só em
+  mapas novos (migration `2026_09_19_000000` muda só o default;
+  `MapaController::syncCompleto` mantém o valor do mapa existente quando o
+  campo não vem). (3) **Fonte** — `--fonte-titulo` e `--fonte-mono` agora
+  apontam para `--fonte` (Inter em tudo: inputs, textos, cabeçalhos,
+  números), `textarea` herda, `tabular-nums` no body pra manter números
+  alinhados, Space Grotesk/IBM Plex Mono saíram do index.html. (4)
+  **Profissionais** — o cadastro "Empreiteiros" virou "Profissionais" em
+  menu, título, telas, filtros e colunas; ficam como estavam a página e a
+  aba "Empreitas" e as parcelas do contrato "Empreiteiro / Reserva"; a
+  rota `/empreiteiros` e a chave de storage `controleObra.empreiteiros.v1`
+  não mudaram. (5) **Mapa: valor final do fornecedor** — nova linha "Valor final" no
+  rodapé, acima da "Compra integral": itens que o fornecedor cotou + frete
+  − desconto, com o markup por cima (mesma regra da nota), mesmo com
+  cotação parcial; quando ele cotou tudo coincide com a compra integral —
+  `calcularValorFinalPorFornecedor` em `mapa-engine.ts`. (6) **Mapa: frete
+  particular sem pagamento** — causa real (reproduzida ponta a ponta):
+  `ratearFreteiro` devolve o RÓTULO da etapa ("1.1 - Estaca", `item.etapa`)
+  como chave, e o pagamento do freteiro gravava esse texto onde vai o ID do
+  item da EAP; sem etapa nos itens dava certo (`""`), com etapa o servidor
+  recusava a linha e só o pagamento do freteiro não era criado. Agora o
+  rótulo é convertido no id real (`item.eapId`), o frete é dividido entre
+  as etapas na MESMA proporção dos itens comprados nas lojas e, se "Etapa do
+  frete" estiver escolhida, vai inteiro para ela (o seletor de etapa/categoria
+  do frete também aparece quando "Considerar" frete particular está
+  marcado). Além disso: os motivos de não gerar (não é o cenário vencedor 🏆,
+  freteiro já confirmado, sem itens com preço) agora aparecem na mensagem de
+  "Gerar pagamento", a falta do nome do freteiro não bloqueia (sai como
+  "Frete particular", com aviso) e a categoria do frete vai para os itens.
+
+- 19/09/2026 (lote F1 do plano de melhorias — peças compartilhadas, sem
+  mudança de banco). (1) **Popups**: clicar fora NÃO fecha mais nenhum
+  popup; `Esc` fecha o popup do topo (sem perguntar), inclusive com popup
+  dentro de popup — serviço `ModalEscService` (`shared/modal/`) dispara o
+  evento `fecharModal` no `.modal-fundo`/`.popup-fundo` de maior z-index; os
+  ~27 templates trocaram `(click)` por `(fecharModal)`. (2) **Autocomplete**
+  reutilizável (`shared/autocomplete/`) com modo restrito (só aceita opção da
+  lista) e livre (aceita texto), já com a fonte de fornecedores
+  (`fornecedores.fonte.ts`); ainda não ligado às telas (F2). (3) **Colunas
+  ajustáveis reescritas** (`shared/redimensionar-colunas`): mede cabeçalho +
+  amostra de linhas (as 2 primeiras e as 4 mais longas) em tabela-clone
+  invisível, com largura natural (teto 360px) e mínimo (min-content, teto
+  160px, piso 36px); célula de texto longo quebra em vez de vazar e cabeçalho
+  que não cabe vira reticências com o texto no tooltip; larguras arrastadas
+  ficam salvas no navegador (`trena:colunas:v1:*`); duplo clique na alça
+  restaura; remede (só cresce) quando chega conteúdo novo ou a fonte termina
+  de carregar. Conferido em 13 telas nos zooms 67/100/125/150% sem célula
+  estourando. Também: caixa de seleção não estica em coluna estreita e a
+  barra de filtros das listas passou a quebrar linha (a página de Mapas
+  rolava na horizontal). (4) **Parser de fórmulas** puro
+  (`shared/numero/formula.ts` + `parse-numero.ts`): `=` + conta em pt-BR,
+  `+ - * / ^ %`, funções `soma/media/min/max/arredondar` (argumentos
+  separados por `;`), referências entre aspas via resolvedor injetado; sem
+  `eval`; ainda não ligado a campos (F3/F5).

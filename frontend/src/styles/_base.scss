@@ -11,6 +11,9 @@ body {
   margin: 0;
   font-family: var(--fonte);
   font-size: 12.5px;
+  // Dígitos de largura fixa: com a fonte única (proporcional) os valores
+  // em coluna continuam alinhados como estavam na fonte monoespaçada.
+  font-variant-numeric: tabular-nums;
   color: var(--cor-texto);
   background: var(--cor-fundo);
   -webkit-font-smoothing: antialiased;
@@ -72,6 +75,7 @@ th.ordenavel {
 .barra-ferramentas {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 12px;
 
@@ -99,6 +103,10 @@ th.ordenavel {
 }
 
 // ---- Campos ----
+// `textarea` não tinha regra de fonte: sem ela o navegador usa a fonte
+// monoespaçada padrão dele, fora da pilha do sistema.
+textarea { font-family: var(--fonte); }
+
 input, select {
   width: 100%;
   height: 20px;
@@ -193,7 +201,7 @@ button {
 .alca-redimensionar {
   position: absolute;
   top: 0;
-  right: -3px;
+  right: 0;
   bottom: 0;
   width: 6px;
   cursor: col-resize;
@@ -206,8 +214,30 @@ button {
 // Tabelas alinhadas à direita ([alinhadoDireita]="true"): a alça troca de
 // lado — fica na borda esquerda da coluna em vez da direita.
 .alca-redimensionar-esquerda {
-  left: -3px;
+  left: 0;
   right: auto;
+}
+
+// Tabelas com colunas ajustáveis (classe posta pela diretiva, 19/09/2026):
+// cabeçalho que não cabe vira reticências (o texto inteiro fica no tooltip,
+// ver `RedimensionarColunas`) e texto longo de célula QUEBRA em vez de
+// vazar por cima da coluna vizinha. A alça fica DENTRO do cabeçalho
+// (`right: 0`) porque `overflow: hidden` cortaria a parte de fora.
+.tabela-ajustavel {
+  th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  // Caixa de seleção não deve esticar a 100% (regra global de input): numa
+  // coluna estreita isso estourava a célula por 1–2px.
+  input[type='checkbox'] {
+    width: auto;
+  }
 }
 
 // ---- Impressão (Gerar PDF do Mapa, 31/07/2026) ----

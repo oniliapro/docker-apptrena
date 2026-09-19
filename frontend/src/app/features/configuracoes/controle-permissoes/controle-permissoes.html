@@ -56,12 +56,12 @@
 
   @if (formularioAberto()) {
     <div class="modal modal-interno">
-      <div class="modal-fundo" (click)="fechar()"></div>
+      <div class="modal-fundo" (fecharModal)="fechar()"></div>
 
       <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
         <div class="modal-cabecalho">
           <span class="modal-titulo">Novo usuário</span>
-          <button type="button" (click)="fechar()">✖</button>
+          <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">
@@ -104,12 +104,12 @@
 
   @if (usuarioNaMatriz(); as usuario) {
     <div class="modal modal-interno">
-      <div class="modal-fundo" (click)="fecharMatriz()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharMatriz()"></div>
 
       <div class="modal-cartao modal-cartao-larga">
         <div class="modal-cabecalho">
           <span class="modal-titulo">Permissões — {{ usuario.nome }}</span>
-          <button type="button" (click)="fecharMatriz()">✖</button>
+          <button type="button" (click)="fecharMatriz()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">

@@ -75,14 +75,14 @@
 
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
 
     <form class="modal-cartao estreito" [formGroup]="formulario" (ngSubmit)="salvar()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">
           {{ editandoId() ? 'Editar responsável' : 'Novo responsável' }}
         </span>
-        <button type="button" (click)="fechar()">✖</button>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

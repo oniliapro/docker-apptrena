@@ -2,8 +2,8 @@
 // AppTrena — folha de estilo global
 // Ordem: tokens (variáveis) -> base (elementos e utilitários)
 // Estilos específicos de tela vivem no .scss de cada componente.
-// As fontes (Space Grotesk / Inter / IBM Plex Mono) são carregadas em
-// src/index.html via <link>, como no app vanilla.
+// A fonte (Inter, única em todo o sistema) é carregada em
+// src/index.html via <link>.
 // =====================================================================
 @use 'styles/tokens';
 @use 'styles/base';

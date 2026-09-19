@@ -28,6 +28,7 @@ import {
   calcularBaseItem,
   calcularFracionado,
   calcularIntegral,
+  calcularValorFinalPorFornecedor,
   calcularNota,
   calcularNotasPorFornecedor,
   calcularTotalCenario,
@@ -197,10 +198,10 @@ export class MapaStore {
     criadoEm: '',
     freteParticular: 0,
     freteiroParticular: '',
-    lancarFreteComoItem: true,
+    lancarFreteComoItem: false,
     freteEtapaId: '',
     freteCategoriaTipo: '',
-    lancarImpostoDescontoComoItem: true,
+    lancarImpostoDescontoComoItem: false,
     impostoDescontoEtapaId: '',
     impostoDescontoCategoriaTipo: '',
     modoManual: false,
@@ -396,6 +397,9 @@ export class MapaStore {
   );
 
   readonly integral = computed(() => calcularIntegral(this.itens(), this.fornecedores()));
+
+  /** "Valor final do fornecedor" — itens cotados + frete + markup, mesmo com cotação parcial (ver `calcularValorFinalPorFornecedor`). */
+  readonly valorFinalFornecedor = computed(() => calcularValorFinalPorFornecedor(this.itens(), this.fornecedores()));
 
   /**
    * Melhor cenário integral: o menor total entre os fornecedores que
@@ -1129,14 +1133,16 @@ export class MapaStore {
 
         const numerosEmUso = [...pagamentos];
         const novos = this.montarPagamentosPorFornecedor(fornecedoresConfirmados, numerosEmUso, header);
-        novos.push(...this.montarPagamentoFreteiro(fornecedoresConfirmados, numerosEmUso, header));
+        const frete = this.montarPagamentoFreteiro(fornecedoresConfirmados, numerosEmUso, header);
+        novos.push(...frete.pagamentos);
+        const complementoFrete = frete.aviso ? ` ${frete.aviso}` : '';
 
         if (!novos.length) {
           this.gerandoPagamento.set(false);
           this.resultadoGerarPagamento.set(
-            fornecedoresConfirmados.size
+            (fornecedoresConfirmados.size
               ? 'Todos os fornecedores deste mapa já têm pagamento confirmado — nada novo para gerar.'
-              : 'Nenhum item com fornecedor vencedor para gerar pagamento.',
+              : 'Nenhum item com fornecedor vencedor para gerar pagamento.') + complementoFrete,
           );
           return;
         }
@@ -1154,7 +1160,7 @@ export class MapaStore {
             next: () => {
               this.gerandoPagamento.set(false);
               this.resultadoGerarPagamento.set(
-                `${novos.length} pagamento(s) gerado(s) — confira na aba Pagamentos da obra.`,
+                `${novos.length} pagamento(s) gerado(s) — confira na aba Pagamentos da obra.${complementoFrete}`,
               );
             },
             error: () => {
@@ -1469,36 +1475,88 @@ export class MapaStore {
     fornecedoresConfirmados: Set<string>,
     numerosEmUso: Pagamento[],
     header: Record<string, unknown>,
-  ): Pagamento[] {
+  ): { pagamentos: Pagamento[]; aviso: string | null } {
     const cabecalho = this.cabecalho();
     const freteParticular = Number(cabecalho.freteParticular) || 0;
-    const freteiro = cabecalho.freteiroParticular?.trim();
+    // Sem valor de frete particular não há o que gerar — e nem o que avisar.
+    if (freteParticular <= 0) return { pagamentos: [], aviso: null };
+
     // Só gera o pagamento do freteiro quando o frete particular é de fato
     // a opção vencedora — digitar um valor sozinho não basta (18/08/2026):
     // senão o freteiro seria cobrado mesmo quando a recomendação decidiu
     // usar o frete de cada loja, embutido na própria nota.
-    if (freteParticular <= 0 || !freteiro || !this.freteParticularVencedor()) return [];
-    if (fornecedoresConfirmados.has(freteiro)) return [];
+    //
+    // 19/09/2026: antes, TODOS os motivos de não gerar (não ser o vencedor,
+    // faltar o nome do freteiro, já existir pagamento confirmado, não ter
+    // item com preço) devolviam `[]` em silêncio — o usuário via o mapa
+    // "sem pagamento de frete" sem saber por quê. Agora cada caso devolve
+    // o motivo, e a falta do nome do freteiro deixa de bloquear.
+    if (!this.freteParticularVencedor()) {
+      return {
+        pagamentos: [],
+        aviso:
+          'Frete particular NÃO gerado: a comparação de cenários indica que o frete das lojas é mais vantajoso (o pagamento do freteiro só é gerado quando o frete particular é o cenário vencedor 🏆).',
+      };
+    }
 
-    const porEtapa = ratearFreteiro(this.itens(), this.fornecedores(), this.alocacoes(), freteParticular);
-    if (!porEtapa.size) return [];
+    const freteiro = cabecalho.freteiroParticular?.trim() || 'Frete particular';
+    const semNome = !cabecalho.freteiroParticular?.trim();
+    if (fornecedoresConfirmados.has(freteiro)) {
+      return { pagamentos: [], aviso: `Frete particular: "${freteiro}" já tem pagamento confirmado neste mapa — nada novo.` };
+    }
 
-    const rotuloEtapa = (etapaKey: string) =>
-      etapaKey === ETAPA_SEM_NOME
-        ? 'Sem etapa'
-        : this.etapasDisponiveis().find((e) => e.id === etapaKey)?.rotulo || 'Sem etapa';
+    // Etapa(s) de cada linha do pagamento (19/09/2026, correção de bug):
+    //  - Se "Etapa do frete" foi escolhida no cabeçalho, o frete inteiro vai
+    //    pra ela, numa linha só.
+    //  - Senão, é dividido entre as etapas na MESMA proporção dos itens
+    //    comprados nas lojas (`ratearFreteiro`).
+    // `ratearFreteiro` devolve o RÓTULO da etapa (`item.etapa`, o texto que o
+    // usuário vê) como chave — igual ao "Rateio por etapa da obra". O
+    // pagamento, porém, guarda o ID do item da EAP. Antes, o rótulo era
+    // gravado direto em `eapId`: sem etapa nos itens dava certo (`''`), mas
+    // com etapa o servidor recusava a linha (id inexistente) e o pagamento
+    // do freteiro simplesmente não era criado.
+    const categoriaFrete = cabecalho.freteCategoriaTipo || '';
+    const etapaFixaId = cabecalho.freteEtapaId || '';
+    const rotuloDaEtapaFixa =
+      this.etapasDisponiveis().find((e) => e.id === etapaFixaId)?.rotulo || 'Etapa do frete';
 
-    const itensPagamento: ItemPagamento[] = Array.from(porEtapa.entries())
-      .filter(([, valor]) => Math.abs(valor) > 0.005)
-      .map(([etapaKey, valor]) => ({
-        id: gerarId(),
-        descricao: `Frete particular — ${rotuloEtapa(etapaKey)}`,
-        tipo: '',
-        eapId: etapaKey === ETAPA_SEM_NOME ? '' : etapaKey,
+    let linhasFrete: Array<{ eapId: string; rotulo: string; valor: number }>;
+    if (etapaFixaId) {
+      linhasFrete = [{ eapId: etapaFixaId, rotulo: rotuloDaEtapaFixa, valor: freteParticular }];
+    } else {
+      const porEtapa = ratearFreteiro(this.itens(), this.fornecedores(), this.alocacoes(), freteParticular);
+      const eapIdPorRotulo = new Map<string, string>();
+      for (const item of this.itens()) {
+        if (item.etapa && item.eapId) eapIdPorRotulo.set(item.etapa, item.eapId);
+      }
+      linhasFrete = Array.from(porEtapa.entries()).map(([etapaKey, valor]) => ({
+        eapId: etapaKey === ETAPA_SEM_NOME ? '' : (eapIdPorRotulo.get(etapaKey) ?? ''),
+        rotulo: etapaKey === ETAPA_SEM_NOME ? 'Sem etapa' : etapaKey,
         valor,
-        modoValor: 'valor' as const,
       }));
-    if (!itensPagamento.length) return [];
+    }
+
+    const itensPagamento: ItemPagamento[] = this.arredondarLinhasParaTotal(
+      linhasFrete
+        .filter((linha) => Math.abs(linha.valor) > 0.005)
+        .map((linha) => ({
+          id: gerarId(),
+          descricao: `Frete particular — ${linha.rotulo}`,
+          tipo: categoriaFrete,
+          eapId: linha.eapId,
+          valor: linha.valor,
+          modoValor: 'valor' as const,
+        })),
+      freteParticular,
+    );
+    if (!itensPagamento.length) {
+      return {
+        pagamentos: [],
+        aviso:
+          'Frete particular NÃO gerado: nenhum item do mapa tem preço/quantidade para ratear o frete entre as etapas.',
+      };
+    }
 
     const hoje = hojeIso();
     const descricaoBase = [cabecalho.numeroMapa, cabecalho.descricao].filter(Boolean).join(' — ');
@@ -1520,7 +1578,12 @@ export class MapaStore {
     };
 
     numerosEmUso.push(pagamento);
-    return [pagamento];
+    return {
+      pagamentos: [pagamento],
+      aviso: semNome
+        ? 'Frete particular gerado SEM nome do freteiro (campo "Freteiro" vazio) — edite o fornecedor desse pagamento na aba Pagamentos.'
+        : null,
+    };
   }
 
   // ------------------------------------------------------------------

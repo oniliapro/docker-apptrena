@@ -24,7 +24,7 @@
   </select>
 
   <select (change)="mudarFiltroEmpreiteiro($event)">
-    <option value="">Empreiteiro: todos</option>
+    <option value="">Profissional: todos</option>
     @for (empreiteiro of empreiteirosDisponiveis(); track empreiteiro) {
       <option [value]="empreiteiro">{{ empreiteiro }}</option>
     }
@@ -109,12 +109,12 @@
 <!-- ============ Formulário — Nova empreita ============ -->
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharFormulario()"></div>
 
     <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Nova empreita</span>
-        <button type="button" (click)="fecharFormulario()">✖</button>
+        <button type="button" (click)="fecharFormulario()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">
@@ -138,8 +138,8 @@
           </label>
 
           <label class="campo campo-largo">
-            <span>Empreiteiro</span>
-            <input type="text" formControlName="empreiteiro" placeholder="Nome do empreiteiro já cadastrado" />
+            <span>Profissional</span>
+            <input type="text" formControlName="empreiteiro" placeholder="Nome do profissional já cadastrado" />
           </label>
 
           <label class="campo">

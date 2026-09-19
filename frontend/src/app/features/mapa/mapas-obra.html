@@ -118,12 +118,12 @@
 <!-- ============ Formulário ============ -->
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
 
     <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Novo mapa</span>
-        <button type="button" (click)="fechar()">✖</button>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">
@@ -176,12 +176,12 @@
 <!-- ============ Popup de pagamentos vinculados ============ -->
 @if (popupMapa(); as mapa) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharPopupPagamentos()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharPopupPagamentos()"></div>
 
     <div class="modal-cartao estreito">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Pagamentos gerados — {{ descricao(mapa) }}</span>
-        <button type="button" (click)="fecharPopupPagamentos()">✖</button>
+        <button type="button" (click)="fecharPopupPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Services\PastaRaizes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * CRUD de Tags (06/09/2026, pedido do Lucas: controle de notas fiscais
@@ -24,10 +25,28 @@ class TagController extends Controller
         return Tag::orderBy('nome')->get();
     }
 
+    /**
+     * Regra de nome único POR EMPRESA. `Rule::unique` não respeita o global
+     * scope multiempresa (`PertenceAEmpresa`), então o filtro por
+     * `empresa_id` é explícito. Sem essa validação, um nome repetido caía
+     * no índice `unique(empresa_id, nome)` e virava 500 genérico — e como o
+     * índice usa a collation do MySQL (sem distinção de maiúsculas/acentos),
+     * "Nota fiscal" e "Nota Fiscal" também colidem, o que confundia quem
+     * digitava algo "diferente" e recebia erro sem explicação.
+     */
+    private function regraNomeUnico(Request $request, ?string $ignorarId = null): \Illuminate\Validation\Rules\Unique
+    {
+        $regra = Rule::unique('tags', 'nome')->where('empresa_id', optional($request->user())->empresa_id);
+
+        return $ignorarId ? $regra->ignore($ignorarId) : $regra;
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nome' => 'required|string|max:120',
+            'nome' => ['required', 'string', 'max:120', $this->regraNomeUnico($request)],
+        ], [
+            'nome.unique' => 'Já existe uma tag com esse nome (maiúsculas e acentos não diferenciam).',
         ]);
 
         return DB::transaction(function () use ($data) {
@@ -52,8 +71,10 @@ class TagController extends Controller
     public function update(Request $request, Tag $tag)
     {
         $data = $request->validate([
-            'nome' => 'sometimes|string|max:120',
+            'nome' => ['sometimes', 'string', 'max:120', $this->regraNomeUnico($request, $tag->id)],
             'ativo' => 'sometimes|boolean',
+        ], [
+            'nome.unique' => 'Já existe uma tag com esse nome (maiúsculas e acentos não diferenciam).',
         ]);
 
         if (array_key_exists('nome', $data) && $data['nome'] !== $tag->nome) {

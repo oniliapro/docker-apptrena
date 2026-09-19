@@ -58,8 +58,8 @@
 
 <!-- Detalhe do relatório -->
 @if (selecionado(); as rdo) {
-  <div class="modal-fundo" (click)="fechar()">
-    <article class="modal" (click)="$event.stopPropagation()">
+  <div class="modal-fundo" (fecharModal)="fechar()">
+    <article class="modal">
       <button type="button" class="modal-fechar" (click)="fechar()" aria-label="Fechar">×</button>
 
       <header class="modal-topo">
@@ -204,8 +204,8 @@
 }
 
 @if (fotoAmpliada(); as foto) {
-  <div class="modal-fundo foto-fundo" (click)="fecharFoto()">
-    <div class="foto-grande" (click)="$event.stopPropagation()">
+  <div class="modal-fundo foto-fundo" (fecharModal)="fecharFoto()">
+    <div class="foto-grande">
       <button type="button" class="modal-fechar" (click)="fecharFoto()" aria-label="Fechar">×</button>
       <div class="foto-quadro">
         <img [src]="foto.url" [alt]="foto.legenda || 'Foto do relatório'">

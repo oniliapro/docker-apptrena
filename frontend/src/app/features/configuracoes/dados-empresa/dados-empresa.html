@@ -168,14 +168,14 @@
 
   @if (formularioRepresentanteAberto()) {
     <div class="modal modal-interno">
-      <div class="modal-fundo" (click)="fecharRepresentante()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharRepresentante()"></div>
 
       <form class="modal-cartao" [formGroup]="formularioRepresentante" (ngSubmit)="salvarRepresentante()">
         <div class="modal-cabecalho">
           <span class="modal-titulo">
             {{ editandoRepresentanteId() ? 'Editar representante' : 'Novo representante' }}
           </span>
-          <button type="button" (click)="fecharRepresentante()">✖</button>
+          <button type="button" (click)="fecharRepresentante()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">

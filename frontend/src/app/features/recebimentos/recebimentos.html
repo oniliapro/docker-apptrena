@@ -141,12 +141,12 @@
 
 @if (rascunho(); as r) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharModal()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharModal()"></div>
 
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">{{ editando() ? 'Editar recebimento' : 'Novo recebimento' }}</span>
-        <button type="button" (click)="fecharModal()">✖</button>
+        <button type="button" (click)="fecharModal()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

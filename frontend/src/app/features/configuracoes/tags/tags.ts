@@ -54,7 +54,7 @@ export class Tags implements OnInit {
 
     this.api.criarTag(nome.trim()).subscribe({
       next: (tag) => this.tags.update((lista) => [...lista, tag].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))),
-      error: () => window.alert('Não foi possível criar a tag — talvez já exista uma com esse nome.'),
+      error: (erro) => window.alert(this.mensagemDeErro(erro, 'Não foi possível criar a tag.')),
     });
   }
 
@@ -64,8 +64,26 @@ export class Tags implements OnInit {
 
     this.api.atualizarTag(tag.id, { nome: nome.trim() }).subscribe({
       next: (atualizada) => this.tags.update((lista) => lista.map((t) => (t.id === atualizada.id ? atualizada : t))),
-      error: () => window.alert('Não foi possível renomear a tag — talvez já exista uma com esse nome.'),
+      error: (erro) => window.alert(this.mensagemDeErro(erro, 'Não foi possível renomear a tag.')),
     });
+  }
+
+  /**
+   * Mostra o motivo REAL devolvido pelo servidor (validação 422, por
+   * exemplo "Já existe uma tag com esse nome") em vez de um aviso
+   * genérico — antes, qualquer falha virava "talvez já exista", o que
+   * escondia erros de outra natureza (sessão expirada, erro 500...).
+   */
+  private mensagemDeErro(erro: unknown, padrao: string): string {
+    const resposta = erro as { status?: number; error?: { message?: string; errors?: Record<string, string[]> } };
+    const detalhe = resposta?.error?.errors?.['nome']?.[0] ?? resposta?.error?.message;
+
+    if (resposta?.status === 422 && detalhe) return detalhe;
+    if (resposta?.status === 401) return `${padrao} Sua sessão expirou — entre novamente.`;
+    if (resposta?.status === 403) return `${padrao} Você não tem permissão para isso.`;
+    if (resposta?.status && resposta.status >= 500) return `${padrao} Erro no servidor (${resposta.status}) — avise o suporte.`;
+    if (resposta?.status === 0) return `${padrao} Sem conexão com o servidor.`;
+    return detalhe ? `${padrao} ${detalhe}` : padrao;
   }
 
   protected alternarAtivo(tag: Tag): void {

@@ -608,7 +608,7 @@
   <!-- ============ Modal: pagamentos vinculados ============ -->
   @if (filtroPagamentosAberto(); as filtro) {
     <div class="modal">
-      <div class="modal-fundo" (click)="fecharModalPagamentos()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharModalPagamentos()"></div>
 
       <div class="modal-cartao">
         <div class="modal-cabecalho">
@@ -619,7 +619,7 @@
               <span>Direcionado à etapa: <b>{{ formatarMoeda(totalValorDirecionadoPopup()) }}</b></span>
             </div>
           </div>
-          <button type="button" (click)="fecharModalPagamentos()">✖</button>
+          <button type="button" (click)="fecharModalPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">
@@ -726,14 +726,14 @@
   <!-- ============ Modal: importar Excel ============ -->
   @if (mostrarModalImportar()) {
     <div class="modal">
-      <div class="modal-fundo" (click)="fecharModalImportar()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharModalImportar()"></div>
 
       <div class="modal-cartao">
         <div class="modal-cabecalho">
           <div class="modal-cabecalho-titulos">
             <span class="modal-titulo">Importar itens de uma planilha Excel</span>
           </div>
-          <button type="button" (click)="fecharModalImportar()">✖</button>
+          <button type="button" (click)="fecharModalImportar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">
@@ -788,14 +788,14 @@
   <!-- ============ Modal: Copiar EAP de outra obra ============ -->
   @if (mostrarModalCopiarEap()) {
     <div class="modal">
-      <div class="modal-fundo" (click)="fecharModalCopiarEap()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharModalCopiarEap()"></div>
 
       <div class="modal-cartao">
         <div class="modal-cabecalho">
           <div class="modal-cabecalho-titulos">
             <span class="modal-titulo">Copiar EAP de outra obra</span>
           </div>
-          <button type="button" (click)="fecharModalCopiarEap()">✖</button>
+          <button type="button" (click)="fecharModalCopiarEap()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">

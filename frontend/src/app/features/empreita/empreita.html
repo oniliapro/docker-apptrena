@@ -24,7 +24,7 @@
         <span class="valor-somente-leitura">{{ store.cabecalho().obraNumber || '—' }}</span>
       </label>
       <label class="campo">
-        <span>Empreiteiro</span>
+        <span>Profissional</span>
         <select [value]="store.cabecalho().empreiteiro" [disabled]="store.travada()"
                 (change)="editarCabecalho('empreiteiro', $event)">
           <option value="">(nenhum)</option>

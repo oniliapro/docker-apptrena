@@ -1,0 +1,39 @@
+<input
+  #campo
+  type="text"
+  autocomplete="off"
+  role="combobox"
+  [attr.aria-expanded]="aberto()"
+  [value]="texto()"
+  [placeholder]="placeholder()"
+  [disabled]="desabilitado()"
+  (focus)="aoFocar()"
+  (input)="aoDigitar($event)"
+  (blur)="aoSairDoCampo()"
+  (keydown)="aoTeclar($event)"
+/>
+
+@if (aberto() && posicao(); as pos) {
+  <ul
+    class="lista"
+    role="listbox"
+    [style.top.px]="pos.top"
+    [style.left.px]="pos.left"
+    [style.width.px]="pos.largura"
+    [style.max-height.px]="pos.maxAltura"
+  >
+    @for (opcao of filtradas(); track opcao.id; let i = $index) {
+      <li
+        role="option"
+        [class.ativa]="i === indiceAtivo()"
+        [class.selecionada]="opcao.id === valor() || (modo() === 'livre' && opcao.rotulo === valor())"
+        (mousedown)="escolher(opcao, $event)"
+        (mouseenter)="indiceAtivo.set(i)"
+      >
+        {{ opcao.rotulo }}
+      </li>
+    } @empty {
+      <li class="vazia">{{ mensagemVazia() }}</li>
+    }
+  </ul>
+}

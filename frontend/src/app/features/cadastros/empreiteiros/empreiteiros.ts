@@ -270,7 +270,7 @@ export class Empreiteiros implements OnInit {
   }
 
   protected remover(registro: Empreiteiro): void {
-    const nome = registro.nome || 'este empreiteiro';
+    const nome = registro.nome || 'este profissional';
     if (
       !window.confirm(
         `Excluir ${nome} definitivamente?\n\n` +

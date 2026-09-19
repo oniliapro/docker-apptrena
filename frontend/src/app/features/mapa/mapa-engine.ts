@@ -354,6 +354,41 @@ export function calcularIntegral(itens: ItemMapa[], fornecedores: Fornecedor[]):
 }
 
 /**
+ * "Valor final do fornecedor" (19/09/2026, pedido dos usuários): o quanto
+ * a nota de cada fornecedor custaria com TUDO o que ele cotou — soma dos
+ * itens que ele cotou + frete da loja − desconto, tudo com o markup por
+ * cima (o markup incide sobre itens + frete − desconto, mesma regra de
+ * `calcularNota`), mesmo que ele tenha cotado só parte do pedido. É o que
+ * faltava pra comparar fornecedores lado a lado: "Compra integral" só
+ * aparece pra quem cotou tudo.
+ *
+ * O desconto entra SEMPRE (correção do mesmo dia: a 1ª versão só o aplicava
+ * a quem cotou tudo, e o valor ficava acima do que o usuário esperava).
+ * Quando o fornecedor cotou TODOS os itens com quantidade, o resultado
+ * coincide exatamente com `calcularIntegral`. Zero = o fornecedor não
+ * cotou nada (ou está desconsiderado).
+ */
+export function calcularValorFinalPorFornecedor(itens: ItemMapa[], fornecedores: Fornecedor[]): number[] {
+  return fornecedores.map((fornecedor, si) => {
+    if (!fornecedor.ativo) return 0;
+
+    const cotados = itens.filter((item) => (Number(item.qtde) || 0) > 0 && Number(item.unit?.[si]) > 0);
+    if (!cotados.length) return 0;
+
+    const itensBase = cotados.reduce((soma, item) => soma + calcularBaseItem(item, si), 0);
+
+    return calcularNota(
+      itensBase,
+      si,
+      fornecedores,
+      true,
+      Number(fornecedor.frete) || 0,
+      Number(fornecedor.desconto) || 0,
+    ).totalNota;
+  });
+}
+
+/**
  * Total de um cenário de compra fracionada, com o frete que cabe a cada
  * um (da loja, ou particular) — a base de "Comparação de cenários"
  * (17/08/2026, pedido do Lucas). `incluirFreteLoja=false` soma

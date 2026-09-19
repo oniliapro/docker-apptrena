@@ -41,7 +41,7 @@
     Detalhar
   </label>
   <span class="espacador"></span>
-  <input class="busca" type="search" placeholder="Buscar nº, descrição, empreiteiro…" (input)="mudarBusca($event)" />
+  <input class="busca" type="search" placeholder="Buscar nº, descrição, profissional…" (input)="mudarBusca($event)" />
 </div>
 
 <div class="painel">
@@ -59,7 +59,7 @@
                      (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
             </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
-            <th class="ordenavel" (click)="alternarOrdenacaoColuna('empreiteiro')">Empreiteiro{{ setaOrdenacao(ordenacao(), 'empreiteiro') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('empreiteiro')">Profissional{{ setaOrdenacao(ordenacao(), 'empreiteiro') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
@@ -169,12 +169,12 @@
 <!-- ============ Formulário ============ -->
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
 
     <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvar()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Nova empreita</span>
-        <button type="button" (click)="fechar()">✖</button>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">
@@ -191,7 +191,7 @@
           </label>
 
           <label class="campo campo-largo">
-            <span>Empreiteiro</span>
+            <span>Profissional</span>
             <select formControlName="empreiteiro">
               <option value="">(nenhum)</option>
               @for (opcao of empreiteirosAtivos(); track opcao.id) {
@@ -220,12 +220,12 @@
 <!-- ============ Popup — pagamentos desta empreita (26/08/2026, pedido do Lucas) ============ -->
 @if (pagamentosModalEmpreita(); as empreita) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharPagamentos()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharPagamentos()"></div>
 
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Pagamentos — {{ descricao(empreita) }}</span>
-        <button type="button" (click)="fecharPagamentos()">✖</button>
+        <button type="button" (click)="fecharPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

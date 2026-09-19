@@ -148,10 +148,13 @@ class MapaController extends Controller
                 'data_necessidade' => $data['data_necessidade'] ?? null,
                 'frete_particular' => $data['frete_particular'] ?? 0,
                 'freteiro_particular' => $data['freteiro_particular'] ?? null,
-                'lancar_frete_como_item' => $data['lancar_frete_como_item'] ?? true,
+                // Padrão DESLIGADO só pra mapas NOVOS (mudança de 14/09/2026, pedido
+                // dos usuários) — mapa já existente que não mande o campo mantém o
+                // que já tinha, em vez de voltar ao padrão a cada atualização.
+                'lancar_frete_como_item' => $data['lancar_frete_como_item'] ?? $mapa->lancar_frete_como_item ?? false,
                 'frete_etapa_id' => $data['frete_etapa_id'] ?? null,
                 'frete_categoria_tipo' => $data['frete_categoria_tipo'] ?? null,
-                'lancar_imposto_desconto_como_item' => $data['lancar_imposto_desconto_como_item'] ?? true,
+                'lancar_imposto_desconto_como_item' => $data['lancar_imposto_desconto_como_item'] ?? $mapa->lancar_imposto_desconto_como_item ?? false,
                 'imposto_desconto_etapa_id' => $data['imposto_desconto_etapa_id'] ?? null,
                 'imposto_desconto_categoria_tipo' => $data['imposto_desconto_categoria_tipo'] ?? null,
                 'modo_manual' => $data['modo_manual'] ?? false,

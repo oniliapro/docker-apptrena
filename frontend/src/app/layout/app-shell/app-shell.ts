@@ -147,7 +147,7 @@ export class AppShell {
       filhos: [
         { rota: '/clientes', texto: 'Clientes' },
         { rota: '/responsaveis', texto: 'Responsáveis' },
-        { rota: '/empreiteiros', texto: 'Empreiteiros' },
+        { rota: '/empreiteiros', texto: 'Profissionais' },
         { rota: '/fornecedores', texto: 'Fornecedores' },
       ],
     },

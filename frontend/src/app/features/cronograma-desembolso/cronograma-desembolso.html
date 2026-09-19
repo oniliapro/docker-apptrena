@@ -197,7 +197,7 @@
   <!-- ============ Popup — valor planejado + saldo remanescente por categoria ============ -->
   @if (popupAberto(); as aberto) {
     <div class="modal">
-      <div class="modal-fundo" (click)="fecharPopupPlanejamento()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharPopupPlanejamento()"></div>
 
       <div class="modal-cartao modal-pequeno">
         <div class="modal-cabecalho">
@@ -205,7 +205,7 @@
             <span class="modal-titulo">Planejar desembolso</span>
             <span class="pequeno atenuado">{{ rotuloEap(aberto.item) }} — {{ aberto.periodo.rotulo }}</span>
           </div>
-          <button type="button" (click)="fecharPopupPlanejamento()">✖</button>
+          <button type="button" (click)="fecharPopupPlanejamento()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">
@@ -249,7 +249,7 @@
   <!-- ============ Modal: pagamentos vinculados — mesmo padrão da EAP ============ -->
   @if (filtroPagamentosAberto(); as filtro) {
     <div class="modal">
-      <div class="modal-fundo" (click)="fecharModalPagamentos()"></div>
+      <div class="modal-fundo" (fecharModal)="fecharModalPagamentos()"></div>
 
       <div class="modal-cartao">
         <div class="modal-cabecalho">
@@ -260,7 +260,7 @@
               <span>Direcionado à etapa: <b>{{ formatarMoeda(totalValorDirecionadoPopup()) }}</b></span>
             </div>
           </div>
-          <button type="button" (click)="fecharModalPagamentos()">✖</button>
+          <button type="button" (click)="fecharModalPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
         </div>
 
         <div class="modal-corpo">

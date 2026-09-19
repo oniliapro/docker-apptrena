@@ -122,12 +122,12 @@
 <!-- ============ Popup — retrato da medição no momento do pagamento (03/09/2026) ============ -->
 @if (linhaDetalhada(); as linha) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharDetalhe()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharDetalhe()"></div>
 
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Retrato da medição — Pagamento {{ linha.numeroPagamento || '—' }}</span>
-        <button type="button" (click)="fecharDetalhe()">✖</button>
+        <button type="button" (click)="fecharDetalhe()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

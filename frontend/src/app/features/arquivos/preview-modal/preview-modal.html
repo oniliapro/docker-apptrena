@@ -1,12 +1,12 @@
 @let arq = arquivo();
 
 <div class="modal">
-  <div class="modal-fundo" (click)="fechar.emit()"></div>
+  <div class="modal-fundo" (fecharModal)="fechar.emit()"></div>
 
   <div class="modal-cartao">
     <div class="modal-cabecalho">
       <span class="modal-titulo">{{ arq.nome_original }}</span>
-      <button type="button" (click)="fechar.emit()">✖</button>
+      <button type="button" (click)="fechar.emit()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
     </div>
 
     <div class="modal-corpo">

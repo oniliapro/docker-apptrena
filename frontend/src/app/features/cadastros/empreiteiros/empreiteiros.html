@@ -1,9 +1,9 @@
 <div class="cabecalho">
   <div>
-    <h1>Empreiteiros</h1>
+    <h1>Profissionais</h1>
     <div class="atenuado">Quem executa os serviços contratados</div>
   </div>
-  <button class="botao-novo" type="button" (click)="novo()">+ Novo empreiteiro</button>
+  <button class="botao-novo" type="button" (click)="novo()">+ Novo profissional</button>
 </div>
 
 <div class="painel barra-ferramentas">
@@ -85,7 +85,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="centro atenuado vazio">Nenhum empreiteiro cadastrado.</td>
+              <td colspan="8" class="centro atenuado vazio">Nenhum profissional cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -96,14 +96,14 @@
 
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fechar()"></div>
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
 
     <form class="modal-cartao estreito" [formGroup]="formulario" (ngSubmit)="salvar()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">
-          {{ editandoId() ? 'Editar empreiteiro' : 'Novo empreiteiro' }}
+          {{ editandoId() ? 'Editar profissional' : 'Novo profissional' }}
         </span>
-        <button type="button" (click)="fechar()">✖</button>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="abas-cadastro">

@@ -159,12 +159,12 @@
 <!-- ============ Popup — anexos de um pagamento (06/09/2026) ============ -->
 @if (anexosPopupPagamento(); as pagamento) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharAnexos()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharAnexos()"></div>
 
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Anexos — {{ pagamento.numeroPagamento || '—' }}</span>
-        <button type="button" (click)="fecharAnexos()">✖</button>
+        <button type="button" (click)="fecharAnexos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

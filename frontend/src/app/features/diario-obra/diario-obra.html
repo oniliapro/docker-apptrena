@@ -353,11 +353,11 @@
 
 @if (modalAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharModalNovaObra()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharModalNovaObra()"></div>
     <form class="modal-cartao" [formGroup]="formNovaObra" (ngSubmit)="criarObra()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Nova obra</span>
-        <button type="button" (click)="fecharModalNovaObra()">✖</button>
+        <button type="button" (click)="fecharModalNovaObra()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

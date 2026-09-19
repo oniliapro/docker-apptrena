@@ -248,7 +248,7 @@ export const routes: Routes = [
       },
       {
         path: 'empreiteiros',
-        data: { titulo: 'Empreiteiros' },
+        data: { titulo: 'Profissionais' },
         loadComponent: () =>
           import('./features/cadastros/empreiteiros/empreiteiros').then((m) => m.Empreiteiros),
       },

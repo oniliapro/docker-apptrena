@@ -603,7 +603,7 @@ button {
   font-size: 0.78rem;
 
   code {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-family: var(--fonte);
     font-size: 0.72rem;
     background: var(--cor-fundo-alt);
     padding: 0.2rem 0.35rem;

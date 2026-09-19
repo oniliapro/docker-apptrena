@@ -704,7 +704,7 @@ export class EmpreitaStore {
       obraNumber: cabecalho.obraNumber,
       dataSolicitacao: hojeIso(),
       dataPagamento: '',
-      fornecedor: cabecalho.empreiteiro || 'Empreiteiro',
+      fornecedor: cabecalho.empreiteiro || 'Profissional',
       descricao: descricaoBase || 'Medição de empreita',
       valorTotal,
       itens: itensPagamento,

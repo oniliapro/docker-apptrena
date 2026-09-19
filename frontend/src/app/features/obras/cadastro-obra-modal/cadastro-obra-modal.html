@@ -1,5 +1,5 @@
 <div class="modal">
-  <div class="modal-fundo" (click)="fecharClick()"></div>
+  <div class="modal-fundo" (fecharModal)="fecharClick()"></div>
 
   <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarClick()">
     <div class="modal-cabecalho">
@@ -24,7 +24,7 @@
         }
       </div>
 
-      <button type="button" class="fechar" (click)="fecharClick()">✖</button>
+      <button type="button" class="fechar" (click)="fecharClick()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
     </div>
 
     <div class="modal-corpo">

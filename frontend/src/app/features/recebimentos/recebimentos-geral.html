@@ -109,12 +109,12 @@
 <!-- ============ Formulário — Novo recebimento ============ -->
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharFormulario()"></div>
 
     <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Novo recebimento</span>
-        <button type="button" (click)="fecharFormulario()">✖</button>
+        <button type="button" (click)="fecharFormulario()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

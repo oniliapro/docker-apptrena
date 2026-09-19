@@ -115,12 +115,12 @@
 
 @if (popupMapa(); as mapa) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharPopupPagamentos()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharPopupPagamentos()"></div>
 
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Pagamentos gerados — {{ descricao(mapa) }}</span>
-        <button type="button" (click)="fecharPopupPagamentos()">✖</button>
+        <button type="button" (click)="fecharPopupPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">
@@ -161,12 +161,12 @@
 <!-- ============ Formulário — Novo mapa ============ -->
 @if (formularioAberto()) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharFormulario()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharFormulario()"></div>
 
     <form class="modal-cartao" [formGroup]="formulario" (ngSubmit)="salvarNovo()">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Novo mapa</span>
-        <button type="button" (click)="fecharFormulario()">✖</button>
+        <button type="button" (click)="fecharFormulario()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

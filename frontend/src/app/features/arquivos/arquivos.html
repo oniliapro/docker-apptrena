@@ -128,11 +128,11 @@
 <!-- ---- Mover para... ---- -->
 @if (moverAlvo(); as alvo) {
   <div class="modal">
-    <div class="modal-fundo" (click)="fecharMover()"></div>
+    <div class="modal-fundo" (fecharModal)="fecharMover()"></div>
     <div class="modal-cartao">
       <div class="modal-cabecalho">
         <span class="modal-titulo">Mover "{{ moverAlvoNome() }}" para…</span>
-        <button type="button" (click)="fecharMover()">✖</button>
+        <button type="button" (click)="fecharMover()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 
       <div class="modal-corpo">

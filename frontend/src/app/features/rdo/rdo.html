@@ -423,7 +423,7 @@
         @for (co of arr('comentarios').controls; track $index; let i = $index) {
           <article class="bloco" [formGroupName]="i">
             <div class="linha">
-              <textarea formControlName="texto" rows="2" placeholder="Ex.: combinado verbal com o empreiteiro"></textarea>
+              <textarea formControlName="texto" rows="2" placeholder="Ex.: combinado verbal com o profissional"></textarea>
               <button type="button" class="botao-remover" (click)="remover('comentarios', i)" aria-label="Remover">×</button>
             </div>
             <label class="checkbox">
@@ -584,8 +584,8 @@
 
 <!-- Popup da foto ampliada: foto grande + descrição da foto + da tarefa -->
 @if (fotoAmpliada(); as foto) {
-  <div class="popup-fundo" (click)="fecharAmpliada()">
-    <div class="popup" (click)="$event.stopPropagation()">
+  <div class="popup-fundo" (fecharModal)="fecharAmpliada()">
+    <div class="popup">
       <button type="button" class="popup-fechar" (click)="fecharAmpliada()" aria-label="Fechar">×</button>
       <div class="popup-imagem">
         <img [src]="foto.url" [alt]="foto.legenda || 'Foto do relatório'">

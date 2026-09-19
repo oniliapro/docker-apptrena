@@ -91,9 +91,9 @@
       <input type="checkbox" [checked]="store.cabecalho().lancarFreteComoItem" [disabled]="store.travada()" (change)="alternarLancarFreteComoItem()" />
       Lançar frete como item
     </label>
-    @if (store.cabecalho().lancarFreteComoItem) {
+    @if (store.cabecalho().lancarFreteComoItem || freteParticularHabilitado()) {
       <select class="select-etapa-frete" [value]="store.cabecalho().freteEtapaId" [disabled]="store.travada()"
-              (change)="editarFreteEtapa($event)" title="Etapa da linha de frete no pagamento (opcional)">
+              (change)="editarFreteEtapa($event)" title="Etapa do frete no pagamento (opcional). Vale para o frete como item e para o frete particular; em branco, o frete particular é dividido entre as etapas na mesma proporção dos itens comprados.">
         <option value="">Etapa do frete (opcional)</option>
         @for (etapa of store.etapasDisponiveis(); track etapa.id) {
           <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().freteEtapaId">{{ etapa.rotulo }}</option>
@@ -444,6 +444,14 @@
                       <span class="valor-pilha">
                         {{ store.fracionado()[$index].used ? formatarMoeda(store.fracionado()[$index].totalItensComFrete) : '—' }}
                       </span>
+                    </div>
+                    <div class="campo-pilha" title="Valor final do fornecedor: soma dos itens que ele cotou + frete + markup (coincide com a compra integral quando ele cotou tudo)">
+                      <span class="rotulo-repetido">Valor final</span>
+                      @if (store.valorFinalFornecedor()[$index] > 0) {
+                        <span class="valor-pilha">{{ formatarMoeda(store.valorFinalFornecedor()[$index]) }}</span>
+                      } @else {
+                        <span class="valor-pilha atenuado">não cotou</span>
+                      }
                     </div>
                     <div class="campo-pilha">
                       <span class="rotulo-repetido">Compra integral</span>
