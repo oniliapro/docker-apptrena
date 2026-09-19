@@ -1,17 +1,35 @@
-<input
-  #campo
-  type="text"
-  autocomplete="off"
-  role="combobox"
-  [attr.aria-expanded]="aberto()"
-  [value]="texto()"
-  [placeholder]="placeholder()"
-  [disabled]="desabilitado()"
-  (focus)="aoFocar()"
-  (input)="aoDigitar($event)"
-  (blur)="aoSairDoCampo()"
-  (keydown)="aoTeclar($event)"
-/>
+@if (quebraLinha()) {
+  <textarea
+    #campo
+    autocomplete="off"
+    trenaAutoAltura
+    rows="1"
+    role="combobox"
+    [attr.aria-expanded]="aberto()"
+    [value]="texto()"
+    [placeholder]="placeholder()"
+    [disabled]="desabilitado()"
+    (focus)="aoFocar()"
+    (input)="aoDigitar($event)"
+    (blur)="aoSairDoCampo()"
+    (keydown)="aoTeclar($event)"
+  ></textarea>
+} @else {
+  <input
+    #campo
+    type="text"
+    autocomplete="off"
+    role="combobox"
+    [attr.aria-expanded]="aberto()"
+    [value]="texto()"
+    [placeholder]="placeholder()"
+    [disabled]="desabilitado()"
+    (focus)="aoFocar()"
+    (input)="aoDigitar($event)"
+    (blur)="aoSairDoCampo()"
+    (keydown)="aoTeclar($event)"
+  />
+}
 
 @if (aberto() && posicao(); as pos) {
   <ul

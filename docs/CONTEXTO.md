@@ -977,3 +977,10 @@ AppTrena/
   autocomplete achadas nos testes: a lista não filtrava ao digitar e, dentro de
   popup (que tem `transform`), aparecia deslocada do campo. A navegação por
   teclado da tabela (`navegacao-tabela`) ignora tecla já tratada pelo campo.
+
+- 19/09/2026 (ajuste do F2): o campo com busca da **Etapa** do serviço
+  (`app-autocomplete`, nova opção `[quebraLinha]="true"`) passou a ser um
+  `<textarea>` que cresce em altura — etapa longa quebra em várias linhas em
+  vez de ficar cortada numa linha só (Enter continua escolhendo a opção, nunca
+  vira quebra de linha no texto). O Fornecedor do pagamento continua de uma
+  linha.

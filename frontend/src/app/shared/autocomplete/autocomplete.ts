@@ -1,5 +1,7 @@
 import { Component, ElementRef, computed, effect, input, model, output, signal, viewChild } from '@angular/core';
 
+import { AutoAlturaTextarea } from '../auto-altura-textarea/auto-altura-textarea';
+
 export interface OpcaoAutocomplete {
   /** Valor guardado (o `id` da etapa, por exemplo). Em `modo="livre"` com só rótulos, repita o rótulo. */
   id: string;
@@ -36,6 +38,7 @@ function normalizar(texto: string): string {
  */
 @Component({
   selector: 'app-autocomplete',
+  imports: [AutoAlturaTextarea],
   templateUrl: './autocomplete.html',
   styleUrl: './autocomplete.scss',
 })
@@ -45,13 +48,15 @@ export class Autocomplete {
   readonly placeholder = input('');
   readonly desabilitado = input(false);
   readonly mensagemVazia = input('Nenhuma opção encontrada');
+  /** Texto longo quebra em várias linhas (o campo cresce em altura) em vez de rolar numa linha só. */
+  readonly quebraLinha = input(false);
 
   /** `id` da opção escolhida (modo restrito) ou o texto digitado (modo livre). */
   readonly valor = model('');
   /** Dispara ao confirmar uma escolha (opção clicada/Enter, texto livre ou campo limpo). */
   readonly confirmou = output<OpcaoAutocomplete | null>();
 
-  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement | HTMLTextAreaElement>>('campo');
 
   protected readonly texto = signal('');
   protected readonly aberto = signal(false);
@@ -92,7 +97,10 @@ export class Autocomplete {
   }
 
   protected aoDigitar(evento: Event): void {
-    this.texto.set((evento.target as HTMLInputElement).value);
+    const campo = evento.target as HTMLInputElement | HTMLTextAreaElement;
+    // No campo de várias linhas o Enter não pode virar quebra de linha no texto.
+    if (/[\r\n]/.test(campo.value)) campo.value = campo.value.replace(/\s*[\r\n]+\s*/g, ' ');
+    this.texto.set(campo.value);
     this.filtrando.set(true);
     this.indiceAtivo.set(0);
     this.abrir();

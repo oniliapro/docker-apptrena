@@ -179,7 +179,7 @@
             </td>
             <td>
               @if (store.opcoesEap().length) {
-                <app-autocomplete modo="restrito" placeholder="Buscar etapa da EAP…"
+                <app-autocomplete modo="restrito" [quebraLinha]="true" placeholder="Buscar etapa da EAP…"
                                   mensagemVazia="Nenhuma etapa da EAP com esse texto"
                                   [opcoes]="opcoesEtapa()" [valor]="item.eapId" [desabilitado]="store.travada()"
                                   (confirmou)="editarEap(item, $event)" />
