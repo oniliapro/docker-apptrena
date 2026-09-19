@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
@@ -59,21 +59,7 @@ export class EmpreitaRelatorioPagamentos {
   readonly pagamentos = input<Pagamento[]>([]);
   readonly contratoTotalEmpreita = input<number>(0);
 
-  /**
-   * Botão "Realizar medição" (03/09/2026, pedido do Lucas — nome trocado
-   * no mesmo dia; era "Realizar pagamento") — mostrado só quando o pai
-   * deixa (`empreita.html`, empreita confirmada); `false` por padrão pra
-   * não aparecer sozinho na versão de impressão
-   * (`empreita-imprimir.html`), que não passa esse input.
-   *
-   * Fica visível pra sempre (não some depois do primeiro clique, como
-   * antes) — quem controla se ele pode ser CLICADO agora é
-   * `medicaoHabilitada`, o par alternado com "Realizar pagamento" lá em
-   * `empreita.ts` (`podeRealizarMedicao`).
-   */
-  readonly mostrarBotaoMedicao = input<boolean>(false);
-  readonly medicaoHabilitada = input<boolean>(true);
-  readonly realizarMedicao = output<void>();
+  // O botão "Realizar medição" mudou pro cabeçalho da empreita (19/09/2026) — ver `empreita.html`.
 
   /** Itens ATUAIS da EAP (03/09/2026) — só pra rotular a etapa de cada serviço na popup de retrato. */
   readonly itensEap = input<ItemEap[]>([]);

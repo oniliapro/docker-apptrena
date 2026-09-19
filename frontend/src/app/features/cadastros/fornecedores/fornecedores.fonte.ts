@@ -1,3 +1,8 @@
+import { Injectable, computed, inject, signal } from '@angular/core';
+
+import { ArmazenamentoService } from '../../../core/services/armazenamento.service';
+import { OpcaoAutocomplete } from '../../../shared/autocomplete/autocomplete';
+
 /**
  * Leitura dos nomes de fornecedores cadastrados, pra alimentar campos com
  * busca (`shared/autocomplete`) — extraído de `MapaStore` (19/09/2026) pra
@@ -22,5 +27,26 @@ export function extrairNomesFornecedoresAtivos(bruto: string | null): string[] {
     return [...new Set(nomes)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Nomes dos fornecedores ativos, prontos pro campo com busca. Cada tela chama
+ * `carregar()` ao abrir (o cadastro pode ter mudado); falha de leitura deixa a
+ * lista como estava — o campo continua aceitando texto livre.
+ */
+@Injectable({ providedIn: 'root' })
+export class FornecedoresCadastro {
+  private readonly armazenamento = inject(ArmazenamentoService);
+  private readonly nomes = signal<string[]>([]);
+
+  /** Opções no formato do `app-autocomplete` (id = rótulo = nome, modo livre). */
+  readonly opcoes = computed<OpcaoAutocomplete[]>(() => this.nomes().map((nome) => ({ id: nome, rotulo: nome })));
+
+  carregar(): void {
+    this.armazenamento.ler(CHAVE_FORNECEDORES).subscribe({
+      next: (bruto) => this.nomes.set(extrairNomesFornecedoresAtivos(bruto)),
+      error: () => undefined,
+    });
   }
 }

@@ -132,7 +132,9 @@
 
           <label class="campo campo-largo">
             <span>Fornecedor</span>
-            <input type="text" formControlName="fornecedor" />
+            <app-autocomplete modo="livre" placeholder="Buscar no cadastro ou digitar…"
+                              [opcoes]="fornecedoresCadastro.opcoes()" [valor]="formulario.controls.fornecedor.value"
+                              (valorChange)="formulario.controls.fornecedor.setValue($event)" />
           </label>
 
           <label class="campo campo-largo">

@@ -372,6 +372,63 @@ export function calcularSaldoDisponivelPorEap(
   return resultado;
 }
 
+export type SituacaoMedicaoLinha = 'pagamento' | 'concluido' | 'andamento' | null;
+
+/**
+ * Cor de cada serviço na fase de medição (19/09/2026, pedido dos usuários):
+ *  - `pagamento` (azul): o rascunho do pagamento do período tem valor (do
+ *    empreiteiro OU da reserva) — prevalece sobre as outras;
+ *  - `concluido` (verde claro): 100% medido;
+ *  - `andamento` (amarelo claro): medição iniciada e incompleta (> 0% e < 100%);
+ *  - `null`: sem medição — sem cor.
+ */
+export function classificarSituacaoMedicao(linha: LinhaEmpreitaEstendida): SituacaoMedicaoLinha {
+  if (linha.pagamentoDraftTotal > 0.005) return 'pagamento';
+  if (linha.atual >= 100) return 'concluido';
+  if (linha.atual > 0) return 'andamento';
+  return null;
+}
+
+/**
+ * "Lançar reservas" (19/09/2026, pedido dos usuários): para cada serviço com
+ * a reserva VAZIA (`null`; zero digitado conta como preenchido), sugere
+ * reserva = max(0, saldo disponível da etapa/categoria − contrato do
+ * empreiteiro do serviço). Reservas já digitadas nunca são sobrescritas.
+ *
+ * Vários serviços da MESMA etapa e categoria disputam o mesmo saldo: o
+ * saldo vai sendo consumido na ordem das linhas (contrato + reserva de cada
+ * uma), senão duas linhas "reservariam" o mesmo dinheiro. Serviço sem etapa,
+ * sem categoria ou sem contrato do empreiteiro (> 0) é ignorado — não há de
+ * onde tirar a reserva.
+ *
+ * Devolve só as reservas a lançar (id do serviço → valor, já arredondado a
+ * centavos e maior que zero).
+ */
+export function calcularReservasSugeridas(
+  itens: ItemEmpreita[],
+  saldoDispPorEap: Map<string, PorTipo>,
+): Map<string, number> {
+  const restante = new Map<string, number>();
+  const sugeridas = new Map<string, number>();
+
+  for (const item of itens) {
+    if (!item.eapId || !item.tipo) continue;
+    const chave = `${item.eapId}|${item.tipo}`;
+    if (!restante.has(chave)) restante.set(chave, Number(saldoDispPorEap.get(item.eapId)?.[item.tipo]) || 0);
+
+    const contratoEmp = Number(item.contratoEmp) || 0;
+    if (item.contratoReserva === null) {
+      if (contratoEmp <= 0) continue;
+      const reserva = Math.round(Math.max(0, restante.get(chave)! - contratoEmp) * 100) / 100;
+      if (reserva > 0) sugeridas.set(item.id, reserva);
+      restante.set(chave, restante.get(chave)! - contratoEmp - reserva);
+    } else {
+      restante.set(chave, restante.get(chave)! - contratoEmp - (Number(item.contratoReserva) || 0));
+    }
+  }
+  return sugeridas;
+}
+
 /**
  * Qtde. disp. (25/08/2026, pedido do Lucas) — mesma ideia do Saldo disp.,
  * mas em quantidade física: `item.qtde` (da EAP) menos a quantidade

@@ -64,6 +64,8 @@ export class NavegacaoTabela {
   readonly preencherParaBaixo = output<{ linha: number; coluna: number }>();
 
   protected aoTeclar(evento: KeyboardEvent): void {
+    // Um campo interno (ex.: lista de busca do Autocomplete) já tratou a tecla.
+    if (evento.defaultPrevented) return;
     if (this.tratarPreencherParaBaixo(evento)) return;
     if (this.permiteAtalhos() && this.tratarAtalhos(evento)) return;
     this.tratarNavegacao(evento);

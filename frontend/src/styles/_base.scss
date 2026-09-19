@@ -240,6 +240,43 @@ button {
   }
 }
 
+// ---- Faixa e cabeçalho de tabela fixos (BarraFixa, 19/09/2026) ----
+// A faixa (botões + totais) gruda logo abaixo da barra de topo enquanto a
+// página rola. A tabela fica num invólucro (.envoltoria-fixa) com rolagem
+// PRÓPRIA nos dois eixos e altura = o que sobra da janela abaixo da faixa
+// (--barra-fixa-fim é medida pela diretiva): assim o cabeçalho (top: 0) e o
+// rodapé de totais (bottom: 0) da tabela ficam sempre visíveis e a barra de
+// rolagem horizontal fica na borda de baixo da janela.
+.barra-fixa {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 40;
+  background: var(--cor-fundo);
+  padding-bottom: 8px;
+}
+
+.envoltoria-fixa {
+  overflow: auto;
+  max-height: calc(100vh - var(--barra-fixa-fim, var(--barra-topo-altura)) - 12px);
+}
+
+table.cabecalho-fixo thead th {
+  position: sticky;
+  // -1px: com border-collapse o th sticky deixa uma fresta de 1px onde as linhas aparecem.
+  top: -1px;
+  z-index: 5;
+  box-shadow: inset 0 -1px 0 var(--cor-borda-forte);
+}
+
+table.rodape-fixo tfoot td,
+table.rodape-fixo tfoot th {
+  position: sticky;
+  bottom: -1px;
+  z-index: 5;
+  background: var(--cor-fundo-alt);
+  box-shadow: inset 0 1px 0 var(--cor-borda-forte);
+}
+
 // ---- Impressão (Gerar PDF do Mapa, 31/07/2026) ----
 // window.print() imprime a página inteira por padrão — aqui escondemos o
 // "chrome" do app (menu lateral, topo, abas da obra) pra sobrar só o

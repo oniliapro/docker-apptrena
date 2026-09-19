@@ -8,6 +8,7 @@ import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
 import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 import {
   EstadoOrdenacao,
@@ -79,6 +80,8 @@ type ColunaEmpreitaObra =
   | 'total'
   | 'totalPago'
   | 'saldo'
+  | 'medicao'
+  | 'valorUltimaSolicitacao'
   | 'ultimaSolicitacao';
 
 /**
@@ -93,7 +96,7 @@ type ColunaEmpreitaObra =
  */
 @Component({
   selector: 'app-empreitas-obra',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraFixa],
   templateUrl: './empreitas-obra.html',
   styleUrl: './empreitas-obra.scss',
 })
@@ -335,10 +338,31 @@ export class EmpreitasObra implements OnInit {
         case 'total': return this.total(e);
         case 'totalPago': return this.totalPago(e);
         case 'saldo': return this.saldo(e);
+        // Sem medição física lançada → null: vai pro fim nas duas direções.
+        case 'medicao': return this.temMedicaoFisica(e) ? this.pctFisicoAtual(e) : null;
+        case 'valorUltimaSolicitacao': return this.dataUltimaSolicitacao(e) ? this.valorUltimaSolicitacao(e) : null;
         case 'ultimaSolicitacao': return this.dataUltimaSolicitacao(e);
       }
     }),
   );
+
+  /**
+   * Barra fixa de totais (19/09/2026): soma Total/Pago/Saldo das empreitas
+   * SELECIONADAS; sem seleção, de todas as que a lista mostra (respeita a busca).
+   */
+  protected readonly totaisBarra = computed(() => {
+    const lista = this.listaOrdenada();
+    const base = this.selecao.temSelecao() ? this.selecao.selecionados(lista) : lista;
+    let total = 0;
+    let pago = 0;
+    let saldo = 0;
+    for (const empreita of base) {
+      total += this.total(empreita);
+      pago += this.totalPago(empreita);
+      saldo += this.saldo(empreita);
+    }
+    return { quantidade: base.length, total, pago, saldo };
+  });
 
   ngOnInit(): void {
     this.carregar();

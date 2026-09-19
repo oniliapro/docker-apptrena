@@ -29,6 +29,29 @@ table { table-layout: auto; }
   &:hover { filter: brightness(1.05); }
 }
 
+// ---- Barra de totais fixa (19/09/2026) ----
+.barra-totais {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+.rotulo-totais {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+}
+
+.item-total b { margin-left: 4px; }
+
+.barra-ferramentas { margin-bottom: 0; flex-wrap: wrap; }
+
 .linha-clicavel {
   cursor: pointer;
 
@@ -223,7 +246,7 @@ table { table-layout: auto; }
 
 .rotulo-barra {
   flex: 0 0 auto;
-  width: 52px;
+  width: 62px;
   font-family: var(--fonte-mono);
   font-size: 9px;
   text-transform: uppercase;

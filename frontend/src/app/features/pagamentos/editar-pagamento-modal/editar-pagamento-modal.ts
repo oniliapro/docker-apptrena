@@ -25,6 +25,8 @@ import {
   validarPagamento,
 } from '../pagamentos-calc';
 import { ItemEapSnapshot, ItemPagamento, Pagamento, TIPOS_CUSTO_PAGAMENTO } from '../pagamentos.models';
+import { Autocomplete } from '../../../shared/autocomplete/autocomplete';
+import { FornecedoresCadastro } from '../../cadastros/fornecedores/fornecedores.fonte';
 import { AnexosLancamento } from '../../../shared/anexos-lancamento/anexos-lancamento';
 import { Tag } from '../../configuracoes/tags/tags.models';
 
@@ -65,12 +67,13 @@ export interface EventoSalvarPagamento {
  */
 @Component({
   selector: 'app-editar-pagamento-modal',
-  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento],
+  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento, Autocomplete],
   templateUrl: './editar-pagamento-modal.html',
   styleUrl: './editar-pagamento-modal.scss',
 })
 export class EditarPagamentoModal implements OnInit {
   private readonly api = inject(ApiService);
+  protected readonly fornecedores = inject(FornecedoresCadastro);
 
   readonly pagamento = input.required<Pagamento>();
   readonly snapshotEap = input<ItemEapSnapshot[]>([]);
@@ -126,6 +129,7 @@ export class EditarPagamentoModal implements OnInit {
   private anexoNotaPendente: AnexoNotaPendente | null = null;
 
   ngOnInit(): void {
+    this.fornecedores.carregar();
     this.api.listarTags().subscribe({
       next: (lista) => this.tags.set(lista),
       error: () => this.tags.set([]),
@@ -261,6 +265,11 @@ export class EditarPagamentoModal implements OnInit {
   protected atualizarCampo(campo: keyof Pagamento, evento: Event): void {
     const valor = (evento.target as HTMLInputElement).value;
     this.rascunho.update((p) => ({ ...p, [campo]: valor }));
+  }
+
+  /** O campo de fornecedor aceita texto livre; recebe o texto final do campo. */
+  protected atualizarFornecedor(texto: string): void {
+    this.rascunho.update((p) => ({ ...p, fornecedor: texto }));
   }
 
   protected atualizarValorTotal(evento: Event): void {

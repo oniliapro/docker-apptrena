@@ -6,6 +6,8 @@ import { Obra, Pagamento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
+import { Autocomplete } from '../../shared/autocomplete/autocomplete';
+import { FornecedoresCadastro } from '../cadastros/fornecedores/fornecedores.fonte';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
@@ -48,7 +50,7 @@ type ColunaPagamentoGeral =
  */
 @Component({
   selector: 'app-pagamentos-geral',
-  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra, Autocomplete],
   templateUrl: './pagamentos-geral.html',
   styleUrl: './pagamentos-geral.scss',
 })
@@ -56,6 +58,7 @@ export class PagamentosGeral implements OnInit {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  protected readonly fornecedoresCadastro = inject(FornecedoresCadastro);
 
   protected readonly pagamentos = signal<Pagamento[]>([]);
   protected readonly carregando = signal(true);
@@ -142,6 +145,7 @@ export class PagamentosGeral implements OnInit {
   );
 
   ngOnInit(): void {
+    this.fornecedoresCadastro.carregar();
     this.carregar();
     this.api.listarObras().subscribe({
       next: (obras) => this.obras.set(obras),

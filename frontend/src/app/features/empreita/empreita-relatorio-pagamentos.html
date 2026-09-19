@@ -1,11 +1,5 @@
 <div class="painel-titulo-linha">
   <div class="painel-titulo">Pagamentos registrados</div>
-  @if (mostrarBotaoMedicao()) {
-    <button type="button" class="primario" [disabled]="!medicaoHabilitada()" (click)="realizarMedicao.emit()"
-            title="Libera a Medição/Já pago/Pagamento/Saldo após pagamento pra esta empreita">
-      📏 Realizar medição
-    </button>
-  }
 </div>
 
 @if (linhas().length) {

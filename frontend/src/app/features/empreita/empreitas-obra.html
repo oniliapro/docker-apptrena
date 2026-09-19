@@ -3,17 +3,6 @@
     <h1>Empreitas</h1>
     <div class="atenuado">Contratos de empreitada desta obra</div>
   </div>
-  @if (selecao.temSelecao()) {
-    <button type="button" [disabled]="preparando()" (click)="copiarSolicitacoes()"
-            title="Copia a solicitação de pagamento das empreitas selecionadas, pronta pra colar no WhatsApp">
-      {{ preparando() ? 'Preparando…' : (copiadoSolicitacoes() ? '✔ Copiado!' : '📋 Copiar solicitação (' + selecao.contagem() + ')') }}
-    </button>
-    <button type="button" [disabled]="preparando()" (click)="copiarResumo()"
-            title="Copia o resumo (beneficiado + valor + PIX) — a segunda mensagem, pra colar em seguida">
-      {{ preparando() ? 'Preparando…' : (copiadoResumo() ? '✔ Copiado!' : '📋 Copiar resumo') }}
-    </button>
-  }
-  <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
 </div>
 
 @if (empreitasComPixParaEscolher().length) {
@@ -35,13 +24,37 @@
   </div>
 }
 
-<div class="painel barra-ferramentas">
-  <label class="checagem-inline" title="Mostra Empreiteiro e Reserva separados em vez do valor somado">
-    <input type="checkbox" [checked]="detalhar()" (change)="alternarDetalhar()" />
-    Detalhar
-  </label>
-  <span class="espacador"></span>
-  <input class="busca" type="search" placeholder="Buscar nº, descrição, profissional…" (input)="mudarBusca($event)" />
+<div trenaBarraFixa>
+  <div class="painel barra-ferramentas">
+    <label class="checagem-inline" title="Mostra Empreiteiro e Reserva separados em vez do valor somado">
+      <input type="checkbox" [checked]="detalhar()" (change)="alternarDetalhar()" />
+      Detalhar
+    </label>
+    <span class="espacador"></span>
+    @if (selecao.temSelecao()) {
+      <button type="button" [disabled]="preparando()" (click)="copiarSolicitacoes()"
+              title="Copia a solicitação de pagamento das empreitas selecionadas, pronta pra colar no WhatsApp">
+        {{ preparando() ? 'Preparando…' : (copiadoSolicitacoes() ? '✔ Copiado!' : '📋 Copiar solicitação (' + selecao.contagem() + ')') }}
+      </button>
+      <button type="button" [disabled]="preparando()" (click)="copiarResumo()"
+              title="Copia o resumo (beneficiado + valor + PIX) — a segunda mensagem, pra colar em seguida">
+        {{ preparando() ? 'Preparando…' : (copiadoResumo() ? '✔ Copiado!' : '📋 Copiar resumo') }}
+      </button>
+    }
+    <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
+    <input class="busca" type="search" placeholder="Buscar nº, descrição, profissional…" (input)="mudarBusca($event)" />
+  </div>
+
+  <div class="painel barra-totais" aria-live="polite">
+    <span class="rotulo-totais">
+      {{ selecao.temSelecao() ? 'Selecionadas (' + totaisBarra().quantidade + ')' : 'Todas (' + totaisBarra().quantidade + ')' }}
+    </span>
+    <span class="item-total">Total <b>{{ formatarMoeda(totaisBarra().total) }}</b></span>
+    <span class="item-total">Pago <b>{{ formatarMoeda(totaisBarra().pago) }}</b></span>
+    <span class="item-total">Saldo
+      <b [class.saldo-positivo]="totaisBarra().saldo >= 0" [class.saldo-negativo]="totaisBarra().saldo < 0">{{ formatarMoeda(totaisBarra().saldo) }}</b>
+    </span>
+  </div>
 </div>
 
 <div class="painel">
@@ -50,8 +63,8 @@
   } @else if (erro(); as mensagem) {
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
-    <div class="envoltoria">
-      <table trenaRedimensionarColunas>
+    <div class="envoltoria envoltoria-fixa">
+      <table class="cabecalho-fixo" trenaRedimensionarColunas>
         <thead>
           <tr>
             <th class="centro">
@@ -64,8 +77,8 @@
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('saldo')" title="Contrato menos o que já foi pago/solicitado (pendente conta como comprometido)">Saldo{{ setaOrdenacao(ordenacao(), 'saldo') }}</th>
-            <th class="centro" title="Físico: medição acumulada/avanço do período. Financeiro: quanto do contrato já foi pago/solicitado">% Medição</th>
-            <th class="valor">Valor da última solicitação</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('medicao')" title="Físico: medição acumulada/avanço do período. Financeiro: quanto do contrato já foi pago/solicitado. Ordena pela medição física (empreitas sem medição vão pro fim).">% Medição{{ setaOrdenacao(ordenacao(), 'medicao') }}</th>
+            <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorUltimaSolicitacao')">Valor da última solicitação{{ setaOrdenacao(ordenacao(), 'valorUltimaSolicitacao') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Data da última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
             <th class="centro">Ações</th>
           </tr>

@@ -18,6 +18,7 @@ import {
   calcularLinhaEmpreitaEstendida,
   calcularOrcadoDaEap,
   calcularQtdeDisponivelPorEap,
+  calcularReservasSugeridas,
   calcularSaldoDisponivelPorEap,
   calcularTotaisEmpreita,
   calcularTotaisEmpreitaEstendida,
@@ -521,6 +522,22 @@ export class EmpreitaStore {
     if (this.travada()) return;
     this.itens.update((lista) => lista.map((item) => (item.id === id ? { ...item, [campo]: valor } : item)));
     this.salvar();
+  }
+
+  /**
+   * "Lançar reservas": preenche a reserva dos serviços que estão com ela vazia
+   * (regra em `calcularReservasSugeridas`). Devolve quantos serviços receberam
+   * reserva; não mexe no que já foi digitado.
+   */
+  lancarReservas(): number {
+    if (this.travada()) return 0;
+    const sugeridas = calcularReservasSugeridas(this.itens(), this.saldoDispPorEap());
+    if (!sugeridas.size) return 0;
+    this.itens.update((lista) =>
+      lista.map((item) => (sugeridas.has(item.id) ? { ...item, contratoReserva: sugeridas.get(item.id)! } : item)),
+    );
+    this.salvar();
+    return sugeridas.size;
   }
 
   /** Quantidade contratada, na unidade da EAP — travada depois de confirmada. */

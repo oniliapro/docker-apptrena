@@ -948,3 +948,32 @@ AppTrena/
   `+ - * / ^ %`, funções `soma/media/min/max/arredondar` (argumentos
   separados por `;`), referências entre aspas via resolvedor injetado; sem
   `eval`; ainda não ligado a campos (F3/F5).
+
+- 19/09/2026 (lote F2 — Empreitas/Pagamentos, partes 2a–2c; a 2d, PDF para o
+  profissional, ainda não foi feita; sem mudança de banco). (1) **Faixa e
+  cabeçalho fixos** (`shared/barra-fixa`): botões + barra de totais ficam
+  grudados sob a barra de topo; a tabela vira um invólucro com rolagem própria
+  (`.envoltoria-fixa`, altura = o que sobra da janela) com cabeçalho fixo no
+  topo e, no editor da empreita, a linha TOTAIS fixa embaixo. Vale para a lista
+  de empreitas da obra e para o editor da empreita. (2) **Lista de empreitas
+  da obra**: barra fixa de totais (Total/Pago/Saldo) das empreitas selecionadas
+  — sem seleção, das que a lista mostra; "+ Nova empreita" e os botões de copiar
+  passaram para a barra de ferramentas; "% Medição" (pela medição física;
+  sem medição vai para o fim) e "Valor da última solicitação" agora ordenam.
+  (3) **Editor da empreita**: "Realizar medição" saiu do bloco "Pagamentos
+  registrados" e foi para o cabeçalho, ao lado de "Realizar pagamento"; novo
+  botão **"Lançar reservas"** (`calcularReservasSugeridas`): serviço com reserva
+  VAZIA recebe max(0, saldo disponível da etapa/categoria − contrato do
+  profissional); reserva digitada (inclusive 0) nunca é sobrescrita; vários
+  serviços da mesma etapa/categoria consomem o mesmo saldo em ordem (senão
+  reservariam o mesmo dinheiro); serviço sem etapa ou sem contrato do
+  profissional é ignorado. **Cores por serviço** na fase de medição
+  (`classificarSituacaoMedicao`): verde = 100% medido, amarelo = em andamento,
+  azul = pagamento no período (reserva ou profissional) — azul prevalece — com
+  legenda. (4) **Etapa do serviço** passou a ser o campo com busca em modo
+  restrito (`shared/autocomplete`; só aceita etapa da EAP da obra). **Fornecedor
+  do pagamento** (popup de edição e "Novo pagamento") usa o mesmo campo em modo
+  livre, sugerindo o cadastro (`FornecedoresCadastro`). Correções do
+  autocomplete achadas nos testes: a lista não filtrava ao digitar e, dentro de
+  popup (que tem `transform`), aparecia deslocada do campo. A navegação por
+  teclado da tabela (`navegacao-tabela`) ignora tecla já tratada pelo campo.

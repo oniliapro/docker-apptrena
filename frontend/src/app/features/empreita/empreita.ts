@@ -4,12 +4,16 @@ import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
+import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
 import {
+  SituacaoMedicaoLinha,
+  classificarSituacaoMedicao,
   limitarPercentual,
   pctParaQtde,
   pctParaValorContrato,
@@ -46,7 +50,7 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela, RedimensionarColunas, EmpreitaRelatorioPagamentos],
+  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, EmpreitaRelatorioPagamentos],
   providers: [EmpreitaStore],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',
@@ -133,6 +137,18 @@ export class Empreita implements OnInit {
    */
   protected readonly podeRealizarMedicao = computed(() => this.store.medicaoHabilitada());
 
+  /** Resultado do último "Lançar reservas" — some ao lançar de novo ou ao editar. */
+  protected readonly mensagemReservas = signal<string | null>(null);
+
+  protected lancarReservas(): void {
+    const quantidade = this.store.lancarReservas();
+    this.mensagemReservas.set(
+      quantidade
+        ? `Reserva lançada em ${quantidade} serviço${quantidade > 1 ? 's' : ''}.`
+        : 'Nenhuma reserva a lançar: todos os serviços já têm reserva, ou não há saldo disponível na etapa / contrato do profissional.',
+    );
+  }
+
   protected realizarMedicao(): void {
     this.store.iniciarPagamento();
     this.store.definirMedicaoHabilitada(false);
@@ -165,8 +181,13 @@ export class Empreita implements OnInit {
     this.store.atualizarItem(item.id, { desc: (evento.target as HTMLInputElement).value });
   }
 
-  protected editarEap(item: ItemEmpreita, evento: Event): void {
-    this.store.atualizarItem(item.id, { eapId: (evento.target as HTMLSelectElement).value });
+  /** Etapas da EAP da obra, no formato do campo com busca (só elas são aceitas). */
+  protected readonly opcoesEtapa = computed<OpcaoAutocomplete[]>(() =>
+    this.store.opcoesEap().map((itemEap) => ({ id: itemEap.id, rotulo: this.rotuloEap(itemEap) })),
+  );
+
+  protected editarEap(item: ItemEmpreita, opcao: OpcaoAutocomplete | null): void {
+    this.store.atualizarItem(item.id, { eapId: opcao?.id ?? '' });
   }
 
   protected editarTipo(item: ItemEmpreita, evento: Event): void {
@@ -329,6 +350,11 @@ export class Empreita implements OnInit {
     const desc = String(itemEap.desc ?? '').trim();
     if (eap && desc) return `${eap} - ${desc}`;
     return eap || desc || '—';
+  }
+
+  /** Cor da linha na fase de medição — ver `classificarSituacaoMedicao`. Sem cor antes de "Realizar medição". */
+  protected situacaoMedicao(indice: number): SituacaoMedicaoLinha {
+    return this.store.pagamentoIniciado() ? classificarSituacaoMedicao(this.linha(indice)) : null;
   }
 
   protected linha(indice: number): LinhaEmpreitaEstendida {

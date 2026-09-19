@@ -43,7 +43,7 @@
   </div>
 
   <!-- ============ Ações ============ -->
-  <div class="painel barra-ferramentas">
+  <div class="painel barra-ferramentas" trenaBarraFixa>
     <div class="linha-ferramentas">
       <button type="button" [disabled]="store.travada()" (click)="store.adicionarItem()"
               title="Desabilitado com a empreita confirmada">
@@ -68,6 +68,18 @@
         {{ store.travada() ? 'Reabrir empreita' : 'Confirmar empreita' }}
       </button>
 
+      <button type="button" [disabled]="store.travada()" (click)="lancarReservas()"
+              title="Preenche a reserva dos serviços que estão com ela vazia: saldo disponível da etapa menos o contrato do profissional. Não altera reservas já digitadas.">
+        🛟 Lançar reservas
+      </button>
+
+      @if (store.travada()) {
+        <button type="button" class="primario" [disabled]="!podeRealizarMedicao()" (click)="realizarMedicao()"
+                title="Libera a Medição/Já pago/Pagamento/Saldo após pagamento pra esta empreita">
+          📏 Realizar medição
+        </button>
+      }
+
       @if (store.pagamentoIniciado()) {
         <button type="button"
                 [disabled]="podeRealizarMedicao() || store.temMedicaoInvalida() || store.totaisEstendidos().pagamentoDraftTotal <= 0 || store.gerandoPagamento()"
@@ -90,6 +102,9 @@
       </button>
     </div>
 
+    @if (mensagemReservas(); as mensagemDeReservas) {
+      <div class="aviso-info">{{ mensagemDeReservas }}</div>
+    }
     @if (store.resultadoGerarPagamento(); as mensagem) {
       <div class="aviso-info">{{ mensagem }}</div>
     }
@@ -104,6 +119,14 @@
     </div>
   </div>
 
+  @if (store.pagamentoIniciado()) {
+    <div class="legenda-situacao" aria-label="Legenda das cores dos serviços">
+      <span class="chave-situacao situacao-concluido"></span> Concluído (100% medido)
+      <span class="chave-situacao situacao-andamento"></span> Medição em andamento
+      <span class="chave-situacao situacao-pagamento"></span> Com pagamento neste período
+    </div>
+  }
+
   @if (store.temMedicaoInvalida()) {
     <div class="aviso-erro">
       Há medições menores que o acumulado. Medição não pode retroceder —
@@ -112,8 +135,8 @@
   }
 
   <!-- ============ Tabela ============ -->
-  <div class="envoltoria painel sem-preenchimento">
-    <table class="tabela-empreita"
+  <div class="envoltoria envoltoria-fixa painel sem-preenchimento">
+    <table class="tabela-empreita cabecalho-fixo rodape-fixo"
            trenaNavegacaoTabela
            trenaRedimensionarColunas
            (inserirLinha)="inserirLinha()"
@@ -139,7 +162,10 @@
 
       <tbody>
         @for (item of store.itens(); track item.id; let i = $index) {
-          <tr [class.zebra]="i % 2 === 1" [class.invalida]="linha(i).reducaoInvalida">
+          <tr [class.zebra]="i % 2 === 1" [class.invalida]="linha(i).reducaoInvalida"
+              [class.situacao-pagamento]="situacaoMedicao(i) === 'pagamento'"
+              [class.situacao-concluido]="situacaoMedicao(i) === 'concluido'"
+              [class.situacao-andamento]="situacaoMedicao(i) === 'andamento'">
             <td class="centro indice">{{ i + 1 }}</td>
             <td>
               <input type="text" [value]="item.desc" [disabled]="store.travada()" (change)="editarTexto(item, $event)" />
@@ -153,12 +179,10 @@
             </td>
             <td>
               @if (store.opcoesEap().length) {
-                <select [value]="item.eapId" [disabled]="store.travada()" (change)="editarEap(item, $event)">
-                  <option value="">(sem vínculo)</option>
-                  @for (opcao of store.opcoesEap(); track opcao.id) {
-                    <option [value]="opcao.id" [selected]="opcao.id === item.eapId">{{ rotuloEap(opcao) }}</option>
-                  }
-                </select>
+                <app-autocomplete modo="restrito" placeholder="Buscar etapa da EAP…"
+                                  mensagemVazia="Nenhuma etapa da EAP com esse texto"
+                                  [opcoes]="opcoesEtapa()" [valor]="item.eapId" [desabilitado]="store.travada()"
+                                  (confirmou)="editarEap(item, $event)" />
               } @else {
                 <span class="atenuado pequeno">Cadastre a EAP primeiro</span>
               }
@@ -496,10 +520,7 @@
         <app-empreita-relatorio-pagamentos
           [pagamentos]="store.pagamentosDaEmpreita()"
           [contratoTotalEmpreita]="store.totais().valorTotal"
-          [mostrarBotaoMedicao]="store.travada()"
-          [medicaoHabilitada]="podeRealizarMedicao()"
-          [itensEap]="store.itensEap()"
-          (realizarMedicao)="realizarMedicao()" />
+          [itensEap]="store.itensEap()" />
       </div>
     </div>
   }

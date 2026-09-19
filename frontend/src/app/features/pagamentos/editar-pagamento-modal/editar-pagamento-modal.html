@@ -26,8 +26,9 @@
         </label>
         <label class="campo">
           <span>Fornecedor</span>
-          <input type="text" [value]="rascunho().fornecedor"
-                 (change)="atualizarCampo('fornecedor', $event)" />
+          <app-autocomplete modo="livre" placeholder="Buscar no cadastro ou digitar…"
+                            [opcoes]="fornecedores.opcoes()" [valor]="rascunho().fornecedor"
+                            (valorChange)="atualizarFornecedor($event)" />
         </label>
         <label class="campo campo-largo">
           <span>Descrição</span>

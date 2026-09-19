@@ -58,12 +58,12 @@ export class Autocomplete {
   protected readonly indiceAtivo = signal(0);
   protected readonly posicao = signal<{ top: number; left: number; largura: number; maxAltura: number } | null>(null);
   /** Só filtra depois que o usuário digita — ao abrir com o valor já escolhido, mostra tudo. */
-  private filtrando = false;
+  private readonly filtrando = signal(false);
   private focado = false;
 
   protected readonly filtradas = computed(() => {
     const todas = this.opcoes();
-    if (!this.filtrando) return todas;
+    if (!this.filtrando()) return todas;
     const termo = normalizar(this.texto());
     return termo ? todas.filter((op) => normalizar(op.rotulo).includes(termo)) : todas;
   });
@@ -87,13 +87,13 @@ export class Autocomplete {
 
   protected aoFocar(): void {
     this.focado = true;
-    this.filtrando = false;
+    this.filtrando.set(false);
     this.abrir();
   }
 
   protected aoDigitar(evento: Event): void {
     this.texto.set((evento.target as HTMLInputElement).value);
-    this.filtrando = true;
+    this.filtrando.set(true);
     this.indiceAtivo.set(0);
     this.abrir();
   }
@@ -139,7 +139,7 @@ export class Autocomplete {
     this.texto.set(opcao.rotulo);
     this.valor.set(this.modo() === 'livre' ? opcao.rotulo : opcao.id);
     this.confirmou.emit(opcao);
-    this.filtrando = false;
+    this.filtrando.set(false);
     this.fechar();
   }
 
@@ -182,13 +182,29 @@ export class Autocomplete {
     const acima = retangulo.top - 8;
     const emCima = abaixo < 160 && acima > abaixo;
 
+    // Um ancestral com `transform` (o cartão dos popups, centralizado com translate)
+    // vira o "bloco de contenção" do `position: fixed`: as coordenadas passam a
+    // ser relativas a ele, não à janela — desconta a origem dele.
+    const origem = this.origemDoBlocoFixo();
+
     this.posicao.set({
-      top: emCima ? Math.max(retangulo.top - Math.min(acima, 240) - 2, 4) : retangulo.bottom + 2,
-      left: retangulo.left,
+      top: (emCima ? Math.max(retangulo.top - Math.min(acima, 240) - 2, 4) : retangulo.bottom + 2) - origem.top,
+      left: retangulo.left - origem.left,
       largura: Math.max(retangulo.width, 220),
       maxAltura: Math.min(emCima ? acima : abaixo, 240),
     });
     this.aberto.set(true);
+  }
+
+  private origemDoBlocoFixo(): { top: number; left: number } {
+    for (let pai = this.campo().nativeElement.parentElement; pai; pai = pai.parentElement) {
+      const estilo = getComputedStyle(pai);
+      if (estilo.transform !== 'none' || estilo.filter !== 'none' || estilo.perspective !== 'none') {
+        const retangulo = pai.getBoundingClientRect();
+        return { top: retangulo.top, left: retangulo.left };
+      }
+    }
+    return { top: 0, left: 0 };
   }
 
   private fechar(): void {
