@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Obra, Recebimento } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
+import { parsearNumeroBR } from '../../shared/numero/parse-numero';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
@@ -187,6 +188,13 @@ export class RecebimentosGeral implements OnInit {
 
   protected mudarObraSelecionada(obraId: string): void {
     this.obraSelecionadaId.set(obraId);
+  }
+
+  /** Campo de valor em texto (aceita `=conta`, ver `FormulaCamposService`): grava o número no formulário. */
+  protected definirValorTotal(evento: Event): void {
+    const controle = this.formulario.controls.valorTotal;
+    controle.setValue(parsearNumeroBR((evento.target as HTMLInputElement).value));
+    controle.markAsTouched();
   }
 
   protected temErroFormulario(campo: string): boolean {

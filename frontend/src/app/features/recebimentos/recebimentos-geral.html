@@ -144,7 +144,9 @@
 
           <label class="campo">
             <span class="obrigatorio">Valor total</span>
-            <input type="number" formControlName="valorTotal" step="0.01" min="0" />
+            <input type="text" class="valor" inputmode="decimal" placeholder="R$ 0,00"
+                   [value]="formulario.controls.valorTotal.value ? formatarMoeda(formulario.controls.valorTotal.value) : ''"
+                   (change)="definirValorTotal($event)" />
             @if (temErroFormulario('valorTotal')) {
               <small class="erro-campo">Informe um valor maior que zero.</small>
             }

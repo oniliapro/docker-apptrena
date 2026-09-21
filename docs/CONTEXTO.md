@@ -1015,3 +1015,20 @@ AppTrena/
   realizadas" lista, em cada medição, só os serviços que avançaram (medição sem
   nenhum avanço some); pagamentos antigos sem retrato caem num quadro
   "Acumulado das medições fechadas".
+
+- 20/09/2026 (F3 — fórmulas nos campos de valor; sem mudança de banco). Em
+  qualquer `<input type="text" class="valor">` (Mapa, Empreita, Pagamento,
+  Recebimento, Medição, Cronograma de desembolso e também os da EAP), digitar
+  `=` + conta (`=1200*3+50`, `=soma(10;20)*2`, `=200*10%`; vírgula decimal,
+  `;` entre argumentos; funções `soma`, `media`, `min`, `max`, `arredondar`)
+  vira o resultado ao sair do campo; só o resultado é guardado. Implementação:
+  `FormulaCamposService` (`shared/numero/`), um listener global de `change` em
+  captura instanciado no `App` — troca o texto do campo pelo número calculado
+  antes de a tela ler, então nenhuma tela precisou mudar. Fórmula inválida: o
+  `change` não chega à tela (valor guardado não muda), o navegador mostra o
+  motivo no balão nativo do campo e o foco volta para corrigir; se a pessoa sair
+  sem corrigir, o texto anterior é restaurado. Campos que precisam tratar
+  fórmula por conta própria (EAP na F5) usam `data-formula-propria` para o
+  serviço ignorá-los. Os campos "Valor total" de "Novo pagamento" e "Novo
+  recebimento" eram `type="number"` (não aceita `=`) e viraram texto com valor
+  formatado. Referências a outros campos (`"1.4-qtd"`) só valem na EAP (F5).
