@@ -984,3 +984,34 @@ AppTrena/
   vez de ficar cortada numa linha só (Enter continua escolhendo a opção, nunca
   vira quebra de linha no texto). O Fornecedor do pagamento continua de uma
   linha.
+
+- 19/09/2026 (F2 parte 2d — **PDF de resumo para o profissional**; sem mudança
+  de banco). Na lista de empreitas da obra, com empreitas marcadas, o botão
+  "📄 PDF do profissional" abre um popup de opções e gera UM PDF (A4 retrato)
+  com um bloco por empreita. Sempre entram: total contratado, já pago, saldo,
+  % de medição física (ponderada pelo contrato do profissional) e a lista de
+  serviços. Opcionais: Pagamentos, Medições realizadas (histórico, do retrato
+  guardado em cada pagamento), Medição atual (período em aberto), Reservas e
+  Valores do profissional. Regra dos valores (`empreita-resumo-engine.ts`):
+  nenhuma das duas últimas marcada = valores somados, sem separar; marcada(s) =
+  coluna própria e todo total/pago/saldo passa a ser só dos lados visíveis.
+  Nunca sai orçado da EAP nem saldo disponível da etapa. As empreitas marcadas
+  precisam ser de um profissional só (senão o popup avisa e bloqueia). A
+  escolha das opções fica salva no navegador. Backend:
+  `GET /api/obras/{obra}/empreitas/resumo-profissional/pdf?ids=…&opcoes=…`
+  (`EmpreitaPdfController::resumoProfissional`, mesmas permissões da empreita;
+  só empreitas da obra/empresa); tela de impressão
+  `imprimir/obras/:id/resumo-profissional` (um `EmpreitaStore` por bloco).
+  Também: no PDF/impressão o fundo da página fica branco (`_base.scss`).
+
+- 20/09/2026 (ajustes da 2d, PDF do profissional): (1) empreitas de
+  profissionais diferentes agora PODEM ir no mesmo PDF — o popup mostra um
+  aviso e, ao clicar em "Gerar PDF", pede confirmação ("PDF com mais de um
+  profissional"); o arquivo sai como `resumo-empreitas.pdf`. (2) Bug corrigido:
+  o histórico "Medições realizadas" saía vazio porque o retrato da medição
+  guardado no pagamento pode ter `desc` nulo (serviço sem descrição) e o código
+  chamava `.trim()` nele. (3) "Medição atual" agora lista só os serviços que já
+  têm medição (> 0), com acumulado / medido / avanço do período; "Medições
+  realizadas" lista, em cada medição, só os serviços que avançaram (medição sem
+  nenhum avanço some); pagamentos antigos sem retrato caem num quadro
+  "Acumulado das medições fechadas".

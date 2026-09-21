@@ -448,6 +448,20 @@ export class ApiService {
   }
 
   /**
+   * GET /obras/{obra}/empreitas/resumo-profissional/pdf — PDF de resumo das
+   * empreitas selecionadas para entregar ao profissional (19/09/2026, ver
+   * EmpreitaPdfController::resumoProfissional). `opcoes` são as chaves de
+   * `OpcoesResumo` marcadas.
+   */
+  baixarResumoProfissionalPdf(obraId: string, empreitaIds: string[], opcoes: string[]): Observable<Blob> {
+    return this.http.get(`${this.base}/obras/${obraId}/empreitas/resumo-profissional/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: { ids: empreitaIds.join(','), opcoes: opcoes.join(',') },
+    });
+  }
+
+  /**
    * GET /obras/{id}/desembolso/relatorio/pdf — mesmo mecanismo acima,
    * aplicado ao Cronograma de Desembolso (23/08/2026, ver
    * CronogramaPdfController).

@@ -8,6 +8,7 @@ import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { CHAVES_OPCOES_RESUMO, OPCOES_RESUMO_PADRAO, OpcoesResumo } from './empreita-resumo-engine';
 import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
 import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
 import {
@@ -350,6 +351,101 @@ export class EmpreitasObra implements OnInit {
    * Barra fixa de totais (19/09/2026): soma Total/Pago/Saldo das empreitas
    * SELECIONADAS; sem seleção, de todas as que a lista mostra (respeita a busca).
    */
+  // ---- PDF de resumo para o profissional (19/09/2026) ----
+  protected readonly chavesOpcoesResumo = CHAVES_OPCOES_RESUMO;
+  protected readonly rotulosOpcoesResumo: Record<keyof OpcoesResumo, string> = {
+    pagamentos: 'Pagamentos',
+    medicoes: 'Medições realizadas (histórico)',
+    medicaoAtual: 'Medição atual (período em aberto)',
+    reservas: 'Reservas por serviço e total',
+    valoresEmpreiteiro: 'Valores do profissional por serviço e total',
+  };
+
+  protected readonly pdfResumoAberto = signal(false);
+  protected readonly opcoesPdfResumo = signal<OpcoesResumo>(this.lerOpcoesPdfSalvas());
+  protected readonly gerandoPdfResumo = signal(false);
+  protected readonly erroPdfResumo = signal<string | null>(null);
+
+  /** Profissionais distintos entre as empreitas marcadas — o PDF é de UM profissional. */
+  protected readonly profissionaisMarcados = computed(() => {
+    const nomes = this.selecao.selecionados(this.listaOrdenada()).map((e) => this.empreiteiro(e));
+    return [...new Set(nomes)];
+  });
+
+  protected abrirPdfResumo(): void {
+    this.erroPdfResumo.set(null);
+    this.pdfResumoAberto.set(true);
+  }
+
+  protected fecharPdfResumo(): void {
+    if (this.gerandoPdfResumo()) return;
+    this.pdfResumoAberto.set(false);
+  }
+
+  protected alternarOpcaoPdfResumo(chave: keyof OpcoesResumo): void {
+    this.opcoesPdfResumo.update((o) => ({ ...o, [chave]: !o[chave] }));
+  }
+
+  private lerOpcoesPdfSalvas(): OpcoesResumo {
+    try {
+      const bruto = localStorage.getItem('trena:pdf-resumo-profissional:v1');
+      if (bruto) return { ...OPCOES_RESUMO_PADRAO, ...(JSON.parse(bruto) as Partial<OpcoesResumo>) };
+    } catch {
+      // armazenamento indisponível: fica o padrão
+    }
+    return { ...OPCOES_RESUMO_PADRAO };
+  }
+
+  protected gerarPdfResumo(): void {
+    const empreitas = this.selecao.selecionados(this.listaOrdenada());
+    if (!empreitas.length) return;
+
+    // O PDF é pensado para um profissional; com mais de um, o usuário confirma antes.
+    const profissionais = this.profissionaisMarcados();
+    if (
+      profissionais.length > 1 &&
+      !window.confirm(
+        `Você está gerando um PDF com mais de um profissional (${profissionais.join(', ')}).
+
+` +
+          'Cada empreita aparece num bloco próprio, mas o arquivo contém os dados de todos eles. Deseja continuar?',
+      )
+    ) {
+      return;
+    }
+
+    const opcoes = this.opcoesPdfResumo();
+    try {
+      localStorage.setItem('trena:pdf-resumo-profissional:v1', JSON.stringify(opcoes));
+    } catch {
+      // sem armazenamento: só não lembra a escolha
+    }
+
+    this.erroPdfResumo.set(null);
+    this.gerandoPdfResumo.set(true);
+    const marcadas = CHAVES_OPCOES_RESUMO.filter((chave) => opcoes[chave]);
+
+    this.api.baixarResumoProfissionalPdf(this.obraId(), empreitas.map((e) => e.id), marcadas).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download =
+          profissionais.length > 1
+            ? 'resumo-empreitas.pdf'
+            : `resumo-${this.empreiteiro(empreitas[0]).replace(/[^w-]+/g, '-').toLowerCase()}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoPdfResumo.set(false);
+        this.pdfResumoAberto.set(false);
+      },
+      error: () => {
+        this.erroPdfResumo.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoPdfResumo.set(false);
+      },
+    });
+  }
+
   protected readonly totaisBarra = computed(() => {
     const lista = this.listaOrdenada();
     const base = this.selecao.temSelecao() ? this.selecao.selecionados(lista) : lista;

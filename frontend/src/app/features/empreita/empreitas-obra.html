@@ -40,6 +40,10 @@
               title="Copia o resumo (beneficiado + valor + PIX) — a segunda mensagem, pra colar em seguida">
         {{ preparando() ? 'Preparando…' : (copiadoResumo() ? '✔ Copiado!' : '📋 Copiar resumo') }}
       </button>
+      <button type="button" (click)="abrirPdfResumo()"
+              title="PDF de resumo das empreitas selecionadas, para entregar ao profissional (você escolhe o que incluir)">
+        📄 PDF do profissional
+      </button>
     }
     <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
     <input class="busca" type="search" placeholder="Buscar nº, descrição, profissional…" (input)="mudarBusca($event)" />
@@ -291,6 +295,60 @@
 
       <div class="modal-rodape">
         <button type="button" (click)="fecharPagamentos()">Fechar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ============ PDF de resumo para o profissional (19/09/2026) ============ -->
+@if (pdfResumoAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharPdfResumo()"></div>
+
+    <div class="modal-cartao modal-estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">PDF do profissional — {{ selecao.contagem() }} empreita{{ selecao.contagem() > 1 ? 's' : '' }}</span>
+        <button type="button" (click)="fecharPdfResumo()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        @if (profissionaisMarcados().length > 1) {
+          <div class="aviso-atencao">
+            Atenção: as empreitas marcadas são de mais de um profissional ({{ profissionaisMarcados().join(', ') }}).
+            O PDF terá um bloco por empreita, com os dados de todos eles — você confirma antes de gerar.
+          </div>
+        }
+
+        <p class="atenuado pequeno">
+          Sempre incluídos: total contratado, já pago, saldo, % de medição física e a lista de serviços.
+          Nunca aparecem dados internos (orçado da EAP).
+        </p>
+
+        <div class="opcoes-pdf">
+          @for (chave of chavesOpcoesResumo; track chave) {
+            <label class="checagem-inline">
+              <input type="checkbox" [checked]="opcoesPdfResumo()[chave]" (change)="alternarOpcaoPdfResumo(chave)" />
+              {{ rotulosOpcoesResumo[chave] }}
+            </label>
+          }
+        </div>
+
+        <p class="atenuado pequeno">
+          Se nem "Reservas" nem "Valores do profissional" forem marcados, os valores saem somados,
+          sem separar reserva de contrato do profissional.
+        </p>
+
+        @if (erroPdfResumo(); as mensagemErro) {
+          <div class="aviso-erro">{{ mensagemErro }}</div>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" [disabled]="gerandoPdfResumo()" (click)="fecharPdfResumo()">Cancelar</button>
+        <button class="primario" type="button"
+                [disabled]="gerandoPdfResumo()" (click)="gerarPdfResumo()">
+          {{ gerandoPdfResumo() ? 'Gerando PDF…' : 'Gerar PDF' }}
+        </button>
       </div>
     </div>
   </div>

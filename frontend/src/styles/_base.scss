@@ -284,6 +284,9 @@ table.rodape-fixo tfoot th {
 // componentes diferentes do que chama print(), fora do alcance de um
 // :host { } com encapsulamento de estilo.
 @media print {
+  // O fundo cinza da página não deve aparecer no papel/PDF onde o conteúdo termina.
+  html, body { background: #fff; }
+
   .barra-lateral,
   .barra-topo,
   .abas,

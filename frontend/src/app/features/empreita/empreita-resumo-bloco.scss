@@ -1,0 +1,69 @@
+:host { display: block; }
+
+// Cada empreita começa numa página nova (menos a primeira) e não corta os
+// blocos de tabela no meio quando cabem numa página.
+.bloco { break-inside: auto; }
+:host(:not(:first-of-type)) .bloco { break-before: page; }
+
+.titulo-bloco {
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--cor-primaria);
+
+  h2 { margin: 0; font-size: 16px; }
+}
+
+.subtitulo { margin-top: 2px; font-size: 11px; color: var(--cor-texto-suave); }
+
+h3 {
+  margin: 14px 0 6px;
+  font-family: var(--fonte);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+  break-after: avoid;
+}
+
+.cartoes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.cartao {
+  padding: 7px 9px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 4px;
+
+  .rotulo {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--cor-texto-suave);
+  }
+
+  b { font-size: 13px; }
+}
+
+table {
+  width: 100%;
+  table-layout: auto;
+  font-size: 10.5px;
+
+  th, td { padding: 3px 6px; }
+  th { font-size: 9px; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot th { background: var(--cor-fundo-alt); font-size: 10.5px; text-transform: none; letter-spacing: normal; color: var(--cor-texto); }
+}
+
+.etapa { margin-top: 1px; font-size: 9px; color: var(--cor-texto-suave); }
+
+.saldo-negativo { color: var(--cor-perigo); }
+
+.medicao { margin-bottom: 8px; break-inside: avoid; }
+.medicao-titulo { margin-bottom: 3px; font-size: 10.5px; font-weight: 700; }

@@ -1,0 +1,225 @@
+@if (store.carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (store.erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+  <section class="bloco">
+    <header class="titulo-bloco">
+      <div>
+        <h2>{{ store.cabecalho().descricaoEmpreita || 'Empreita' }}</h2>
+        <div class="subtitulo">
+          {{ store.cabecalho().numeroEmpreita || '—' }}
+          @if (store.cabecalho().empreiteiro) { · {{ store.cabecalho().empreiteiro }} }
+          @if (store.cabecalho().data) { · {{ formatarData(store.cabecalho().data) }} }
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ Resumo ============ -->
+    <div class="cartoes">
+      <div class="cartao">
+        <span class="rotulo">Total contratado</span>
+        <b>{{ formatarMoeda(totais().total) }}</b>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Já pago</span>
+        <b>{{ formatarMoeda(totais().pago) }}</b>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Saldo</span>
+        <b [class.saldo-negativo]="totais().saldo < 0">{{ formatarMoeda(totais().saldo) }}</b>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Medição física</span>
+        <b>{{ percentual(pctFisico()) }}</b>
+      </div>
+    </div>
+
+    <!-- ============ Serviços ============ -->
+    <h3>Serviços</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Serviço</th>
+          <th class="valor">% medido</th>
+          @if (lados().colunaEmp) { <th class="valor">Profissional</th> }
+          @if (lados().colunaReserva) { <th class="valor">Reserva</th> }
+          <th class="valor">Total</th>
+          <th class="valor">Pago</th>
+          <th class="valor">Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (servico of servicos(); track servico.id) {
+          <tr>
+            <td>
+              {{ servico.servico }}
+              @if (servico.etapa) { <div class="etapa">{{ servico.etapa }}</div> }
+            </td>
+            <td class="valor">{{ percentual(servico.pctMedido) }}</td>
+            @if (lados().colunaEmp) { <td class="valor">{{ formatarMoeda(servico.valorEmp) }}</td> }
+            @if (lados().colunaReserva) { <td class="valor">{{ formatarMoeda(servico.valorReserva) }}</td> }
+            <td class="valor">{{ formatarMoeda(servico.total) }}</td>
+            <td class="valor">{{ formatarMoeda(servico.pago) }}</td>
+            <td class="valor" [class.saldo-negativo]="servico.saldo < 0">{{ formatarMoeda(servico.saldo) }}</td>
+          </tr>
+        } @empty {
+          <tr><td [attr.colspan]="5 + (lados().colunaEmp ? 1 : 0) + (lados().colunaReserva ? 1 : 0)" class="centro atenuado">Nenhum serviço lançado.</td></tr>
+        }
+      </tbody>
+      @if (servicos().length) {
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <th></th>
+            @if (lados().colunaEmp) { <th class="valor">{{ formatarMoeda(totais().valorEmp) }}</th> }
+            @if (lados().colunaReserva) { <th class="valor">{{ formatarMoeda(totais().valorReserva) }}</th> }
+            <th class="valor">{{ formatarMoeda(totais().total) }}</th>
+            <th class="valor">{{ formatarMoeda(totais().pago) }}</th>
+            <th class="valor">{{ formatarMoeda(totais().saldo) }}</th>
+          </tr>
+        </tfoot>
+      }
+    </table>
+
+    <!-- ============ Medição atual ============ -->
+    @if (opcoes().medicaoAtual) {
+      <h3>Medição atual (serviços com medição)</h3>
+      @if (medicaoAtual().length) {
+        <table>
+          <thead>
+            <tr>
+              <th>Serviço</th>
+              <th class="valor">Acumulado</th>
+              <th class="valor">Atual</th>
+              <th class="valor">Avanço</th>
+              @if (lados().colunaEmp) { <th class="valor">Profissional</th> }
+              @if (lados().colunaReserva) { <th class="valor">Reserva</th> }
+              <th class="valor">Total do período</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (linha of medicaoAtual(); track linha.id) {
+              <tr>
+                <td>{{ linha.servico }}</td>
+                <td class="valor">{{ percentual(linha.acumulado) }}</td>
+                <td class="valor">{{ percentual(linha.atual) }}</td>
+                <td class="valor">{{ percentual(linha.avanco) }}</td>
+                @if (lados().colunaEmp) { <td class="valor">{{ formatarMoeda(linha.valorEmp) }}</td> }
+                @if (lados().colunaReserva) { <td class="valor">{{ formatarMoeda(linha.valorReserva) }}</td> }
+                <td class="valor">{{ formatarMoeda(linha.total) }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th [attr.colspan]="4 + (lados().colunaEmp ? 1 : 0) + (lados().colunaReserva ? 1 : 0)">Total do período</th>
+              <th class="valor">{{ formatarMoeda(totalMedicaoAtual()) }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      } @else {
+        <p class="atenuado">Nenhum serviço com medição até agora.</p>
+      }
+    }
+
+    <!-- ============ Pagamentos ============ -->
+    @if (opcoes().pagamentos) {
+      <h3>Pagamentos</h3>
+      @if (pagamentos().length) {
+        <table>
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Solicitação</th>
+              <th>Pagamento</th>
+              <th>Situação</th>
+              @if (lados().colunaEmp) { <th class="valor">Profissional</th> }
+              @if (lados().colunaReserva) { <th class="valor">Reserva</th> }
+              <th class="valor">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pagamento of pagamentos(); track pagamento.id) {
+              <tr>
+                <td>{{ pagamento.numero || '—' }}</td>
+                <td>{{ formatarData(pagamento.dataSolicitacao) || '—' }}</td>
+                <td>{{ pagamento.dataPagamento ? formatarData(pagamento.dataPagamento) : 'Em aberto' }}</td>
+                <td>{{ rotuloStatus(pagamento.status) }}</td>
+                @if (lados().colunaEmp) { <td class="valor">{{ formatarMoeda(pagamento.valorEmp) }}</td> }
+                @if (lados().colunaReserva) { <td class="valor">{{ formatarMoeda(pagamento.valorReserva) }}</td> }
+                <td class="valor">{{ formatarMoeda(pagamento.total) }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th [attr.colspan]="4 + (lados().colunaEmp ? 1 : 0) + (lados().colunaReserva ? 1 : 0)">Total</th>
+              <th class="valor">{{ formatarMoeda(totalPagamentos()) }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      } @else {
+        <p class="atenuado">Nenhum pagamento lançado desta empreita ainda.</p>
+      }
+    }
+
+    <!-- ============ Medições (histórico) ============ -->
+    @if (opcoes().medicoes) {
+      <h3>Medições realizadas (serviços com avanço)</h3>
+      @for (medicao of historico(); track medicao.pagamentoId) {
+        <div class="medicao">
+          <div class="medicao-titulo">
+            {{ medicao.numero || 'Pagamento' }} · {{ formatarData(medicao.data) || '—' }}
+            <span class="atenuado">— acumulado {{ percentual(medicao.pctAcumulado) }} → {{ percentual(medicao.pctAtual) }}</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Serviço</th>
+                <th class="valor">Acumulado</th>
+                <th class="valor">Medido</th>
+                <th class="valor">Avanço</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (servico of medicao.servicos; track servico.id) {
+                <tr>
+                  <td>{{ servico.servico }}</td>
+                  <td class="valor">{{ percentual(servico.acumulado) }}</td>
+                  <td class="valor">{{ percentual(servico.atual) }}</td>
+                  <td class="valor">{{ percentual(servico.avanco) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @empty {
+        @if (acumuladoFechado().length) {
+          <!-- Pagamentos sem o retrato da medição (antigos): mostra o que já está medido e fechado. -->
+          <div class="medicao">
+            <div class="medicao-titulo">Acumulado das medições fechadas</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Serviço</th>
+                  <th class="valor">Medido</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (servico of acumuladoFechado(); track servico.id) {
+                  <tr>
+                    <td>{{ servico.servico }}</td>
+                    <td class="valor">{{ percentual(servico.acumulado) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="atenuado">Nenhuma medição com avanço foi fechada ainda.</p>
+        }
+      }
+    }
+  </section>
+}

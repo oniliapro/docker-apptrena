@@ -83,6 +83,36 @@ table { table-layout: auto; }
   overflow: hidden;
 }
 
+.modal-estreito { width: min(480px, 94vw); }
+
+.modal-rodape button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.opcoes-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.aviso-atencao {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-size: 12px;
+}
+
+.aviso-erro {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg, #f6e3df);
+  color: var(--cor-perigo);
+  font-size: 12px;
+}
+
 .modal-cabecalho {
   display: flex;
   align-items: center;

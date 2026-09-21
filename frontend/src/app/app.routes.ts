@@ -182,6 +182,15 @@ export const routes: Routes = [
       import('./features/empreita/empreita-imprimir').then((m) => m.EmpreitaImprimir),
   },
   {
+    // Versão "para imprimir" do Resumo para o profissional (19/09/2026) —
+    // várias empreitas num PDF só. Ver EmpreitaPdfController::resumoProfissional.
+    path: 'imprimir/obras/:id/resumo-profissional',
+    loadComponent: () =>
+      import('./features/empreita/empreita-resumo-profissional-imprimir').then(
+        (m) => m.EmpreitaResumoProfissionalImprimir,
+      ),
+  },
+  {
     // Versão "para imprimir" de uma Medição (24/08/2026) — mesma ideia das
     // rotas acima. Ver MedicaoPdfController.
     path: 'imprimir/obras/:id/medicoes/:medicaoId',

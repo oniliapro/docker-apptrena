@@ -132,6 +132,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:eap,editar', 'permissaoObra:lancar']);
     Route::get('obras/{obra}/eap/relatorio/pdf', [EapPdfController::class, 'relatorioEap'])
         ->middleware('permissaoObra:ver');
+    Route::get('obras/{obra}/empreitas/resumo-profissional/pdf', [EmpreitaPdfController::class, 'resumoProfissional'])
+        ->middleware(['permissaoModulo:empreitas,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/desembolso/relatorio/pdf', [CronogramaPdfController::class, 'relatorioCronograma'])
         ->middleware(['permissaoModulo:desembolso,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/relatorio/pdf', [RelatorioPdfController::class, 'relatorioObra'])

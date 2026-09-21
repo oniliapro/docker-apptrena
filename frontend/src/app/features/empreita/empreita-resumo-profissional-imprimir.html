@@ -1,0 +1,5 @@
+<app-cabecalho-impressao [perfil]="perfilEmpresa()" subtitulo="Resumo da empreita" [geradoEm]="geradoEm" />
+
+@for (id of empreitaIds(); track id) {
+  <app-empreita-resumo-bloco [obraId]="obraId()" [empreitaId]="id" [opcoes]="opcoes()" />
+}

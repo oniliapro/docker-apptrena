@@ -1,0 +1,19 @@
+// Papel A4 retrato, só para o Chromium headless (ver EmpreitaPdfController::
+// resumoProfissional). Mesmo cuidado das outras telas de impressão: cores de
+// fundo preservadas no PDF.
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+app-empreita-resumo-bloco + app-empreita-resumo-bloco { margin-top: 18px; }
