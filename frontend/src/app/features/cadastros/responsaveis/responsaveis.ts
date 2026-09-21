@@ -1,10 +1,12 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { apenasDigitos, formatarTelefone } from '../../../core/utils/documento';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
 import { Responsavel } from '../cadastros.models';
+import { BarraSelecao, AcaoLista } from '../../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 
 const CHAVE = 'controleObra.responsaveis.v1';
@@ -18,13 +20,40 @@ const CHAVE = 'controleObra.responsaveis.v1';
  */
 @Component({
   selector: 'app-responsaveis',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraSelecao],
   providers: [CadastroStore],
   templateUrl: './responsaveis.html',
   styleUrl: './responsaveis.scss',
 })
 export class Responsaveis implements OnInit {
   protected readonly store = inject<CadastroStore<Responsavel>>(CadastroStore);
+
+  // ---- Seleção múltipla (20/09/2026): clicar na linha abre a edição; marcar
+  // linhas habilita "Editar" (com 1) e o menu "Ações" (excluir em lote). ----
+  protected readonly selecao = new SelecaoMultipla<Responsavel>((r) => r.id);
+  /** Só as marcadas que a lista (com os filtros de agora) mostra — é sobre elas que as ações agem. */
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.store.listaFiltrada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.editar(primeiro);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este cadastro, com a confirmação de sempre. */
+  protected removerUm(registro: Responsavel): void {
+    const nome = registro.nome || 'este responsável';
+    if (!window.confirm(`Excluir ${nome} definitivamente?\n\nSe ele responde por alguma obra, prefira desativar — assim o histórico é preservado.`)) return;
+    this.store.remover(registro.id);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionados();
+    if (!alvos.length || !confirmarExclusaoEmLote(alvos.length, 'responsável', 'responsáveis', "", alvos.map((r) => r.nome))) return;
+    this.store.removerVarios(alvos.map((r) => r.id));
+    this.selecao.limpar();
+  }
   private readonly fb = inject(FormBuilder);
 
   protected readonly formularioAberto = signal(false);
@@ -133,19 +162,6 @@ export class Responsaveis implements OnInit {
     });
 
     this.fechar();
-  }
-
-  protected remover(registro: Responsavel): void {
-    const nome = registro.nome || 'este responsável';
-    if (
-      !window.confirm(
-        `Excluir ${nome} definitivamente?\n\n` +
-          `Se ele responde por alguma obra, prefira desativar — assim o histórico é preservado.`,
-      )
-    ) {
-      return;
-    }
-    this.store.remover(registro.id);
   }
 
   protected temErro(campo: string): boolean {

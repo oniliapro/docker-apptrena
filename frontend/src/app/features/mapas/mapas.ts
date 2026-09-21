@@ -9,6 +9,10 @@ import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
+import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
+import { AcoesPagamento, aplicarAlteracaoEmMapa } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, avisarFalhasDeExclusao, confirmarExclusaoEmLote, excluirEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
 import { proximoNumeroMapa } from '../mapa/mapa-numero';
@@ -43,7 +47,7 @@ type ColunaMapa =
  */
 @Component({
   selector: 'app-mapas',
-  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra, BarraSelecao, EditarPagamentoModal],
   templateUrl: './mapas.html',
   styleUrl: './mapas.scss',
 })
@@ -82,6 +86,34 @@ export class Mapas implements OnInit {
    *    valor efetivo do mapa, não o que já virou pagamento.
    */
   protected readonly pagamentosPorMapa = signal<Map<string, Pagamento[]>>(new Map());
+
+  /** Ações do popup de pagamentos (21/09/2026): abrir/confirmar/excluir. O mapa aberto dá a obra de fallback. */
+  private readonly acoesPagamento = new AcoesPagamento(
+    this.api,
+    (alteracao) => this.pagamentosPorMapa.update((mapa) => aplicarAlteracaoEmMapa(mapa, alteracao)),
+    () => (this.popupMapa() ? this.obraId(this.popupMapa()!) : ''),
+  );
+  protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
+
+  protected abrirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.abrir(pagamento);
+  }
+
+  protected fecharPagamento(): void {
+    this.acoesPagamento.fechar();
+  }
+
+  protected salvarPagamento(evento: EventoSalvarPagamento): void {
+    this.acoesPagamento.salvar(evento);
+  }
+
+  protected confirmarPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.confirmar(pagamento);
+  }
+
+  protected excluirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.excluir(pagamento);
+  }
 
   /** Mapa cujo popup de pagamentos está aberto — null quando fechado. */
   protected readonly popupMapa = signal<Mapa | null>(null);
@@ -411,12 +443,53 @@ export class Mapas implements OnInit {
     this.popupMapa.set(null);
   }
 
-  protected remover(mapa: Mapa): void {
+  /** Clicar na linha abre o mapa dentro da obra dele. */
+  protected abrir(mapa: Mapa): void {
+    void this.router.navigate(['/obras', this.obraId(mapa), 'mapas', mapa.id]);
+  }
+
+  protected readonly selecao = new SelecaoMultipla<Mapa>((mapa) => mapa.id);
+
+  // ---- Seleção (20/09/2026): clicar na linha abre o mapa; marcar habilita "Abrir" (com 1) e "Excluir". ----
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaOrdenada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected abrirSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.abrir(primeiro);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este mapa, com a confirmação de sempre. */
+  protected removerUm(mapa: Mapa): void {
     if (!window.confirm('Excluir este mapa da lista?')) return;
 
     this.api.excluirMapa(mapa.id).subscribe({
       next: () => this.mapas.update((lista) => lista.filter((m) => m.id !== mapa.id)),
       error: () => window.alert('Não foi possível excluir o mapa.'),
+    });
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionados();
+    if (
+      !alvos.length ||
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'mapa',
+        'mapas',
+        'Pagamentos já gerados a partir deles não são apagados.',
+        alvos.map((m) => this.descricao(m) || this.numero(m)),
+      )
+    ) {
+      return;
+    }
+
+    excluirEmLote(alvos, (mapa) => this.api.excluirMapa(mapa.id)).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((m) => m.id));
+      this.mapas.update((lista) => lista.filter((m) => !ids.has(m.id)));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'mapa(s)', (m) => this.descricao(m) || this.numero(m));
     });
   }
 }

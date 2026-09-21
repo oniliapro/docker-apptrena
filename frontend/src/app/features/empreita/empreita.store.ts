@@ -483,11 +483,11 @@ export class EmpreitaStore {
     this.salvar();
   }
 
-  adicionarItem(): void {
+  /** Acrescenta um serviço ao final ou, com `posicao`, no meio da lista (botão "+" da linha e Shift + `+`). */
+  adicionarItem(posicao?: number): void {
     if (this.travada()) return;
-    this.itens.update((lista) => [
-      ...lista,
-      {
+    this.itens.update((lista) => {
+      const novo: ItemEmpreita = {
         id: gerarId(),
         desc: '',
         eapId: '',
@@ -499,8 +499,41 @@ export class EmpreitaStore {
         medicaoAtual: null,
         pagamentoEmp: null,
         pagamentoReserva: null,
-      },
-    ]);
+      };
+      const destino = posicao === undefined || posicao < 0 || posicao > lista.length ? lista.length : posicao;
+      const copia = [...lista];
+      copia.splice(destino, 0, novo);
+      return copia;
+    });
+    this.salvar();
+  }
+
+  /** Sobe (-1) ou desce (1) um serviço — mesmo padrão de `MapaStore.moverItem` (21/09/2026). */
+  moverItem(id: string, direcao: -1 | 1): void {
+    this.moverVarios([id], direcao);
+  }
+
+  /**
+   * Move vários serviços de uma vez, uma posição: cada marcado troca de lugar
+   * com a vizinha NÃO marcada, então um bloco anda junto e a ordem entre os
+   * marcados é preservada.
+   */
+  moverVarios(ids: readonly string[], direcao: -1 | 1): void {
+    if (this.travada() || !ids.length) return;
+    const marcados = new Set(ids);
+    this.itens.update((lista) => {
+      const copia = [...lista];
+      if (direcao < 0) {
+        for (let i = 1; i < copia.length; i++) {
+          if (marcados.has(copia[i].id) && !marcados.has(copia[i - 1].id)) [copia[i - 1], copia[i]] = [copia[i], copia[i - 1]];
+        }
+      } else {
+        for (let i = copia.length - 2; i >= 0; i--) {
+          if (marcados.has(copia[i].id) && !marcados.has(copia[i + 1].id)) [copia[i + 1], copia[i]] = [copia[i], copia[i + 1]];
+        }
+      }
+      return copia;
+    });
     this.salvar();
   }
 
@@ -555,6 +588,14 @@ export class EmpreitaStore {
    */
   atualizarPagamentoDraft(id: string, campo: 'pagamentoEmp' | 'pagamentoReserva', valor: number | null): void {
     this.itens.update((lista) => lista.map((item) => (item.id === id ? { ...item, [campo]: valor } : item)));
+    this.salvar();
+  }
+
+  /** Remove várias linhas de uma vez (seleção em lote, 20/09/2026) — uma gravação só. */
+  removerVarios(ids: readonly string[]): void {
+    if (this.travada() || !ids.length) return;
+    const alvo = new Set(ids);
+    this.itens.update((lista) => lista.filter((i) => !alvo.has(i.id)));
     this.salvar();
   }
 

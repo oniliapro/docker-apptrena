@@ -1,9 +1,8 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { formatarMoeda, hojeIso } from '../../core/utils/formato';
-import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
-import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
+import { EditarRecebimentoModal, EventoSalvarRecebimento } from './editar-recebimento-modal/editar-recebimento-modal';
 import {
   calcularSomaItens,
   calcularValorItem,
@@ -31,7 +30,13 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+} from '../../shared/selecao-lista/selecao-lista';
 
 type ColunaRecebimento =
   | 'obra'
@@ -56,7 +61,7 @@ type ColunaRecebimento =
  */
 @Component({
   selector: 'app-recebimentos',
-  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento],
+  imports: [RedimensionarColunas, BarraSelecao, EditarRecebimentoModal],
   providers: [RecebimentosStore],
   templateUrl: './recebimentos.html',
   styleUrl: './recebimentos.scss',
@@ -75,9 +80,10 @@ export class Recebimentos implements OnInit {
 
   /** Rascunho do modal. Null = modal fechado. */
   protected readonly rascunho = signal<Recebimento | null>(null);
-  private idEditando: string | null = null;
+  /** Id do recebimento aberto no popup; `null` = novo (é um signal para `editando` reagir — computed sobre campo comum ficava travado no 1º valor). */
+  private readonly idEditando = signal<string | null>(null);
 
-  protected readonly editando = computed(() => this.idEditando !== null);
+  protected readonly editando = computed(() => this.idEditando() !== null);
 
   protected readonly ordenacao = signal<EstadoOrdenacao<ColunaRecebimento> | null>(null);
   protected readonly setaOrdenacao = setaOrdenacao;
@@ -142,17 +148,8 @@ export class Recebimentos implements OnInit {
     );
   });
 
-  protected readonly somaItens = computed(() => {
-    const rascunho = this.rascunho();
-    return rascunho ? calcularSomaItens(rascunho) : 0;
-  });
-
-  protected readonly diferenca = computed(() => {
-    const rascunho = this.rascunho();
-    return rascunho ? rascunho.valorTotal - this.somaItens() : 0;
-  });
-
-  protected readonly diferencaAberta = computed(() => Math.abs(this.diferenca()) > 0.01);
+  /** Número sugerido se o campo for salvo em branco. */
+  protected readonly numeroSugerido = computed(() => gerarNumeroRecebimento(this.store.recebimentos()));
 
   ngOnInit(): void {
     this.store.carregar(this.obraId());
@@ -230,7 +227,7 @@ export class Recebimentos implements OnInit {
   // Modal
   // ------------------------------------------------------------------
   protected novoRecebimento(): void {
-    this.idEditando = null;
+    this.idEditando.set(null);
     this.rascunho.set({
       id: gerarId(),
       numeroRecebimento: gerarNumeroRecebimento(this.store.recebimentos()),
@@ -247,116 +244,19 @@ export class Recebimentos implements OnInit {
   }
 
   protected editar(recebimento: Recebimento): void {
-    this.idEditando = recebimento.id;
-    this.rascunho.set(normalizarRecebimento(JSON.parse(JSON.stringify(recebimento))));
+    this.idEditando.set(recebimento.id);
+    this.rascunho.set(recebimento);
   }
 
   protected fecharModal(): void {
     this.rascunho.set(null);
-    this.idEditando = null;
+    this.idEditando.set(null);
   }
 
-  protected atualizarCampo(campo: keyof Recebimento, evento: Event): void {
-    const valor = (evento.target as HTMLInputElement).value;
-    this.rascunho.update((r) => (r ? { ...r, [campo]: valor } : r));
-  }
-
-  protected atualizarValorTotal(evento: Event): void {
-    const valor = parsearBR((evento.target as HTMLInputElement).value);
-    this.rascunho.update((r) => (r ? { ...r, valorTotal: valor } : r));
-  }
-
-  protected adicionarItem(): void {
-    this.rascunho.update((r) =>
-      r
-        ? {
-            ...r,
-            itens: [
-              ...r.itens,
-              { id: gerarId(), descricao: '', tipo: '', eapId: '', valor: 0, modoValor: 'valor' },
-            ],
-          }
-        : r,
-    );
-  }
-
-  /** Shift + `-` na tabela de itens do modal: remove a linha atual. */
-  protected removerItemPorIndice(indiceLinha: number): void {
-    const item = this.rascunho()?.itens[indiceLinha];
-    if (item) this.removerItem(item.id);
-  }
-
-  protected removerItem(id: string): void {
-    this.rascunho.update((r) => (r ? { ...r, itens: r.itens.filter((i) => i.id !== id) } : r));
-  }
-
-  protected atualizarItem(id: string, campo: keyof ItemRecebimento, evento: Event): void {
-    const bruto = (evento.target as HTMLInputElement | HTMLSelectElement).value;
-    const valor = campo === 'valor' ? parsearBR(bruto) : String(bruto ?? '');
-
-    this.rascunho.update((r) =>
-      r ? { ...r, itens: r.itens.map((i) => (i.id === id ? { ...i, [campo]: valor } : i)) } : r,
-    );
-  }
-
-  protected alternarModoItem(id: string): void {
-    this.rascunho.update((r) =>
-      r
-        ? {
-            ...r,
-            itens: r.itens.map((i) =>
-              i.id === id
-                ? { ...i, modoValor: i.modoValor === 'percentual' ? 'valor' : 'percentual' }
-                : i,
-            ),
-          }
-        : r,
-    );
-  }
-
-  protected valorItemEditado(item: ItemRecebimento): string {
-    if (!item.valor) return '';
-    return item.modoValor === 'percentual'
-      ? formatarPercentual(item.valor)
-      : formatarMoeda(item.valor);
-  }
-
-  protected valorResolvido(item: ItemRecebimento): number {
-    return calcularValorItem(item, this.rascunho()?.valorTotal ?? 0);
-  }
-
-  protected salvar(): void {
-    const rascunho = this.rascunho();
-    if (!rascunho) return;
-
-    const recebimento: Recebimento = {
-      ...rascunho,
-      numeroRecebimento:
-        rascunho.numeroRecebimento.trim() || gerarNumeroRecebimento(this.store.recebimentos()),
-      obraNumber: this.store.cabecalho().obraNumber,
-    };
-
-    const erros = validarRecebimento(recebimento);
-    if (erros.length) {
-      window.alert(erros.join('\n'));
-      return;
-    }
-
-    this.store.inserirOuAtualizar(recebimento, this.idEditando);
+  /** O popup (`EditarRecebimentoModal`) já validou e preencheu número/obra: só persiste. */
+  protected salvar(evento: EventoSalvarRecebimento): void {
+    this.store.inserirOuAtualizar(evento.recebimento, this.idEditando());
     this.fecharModal();
-  }
-
-  protected remover(recebimento: Recebimento): void {
-    if (!window.confirm('Excluir este recebimento?')) return;
-    this.store.remover(recebimento.id);
-  }
-
-  /** Confirma um recebimento pendente — grava a data e hora do clique, mesmo padrão de `pagamentos.ts::confirmar`. */
-  protected confirmar(recebimento: Recebimento): void {
-    this.store.inserirOuAtualizar(
-      { ...recebimento, status: 'confirmado', dataRecebimento: new Date().toISOString() },
-      recebimento.id,
-    );
   }
 
   // ------------------------------------------------------------------
@@ -364,6 +264,65 @@ export class Recebimentos implements OnInit {
   // do Lucas). Formato provisório — mesmo esquema de `Pagamentos`.
   // ------------------------------------------------------------------
   protected readonly selecao = new SelecaoMultipla<Recebimento>((recebimento) => recebimento.id);
+
+  // ---- Ações da seleção (20/09/2026): clicar na linha edita; marcar habilita "Editar" (com 1), "Confirmar pendentes" e "Excluir". ----
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaExibida()));
+  protected readonly acoesLista = computed<AcaoLista[]>(() => {
+    const temPendente = this.selecionados().some((r) => r.status === 'pendente');
+    return [
+      ...(temPendente ? [{ chave: 'confirmar', rotulo: 'Confirmar pendentes' }] : []),
+      { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+    ];
+  });
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.editar(primeiro);
+  }
+
+  private rotuloDe(r: Recebimento): string {
+    return [r.numeroRecebimento, r.descricao].filter(Boolean).join(' — ') || '(sem número)';
+  }
+
+  /** Botão ✔ da linha (21/09/2026): confirma este recebimento pendente. */
+  protected confirmarUm(recebimento: Recebimento): void {
+    this.store.inserirOuAtualizar(
+      { ...recebimento, status: 'confirmado', dataRecebimento: new Date().toISOString() },
+      recebimento.id,
+    );
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este recebimento, com a confirmação de sempre. */
+  protected removerUm(recebimento: Recebimento): void {
+    if (!window.confirm('Excluir este recebimento?')) return;
+    this.store.remover(recebimento.id);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionados();
+    if (!alvos.length) return;
+
+    if (chave === 'confirmar') {
+      const pendentes = alvos.filter((r) => r.status === 'pendente');
+      if (!pendentes.length) return;
+      const texto = pendentes.length === 1 ? '1 recebimento pendente' : `${pendentes.length} recebimentos pendentes`;
+      if (!window.confirm(`Confirmar ${texto}? Passam a contar como recebidos.`)) return;
+
+      this.store.confirmarVarios(pendentes).subscribe(({ falhas }) => {
+        this.selecao.limpar();
+        avisarFalhasDeExclusao(falhas, 'recebimentos', (r) => this.rotuloDe(r), 'confirmar');
+      });
+      return;
+    }
+
+    if (chave !== 'excluir') return;
+    if (!confirmarExclusaoEmLote(alvos.length, 'recebimento', 'recebimentos', "", alvos.map((r) => this.rotuloDe(r)))) return;
+
+    this.store.removerVarios(alvos).subscribe(({ falhas }) => {
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'recebimentos', (r) => this.rotuloDe(r));
+    });
+  }
   protected readonly copiado = signal(false);
 
   protected async copiarMensagem(): Promise<void> {

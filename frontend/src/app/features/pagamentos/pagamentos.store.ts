@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
 
 import { ApiService } from '../../core/services/api.service';
+import { excluirEmLote, processarEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { normalizarPagamento, paraPayloadApi } from './pagamentos-calc';
 import {
   CabecalhoPagamentos,
@@ -116,6 +118,30 @@ export class PagamentosStore {
       },
       error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
     });
+  }
+
+  /** Exclusão em lote (20/09/2026): uma chamada por pagamento; tira da lista só os excluídos. */
+  removerVarios(alvos: readonly Pagamento[]): Observable<{ excluidos: Pagamento[]; falhas: Pagamento[] }> {
+    return excluirEmLote(alvos, (p) => this.api.excluirPagamento(p.id)).pipe(
+      tap(({ excluidos }) => {
+        const ids = new Set(excluidos.map((p) => p.id));
+        this.pagamentos.update((lista) => lista.filter((p) => !ids.has(p.id)));
+      }),
+    );
+  }
+
+  /** Confirma vários pagamentos pendentes de uma vez (mesmo efeito de `confirmar` um a um). */
+  confirmarVarios(alvos: readonly Pagamento[]): Observable<{ falhas: Pagamento[] }> {
+    const agora = new Date().toISOString();
+    return processarEmLote(alvos, (p) =>
+      this.api.atualizarPagamento(p.id, paraPayloadApi({ ...p, status: 'confirmado', dataPagamento: agora }, this.obraId)),
+    ).pipe(
+      tap(({ sucessos }) => {
+        const novos = new Map(sucessos.map((s) => [s.item.id, normalizarPagamento(s.resultado as Record<string, unknown>)]));
+        this.pagamentos.update((lista) => lista.map((p) => novos.get(p.id) ?? p));
+      }),
+      map(({ falhas }) => ({ falhas })),
+    );
   }
 
   remover(id: string): void {

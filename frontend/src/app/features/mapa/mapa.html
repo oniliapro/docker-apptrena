@@ -138,6 +138,9 @@
       </label>
     }
 
+    <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista()" [podeEditar]="false"
+                       (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
     <span class="espacador"></span>
 
     @if (store.salvando()) {
@@ -269,7 +272,10 @@
              "Preço"/"Comprar" — ver comentário da linha 1), e as duas colunas
              de cada fornecedor (preço empilhado + comprar). -->
         <tr>
-          <th class="col-num">#</th>
+          <th class="col-num" title="Selecionar todas as linhas (ações em lote)">
+            <input type="checkbox" class="caixa-indice" [disabled]="store.travada()" [checked]="selecao.todosSelecionados(store.itens())"
+                   (change)="selecao.alternarTodos(store.itens())" title="Selecionar todas as linhas (ações em lote)" />
+          </th>
           <th class="col-desc">Descrição</th>
           <th class="col-tipo">Tipo</th>
           <th class="col-qtde">Qtde</th>
@@ -288,7 +294,11 @@
       <tbody>
         @for (item of store.itens(); track item.id; let i = $index) {
           <tr [class.zebra]="i % 2 === 1">
-            <td class="centro indice" data-largura-inicial="36">{{ i + 1 }}</td>
+            <td class="centro indice" data-largura-inicial="34">
+              <label class="indice-selecao">
+                <input type="checkbox" [disabled]="store.travada()" [checked]="selecao.estaSelecionado(item)" (change)="selecao.alternar(item)" title="Selecionar a linha (ações em lote)" />
+              </label>
+            </td>
             <td>
               <textarea class="descricao" trenaAutoAltura rows="1" [disabled]="store.travada()"
                         [value]="item.desc"

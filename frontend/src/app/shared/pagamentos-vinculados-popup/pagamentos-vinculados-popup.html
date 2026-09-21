@@ -18,12 +18,12 @@
               <th>Fornecedor</th>
               <th class="valor">Total</th>
               <th class="centro">Status</th>
-              <th></th>
+              <th class="centro">Ações</th>
             </tr>
           </thead>
           <tbody>
             @for (pagamento of pagamentos(); track pagamento.id) {
-              <tr>
+              <tr class="linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
                 <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
                 <td>{{ pagamento.fornecedor || '—' }}</td>
                 <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
@@ -32,8 +32,11 @@
                     {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
                   </span>
                 </td>
-                <td class="centro">
-                  <button type="button" class="link-medicoes" (click)="abrirPagamento(pagamento)">Ver</button>
+                <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                  @if (pagamento.status === 'pendente') {
+                    <button type="button" title="Confirmar pagamento" (click)="confirmarPagamento(pagamento)">✔</button>
+                  }
+                  <button type="button" title="Excluir" (click)="excluirPagamento(pagamento)">✖</button>
                 </td>
               </tr>
             }

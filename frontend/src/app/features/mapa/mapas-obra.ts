@@ -17,7 +17,15 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { AcoesPagamento, aplicarAlteracaoEmMapa } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+  excluirEmLote,
+} from '../../shared/selecao-lista/selecao-lista';
 import { proximoNumeroMapa } from './mapa-numero';
 
 type ColunaMapaObra =
@@ -42,7 +50,7 @@ type ColunaMapaObra =
  */
 @Component({
   selector: 'app-mapas-obra',
-  imports: [ReactiveFormsModule, RedimensionarColunas, EditarPagamentoModal],
+  imports: [ReactiveFormsModule, RedimensionarColunas, EditarPagamentoModal, BarraSelecao],
   templateUrl: './mapas-obra.html',
   styleUrl: './mapas-obra.scss',
 })
@@ -111,7 +119,12 @@ export class MapasObra implements OnInit {
    * Pagamentos): salvar aqui chama `ApiService.atualizarPagamento`
    * direto, com a mesma função pura (`paraPayloadApi`) que o store usa.
    */
-  protected readonly pagamentoEmEdicao = signal<Pagamento | null>(null);
+  private readonly acoesPagamento = new AcoesPagamento(
+    this.api,
+    (alteracao) => this.pagamentosPorMapa.update((mapa) => aplicarAlteracaoEmMapa(mapa, alteracao)),
+    () => this.obraId(),
+  );
+  protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
 
   protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapaObra> | null>(null);
   protected readonly setaOrdenacao = setaOrdenacao;
@@ -301,11 +314,11 @@ export class MapasObra implements OnInit {
   }
 
   protected abrirPagamento(pagamento: Pagamento): void {
-    this.pagamentoEmEdicao.set(pagamento);
+    this.acoesPagamento.abrir(pagamento);
   }
 
   protected fecharPagamento(): void {
-    this.pagamentoEmEdicao.set(null);
+    this.acoesPagamento.fechar();
   }
 
   /**
@@ -314,41 +327,20 @@ export class MapasObra implements OnInit {
    * Mapa só abre pagamentos que já existem (nunca cria um novo).
    */
   protected salvarPagamento(evento: EventoSalvarPagamento): void {
-    const pagamento = evento.pagamento;
-    this.api.atualizarPagamento(pagamento.id, paraPayloadApi(pagamento, this.obraId())).subscribe({
-      next: (salvo) => {
-        const normalizado = normalizarPagamento(salvo as Record<string, unknown>);
-        this.pagamentosPorMapa.update((mapa) => {
-          const copia = new Map(mapa);
-          for (const [mapaId, lista] of copia) {
-            const indice = lista.findIndex((p) => p.id === normalizado.id);
-            if (indice !== -1) {
-              const novaLista = [...lista];
-              novaLista[indice] = normalizado;
-              copia.set(mapaId, novaLista);
-              break;
-            }
-          }
-          return copia;
-        });
-        this.fecharPagamento();
-      },
-      error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
-    });
+    this.acoesPagamento.salvar(evento);
+  }
+
+  /** Botões ✔ e ✖ de cada linha do popup (21/09/2026). */
+  protected confirmarPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.confirmar(pagamento);
+  }
+
+  protected excluirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.excluir(pagamento);
   }
 
   protected abrir(mapa: Mapa): void {
     void this.router.navigate(['/obras', this.obraId(), 'mapas', mapa.id]);
-  }
-
-  protected remover(mapa: Mapa, evento: Event): void {
-    evento.stopPropagation();
-    if (!window.confirm(`Excluir o mapa "${this.descricao(mapa)}"?`)) return;
-
-    this.api.excluirMapa(mapa.id).subscribe({
-      next: () => this.mapas.update((lista) => lista.filter((m) => m.id !== mapa.id)),
-      error: () => window.alert('Não foi possível excluir o mapa.'),
-    });
   }
 
   // ------------------------------------------------------------------
@@ -413,6 +405,50 @@ export class MapasObra implements OnInit {
   // mensagem que quer; até lá, uma linha por mapa com os dados principais.
   // ------------------------------------------------------------------
   protected readonly selecao = new SelecaoMultipla<Mapa>((mapa) => mapa.id);
+
+  // ---- Seleção (20/09/2026): clicar na linha abre o mapa; marcar habilita "Abrir" (com 1) e "Excluir". ----
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaOrdenada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected abrirSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.abrir(primeiro);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este mapa, com a confirmação de sempre. */
+  protected removerUm(mapa: Mapa): void {
+    if (!window.confirm(`Excluir o mapa "${this.descricao(mapa)}"?`)) return;
+
+    this.api.excluirMapa(mapa.id).subscribe({
+      next: () => this.mapas.update((lista) => lista.filter((m) => m.id !== mapa.id)),
+      error: () => window.alert('Não foi possível excluir o mapa.'),
+    });
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionados();
+    if (
+      !alvos.length ||
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'mapa',
+        'mapas',
+        'Pagamentos já gerados a partir deles não são apagados.',
+        alvos.map((m) => this.descricao(m) || this.numero(m)),
+      )
+    ) {
+      return;
+    }
+
+    excluirEmLote(alvos, (mapa) => this.api.excluirMapa(mapa.id)).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((m) => m.id));
+      this.mapas.update((lista) => lista.filter((m) => !ids.has(m.id)));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'mapa(s)', (m) => this.descricao(m) || this.numero(m));
+    });
+  }
+
   protected readonly copiado = signal(false);
 
   protected async copiarMensagem(): Promise<void> {

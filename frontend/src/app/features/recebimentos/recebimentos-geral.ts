@@ -8,7 +8,17 @@ import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { parsearNumeroBR } from '../../shared/numero/parse-numero';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { EditarRecebimentoModal, EventoSalvarRecebimento } from './editar-recebimento-modal/editar-recebimento-modal';
+import { AcoesRecebimento, AlteracaoRecebimento } from './acoes-recebimento';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+  excluirEmLote,
+  processarEmLote,
+} from '../../shared/selecao-lista/selecao-lista';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
 import {
   gerarId,
@@ -45,7 +55,7 @@ type ColunaRecebimentoGeral =
  */
 @Component({
   selector: 'app-recebimentos-geral',
-  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra, BarraSelecao, EditarRecebimentoModal],
   templateUrl: './recebimentos-geral.html',
   styleUrl: './recebimentos-geral.scss',
 })
@@ -353,6 +363,121 @@ export class RecebimentosGeral implements OnInit {
   // do Lucas). Formato provisório — mesmo esquema de `Pagamentos`.
   // ------------------------------------------------------------------
   protected readonly selecao = new SelecaoMultipla<Recebimento>((r) => String(r['id'] ?? ''));
+
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaOrdenada()));
+
+  // ---- Mesma lógica dos Recebimentos da obra (21/09/2026): clicar na linha EDITA; ✔ confirma um pendente; ✖ exclui;
+  // e a barra de seleção faz o mesmo em lote. A ida à origem (mapa/empreita) virou uma ação do menu. ----
+  private readonly acoesRecebimento = new AcoesRecebimento(
+    this.api,
+    (alteracao) => this.aoAlterar(alteracao),
+    (recebimento) => String((recebimento as unknown as Record<string, unknown>)['obraId'] ?? ''),
+  );
+  protected readonly recebimentoEmEdicao = this.acoesRecebimento.emEdicao;
+  protected readonly snapshotEapEditor = this.acoesRecebimento.snapshotEap;
+
+  private aoAlterar(alteracao: AlteracaoRecebimento): void {
+    this.recebimentos.update((lista) =>
+      alteracao.tipo === 'excluido'
+        ? lista.filter((x) => String(x['id']) !== alteracao.id)
+        : lista.map((x) =>
+            String(x['id']) === alteracao.recebimento.id ? (alteracao.recebimento as unknown as Recebimento) : x,
+          ),
+    );
+  }
+
+  private normalizado(recebimento: Recebimento) {
+    return normalizarRecebimento(recebimento as Record<string, unknown>);
+  }
+
+  protected abrir(recebimento: Recebimento): void {
+    this.acoesRecebimento.abrir(this.normalizado(recebimento));
+  }
+
+  protected fecharEditor(): void {
+    this.acoesRecebimento.fechar();
+  }
+
+  protected salvarEditor(evento: EventoSalvarRecebimento): void {
+    this.acoesRecebimento.salvar(evento);
+  }
+
+  protected confirmarUm(recebimento: Recebimento): void {
+    this.acoesRecebimento.confirmar(this.normalizado(recebimento));
+  }
+
+  protected removerUm(recebimento: Recebimento): void {
+    this.acoesRecebimento.excluir(this.normalizado(recebimento));
+  }
+
+  protected abrirOrigem(recebimento: Recebimento): void {
+    void this.router.navigate(this.rotaOrigem(recebimento));
+  }
+
+  protected readonly acoesLista = computed<AcaoLista[]>(() => {
+    const marcados = this.selecionados();
+    return [
+      ...(marcados.length === 1 ? [{ chave: 'origem', rotulo: 'Abrir origem (mapa, empreita ou lista da obra)' }] : []),
+      ...(marcados.some((x) => this.pendente(x)) ? [{ chave: 'confirmar', rotulo: 'Confirmar pendentes' }] : []),
+      { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+    ];
+  });
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.abrir(primeiro);
+  }
+
+  private rotuloDe(recebimento: Recebimento): string {
+    return [String(recebimento['numeroRecebimento'] ?? ''), String(recebimento['descricao'] ?? '')].filter(Boolean).join(' — ') || '(sem número)';
+  }
+
+  private obraIdDe(recebimento: Recebimento): string {
+    return String(recebimento['obraId'] ?? '');
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionados();
+    if (!alvos.length) return;
+
+    if (chave === 'origem') {
+      this.abrirOrigem(alvos[0]);
+      return;
+    }
+
+    if (chave === 'confirmar') {
+      const pendentes = alvos.filter((x) => this.pendente(x));
+      if (!pendentes.length) return;
+      const texto = pendentes.length === 1 ? '1 recebimento pendente' : `${pendentes.length} recebimentos pendentes`;
+      if (!window.confirm(`Confirmar ${texto}? Passam a contar como recebidos.`)) return;
+
+      const agora = new Date().toISOString();
+      processarEmLote(pendentes, (x) =>
+        this.api.atualizarRecebimento(
+          String(x['id']),
+          paraPayloadApi({ ...this.normalizado(x), status: 'confirmado', dataRecebimento: agora }, this.obraIdDe(x)),
+        ),
+      ).subscribe(({ sucessos, falhas }) => {
+        for (const { resultado } of sucessos) {
+          this.aoAlterar({ tipo: 'atualizado', recebimento: normalizarRecebimento(resultado as Record<string, unknown>) });
+        }
+        this.selecao.limpar();
+        avisarFalhasDeExclusao(falhas, 'recebimentos', (x) => this.rotuloDe(x), 'confirmar');
+      });
+      return;
+    }
+
+    if (chave !== 'excluir') return;
+    if (!confirmarExclusaoEmLote(alvos.length, 'recebimento', 'recebimentos', "", alvos.map((x) => this.rotuloDe(x)))) return;
+
+    excluirEmLote(alvos, (x) => this.api.excluirRecebimento(String(x['id']))).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((x) => String(x['id'])));
+      this.recebimentos.update((lista) => lista.filter((x) => !ids.has(String(x['id']))));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'recebimentos', (x) => this.rotuloDe(x));
+    });
+  }
+
   protected readonly copiado = signal(false);
 
   protected async copiarMensagem(): Promise<void> {

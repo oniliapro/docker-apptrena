@@ -175,6 +175,9 @@ export class RedimensionarColunas implements AfterViewInit, OnDestroy {
       this.agendarRemedicao();
     });
     this.observador.observe(corpo, { childList: true, subtree: true });
+    // Cabeçalho com texto que muda (ex.: total no título da coluna) também pode passar a caber menos.
+    const cabecalho = tabela.querySelector('thead');
+    if (cabecalho) this.observador.observe(cabecalho, { childList: true, subtree: true, characterData: true });
   }
 
   /** Remede (em rajada única) as colunas que o usuário NÃO arrastou; só CRESCE, nunca encolhe (não treme a tela). */

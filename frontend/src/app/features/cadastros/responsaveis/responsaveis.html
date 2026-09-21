@@ -13,6 +13,9 @@
     <option value="inativos">Inativos</option>
   </select>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
 
   @if (store.salvando()) {
@@ -33,6 +36,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(store.listaFiltrada())"
+                     (change)="selecao.alternarTodos(store.listaFiltrada())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('codigo')">Código{{ store.setaOrdenacao(store.ordenacao(), 'codigo') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('registro')">Registro (CREA/CAU){{ store.setaOrdenacao(store.ordenacao(), 'registro') }}</th>
@@ -45,26 +52,28 @@
         </thead>
         <tbody>
           @for (registro of store.listaFiltrada(); track registro.id) {
-            <tr [class.inativo]="!registro.ativo">
+            <tr class="linha-clicavel" [class.inativo]="!registro.ativo" (click)="editar(registro)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(registro)" (change)="selecao.alternar(registro)" />
+              </td>
               <td class="centro mono">{{ registro.codigo || '—' }}</td>
               <td class="nome">{{ registro.nome }}</td>
               <td class="mono">{{ registro.registro || '—' }}</td>
               <td>{{ registro.atuacao || '—' }}</td>
               <td class="mono">{{ registro.telefone ? formatarTelefone(registro.telefone) : '—' }}</td>
               <td>{{ registro.email || '—' }}</td>
-              <td class="centro">
+              <td class="centro" (click)="$event.stopPropagation()">
                 <button type="button" class="chave" [class.ligada]="registro.ativo"
                         [title]="registro.ativo ? 'Desativar' : 'Reativar'"
                         (click)="store.alternarAtivo(registro.id)"></button>
               </td>
-              <td class="centro acoes">
-                <button type="button" title="Editar" (click)="editar(registro)">✎</button>
-                <button type="button" title="Excluir" (click)="remover(registro)">✖</button>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(registro)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="centro atenuado vazio">Nenhum responsável cadastrado.</td>
+              <td colspan="9" class="centro atenuado vazio">Nenhum responsável cadastrado.</td>
             </tr>
           }
         </tbody>

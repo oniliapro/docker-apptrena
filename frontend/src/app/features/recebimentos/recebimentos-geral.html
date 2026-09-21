@@ -44,6 +44,9 @@
     <input type="date" (change)="mudarFiltroDataAte($event)" />
   </label>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista()"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
   <input class="busca" type="search" placeholder="Buscar obra, nº, cliente, descrição…" (input)="mudarBusca($event)" />
 </div>
@@ -75,8 +78,8 @@
         </thead>
         <tbody>
           @for (recebimento of listaOrdenada(); track recebimento.id) {
-            <tr>
-              <td class="centro">
+            <tr class="linha-clicavel" (click)="abrir(recebimento)">
+              <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
               </td>
               <td class="centro">{{ obraNumber(recebimento) }}</td>
@@ -91,13 +94,16 @@
                   {{ pendente(recebimento) ? 'Pendente' : 'Confirmado' }}
                 </span>
               </td>
-              <td class="centro">
-                <a class="link-medicoes" [routerLink]="rotaOrigem(recebimento)">Ver</a>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                @if (pendente(recebimento)) {
+                  <button type="button" title="Confirmar recebimento" (click)="confirmarUm(recebimento)">✔</button>
+                }
+                <button type="button" title="Excluir" (click)="removerUm(recebimento)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="10" class="centro atenuado">Nenhum recebimento lançado.</td>
+              <td colspan="11" class="centro atenuado">Nenhum recebimento lançado.</td>
             </tr>
           }
         </tbody>
@@ -162,4 +168,13 @@
       </div>
     </form>
   </div>
+}
+
+@if (recebimentoEmEdicao(); as p) {
+  <app-editar-recebimento-modal
+    [recebimento]="p"
+    [snapshotEap]="snapshotEapEditor()"
+    [numeroSugerido]="p.numeroRecebimento"
+    (salvar)="salvarEditor($event)"
+    (fechar)="fecharEditor()" />
 }

@@ -10,7 +10,16 @@ import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { CHAVES_OPCOES_RESUMO, OPCOES_RESUMO_PADRAO, OpcoesResumo } from './empreita-resumo-engine';
 import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
+import { AcoesPagamento, aplicarAlteracaoEmMapa } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+  excluirEmLote,
+} from '../../shared/selecao-lista/selecao-lista';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -97,7 +106,7 @@ type ColunaEmpreitaObra =
  */
 @Component({
   selector: 'app-empreitas-obra',
-  imports: [ReactiveFormsModule, RedimensionarColunas, BarraFixa],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraFixa, BarraSelecao, EditarPagamentoModal],
   templateUrl: './empreitas-obra.html',
   styleUrl: './empreitas-obra.scss',
 })
@@ -119,6 +128,34 @@ export class EmpreitasObra implements OnInit {
   /** `resumo()`/pagamentos desta obra, usados só pra derivar Total/Pago/Última solicitação por empreita. */
   private readonly resumoContrato = signal<ResumoContratoEmpreita[]>([]);
   private readonly pagamentosPorEmpreita = signal<Map<string, Pagamento[]>>(new Map());
+
+  /** Ações do popup de pagamentos da empreita (21/09/2026): abrir/confirmar/excluir. */
+  private readonly acoesPagamento = new AcoesPagamento(
+    this.api,
+    (alteracao) => this.pagamentosPorEmpreita.update((mapa) => aplicarAlteracaoEmMapa(mapa, alteracao)),
+    () => this.obraId(),
+  );
+  protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
+
+  protected abrirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.abrir(pagamento);
+  }
+
+  protected fecharPagamento(): void {
+    this.acoesPagamento.fechar();
+  }
+
+  protected salvarPagamento(evento: EventoSalvarPagamento): void {
+    this.acoesPagamento.salvar(evento);
+  }
+
+  protected confirmarPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.confirmar(pagamento);
+  }
+
+  protected excluirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.excluir(pagamento);
+  }
 
   /**
    * EAP da obra + Orçado (03/09/2026) — só pra montar a mensagem de
@@ -675,13 +712,46 @@ export class EmpreitasObra implements OnInit {
     return { emp, reserva };
   }
 
-  protected remover(empreita: Empreita, evento: Event): void {
-    evento.stopPropagation();
+  // ---- Seleção (20/09/2026): clicar na linha abre a empreita; marcar habilita "Abrir" (com 1) e "Excluir". ----
+  protected readonly selecionadas = computed(() => this.selecao.selecionados(this.listaOrdenada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected abrirSelecionada(): void {
+    const [primeira] = this.selecionadas();
+    if (primeira) this.abrir(primeira);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só esta empreita, com a confirmação de sempre. */
+  protected removerUm(empreita: Empreita): void {
     if (!window.confirm(`Excluir a empreita "${this.descricao(empreita)}"?`)) return;
 
     this.api.excluirEmpreita(empreita.id).subscribe({
       next: () => this.empreitas.update((lista) => lista.filter((e) => e.id !== empreita.id)),
       error: () => window.alert('Não foi possível excluir a empreita.'),
+    });
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionadas();
+    if (
+      !alvos.length ||
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'empreita',
+        'empreitas',
+        'Os serviços, medições e pagamentos lançados nelas deixam de aparecer aqui.',
+        alvos.map((e) => this.descricao(e)),
+      )
+    ) {
+      return;
+    }
+
+    excluirEmLote(alvos, (empreita) => this.api.excluirEmpreita(empreita.id)).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((e) => e.id));
+      this.empreitas.update((lista) => lista.filter((e) => !ids.has(e.id)));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'empreita(s)', (e) => this.descricao(e));
     });
   }
 

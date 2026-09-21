@@ -3,6 +3,8 @@ import { Router } from '@angular/router';
 
 import { nomeDaEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
@@ -39,7 +41,7 @@ import { MapaStore } from './mapa.store';
  */
 @Component({
   selector: 'app-mapa',
-  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea],
+  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao],
   providers: [MapaStore],
   templateUrl: './mapa.html',
   styleUrl: './mapa.scss',
@@ -555,6 +557,32 @@ export class Mapa implements OnInit {
   protected removerPorIndice(indiceLinha: number): void {
     const item = this.store.itens()[indiceLinha];
     if (item) this.store.removerItem(item.id);
+  }
+
+  // ---- Seleção em lote (20/09/2026) — opcional: os botões de cada linha (↑ ↓ + ✖) continuam. ----
+  protected readonly selecao = new SelecaoMultipla<ItemMapa>((item) => item.id);
+  /** Com o mapa finalizado (travado) não há ação em lote. */
+  protected readonly selecionadas = computed(() => (this.store.travada() ? [] : this.selecao.selecionados(this.store.itens())));
+  protected readonly acoesLista = computed<AcaoLista[]>(() => [
+    { chave: 'subir', rotulo: 'Mover para cima' },
+    { chave: 'descer', rotulo: 'Mover para baixo' },
+    { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+  ]);
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionadas();
+    if (!alvos.length) return;
+    const ids = alvos.map((item) => item.id);
+
+    if (chave === 'subir' || chave === 'descer') {
+      this.store.moverVarios(ids, chave === 'subir' ? -1 : 1);
+      return;
+    }
+    if (chave !== 'excluir') return;
+
+    if (!confirmarExclusaoEmLote(alvos.length, 'item do mapa', 'itens do mapa', '', alvos.map((item) => item.desc || '(sem descrição)'))) return;
+    this.store.removerVarios(ids);
+    this.selecao.limpar();
   }
 
   protected removerItem(item: ItemMapa): void {

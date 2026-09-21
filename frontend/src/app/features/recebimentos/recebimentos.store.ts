@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
 
 import { ApiService } from '../../core/services/api.service';
+import { excluirEmLote, processarEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { normalizarRecebimento, paraPayloadApi } from './recebimentos-calc';
 import {
   CabecalhoRecebimentos,
@@ -80,6 +82,30 @@ export class RecebimentosStore {
       },
       error: () => window.alert('Não foi possível salvar o recebimento — confira os valores e tente de novo.'),
     });
+  }
+
+  /** Exclusão em lote (20/09/2026): uma chamada por recebimento; tira da lista só os excluídos. */
+  removerVarios(alvos: readonly Recebimento[]): Observable<{ excluidos: Recebimento[]; falhas: Recebimento[] }> {
+    return excluirEmLote(alvos, (r) => this.api.excluirRecebimento(r.id)).pipe(
+      tap(({ excluidos }) => {
+        const ids = new Set(excluidos.map((r) => r.id));
+        this.recebimentos.update((lista) => lista.filter((r) => !ids.has(r.id)));
+      }),
+    );
+  }
+
+  /** Confirma vários recebimentos pendentes de uma vez. */
+  confirmarVarios(alvos: readonly Recebimento[]): Observable<{ falhas: Recebimento[] }> {
+    const agora = new Date().toISOString();
+    return processarEmLote(alvos, (r) =>
+      this.api.atualizarRecebimento(r.id, paraPayloadApi({ ...r, status: 'confirmado', dataRecebimento: agora }, this.obraId)),
+    ).pipe(
+      tap(({ sucessos }) => {
+        const novos = new Map(sucessos.map((s) => [s.item.id, normalizarRecebimento(s.resultado as Record<string, unknown>)]));
+        this.recebimentos.update((lista) => lista.map((r) => novos.get(r.id) ?? r));
+      }),
+      map(({ falhas }) => ({ falhas })),
+    );
   }
 
   remover(id: string): void {

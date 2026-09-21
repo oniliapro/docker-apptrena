@@ -45,6 +45,9 @@
     <input type="date" (change)="mudarFiltroFinalizacaoAte($event)" />
   </label>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista" rotuloEditar="Abrir"
+                     (editar)="abrirSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
   <input class="busca" type="search" placeholder="Buscar nº, descrição, obra…" (input)="mudarBusca($event)" />
 </div>
@@ -59,6 +62,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
+                     (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('codigo')">Código{{ setaOrdenacao(ordenacao(), 'codigo') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
@@ -74,7 +81,10 @@
         </thead>
         <tbody>
           @for (mapa of listaOrdenada(); track mapa.id) {
-            <tr>
+            <tr class="linha-clicavel" (click)="abrir(mapa)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(mapa)" (change)="selecao.alternar(mapa)" />
+              </td>
               <td class="centro mono">{{ codigo(mapa) }}</td>
               <td class="centro">{{ numero(mapa) }}</td>
               <td>{{ descricao(mapa) }}</td>
@@ -90,21 +100,20 @@
               <td class="valor"><b>{{ formatarMoeda(total(mapa)) }}</b></td>
               <td class="centro">
                 @if (quantidadePagamentos(mapa)) {
-                  <button type="button" class="link-contagem" (click)="abrirPopupPagamentos(mapa)">
+                  <button type="button" class="link-contagem" (click)="abrirPopupPagamentos(mapa); $event.stopPropagation()">
                     {{ quantidadePagamentos(mapa) }}
                   </button>
                 } @else {
                   <span class="atenuado">0</span>
                 }
               </td>
-              <td class="centro acoes-linha">
-                <a class="link-medicoes" [routerLink]="['/obras', obraId(mapa), 'mapas', mapa.id]">Ver</a>
-                <button type="button" title="Excluir" (click)="remover(mapa)">✖</button>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(mapa)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="11" class="centro atenuado">Nenhum mapa cadastrado.</td>
+              <td colspan="12" class="centro atenuado">Nenhum mapa cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -131,12 +140,12 @@
               <th>Fornecedor</th>
               <th class="valor">Total</th>
               <th class="centro">Status</th>
-              <th></th>
+              <th class="centro">Ações</th>
             </tr>
           </thead>
           <tbody>
             @for (pagamento of pagamentosDoMapa(mapa); track pagamento.id) {
-              <tr>
+              <tr class="linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
                 <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
                 <td>{{ pagamento.fornecedor || '—' }}</td>
                 <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
@@ -145,9 +154,11 @@
                     {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
                   </span>
                 </td>
-                <td class="centro">
-                  <a class="link-medicoes" [routerLink]="['/obras', obraId(mapa), 'pagamentos']"
-                     (click)="fecharPopupPagamentos()">Ver</a>
+                <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                  @if (pagamento.status === 'pendente') {
+                    <button type="button" title="Confirmar pagamento" (click)="confirmarPagamento(pagamento)">✔</button>
+                  }
+                  <button type="button" title="Excluir" (click)="excluirPagamento(pagamento)">✖</button>
                 </td>
               </tr>
             }
@@ -156,6 +167,14 @@
       </div>
     </div>
   </div>
+}
+
+@if (pagamentoEmEdicao(); as pagamento) {
+  <app-editar-pagamento-modal
+    [pagamento]="pagamento"
+    [obraId]="pagamento.obraId ?? ''"
+    (salvar)="salvarPagamento($event)"
+    (fechar)="fecharPagamento()" />
 }
 
 <!-- ============ Formulário — Novo mapa ============ -->

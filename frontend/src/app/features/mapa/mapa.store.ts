@@ -1832,6 +1832,38 @@ export class MapaStore {
     this.salvar();
   }
 
+  /** Remove várias linhas de uma vez (seleção em lote, 20/09/2026) — uma gravação só. */
+  removerVarios(ids: readonly string[]): void {
+    if (this.travada() || !ids.length) return;
+    const alvo = new Set(ids);
+    this.itens.update((lista) => lista.filter((i) => !alvo.has(i.id)));
+    this.salvar();
+  }
+
+  /**
+   * Move várias linhas de uma vez, uma posição (20/09/2026, seleção em lote):
+   * cada linha marcada troca de lugar com a vizinha NÃO marcada, então um bloco
+   * de linhas marcadas anda junto e a ordem entre elas é preservada.
+   */
+  moverVarios(ids: readonly string[], direcao: -1 | 1): void {
+    if (this.travada() || !ids.length) return;
+    const marcados = new Set(ids);
+    this.itens.update((lista) => {
+      const copia = [...lista];
+      if (direcao < 0) {
+        for (let i = 1; i < copia.length; i++) {
+          if (marcados.has(copia[i].id) && !marcados.has(copia[i - 1].id)) [copia[i - 1], copia[i]] = [copia[i], copia[i - 1]];
+        }
+      } else {
+        for (let i = copia.length - 2; i >= 0; i--) {
+          if (marcados.has(copia[i].id) && !marcados.has(copia[i + 1].id)) [copia[i + 1], copia[i]] = [copia[i], copia[i + 1]];
+        }
+      }
+      return copia;
+    });
+    this.salvar();
+  }
+
   /** Reordena um item — mesmo padrão de `EapStore.moverItem` (17/08/2026, pedido do Lucas). */
   moverItem(id: string, direcao: -1 | 1): void {
     if (this.travada()) return;

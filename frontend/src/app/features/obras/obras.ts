@@ -7,6 +7,8 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { formatarData } from '../../core/utils/formato';
 import { Cliente, Responsavel } from '../cadastros/cadastros.models';
 import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, avisarFalhasDeExclusao, confirmarExclusaoEmLote, excluirEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { CadastroObraModal, EventoSalvarObra } from './cadastro-obra-modal/cadastro-obra-modal';
 import {
@@ -31,7 +33,7 @@ type ColunaObra = 'map_number' | 'obra_nome' | 'cliente' | 'responsavel' | 'data
  */
 @Component({
   selector: 'app-obras',
-  imports: [RedimensionarColunas, CadastroObraModal],
+  imports: [RedimensionarColunas, CadastroObraModal, BarraSelecao],
   templateUrl: './obras.html',
   styleUrl: './obras.scss',
 })
@@ -200,13 +202,47 @@ export class Obras implements OnInit {
     void this.router.navigate(['/obras', obra.id, 'eap']);
   }
 
-  protected remover(obra: Obra, evento: Event): void {
-    evento.stopPropagation();
+  // ---- Seleção múltipla (20/09/2026): clicar na linha abre a obra; marcar habilita "Abrir" (com 1) e "Excluir". ----
+  protected readonly selecao = new SelecaoMultipla<Obra>((o) => o.id);
+  protected readonly selecionadas = computed(() => this.selecao.selecionados(this.listaFiltrada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected abrirSelecionada(): void {
+    const [primeira] = this.selecionadas();
+    if (primeira) this.acessar(primeira);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só esta obra, com a confirmação de sempre. */
+  protected removerUm(obra: Obra): void {
     if (!window.confirm(`Excluir a obra "${obra.obra_nome || 'sem nome'}"?`)) return;
 
     this.api.excluirObra(obra.id).subscribe({
       next: () => this.obras.update((lista) => lista.filter((o) => o.id !== obra.id)),
       error: () => window.alert('Não foi possível excluir a obra.'),
+    });
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionadas();
+    if (
+      !alvos.length ||
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'obra',
+        'obras',
+        'Os dados lançados nelas (EAP, mapas, empreitas, pagamentos…) deixam de aparecer.',
+        alvos.map((o) => o.obra_nome || '(sem nome)'),
+      )
+    ) {
+      return;
+    }
+
+    excluirEmLote(alvos, (obra) => this.api.excluirObra(obra.id)).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((o) => o.id));
+      this.obras.update((lista) => lista.filter((o) => !ids.has(o.id)));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'obra(s)', (o) => o.obra_nome || '(sem nome)');
     });
   }
 

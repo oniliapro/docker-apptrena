@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 
 import {
@@ -11,6 +11,8 @@ import {
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
 import { Cliente, TipoPessoa, rotuloTipoPessoa } from '../cadastros.models';
+import { BarraSelecao, AcaoLista } from '../../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 
 const CHAVE = 'controleObra.clientes.v1';
@@ -38,13 +40,40 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-clientes',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraSelecao],
   providers: [CadastroStore],
   templateUrl: './clientes.html',
   styleUrl: './clientes.scss',
 })
 export class Clientes implements OnInit {
   protected readonly store = inject<CadastroStore<Cliente>>(CadastroStore);
+
+  // ---- Seleção múltipla (20/09/2026): clicar na linha abre a edição; marcar
+  // linhas habilita "Editar" (com 1) e o menu "Ações" (excluir em lote). ----
+  protected readonly selecao = new SelecaoMultipla<Cliente>((r) => r.id);
+  /** Só as marcadas que a lista (com os filtros de agora) mostra — é sobre elas que as ações agem. */
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.store.listaFiltrada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.editar(primeiro);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este cadastro, com a confirmação de sempre. */
+  protected removerUm(registro: Cliente): void {
+    const nome = registro.nome || 'este cliente';
+    if (!window.confirm(`Excluir ${nome} definitivamente?\n\nSe ele tem obras cadastradas, prefira desativar — assim o histórico é preservado.`)) return;
+    this.store.remover(registro.id);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionados();
+    if (!alvos.length || !confirmarExclusaoEmLote(alvos.length, 'cliente', 'clientes', "Se tiverem obras cadastradas, prefira desativar — assim o histórico é preservado.", alvos.map((r) => r.nome))) return;
+    this.store.removerVarios(alvos.map((r) => r.id));
+    this.selecao.limpar();
+  }
   private readonly fb = inject(FormBuilder);
 
   protected readonly formularioAberto = signal(false);
@@ -203,19 +232,6 @@ export class Clientes implements OnInit {
     });
 
     this.fechar();
-  }
-
-  protected remover(cliente: Cliente): void {
-    const nome = cliente.nome || 'este cliente';
-    if (
-      !window.confirm(
-        `Excluir ${nome} definitivamente?\n\n` +
-          `Se ele tem obras cadastradas, prefira desativar — assim o histórico é preservado.`,
-      )
-    ) {
-      return;
-    }
-    this.store.remover(cliente.id);
   }
 
   // ------------------------------------------------------------------

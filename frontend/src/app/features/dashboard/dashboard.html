@@ -143,7 +143,7 @@
       <div class="vazio atenuado">Carregando…</div>
     } @else {
       @for (mapa of mapas(); track mapa.id) {
-        <div class="linha linha-colunas">
+        <div class="linha linha-colunas linha-clicavel" (click)="abrirMapa(mapa)" title="Clique para abrir o mapa">
           <span class="coluna coluna-estreita">
             <span class="col-l1">{{ dataDe(mapa, 'created_at') }}</span>
             <span class="col-l2">Nº {{ campo(mapa, 'numero_mapa') }}</span>
@@ -160,7 +160,7 @@
                 <button
                   type="button"
                   class="link-contagem"
-                  (click)="abrirPagamentosVinculados('mapa', campo(mapa, 'id'), 'Pagamentos — ' + campo(mapa, 'descricao'))"
+                  (click)="$event.stopPropagation(); abrirPagamentosVinculados('mapa', campo(mapa, 'id'), 'Pagamentos — ' + campo(mapa, 'descricao'))"
                 >
                   {{ numero(mapa, 'pagamentos_count') }} pagamento{{ numero(mapa, 'pagamentos_count') === 1 ? '' : 's' }}
                 </button>
@@ -187,7 +187,7 @@
       <div class="vazio atenuado">Carregando…</div>
     } @else {
       @for (empreita of empreitas(); track empreita['id']) {
-        <div class="linha linha-colunas">
+        <div class="linha linha-colunas linha-clicavel" (click)="abrirEmpreita(empreita)" title="Clique para abrir a empreita">
           <span class="coluna coluna-estreita">
             <span class="col-l1 forte">{{ campo(empreita, 'empreiteiro') }}</span>
             <span class="col-l2">Nº {{ campo(empreita, 'numero_empreita') }}</span>
@@ -202,7 +202,7 @@
               <button
                 type="button"
                 class="link-contagem"
-                (click)="abrirPagamentosVinculados('empreita', campo(empreita, 'id'), 'Pagamentos — ' + campo(empreita, 'empreiteiro'))"
+                (click)="$event.stopPropagation(); abrirPagamentosVinculados('empreita', campo(empreita, 'id'), 'Pagamentos — ' + campo(empreita, 'empreiteiro'))"
               >
                 Já pago: {{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.pago ?? 0) }}
               </button>
@@ -229,7 +229,7 @@
       <div class="vazio atenuado">Carregando…</div>
     } @else {
       @for (pagamento of pagamentos(); track pagamento.id) {
-        <div class="linha linha-colunas">
+        <div class="linha linha-colunas linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
           <span class="coluna coluna-estreita">
             <span class="col-l1">{{ formatarData(pagamento.dataSolicitacao) }}</span>
             <span class="col-l2">{{ pagamento.numeroPagamento }}</span>
@@ -247,7 +247,7 @@
             </span>
             <span class="col-l2">
               @if (pagamento.anexosCount) {
-                <button type="button" class="link-contagem" (click)="abrirAnexos('pagamento', pagamento.id)">
+                <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('pagamento', pagamento.id)">
                   {{ pagamento.anexosCount }} anexo{{ pagamento.anexosCount === 1 ? '' : 's' }}
                 </button>
               } @else {
@@ -273,7 +273,7 @@
       <div class="vazio atenuado">Carregando…</div>
     } @else {
       @for (recebimento of recebimentos(); track recebimento.id) {
-        <div class="linha linha-colunas">
+        <div class="linha linha-colunas linha-clicavel" (click)="abrirRecebimento(recebimento)" title="Clique para abrir o recebimento">
           <span class="coluna coluna-estreita">
             <span class="col-l1">{{ formatarData(recebimento.dataSolicitacao) }}</span>
             <span class="col-l2">{{ recebimento.numeroRecebimento }}</span>
@@ -291,7 +291,7 @@
             </span>
             <span class="col-l2">
               @if (recebimento.anexosCount) {
-                <button type="button" class="link-contagem" (click)="abrirAnexos('recebimento', recebimento.id)">
+                <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('recebimento', recebimento.id)">
                   {{ recebimento.anexosCount }} anexo{{ recebimento.anexosCount === 1 ? '' : 's' }}
                 </button>
               } @else {
@@ -366,6 +366,25 @@
     }
   </div>
 </div>
+
+<!-- Editor de pagamento/recebimento aberto ao clicar num item dos cards (21/09/2026) -->
+@if (pagamentoEmEdicao(); as p) {
+  <app-editar-pagamento-modal
+    [pagamento]="p"
+    [snapshotEap]="snapshotEapPagamento()"
+    [obraId]="p.obraId || ''"
+    (salvar)="salvarPagamento($event)"
+    (fechar)="fecharPagamento()" />
+}
+
+@if (recebimentoEmEdicao(); as r) {
+  <app-editar-recebimento-modal
+    [recebimento]="r"
+    [snapshotEap]="snapshotEapRecebimento()"
+    [numeroSugerido]="r.numeroRecebimento"
+    (salvar)="salvarRecebimento($event)"
+    (fechar)="fecharRecebimento()" />
+}
 
 @if (popupPagamentosVinculados(); as popup) {
   <app-pagamentos-vinculados-popup

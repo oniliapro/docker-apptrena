@@ -1032,3 +1032,143 @@ AppTrena/
   serviço ignorá-los. Os campos "Valor total" de "Novo pagamento" e "Novo
   recebimento" eram `type="number"` (não aceita `=`) e viraram texto com valor
   formatado. Referências a outros campos (`"1.4-qtd"`) só valem na EAP (F5).
+
+- 20/09/2026 (F4 parte 4a — seleção múltipla nos Cadastros e nas Tags; sem
+  mudança de banco). Nas listas de Clientes, Profissionais, Fornecedores,
+  Responsáveis e Tags a coluna "Ações" (✎/✖ em cada linha) saiu: agora há uma
+  coluna de caixas de seleção (com "marcar todos" no cabeçalho), **clicar na
+  linha abre a edição** (nas Tags, o renomear) e, com linhas marcadas, a barra de
+  ferramentas mostra a `app-barra-selecao` (`shared/barra-selecao/`): "N
+  selecionados", **Editar** (só com exatamente 1), menu **Ações ▾** (por
+  enquanto só Excluir) e **Limpar seleção**. Excluir é em lote com UMA
+  confirmação ("Excluir N clientes definitivamente?", helper
+  `confirmarExclusaoEmLote` em `shared/selecao-lista`); nos cadastros a exclusão
+  faz uma gravação só (`CadastroStore.removerVarios`), nas Tags uma chamada por
+  tag e as que falharem são avisadas no fim. A ação age só sobre as marcadas que
+  a lista mostra com os filtros de agora. O interruptor "Ativo" continua na
+  linha. Próximas partes do F4: Obras/Mapas/Empreitas/Medições, Pagamentos e
+  Recebimentos, Arquivos (mover) e, por último, as tabelas de edição (EAP, itens
+  do Mapa, serviços da Empreita).
+
+- 20/09/2026 (F4 parte 4b — seleção múltipla em Obras, Mapas, Empreitas da obra
+  e Medições; sem mudança de banco). Mesmo modelo da 4a: coluna "Ações" saiu,
+  caixas de seleção + barra de seleção (`app-barra-selecao`), clicar na linha
+  abre o item. Nas listas em que a linha abre a PÁGINA do item (Obras, Mapas,
+  Mapas da obra, Empreitas da obra, Medições) o botão da barra de 1 marcada se
+  chama **Abrir** (`rotuloEditar`). A lista global de Mapas ganhou a linha
+  clicável (antes era o link "Ver"). Excluir em lote: uma confirmação listando
+  os nomes (até 8) e uma chamada por item em paralelo (`excluirEmLote`, em
+  `shared/selecao-lista`); uma falha não cancela as outras e é avisada no fim
+  (`avisarFalhasDeExclusao`). **Medições**: a regra do backend (só a mais
+  recente pode ser excluída) vale no lote — só é aceita a sequência das mais
+  recentes sem pular nenhuma (ex.: 3, 2), excluídas da mais nova para a mais
+  antiga, uma por vez, parando na primeira falha; qualquer outra marcação
+  mostra um aviso e não apaga nada. As telas de cadastros e Tags também passaram
+  a listar os nomes na confirmação. Falta no F4: Pagamentos/Recebimentos (obra e
+  gerais), Arquivos (mover) e as tabelas de edição (EAP, itens do Mapa,
+  serviços da Empreita).
+
+- 20/09/2026 (F4 parte 4c — seleção múltipla em Pagamentos e Recebimentos; sem
+  mudança de banco). **Pagamentos e Recebimentos da obra**: coluna "Ações"
+  (✔ ✎ ✖) saiu; clicar na linha abre a edição; a barra de seleção mostra
+  **Editar** (1 marcada) e o menu **Ações ▾** com **Confirmar pendentes** (só
+  aparece se houver pendente entre as marcadas; confirma somente os pendentes,
+  com uma pergunta para o lote, usando a data/hora do clique como antes) e
+  **Excluir** (uma confirmação listando os itens). As chamadas são uma por
+  item, em paralelo (`processarEmLote` / `excluirEmLote` em
+  `shared/selecao-lista`); falhas são avisadas no fim sem cancelar o resto
+  (`PagamentosStore`/`RecebimentosStore`: `removerVarios`, `confirmarVarios`).
+  **Listas gerais (Pagamentos e Recebimentos de todas as obras)**: só tinham o
+  link "Ver" — agora a linha inteira é clicável e abre a origem (mapa, empreita
+  ou a lista da obra), com a barra de seleção mostrando só **Abrir** (não há
+  excluir/confirmar nelas). O botão "Copiar mensagem" continua como estava.
+  Falta no F4: Arquivos (mover/excluir) e as tabelas de edição (EAP, itens do
+  Mapa, serviços da Empreita).
+
+- 21/09/2026 (F4 parte 4d — seleção múltipla em Arquivos; sem mudança de
+  banco). Diferente das outras listas, aqui os botões de cada item (⭳ ⇄ ✎ ✖)
+  CONTINUAM — a seleção é uma opção a mais. Cada pasta/arquivo ganhou uma caixa
+  de seleção nos três modos de exibição (tabela Detalhes, Lista e Ícones — no
+  tile a caixa aparece ao passar o mouse ou quando marcada) e, com itens
+  marcados, a barra de seleção mostra **Renomear** (com 1), **Ações ▾ → Mover
+  para… / Excluir** e Limpar. O mesmo modal "Mover para…" serve a um item ou a
+  vários; o título vira "Mover N itens para…". Excluir em lote: uma confirmação
+  listando os nomes (e avisando que pasta leva o conteúdo junto); mover/excluir
+  são uma chamada por item em paralelo, a pasta é recarregada uma vez no fim e
+  as falhas são avisadas (`ArquivosStore.excluirVarios/moverVarios`). Trocar de
+  pasta zera a seleção. **Decisão registrada em 21/09/2026 (F4f):** os botões
+  individuais que a 4a–4c tiraram das listas (✖ excluir e ✔ confirmar; o ✎ editar
+  não volta, editar é clicar na linha) serão devolvidos, convivendo com a seleção
+  em lote, e os popups de pagamento/recebimento ganham ações por linha.
+
+- 21/09/2026 (F4 parte 4e — seleção em lote nas tabelas de edição: EAP, itens do
+  Mapa e serviços da Empreita; sem mudança de banco). Os botões de cada linha
+  ficam EXATAMENTE como estavam (↑ ↓ + ✖ na EAP e no Mapa; só ✖ na Empreita); a
+  seleção é uma opção a mais. **EAP**: nova coluna de caixas à esquerda (com
+  "marcar todas" no cabeçalho); marcar um GRUPO leva junto todos os itens dentro
+  dele (`ehDescendente`; desmarcar também), e dá para desmarcar um filho
+  sozinho. **Mapa e Empreita**: a caixa mora dentro da célula do "#", à
+  esquerda do número (sem coluna nova). Barra de seleção na barra de
+  ferramentas com **Ações ▾**: na EAP e no Mapa *Mover para cima / para baixo*
+  (cada linha marcada troca de lugar com a vizinha não marcada, então um bloco
+  anda junto e a ordem entre as marcadas é preservada; no topo/fim não muda) e
+  *Excluir*; na Empreita só *Excluir*. Excluir pede uma confirmação listando as
+  linhas. Com a tabela travada (EAP confirmada, mapa finalizado, empreita
+  confirmada) as caixas ficam desabilitadas e a barra não aparece.
+  `removerVarios`/`moverVarios` nos stores fazem uma gravação só. Os campos de
+  texto/numéricos continuam navegáveis por Tab/Enter (as caixas ficam de fora da
+  navegação). Observação para o Lucas: hoje a tabela de serviços da Empreita só
+  tem o ✖ por linha (não tem ↑ ↓ +, ao contrário de EAP e Mapa).
+
+- 21/09/2026 (ajustes da 4e). (1) **Empreita**: a tabela de serviços ganhou os
+  mesmos botões de linha da EAP e do Mapa na coluna "Ações" — ↑ ↓ empilhados e
+  "+" (azul, insere um serviço logo abaixo) / "✖" (vermelho) empilhados ao lado;
+  Shift + `+` no teclado também insere logo abaixo (antes ia para o fim). A ordem
+  dos serviços é gravada. A barra de seleção da Empreita passou a ter também
+  "Mover para cima / para baixo" (`EmpreitaStore.moverItem/moverVarios`).
+  (2) **Mapa e Empreita**: o número "#" da linha saiu — a primeira coluna tem só
+  a caixa de seleção (e o "marcar todas" no cabeçalho).
+
+- 21/09/2026 (F4 parte 4f — botões individuais de volta + ações nos popups; sem
+  mudança de banco). **Listas**: voltou a última coluna **Ações** com o ✖ em
+  Obras, Mapas (geral e da obra), Empreitas da obra, Medições (só na mais
+  recente, "—" nas outras), Pagamentos, Recebimentos, Clientes, Profissionais,
+  Fornecedores, Responsáveis e Tags; e o ✔ nos pagamentos/recebimentos
+  pendentes. O ✎ NÃO volta (editar = clicar na linha). Cada botão usa a
+  confirmação individual de antes e convive com a seleção em lote. As listas
+  gerais de Pagamentos e Recebimentos (todas as obras) continuam sem ✖/✔ — nunca
+  tiveram (só o "Ver", hoje a linha clicável). **Popups de pagamentos
+  vinculados** (popup compartilhado do painel, popup do Mapa na lista da obra e
+  na lista geral, popup da Empreita e popup da EAP): coluna **Ações** com ✔
+  (confirma o pendente) e ✖ (exclui, com confirmação que avisa o que muda — mais
+  forte se o pagamento já estava confirmado: deixa de contar no Realizado da
+  EAP e no "Já pago" da empreita), e clicar na linha abre o pagamento no
+  `EditarPagamentoModal` (o "Ver" saiu). A lógica fica em
+  `shared/pagamentos-vinculados-popup/acoes-pagamento.ts` (`AcoesPagamento`,
+  `aplicarAlteracaoEmMapa`, `mensagemExclusaoPagamento`); a EAP usa o
+  `PagamentosStore` da própria tela, então confirmar/excluir ali atualiza o
+  Realizado da EAP na hora. O popup compartilhado emite `(alterou)` para a tela
+  de fora recarregar totais. O popup do Mapa na lista geral ganhou o editor
+  (antes só tinha o link "Ver"). Recebimentos não têm popup de vínculos hoje.
+
+- 21/09/2026 (extensão da 4f: listas gerais e cards do painel). (1) **Pagamentos e
+  Recebimentos GERAIS** (todas as obras) passaram a ter a MESMA lógica das listas
+  da obra: coluna **Ações** (✔ confirma pendente, ✖ exclui), **clicar na linha
+  abre o editor** (com as etapas da EAP da obra do lançamento, buscadas em
+  segundo plano — a EAP de uma obra grande leva ~4 s; o editor abre na hora e o
+  seletor de etapa se preenche quando ela chega) e barra de seleção com Editar
+  (1), **Confirmar pendentes** e **Excluir** em lote. A ida à origem (mapa,
+  empreita ou lista da obra), que era o "Ver" e depois o clique na linha, virou a
+  ação **"Abrir origem…"** do menu Ações (aparece com exatamente 1 marcado).
+  (2) **Novo componente `EditarRecebimentoModal`** (`features/recebimentos/
+  editar-recebimento-modal/`), extraído da tela de Recebimentos da obra no mesmo
+  desenho do `EditarPagamentoModal` (recebe o recebimento, edita uma cópia,
+  devolve em `(salvar)`); `AcoesRecebimento` (`features/recebimentos/`) espelha
+  `AcoesPagamento`. `shared/eap-snapshot.ts` tem a leitura dos itens da EAP.
+  (3) **Cards do painel inicial**: clicar num item abre o editor — Pagamentos e
+  Recebimentos abrem o popup de edição; Mapas e Empreitas abrem a página do
+  item dentro da obra (mapa sem obra vinculada não abre); Medição já era link. Os
+  botões de dentro do item (contagem de pagamentos, "Já pago", anexos) continuam
+  funcionando sem abrir o editor. (4) Bug antigo corrigido: em Pagamentos e
+  Recebimentos da obra, o título/estado "Editar" x "Novo" do popup ficava preso
+  no primeiro valor (`computed` sobre campo comum); agora `idEditando` é signal.

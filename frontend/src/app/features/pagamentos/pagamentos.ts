@@ -22,7 +22,13 @@ import {
   setaOrdenacao,
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+} from '../../shared/selecao-lista/selecao-lista';
 
 type ColunaPagamento =
   | 'obra'
@@ -43,7 +49,7 @@ type ColunaPagamento =
  */
 @Component({
   selector: 'app-pagamentos',
-  imports: [RedimensionarColunas, EditarPagamentoModal, AnexosLancamento],
+  imports: [RedimensionarColunas, EditarPagamentoModal, AnexosLancamento, BarraSelecao],
   providers: [PagamentosStore],
   templateUrl: './pagamentos.html',
   styleUrl: './pagamentos.scss',
@@ -67,9 +73,10 @@ export class Pagamentos implements OnInit {
 
   /** Rascunho do modal. Null = modal fechado. */
   protected readonly rascunho = signal<Pagamento | null>(null);
-  private idEditando: string | null = null;
+  /** Id do pagamento aberto no popup; `null` = novo. Signal para `editando` reagir (um computed sobre campo comum ficava travado no 1º valor). */
+  private readonly idEditando = signal<string | null>(null);
 
-  protected readonly editando = computed(() => this.idEditando !== null);
+  protected readonly editando = computed(() => this.idEditando() !== null);
 
   protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamento> | null>(null);
   protected readonly setaOrdenacao = setaOrdenacao;
@@ -218,7 +225,7 @@ export class Pagamentos implements OnInit {
   // decide o que fazer quando o modal emite `salvar`.
   // ------------------------------------------------------------------
   protected novoPagamento(): void {
-    this.idEditando = null;
+    this.idEditando.set(null);
     this.rascunho.set({
       id: gerarId(),
       numeroPagamento: gerarNumeroPagamento(this.store.pagamentos()),
@@ -237,14 +244,14 @@ export class Pagamentos implements OnInit {
   }
 
   protected editar(pagamento: Pagamento): void {
-    this.idEditando = pagamento.id;
+    this.idEditando.set(pagamento.id);
     // Cópia profunda: editar o rascunho não pode mexer na lista antes de salvar.
     this.rascunho.set(normalizarPagamento(JSON.parse(JSON.stringify(pagamento))));
   }
 
   protected fecharModal(): void {
     this.rascunho.set(null);
-    this.idEditando = null;
+    this.idEditando.set(null);
   }
 
   /**
@@ -265,7 +272,7 @@ export class Pagamentos implements OnInit {
     const final: Pagamento = { ...evento.pagamento, obraNumber: this.store.cabecalho().obraNumber };
     const anexoNotaPendente = evento.anexoNotaPendente;
 
-    this.store.inserirOuAtualizar(final, this.idEditando, (salvo) => {
+    this.store.inserirOuAtualizar(final, this.idEditando(), (salvo) => {
       if (!anexoNotaPendente) return;
       this.api.anexarArquivoPagamento(salvo.id, anexoNotaPendente.tagId, anexoNotaPendente.arquivo).subscribe({
         // Só a contagem local — a lista já foi atualizada pelo próprio
@@ -296,30 +303,71 @@ export class Pagamentos implements OnInit {
     this.anexosPopupPagamento.set(null);
   }
 
-  protected remover(pagamento: Pagamento): void {
-    if (!window.confirm('Excluir este pagamento?')) return;
-    this.store.remover(pagamento.id);
-  }
-
-  /**
-   * Confirma um pagamento pendente (hoje, só os gerados pela aba Mapas ou
-   * pelo fechamento de período de uma Empreita) — a partir daqui ele passa
-   * a contar no "Realizado" da EAP. 26/08/2026, pedido do Lucas: "o sistema
-   * puxa a data e hora do clique e já lança como data de pagamento" — o
-   * usuário ainda pode corrigir à mão depois pelo campo "Data do pagamento".
-   */
-  protected confirmar(pagamento: Pagamento): void {
-    this.store.inserirOuAtualizar(
-      { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
-      pagamento.id,
-    );
-  }
 
   // ------------------------------------------------------------------
   // Seleção múltipla + "Copiar mensagem" pro WhatsApp (02/09/2026, pedido
   // do Lucas). Formato provisório — mesmo esquema de `MapasObra`.
   // ------------------------------------------------------------------
   protected readonly selecao = new SelecaoMultipla<Pagamento>((pagamento) => pagamento.id);
+
+  // ---- Ações da seleção (20/09/2026): clicar na linha edita; marcar habilita "Editar" (com 1), "Confirmar pendentes" e "Excluir". ----
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaExibida()));
+  protected readonly acoesLista = computed<AcaoLista[]>(() => {
+    const temPendente = this.selecionados().some((p) => p.status === 'pendente');
+    return [
+      ...(temPendente ? [{ chave: 'confirmar', rotulo: 'Confirmar pendentes' }] : []),
+      { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+    ];
+  });
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.editar(primeiro);
+  }
+
+  private rotuloDe(p: Pagamento): string {
+    return [p.numeroPagamento, p.descricao].filter(Boolean).join(' — ') || '(sem número)';
+  }
+
+  /** Botão ✔ da linha (21/09/2026): confirma este pagamento pendente (data/hora do clique como data de pagamento; dá para corrigir na edição). */
+  protected confirmarUm(pagamento: Pagamento): void {
+    this.store.inserirOuAtualizar(
+      { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
+      pagamento.id,
+    );
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este pagamento, com a confirmação de sempre. */
+  protected removerUm(pagamento: Pagamento): void {
+    if (!window.confirm('Excluir este pagamento?')) return;
+    this.store.remover(pagamento.id);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionados();
+    if (!alvos.length) return;
+
+    if (chave === 'confirmar') {
+      const pendentes = alvos.filter((p) => p.status === 'pendente');
+      if (!pendentes.length) return;
+      const texto = pendentes.length === 1 ? '1 pagamento pendente' : `${pendentes.length} pagamentos pendentes`;
+      if (!window.confirm(`Confirmar ${texto}? Passam a contar no Realizado da EAP.`)) return;
+
+      this.store.confirmarVarios(pendentes).subscribe(({ falhas }) => {
+        this.selecao.limpar();
+        avisarFalhasDeExclusao(falhas, 'pagamentos', (p) => this.rotuloDe(p), 'confirmar');
+      });
+      return;
+    }
+
+    if (chave !== 'excluir') return;
+    if (!confirmarExclusaoEmLote(alvos.length, 'pagamento', 'pagamentos', "Se algum foi gerado por um mapa ou por uma empreita, ele deixa de constar no acompanhamento deles.", alvos.map((p) => this.rotuloDe(p)))) return;
+
+    this.store.removerVarios(alvos).subscribe(({ falhas }) => {
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'pagamentos', (p) => this.rotuloDe(p));
+    });
+  }
   protected readonly copiado = signal(false);
 
   protected async copiarMensagem(): Promise<void> {

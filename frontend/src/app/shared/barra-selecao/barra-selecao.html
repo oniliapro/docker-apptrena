@@ -1,0 +1,30 @@
+@if (contagem() > 0) {
+  <div class="barra-selecao" role="toolbar" aria-label="Ações da seleção">
+    <span class="contagem">{{ contagem() }} {{ contagem() === 1 ? 'selecionado' : 'selecionados' }}</span>
+
+    @if (podeEditar() && contagem() === 1) {
+      <button type="button" (click)="editar.emit()">{{ rotuloEditar() === 'Editar' ? '✎ ' : '' }}{{ rotuloEditar() }}</button>
+    }
+
+    @if (acoes().length) {
+      <div class="menu">
+        <button type="button" aria-haspopup="menu" [attr.aria-expanded]="menuAberto()" (click)="menuAberto.set(!menuAberto())">
+          Ações ▾
+        </button>
+        @if (menuAberto()) {
+          <ul class="lista-acoes" role="menu">
+            @for (item of acoes(); track item.chave) {
+              <li role="none">
+                <button type="button" role="menuitem" [class.perigo-item]="item.perigo" (click)="escolher(item.chave)">
+                  {{ item.rotulo }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    <button type="button" class="limpar" (click)="limpar.emit()" title="Desmarcar tudo">Limpar seleção</button>
+  </div>
+}

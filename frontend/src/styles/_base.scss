@@ -84,6 +84,13 @@ th.ordenavel {
 
 .espacador { flex: 1; }
 
+// Linha de lista que abre a edição ao clicar (seleção múltipla, 20/09/2026).
+tr.linha-clicavel {
+  cursor: pointer;
+
+  &:hover td { background: var(--cor-fundo-alt); }
+}
+
 .busca {
   width: 260px;
   height: 28px;

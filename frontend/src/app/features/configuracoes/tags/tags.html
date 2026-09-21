@@ -12,10 +12,19 @@
     <div class="aviso-erro">{{ mensagem }}</div>
   }
 
+  <div class="barra-ferramentas">
+    <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista"
+                       (editar)="renomearSelecionada()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+  </div>
+
   <div class="envoltoria">
     <table>
       <thead>
         <tr>
+          <th class="centro">
+            <input type="checkbox" [checked]="selecao.todosSelecionados(tags())"
+                   (change)="selecao.alternarTodos(tags())" title="Selecionar todas" />
+          </th>
           <th>Nome</th>
           <th class="centro">Ativa</th>
           <th class="centro">Ações</th>
@@ -23,21 +32,23 @@
       </thead>
       <tbody>
         @for (tag of tags(); track tag.id) {
-          <tr [class.inativo]="!tag.ativo">
+          <tr class="linha-clicavel" [class.inativo]="!tag.ativo" (click)="renomear(tag)" title="Clique para renomear">
+            <td class="centro" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="selecao.estaSelecionado(tag)" (change)="selecao.alternar(tag)" />
+            </td>
             <td>{{ tag.nome }}</td>
-            <td class="centro">
+            <td class="centro" (click)="$event.stopPropagation()">
               <button type="button" class="chave" [class.ligada]="tag.ativo"
                       (click)="alternarAtivo(tag)"
                       [title]="tag.ativo ? 'Inativar' : 'Ativar'"></button>
             </td>
-            <td class="centro acoes">
-              <button type="button" title="Renomear" (click)="renomear(tag)">✎</button>
-              <button type="button" title="Excluir" (click)="excluir(tag)">✖</button>
+            <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+              <button type="button" title="Excluir" (click)="excluirUma(tag)">✖</button>
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="3" class="centro atenuado">Nenhuma tag cadastrada ainda.</td>
+            <td colspan="4" class="centro atenuado">Nenhuma tag cadastrada ainda.</td>
           </tr>
         }
       </tbody>

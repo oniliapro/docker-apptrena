@@ -12,6 +12,14 @@
   &:hover {
     background: var(--cor-fundo-alt);
   }
+
+  &.item-selecionado {
+    background: var(--cor-fundo-alt);
+    outline: 2px solid var(--cor-primaria);
+    outline-offset: -2px;
+  }
+
+  .caixa-selecao { width: auto; height: auto; flex: none; cursor: pointer; }
 }
 
 // ---- Modo lista: linha compacta ----
@@ -27,6 +35,7 @@
 
 // ---- Modos de ícone: tile ----
 .item-icone {
+  position: relative;
   flex-direction: column;
   gap: 6px;
   padding: 10px 8px;
@@ -45,6 +54,17 @@
     background: var(--cor-fundo-alt);
     overflow: hidden;
   }
+
+  // No tile a caixa fica no canto, sobre a miniatura; só aparece ao passar o mouse ou quando marcada.
+  .caixa-selecao {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 2;
+    opacity: 0;
+  }
+  &:hover .caixa-selecao,
+  &.item-selecionado .caixa-selecao { opacity: 1; }
 
   .miniatura { width: 100%; height: 100%; object-fit: cover; }
 

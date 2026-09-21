@@ -38,6 +38,9 @@
 
   <input class="busca" type="search" placeholder="Buscar nº, fornecedor, descrição…" (input)="mudarBusca($event)" />
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista()"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
 
   @if (selecao.temSelecao()) {
@@ -80,8 +83,8 @@
 
         <tbody>
           @for (pagamento of listaExibida(); track pagamento.id) {
-            <tr>
-              <td class="centro">
+            <tr class="linha-clicavel" (click)="editar(pagamento)">
+              <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(pagamento)" (change)="selecao.alternar(pagamento)" />
               </td>
               <td class="centro">{{ obraDoPagamento(pagamento) }}</td>
@@ -116,13 +119,12 @@
                   {{ pagamento.anexosCount || 0 }}
                 </button>
               </td>
-              <td class="centro acoes-linha">
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
                 @if (pagamento.status === 'pendente') {
-                  <button type="button" title="Confirmar — passa a contar no Realizado da EAP"
-                          (click)="confirmar(pagamento)">✔</button>
-                }
-                <button type="button" title="Editar" (click)="editar(pagamento)">✎</button>
-                <button type="button" title="Excluir" (click)="remover(pagamento)">✖</button>
+                <button type="button" title="Confirmar — passa a contar no Realizado da EAP"
+                        (click)="confirmarUm(pagamento)">✔</button>
+              }
+              <button type="button" title="Excluir" (click)="removerUm(pagamento)">✖</button>
               </td>
             </tr>
           } @empty {

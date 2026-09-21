@@ -1,6 +1,8 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { ApiService } from '../../../core/services/api.service';
+import { BarraSelecao, AcaoLista } from '../../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, avisarFalhasDeExclusao, confirmarExclusaoEmLote, excluirEmLote } from '../../../shared/selecao-lista/selecao-lista';
 import { Tag } from './tags.models';
 
 /**
@@ -18,6 +20,7 @@ import { Tag } from './tags.models';
  */
 @Component({
   selector: 'app-tags',
+  imports: [BarraSelecao],
   templateUrl: './tags.html',
   styleUrl: './tags.scss',
 })
@@ -25,6 +28,52 @@ export class Tags implements OnInit {
   private readonly api = inject(ApiService);
 
   protected readonly tags = signal<Tag[]>([]);
+
+  // ---- Seleção múltipla (20/09/2026): clicar na linha renomeia; marcar habilita "Editar" (renomear, com 1) e "Excluir". ----
+  protected readonly selecao = new SelecaoMultipla<Tag>((t) => t.id);
+  protected readonly selecionadas = computed(() => this.selecao.selecionados(this.tags()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected renomearSelecionada(): void {
+    const [primeira] = this.selecionadas();
+    if (primeira) this.renomear(primeira);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só esta tag, com a confirmação de sempre. */
+  protected excluirUma(tag: Tag): void {
+    if (!window.confirm(`Excluir a tag "${tag.nome}"? A pasta e os arquivos já anexados com ela continuam existindo, só deixam de ter uma tag associada.`)) {
+      return;
+    }
+
+    this.api.excluirTag(tag.id).subscribe({
+      next: () => this.tags.update((lista) => lista.filter((t) => t.id !== tag.id)),
+      error: () => window.alert('Não foi possível excluir a tag.'),
+    });
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionadas();
+    if (
+      !alvos.length ||
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'tag',
+        'tags',
+        'A pasta e os arquivos já anexados com a tag continuam existindo, só deixam de ter uma tag associada.',
+        alvos.map((t) => t.nome),
+      )
+    ) {
+      return;
+    }
+
+    excluirEmLote(alvos, (tag) => this.api.excluirTag(tag.id)).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((t) => t.id));
+      this.tags.update((lista) => lista.filter((t) => !ids.has(t.id)));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'tag(s)', (t) => t.nome);
+    });
+  }
   protected readonly carregando = signal(true);
   protected readonly erro = signal<string | null>(null);
 
@@ -93,14 +142,4 @@ export class Tags implements OnInit {
     });
   }
 
-  protected excluir(tag: Tag): void {
-    if (!window.confirm(`Excluir a tag "${tag.nome}"? A pasta e os arquivos já anexados com ela continuam existindo, só deixam de ter uma tag associada.`)) {
-      return;
-    }
-
-    this.api.excluirTag(tag.id).subscribe({
-      next: () => this.tags.update((lista) => lista.filter((t) => t.id !== tag.id)),
-      error: () => window.alert('Não foi possível excluir a tag.'),
-    });
-  }
 }

@@ -43,6 +43,9 @@
     <input type="date" (change)="mudarFiltroFinalizacaoAte($event)" />
   </label>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista" rotuloEditar="Abrir"
+                     (editar)="abrirSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
   <input class="busca" type="search" placeholder="Buscar nº, descrição…" (input)="mudarBusca($event)" />
 </div>
@@ -100,13 +103,13 @@
                   <span class="atenuado">0</span>
                 }
               </td>
-              <td class="centro">
-                <button type="button" title="Excluir" (click)="remover(mapa, $event)">✖</button>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(mapa)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="11" class="centro atenuado">Nenhum mapa cadastrado nesta obra ainda.</td>
+              <td colspan="12" class="centro atenuado">Nenhum mapa cadastrado nesta obra ainda.</td>
             </tr>
           }
         </tbody>
@@ -192,12 +195,12 @@
               <th>Fornecedor</th>
               <th class="valor">Total</th>
               <th class="centro">Status</th>
-              <th></th>
+              <th class="centro">Ações</th>
             </tr>
           </thead>
           <tbody>
             @for (pagamento of pagamentosDoMapa(mapa); track pagamento.id) {
-              <tr>
+              <tr class="linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
                 <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
                 <td>{{ pagamento.fornecedor || '—' }}</td>
                 <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
@@ -206,8 +209,11 @@
                     {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
                   </span>
                 </td>
-                <td class="centro">
-                  <button type="button" class="link-medicoes" (click)="abrirPagamento(pagamento)">Ver</button>
+                <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                  @if (pagamento.status === 'pendente') {
+                    <button type="button" title="Confirmar pagamento" (click)="confirmarPagamento(pagamento)">✔</button>
+                  }
+                  <button type="button" title="Excluir" (click)="excluirPagamento(pagamento)">✖</button>
                 </td>
               </tr>
             }

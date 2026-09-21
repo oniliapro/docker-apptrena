@@ -50,6 +50,9 @@
         ➕ Adicionar serviço
       </button>
 
+      <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista" [podeEditar]="false"
+                         (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
       <span class="espacador"></span>
 
       <label class="checagem-inline" title="Esconde Empreiteiro/Reserva (tela e PDF), mostra só o Total — pra relatório sem detalhar a divisão do contrato">
@@ -140,11 +143,14 @@
     <table class="tabela-empreita cabecalho-fixo rodape-fixo"
            trenaNavegacaoTabela
            trenaRedimensionarColunas
-           (inserirLinha)="inserirLinha()"
+           (inserirLinha)="inserirAbaixo($event)"
            (removerLinha)="removerPorIndice($event)">
       <thead>
         <tr>
-          <th class="col-num">#</th>
+          <th class="col-num" title="Selecionar todas as linhas (ações em lote)">
+            <input type="checkbox" class="caixa-indice" [disabled]="store.travada()" [checked]="selecao.todosSelecionados(store.itens())"
+                   (change)="selecao.alternarTodos(store.itens())" title="Selecionar todas as linhas (ações em lote)" />
+          </th>
           <th class="col-desc">Serviço</th>
           <th class="col-tipo">Tipo</th>
           <th class="col-eap">Etapa (EAP)</th>
@@ -157,7 +163,7 @@
             <th class="grupo-pagamento">Pagamento (R$)</th>
             <th class="grupo-saldo-apos">Saldo após pagamento (R$)</th>
           }
-          <th class="col-acoes"></th>
+          <th class="col-acoes">Ações</th>
         </tr>
       </thead>
 
@@ -167,7 +173,11 @@
               [class.situacao-pagamento]="situacaoMedicao(i) === 'pagamento'"
               [class.situacao-concluido]="situacaoMedicao(i) === 'concluido'"
               [class.situacao-andamento]="situacaoMedicao(i) === 'andamento'">
-            <td class="centro indice">{{ i + 1 }}</td>
+            <td class="centro indice">
+              <label class="indice-selecao">
+                <input type="checkbox" [disabled]="store.travada()" [checked]="selecao.estaSelecionado(item)" (change)="selecao.alternar(item)" title="Selecionar a linha (ações em lote)" />
+              </label>
+            </td>
             <td>
               <input type="text" [value]="item.desc" [disabled]="store.travada()" (change)="editarTexto(item, $event)" />
             </td>
@@ -379,8 +389,17 @@
               </td>
             }
 
-            <td class="centro">
-              <button type="button" title="Remover" [disabled]="store.travada()" (click)="remover(item)">✖</button>
+            <td class="centro acoes-linha">
+              <div class="acoes-linha-conteudo">
+                <div class="acoes-mover">
+                  <button type="button" title="Subir" [disabled]="store.travada()" (click)="store.moverItem(item.id, -1)">↑</button>
+                  <button type="button" title="Descer" [disabled]="store.travada()" (click)="store.moverItem(item.id, 1)">↓</button>
+                </div>
+                <div class="acoes-inserir-excluir">
+                  <button type="button" title="Inserir serviço logo abaixo" [disabled]="store.travada()" (click)="inserirAbaixo(i)">+</button>
+                  <button type="button" title="Remover" [disabled]="store.travada()" (click)="remover(item)">✖</button>
+                </div>
+              </div>
             </td>
           </tr>
         } @empty {

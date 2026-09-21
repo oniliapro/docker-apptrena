@@ -25,6 +25,8 @@ import {
   TipoPessoa,
   rotuloTipoPessoa,
 } from '../cadastros.models';
+import { BarraSelecao, AcaoLista } from '../../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 import { valoresDistintos } from '../../../shared/filtros/filtros';
 
@@ -53,13 +55,40 @@ function documentoValido(controle: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-fornecedores',
-  imports: [ReactiveFormsModule, RedimensionarColunas],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraSelecao],
   providers: [CadastroStore],
   templateUrl: './fornecedores.html',
   styleUrl: './fornecedores.scss',
 })
 export class Fornecedores implements OnInit {
   protected readonly store = inject<CadastroStore<Fornecedor>>(CadastroStore);
+
+  // ---- Seleção múltipla (20/09/2026): clicar na linha abre a edição; marcar
+  // linhas habilita "Editar" (com 1) e o menu "Ações" (excluir em lote). ----
+  protected readonly selecao = new SelecaoMultipla<Fornecedor>((r) => r.id);
+  /** Só as marcadas que a lista (com os filtros de agora) mostra — é sobre elas que as ações agem. */
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.store.listaFiltrada()));
+  protected readonly acoesLista: AcaoLista[] = [{ chave: 'excluir', rotulo: 'Excluir', perigo: true }];
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.editar(primeiro);
+  }
+
+  /** Botão ✖ da linha (21/09/2026): exclui só este cadastro, com a confirmação de sempre. */
+  protected removerUm(registro: Fornecedor): void {
+    const nome = registro.nome || 'este fornecedor';
+    if (!window.confirm(`Excluir ${nome} definitivamente?\n\nSe ele já foi usado em algum mapa, prefira desativar — assim o histórico é preservado.`)) return;
+    this.store.remover(registro.id);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    if (chave !== 'excluir') return;
+    const alvos = this.selecionados();
+    if (!alvos.length || !confirmarExclusaoEmLote(alvos.length, 'fornecedor', 'fornecedores', "Se já foram usados em algum mapa, prefira desativar — assim o histórico é preservado.", alvos.map((r) => r.nome))) return;
+    this.store.removerVarios(alvos.map((r) => r.id));
+    this.selecao.limpar();
+  }
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ApiService);
 
@@ -385,19 +414,6 @@ export class Fornecedores implements OnInit {
     });
 
     this.fechar();
-  }
-
-  protected remover(registro: Fornecedor): void {
-    const nome = registro.nome || 'este fornecedor';
-    if (
-      !window.confirm(
-        `Excluir ${nome} definitivamente?\n\n` +
-          `Se ele já foi usado em algum mapa, prefira desativar — assim o histórico é preservado.`,
-      )
-    ) {
-      return;
-    }
-    this.store.remover(registro.id);
   }
 
   // ------------------------------------------------------------------

@@ -140,6 +140,13 @@ export class CadastroStore<T extends ComId> {
     this.salvar();
   }
 
+  /** Exclusão em lote: uma gravação só para todos os ids. */
+  removerVarios(ids: readonly string[]): void {
+    const alvo = new Set(ids);
+    this.registros.update((lista) => lista.filter((r) => !alvo.has(r.id)));
+    this.salvar();
+  }
+
   /**
    * Liga e desliga o registro em vez de excluir.
    * Cliente inativo não pode ser apagado sem perder o histórico das obras

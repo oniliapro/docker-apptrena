@@ -1,6 +1,8 @@
 import { Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
@@ -50,7 +52,7 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, EmpreitaRelatorioPagamentos],
+  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, EmpreitaRelatorioPagamentos, BarraSelecao],
   providers: [EmpreitaStore],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',
@@ -200,15 +202,39 @@ export class Empreita implements OnInit {
     this.store.atualizarContrato(item.id, campo, bruto === '' ? null : parsearBR(bruto));
   }
 
-  /** Shift + `+`: novo serviço ao final da lista. */
-  protected inserirLinha(): void {
-    this.store.adicionarItem();
+  /** Botão "+" da linha e Shift + `+`: novo serviço logo abaixo da linha atual (sem linha, ao final). */
+  protected inserirAbaixo(indiceLinha: number): void {
+    this.store.adicionarItem(indiceLinha < 0 ? undefined : indiceLinha + 1);
   }
 
   /** Shift + `-`: remove a linha atual, sem confirmar. */
   protected removerPorIndice(indiceLinha: number): void {
     const item = this.store.itens()[indiceLinha];
     if (item) this.store.removerItem(item.id);
+  }
+
+  // ---- Seleção em lote (20/09/2026) — opcional: o ✖ de cada linha continua. ----
+  protected readonly selecao = new SelecaoMultipla<ItemEmpreita>((item) => item.id);
+  /** Com a empreita confirmada (travada) não há ação em lote. */
+  protected readonly selecionadas = computed(() => (this.store.travada() ? [] : this.selecao.selecionados(this.store.itens())));
+  protected readonly acoesLista: AcaoLista[] = [
+    { chave: 'subir', rotulo: 'Mover para cima' },
+    { chave: 'descer', rotulo: 'Mover para baixo' },
+    { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+  ];
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionadas();
+    if (!alvos.length) return;
+
+    if (chave === 'subir' || chave === 'descer') {
+      this.store.moverVarios(alvos.map((item) => item.id), chave === 'subir' ? -1 : 1);
+      return;
+    }
+    if (chave !== 'excluir') return;
+    if (!confirmarExclusaoEmLote(alvos.length, 'serviço', 'serviços', '', alvos.map((item) => item.desc || '(sem descrição)'))) return;
+    this.store.removerVarios(alvos.map((item) => item.id));
+    this.selecao.limpar();
   }
 
   protected remover(item: ItemEmpreita): void {

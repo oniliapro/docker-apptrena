@@ -45,6 +45,9 @@
     <input type="date" (change)="mudarFiltroDataAte($event)" />
   </label>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista()"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
   <input class="busca" type="search" placeholder="Buscar obra, nº, fornecedor, descrição…" (input)="mudarBusca($event)" />
 </div>
@@ -76,8 +79,8 @@
         </thead>
         <tbody>
           @for (pagamento of listaOrdenada(); track pagamento.id) {
-            <tr>
-              <td class="centro">
+            <tr class="linha-clicavel" (click)="abrir(pagamento)">
+              <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(pagamento)" (change)="selecao.alternar(pagamento)" />
               </td>
               <td class="centro">{{ obraNumber(pagamento) }}</td>
@@ -92,13 +95,16 @@
                   {{ pendente(pagamento) ? 'Pendente' : 'Confirmado' }}
                 </span>
               </td>
-              <td class="centro">
-                <a class="link-medicoes" [routerLink]="rotaOrigem(pagamento)">Ver</a>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                @if (pendente(pagamento)) {
+                  <button type="button" title="Confirmar pagamento — passa a contar no Realizado da EAP" (click)="confirmarUm(pagamento)">✔</button>
+                }
+                <button type="button" title="Excluir" (click)="removerUm(pagamento)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="10" class="centro atenuado">Nenhum pagamento lançado.</td>
+              <td colspan="11" class="centro atenuado">Nenhum pagamento lançado.</td>
             </tr>
           }
         </tbody>
@@ -165,4 +171,13 @@
       </div>
     </form>
   </div>
+}
+
+@if (pagamentoEmEdicao(); as p) {
+  <app-editar-pagamento-modal
+    [pagamento]="p"
+    [snapshotEap]="snapshotEapEditor()"
+    [obraId]="p.obraId || ''"
+    (salvar)="salvarEditor($event)"
+    (fechar)="fecharEditor()" />
 }

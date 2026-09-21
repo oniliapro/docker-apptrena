@@ -19,6 +19,9 @@
         }
       </nav>
 
+      <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista" rotuloEditar="Renomear"
+                         (editar)="renomearSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
       <div class="acoes-barra">
         <button type="button" (click)="abrirFormNovaPasta()">+ Nova pasta</button>
 
@@ -72,6 +75,10 @@
       <table class="tabela-detalhes">
         <thead>
           <tr>
+            <th class="celula-selecao">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(itens())"
+                     (change)="selecao.alternarTodos(itens())" title="Selecionar todos" />
+            </th>
             <th>Nome</th>
             <th>Tipo</th>
             <th>Tamanho</th>
@@ -80,7 +87,10 @@
         </thead>
         <tbody>
           @for (item of itens(); track item.id) {
-            <tr>
+            <tr [class.item-selecionado]="selecao.estaSelecionado(item)">
+              <td class="celula-selecao">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(item)" (change)="selecao.alternar(item)" />
+              </td>
               <td class="celula-nome" (dblclick)="abrirItem(item)">
                 <span [class.nome-pasta]="item.tipo === 'pasta'" (click)="abrirItem(item)">{{ item.nome }}</span>
               </td>
@@ -108,6 +118,8 @@
           <app-item-arquivo
             [item]="item"
             [modoExibicao]="store.modoExibicao()"
+            [selecionado]="selecao.estaSelecionado(item)"
+            (alternarSelecao)="selecao.alternar(item)"
             (abrir)="abrirItem(item)"
             (renomear)="renomearItem(item)"
             (excluir)="excluirItem(item)"
@@ -131,7 +143,7 @@
     <div class="modal-fundo" (fecharModal)="fecharMover()"></div>
     <div class="modal-cartao">
       <div class="modal-cabecalho">
-        <span class="modal-titulo">Mover "{{ moverAlvoNome() }}" para…</span>
+        <span class="modal-titulo">Mover {{ moverAlvoNome() }} para…</span>
         <button type="button" (click)="fecharMover()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
       </div>
 

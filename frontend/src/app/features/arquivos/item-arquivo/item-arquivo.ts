@@ -23,12 +23,15 @@ import {
 export class ItemArquivo {
   readonly item = input.required<ItemPastaOuArquivo>();
   readonly modoExibicao = input.required<ModoExibicao>();
+  /** Marcado na seleção múltipla (20/09/2026). */
+  readonly selecionado = input(false);
 
   readonly abrir = output<void>();
   readonly renomear = output<void>();
   readonly excluir = output<void>();
   readonly mover = output<void>();
   readonly baixar = output<void>();
+  readonly alternarSelecao = output<void>();
 
   protected readonly formatarTamanho = formatarTamanho;
 

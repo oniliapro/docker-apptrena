@@ -19,6 +19,9 @@
     <option value="PJ">Pessoa jurídica</option>
   </select>
 
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
 
   @if (store.salvando()) {
@@ -39,6 +42,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(store.listaFiltrada())"
+                     (change)="selecao.alternarTodos(store.listaFiltrada())" title="Selecionar todos" />
+            </th>
             <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('identificacao')">Código{{ store.setaOrdenacao(store.ordenacao(), 'identificacao') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
             <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('tipo')">Tipo{{ store.setaOrdenacao(store.ordenacao(), 'tipo') }}</th>
@@ -51,7 +58,10 @@
         </thead>
         <tbody>
           @for (cliente of store.listaFiltrada(); track cliente.id) {
-            <tr [class.inativo]="!cliente.ativo">
+            <tr class="linha-clicavel" [class.inativo]="!cliente.ativo" (click)="editar(cliente)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(cliente)" (change)="selecao.alternar(cliente)" />
+              </td>
               <td class="centro codigo">{{ cliente.identificacao || '—' }}</td>
               <td class="nome">{{ cliente.nome }}</td>
               <td class="centro">
@@ -62,19 +72,18 @@
               <td class="mono">{{ rotuloDocumento(cliente) }}</td>
               <td class="mono">{{ cliente.telefone ? formatarTelefone(cliente.telefone) : '—' }}</td>
               <td>{{ cliente.endereco || '—' }}</td>
-              <td class="centro">
+              <td class="centro" (click)="$event.stopPropagation()">
                 <button type="button" class="chave" [class.ligada]="cliente.ativo"
                         [title]="cliente.ativo ? 'Desativar' : 'Reativar'"
                         (click)="store.alternarAtivo(cliente.id)"></button>
               </td>
-              <td class="centro acoes">
-                <button type="button" title="Editar" (click)="editar(cliente)">✎</button>
-                <button type="button" title="Excluir" (click)="remover(cliente)">✖</button>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(cliente)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="centro atenuado vazio">
+              <td colspan="9" class="centro atenuado vazio">
                 Nenhum cliente encontrado.
               </td>
             </tr>

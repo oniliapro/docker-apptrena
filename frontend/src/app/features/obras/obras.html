@@ -17,6 +17,9 @@
     <option value="confirmada">EAP confirmada</option>
   </select>
 
+  <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista" rotuloEditar="Abrir"
+                     (editar)="abrirSelecionada()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
   <span class="espacador"></span>
 
   <input
@@ -36,6 +39,10 @@
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(listaFiltrada())"
+                     (change)="selecao.alternarTodos(listaFiltrada())" title="Selecionar todas" />
+            </th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('map_number')">Nº{{ setaOrdenacao(ordenacao(), 'map_number') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra_nome')">Obra{{ setaOrdenacao(ordenacao(), 'obra_nome') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
@@ -49,6 +56,9 @@
         <tbody>
           @for (obra of listaFiltrada(); track obra.id) {
             <tr class="linha-clicavel" (click)="acessar(obra)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(obra)" (change)="selecao.alternar(obra)" />
+              </td>
               <td class="centro">{{ obra.map_number || '—' }}</td>
               <td>{{ obra.obra_nome || '(sem nome)' }}</td>
               <td>{{ obra.cliente || '—' }}</td>
@@ -62,13 +72,13 @@
                   <span class="etiqueta aberta">Em aberto</span>
                 }
               </td>
-              <td class="centro acoes-linha">
-                <button type="button" title="Excluir" (click)="remover(obra, $event)">✖</button>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(obra)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="centro atenuado">Nenhuma obra encontrada.</td>
+              <td colspan="9" class="centro atenuado">Nenhuma obra encontrada.</td>
             </tr>
           }
         </tbody>

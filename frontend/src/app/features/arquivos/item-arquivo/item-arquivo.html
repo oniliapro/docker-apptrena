@@ -4,9 +4,13 @@
   class="item"
   [class.item-icone]="ehIcone()"
   [class.item-lista]="!ehIcone()"
+  [class.item-selecionado]="selecionado()"
   [attr.title]="dados.nome"
   (dblclick)="abrir.emit()"
 >
+  <input class="caixa-selecao" type="checkbox" [checked]="selecionado()" (change)="alternarSelecao.emit()"
+         (dblclick)="$event.stopPropagation()" title="Selecionar" aria-label="Selecionar" />
+
   <div class="item-visual">
     @if (mostrarMiniatura()) {
       <img class="miniatura" [src]="arquivo()!.thumbnail_url" [alt]="dados.nome" />

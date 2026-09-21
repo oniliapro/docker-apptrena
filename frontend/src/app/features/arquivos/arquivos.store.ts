@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpEventType } from '@angular/common/http';
 
 import { ApiService } from '../../core/services/api.service';
+import { avisarFalhasDeExclusao, processarEmLote } from '../../shared/selecao-lista/selecao-lista';
 import {
   Arquivo,
   ConteudoPasta,
@@ -117,6 +118,32 @@ export class ArquivosStore {
     this.api.excluirPasta(pasta.id).subscribe({
       next: () => this.recarregar(),
       error: () => window.alert('Não foi possível excluir a pasta.'),
+    });
+  }
+
+  /**
+   * Exclusão em lote (20/09/2026): uma chamada por item, em paralelo; recarrega
+   * a pasta UMA vez no fim e avisa as que falharam. A confirmação é feita pela
+   * tela (uma pergunta só para o lote).
+   */
+  excluirVarios(itens: readonly { tipo: 'pasta' | 'arquivo'; id: string; nome: string }[]): void {
+    processarEmLote<{ tipo: 'pasta' | 'arquivo'; id: string; nome: string }, unknown>(itens, (item) =>
+      item.tipo === 'pasta' ? this.api.excluirPasta(item.id) : this.api.excluirArquivo(item.id),
+    ).subscribe(({ falhas }) => {
+      this.recarregar();
+      avisarFalhasDeExclusao(falhas, 'item(ns)', (item) => item.nome);
+    });
+  }
+
+  /** Mover em lote para uma pasta de destino — mesmo esquema de `excluirVarios`. */
+  moverVarios(itens: readonly { tipo: 'pasta' | 'arquivo'; id: string; nome: string }[], destinoId: string): void {
+    processarEmLote<{ tipo: 'pasta' | 'arquivo'; id: string; nome: string }, unknown>(itens, (item) =>
+      item.tipo === 'pasta'
+        ? this.api.atualizarPasta(item.id, { parent_id: destinoId })
+        : this.api.atualizarArquivo(item.id, { pasta_id: destinoId }),
+    ).subscribe(({ falhas }) => {
+      this.recarregar();
+      avisarFalhasDeExclusao(falhas, 'item(ns)', (item) => item.nome, 'mover');
     });
   }
 

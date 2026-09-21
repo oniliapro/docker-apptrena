@@ -10,7 +10,17 @@ import { exportarTabelaXlsx } from '../../shared/exportar-xlsx/exportar-xlsx';
 import { Autocomplete } from '../../shared/autocomplete/autocomplete';
 import { FornecedoresCadastro } from '../cadastros/fornecedores/fornecedores.fonte';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
-import { copiarParaAreaDeTransferencia, SelecaoMultipla } from '../../shared/selecao-lista/selecao-lista';
+import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
+import { AcoesPagamento, AlteracaoPagamento } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import {
+  SelecaoMultipla,
+  avisarFalhasDeExclusao,
+  confirmarExclusaoEmLote,
+  copiarParaAreaDeTransferencia,
+  excluirEmLote,
+  processarEmLote,
+} from '../../shared/selecao-lista/selecao-lista';
 import { SeletorObra } from '../../shared/seletor-obra/seletor-obra';
 import {
   gerarId,
@@ -51,7 +61,7 @@ type ColunaPagamentoGeral =
  */
 @Component({
   selector: 'app-pagamentos-geral',
-  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra, Autocomplete],
+  imports: [RouterLink, RedimensionarColunas, ReactiveFormsModule, SeletorObra, Autocomplete, BarraSelecao, EditarPagamentoModal],
   templateUrl: './pagamentos-geral.html',
   styleUrl: './pagamentos-geral.scss',
 })
@@ -375,6 +385,121 @@ export class PagamentosGeral implements OnInit {
   // do Lucas). Formato provisório — mesmo esquema de `Pagamentos`.
   // ------------------------------------------------------------------
   protected readonly selecao = new SelecaoMultipla<Pagamento>((p) => String(p['id'] ?? ''));
+
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.listaOrdenada()));
+
+  // ---- Mesma lógica dos Pagamentos da obra (21/09/2026): clicar na linha EDITA; ✔ confirma um pendente; ✖ exclui;
+  // e a barra de seleção faz o mesmo em lote. A ida à origem (mapa/empreita) virou uma ação do menu. ----
+  private readonly acoesPagamento = new AcoesPagamento(
+    this.api,
+    (alteracao) => this.aoAlterar(alteracao),
+    (pagamento) => String((pagamento as unknown as Record<string, unknown>)['obraId'] ?? ''),
+  );
+  protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
+  protected readonly snapshotEapEditor = this.acoesPagamento.snapshotEap;
+
+  private aoAlterar(alteracao: AlteracaoPagamento): void {
+    this.pagamentos.update((lista) =>
+      alteracao.tipo === 'excluido'
+        ? lista.filter((x) => String(x['id']) !== alteracao.id)
+        : lista.map((x) =>
+            String(x['id']) === alteracao.pagamento.id ? (alteracao.pagamento as unknown as Pagamento) : x,
+          ),
+    );
+  }
+
+  private normalizado(pagamento: Pagamento) {
+    return normalizarPagamento(pagamento as Record<string, unknown>);
+  }
+
+  protected abrir(pagamento: Pagamento): void {
+    this.acoesPagamento.abrirComEap(this.normalizado(pagamento));
+  }
+
+  protected fecharEditor(): void {
+    this.acoesPagamento.fechar();
+  }
+
+  protected salvarEditor(evento: EventoSalvarPagamento): void {
+    this.acoesPagamento.salvar(evento);
+  }
+
+  protected confirmarUm(pagamento: Pagamento): void {
+    this.acoesPagamento.confirmar(this.normalizado(pagamento));
+  }
+
+  protected removerUm(pagamento: Pagamento): void {
+    this.acoesPagamento.excluir(this.normalizado(pagamento));
+  }
+
+  protected abrirOrigem(pagamento: Pagamento): void {
+    void this.router.navigate(this.rotaOrigem(pagamento));
+  }
+
+  protected readonly acoesLista = computed<AcaoLista[]>(() => {
+    const marcados = this.selecionados();
+    return [
+      ...(marcados.length === 1 ? [{ chave: 'origem', rotulo: 'Abrir origem (mapa, empreita ou lista da obra)' }] : []),
+      ...(marcados.some((x) => this.pendente(x)) ? [{ chave: 'confirmar', rotulo: 'Confirmar pendentes' }] : []),
+      { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+    ];
+  });
+
+  protected editarSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.abrir(primeiro);
+  }
+
+  private rotuloDe(pagamento: Pagamento): string {
+    return [String(pagamento['numeroPagamento'] ?? ''), String(pagamento['descricao'] ?? '')].filter(Boolean).join(' — ') || '(sem número)';
+  }
+
+  private obraIdDe(pagamento: Pagamento): string {
+    return String(pagamento['obraId'] ?? '');
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionados();
+    if (!alvos.length) return;
+
+    if (chave === 'origem') {
+      this.abrirOrigem(alvos[0]);
+      return;
+    }
+
+    if (chave === 'confirmar') {
+      const pendentes = alvos.filter((x) => this.pendente(x));
+      if (!pendentes.length) return;
+      const texto = pendentes.length === 1 ? '1 pagamento pendente' : `${pendentes.length} pagamentos pendentes`;
+      if (!window.confirm(`Confirmar ${texto}? Passam a contar no Realizado da EAP.`)) return;
+
+      const agora = new Date().toISOString();
+      processarEmLote(pendentes, (x) =>
+        this.api.atualizarPagamento(
+          String(x['id']),
+          paraPayloadApi({ ...this.normalizado(x), status: 'confirmado', dataPagamento: agora }, this.obraIdDe(x)),
+        ),
+      ).subscribe(({ sucessos, falhas }) => {
+        for (const { resultado } of sucessos) {
+          this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(resultado as Record<string, unknown>) });
+        }
+        this.selecao.limpar();
+        avisarFalhasDeExclusao(falhas, 'pagamentos', (x) => this.rotuloDe(x), 'confirmar');
+      });
+      return;
+    }
+
+    if (chave !== 'excluir') return;
+    if (!confirmarExclusaoEmLote(alvos.length, 'pagamento', 'pagamentos', "Se algum foi gerado por um mapa ou por uma empreita, ele deixa de constar no acompanhamento deles.", alvos.map((x) => this.rotuloDe(x)))) return;
+
+    excluirEmLote(alvos, (x) => this.api.excluirPagamento(String(x['id']))).subscribe(({ excluidos, falhas }) => {
+      const ids = new Set(excluidos.map((x) => String(x['id'])));
+      this.pagamentos.update((lista) => lista.filter((x) => !ids.has(String(x['id']))));
+      this.selecao.limpar();
+      avisarFalhasDeExclusao(falhas, 'pagamentos', (x) => this.rotuloDe(x));
+    });
+  }
+
   protected readonly copiado = signal(false);
 
   protected async copiarMensagem(): Promise<void> {

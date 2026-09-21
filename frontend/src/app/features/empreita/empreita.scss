@@ -152,12 +152,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   input.valor { text-align: right; font-family: var(--fonte-mono); font-size: 11.5px; }
 }
 
-.col-num { width: 36px; }
+.col-num { width: 34px; }
 .col-desc { min-width: 190px; }
 .col-tipo { min-width: 110px; }
 .col-eap { min-width: 170px; }
 .col-valor { width: 100px; }
-.col-acoes { width: 40px; }
+.col-acoes { width: 84px; }
 
 // Cabeçalho de cada um dos cinco blocos — uma coluna só por bloco
 // (redesenho 25/08/2026, pedido do Lucas: "quero manter só as colunas
@@ -424,5 +424,57 @@ tfoot th {
     border-bottom-width: 2px;
     border-radius: 3px;
     background: var(--cor-fundo-alt);
+  }
+}
+
+// Seleção em lote (20/09/2026): a caixa mora na célula do "#", à esquerda do número.
+.indice-selecao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+
+  input { width: auto; height: auto; margin: 0; }
+}
+
+.caixa-indice { width: auto; height: auto; margin: 0; }
+
+// Botões da linha — mesmo padrão do Mapa e da EAP (21/09/2026): ↑↓ empilhados e
+// "+"/✖ empilhados ao lado; "+" azul, "✖" vermelho.
+.acoes-linha { white-space: nowrap; }
+
+.acoes-linha-conteudo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  button {
+    width: 22px;
+    padding: 2px 0;
+    font-size: 10px;
+    line-height: 1;
+    border-radius: 3px;
+  }
+}
+
+.acoes-mover, .acoes-inserir-excluir {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acoes-inserir-excluir {
+  button:first-child {
+    background: #4a90d9;
+    border-color: #4a90d9;
+    color: #fff;
+    &:hover { background: #3a7dc4; }
+  }
+  button:last-child {
+    background: var(--cor-perigo);
+    border-color: var(--cor-perigo);
+    color: #fff;
+    font-size: 8px;
+    &:hover { background: #a83a26; }
   }
 }

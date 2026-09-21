@@ -7,8 +7,9 @@ import {
   EditarPagamentoModal,
   EventoSalvarPagamento,
 } from '../../features/pagamentos/editar-pagamento-modal/editar-pagamento-modal';
-import { normalizarPagamento, paraPayloadApi } from '../../features/pagamentos/pagamentos-calc';
+import { normalizarPagamento } from '../../features/pagamentos/pagamentos-calc';
 import { Pagamento } from '../../features/pagamentos/pagamentos.models';
+import { AcoesPagamento, AlteracaoPagamento } from './acoes-pagamento';
 
 /**
  * Popup "Pagamentos vinculados" (14/09/2026) — extraído/generalizado do
@@ -17,6 +18,9 @@ import { Pagamento } from '../../features/pagamentos/pagamentos.models';
  * (`origemTipo`/`origemRefId` genéricos — `ApiService.listarPagamentos`
  * já suporta os dois desde sempre, `MapasObra` só nunca tinha usado o
  * filtro por origem no servidor, buscava tudo da obra e agrupava local).
+ *
+ * Ações por linha (21/09/2026): clicar na linha ou em "Ver" abre o pagamento
+ * para edição; ✔ confirma um pendente; ✖ exclui (com aviso). Ver `AcoesPagamento`.
  *
  * O popup de edição (`EditarPagamentoModal`) fica como bloco IRMÃO do
  * `.modal` deste componente no template, nunca aninhado dentro do
@@ -41,11 +45,15 @@ export class PagamentosVinculadosPopup implements OnInit {
   readonly titulo = input('Pagamentos vinculados');
 
   readonly fechar = output<void>();
+  /** Avisa que um pagamento foi confirmado, editado ou excluído aqui dentro (a tela de fora pode recarregar seus totais). */
+  readonly alterou = output<void>();
 
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly carregando = signal(true);
   protected readonly pagamentos = signal<Pagamento[]>([]);
-  protected readonly pagamentoEmEdicao = signal<Pagamento | null>(null);
+
+  private readonly acoes = new AcoesPagamento(this.api, (alteracao) => this.aoAlterar(alteracao));
+  protected readonly pagamentoEmEdicao = this.acoes.emEdicao;
 
   ngOnInit(): void {
     this.api
@@ -57,24 +65,32 @@ export class PagamentosVinculadosPopup implements OnInit {
       });
   }
 
+  private aoAlterar(alteracao: AlteracaoPagamento): void {
+    if (alteracao.tipo === 'excluido') {
+      this.pagamentos.update((lista) => lista.filter((p) => p.id !== alteracao.id));
+    } else {
+      this.pagamentos.update((lista) => lista.map((p) => (p.id === alteracao.pagamento.id ? alteracao.pagamento : p)));
+    }
+    this.alterou.emit();
+  }
+
   protected abrirPagamento(pagamento: Pagamento): void {
-    this.pagamentoEmEdicao.set(pagamento);
+    this.acoes.abrir(pagamento);
   }
 
   protected fecharPagamento(): void {
-    this.pagamentoEmEdicao.set(null);
+    this.acoes.fechar();
   }
 
   protected salvarPagamento(evento: EventoSalvarPagamento): void {
-    const pagamento = evento.pagamento;
-    const obraId = pagamento.obraId ?? '';
-    this.api.atualizarPagamento(pagamento.id, paraPayloadApi(pagamento, obraId)).subscribe({
-      next: (salvo) => {
-        const normalizado = normalizarPagamento(salvo as Record<string, unknown>);
-        this.pagamentos.update((lista) => lista.map((p) => (p.id === normalizado.id ? normalizado : p)));
-        this.fecharPagamento();
-      },
-      error: () => window.alert('Não foi possível salvar o pagamento — confira os valores e tente de novo.'),
-    });
+    this.acoes.salvar(evento);
+  }
+
+  protected confirmarPagamento(pagamento: Pagamento): void {
+    this.acoes.confirmar(pagamento);
+  }
+
+  protected excluirPagamento(pagamento: Pagamento): void {
+    this.acoes.excluir(pagamento);
   }
 }

@@ -263,3 +263,8 @@
     &:hover { background: var(--cor-fundo-alt); }
   }
 }
+
+// Seleção múltipla (20/09/2026)
+.celula-selecao { width: 32px; text-align: center; }
+.celula-selecao input { width: auto; height: auto; }
+.tabela-detalhes tr.item-selecionado td { background: var(--cor-fundo-alt); }

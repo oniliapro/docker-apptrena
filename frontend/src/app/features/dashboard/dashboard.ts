@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 
@@ -26,6 +26,10 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
 import { normalizarRecebimento } from '../recebimentos/recebimentos-calc';
 import { Recebimento } from '../recebimentos/recebimentos.models';
 import { pctParaValor } from '../medicoes/medicao-engine';
+import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
+import { EditarRecebimentoModal, EventoSalvarRecebimento } from '../recebimentos/editar-recebimento-modal/editar-recebimento-modal';
+import { AcoesRecebimento } from '../recebimentos/acoes-recebimento';
+import { AcoesPagamento } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
 import { PagamentosVinculadosPopup } from '../../shared/pagamentos-vinculados-popup/pagamentos-vinculados-popup';
 import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
 
@@ -131,12 +135,13 @@ function baldeCategoria(tipo: string | undefined | null): BaldeCategoria {
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, PagamentosVinculadosPopup, AnexosLancamento],
+  imports: [RouterLink, PagamentosVinculadosPopup, AnexosLancamento, EditarPagamentoModal, EditarRecebimentoModal],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
 
   protected readonly formatarData = formatarData;
   protected readonly formatarMoeda = formatarMoeda;
@@ -165,6 +170,65 @@ export class Dashboard implements OnInit {
   protected readonly carregandoRecebimentos = signal(true);
   protected readonly carregandoMedicoes = signal(true);
   protected readonly carregandoRelatorios = signal(true);
+
+  // ---- Editar ao clicar num item dos cards (21/09/2026) ----
+  private readonly acoesPagamento = new AcoesPagamento(this.api, (alteracao) =>
+    this.pagamentos.update((lista) =>
+      alteracao.tipo === 'excluido'
+        ? lista.filter((p) => p.id !== alteracao.id)
+        : lista.map((p) => (p.id === alteracao.pagamento.id ? { ...p, ...alteracao.pagamento } : p)),
+    ),
+  );
+  protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
+  protected readonly snapshotEapPagamento = this.acoesPagamento.snapshotEap;
+
+  private readonly acoesRecebimento = new AcoesRecebimento(this.api, (alteracao) =>
+    this.recebimentos.update((lista) =>
+      alteracao.tipo === 'excluido'
+        ? lista.filter((r) => r.id !== alteracao.id)
+        : lista.map((r) => (r.id === alteracao.recebimento.id ? { ...r, ...alteracao.recebimento } : r)),
+    ),
+  );
+  protected readonly recebimentoEmEdicao = this.acoesRecebimento.emEdicao;
+  protected readonly snapshotEapRecebimento = this.acoesRecebimento.snapshotEap;
+
+  protected abrirPagamento(pagamento: Pagamento): void {
+    this.acoesPagamento.abrirComEap(pagamento);
+  }
+
+  protected fecharPagamento(): void {
+    this.acoesPagamento.fechar();
+  }
+
+  protected salvarPagamento(evento: EventoSalvarPagamento): void {
+    this.acoesPagamento.salvar(evento);
+  }
+
+  protected abrirRecebimento(recebimento: Recebimento): void {
+    this.acoesRecebimento.abrir(recebimento);
+  }
+
+  protected fecharRecebimento(): void {
+    this.acoesRecebimento.fechar();
+  }
+
+  protected salvarRecebimento(evento: EventoSalvarRecebimento): void {
+    this.acoesRecebimento.salvar(evento);
+  }
+
+  /** Mapa e Empreita: "editar" é abrir a página dele, dentro da obra. */
+  protected abrirMapa(mapa: Record<string, unknown>): void {
+    const obraId = this.campo(mapa, 'obra_id');
+    // Mapa sem obra vinculada não tem página para abrir.
+    if (obraId === '—') return;
+    void this.router.navigate(['/obras', obraId, 'mapas', this.campo(mapa, 'id')]);
+  }
+
+  protected abrirEmpreita(empreita: Record<string, unknown>): void {
+    const obraId = this.campo(empreita, 'obra_id');
+    if (obraId === '—') return;
+    void this.router.navigate(['/obras', obraId, 'empreitas', this.campo(empreita, 'id')]);
+  }
 
   // ---- Popups ----
   /** `{ tipo, refId, titulo }` do popup "pagamentos vinculados" aberto (Mapas/Empreitas) — `null` = fechado. */

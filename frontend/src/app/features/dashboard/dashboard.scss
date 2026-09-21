@@ -449,3 +449,10 @@ a.linha:hover { background: var(--cor-fundo); }
 .modal-titulo { font-weight: 700; }
 
 .modal-corpo { padding: 16px; overflow: auto; }
+
+// Item de card que abre o editor ao clicar (21/09/2026)
+.linha-clicavel {
+  cursor: pointer;
+
+  &:hover { background: var(--cor-fundo); }
+}

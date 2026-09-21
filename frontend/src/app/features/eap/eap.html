@@ -28,6 +28,9 @@
         {{ existeGrupoColapsado() ? '⊞ Expandir tudo' : '⊟ Recolher tudo' }}
       </button>
 
+      <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista()" [podeEditar]="false"
+                         (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
       <span class="espacador"></span>
 
       @if (store.salvando()) {
@@ -116,6 +119,10 @@
            (removerLinha)="removerPorIndice($event)">
       <thead>
         <tr>
+          <th rowspan="2" class="col-selecao">
+            <input type="checkbox" [disabled]="store.travada()" [checked]="selecao.todosSelecionados(store.itens())"
+                   (change)="selecao.alternarTodos(store.itens())" title="Selecionar todas as linhas (ações em lote)" />
+          </th>
           @if (!store.travada()) {
             <th rowspan="2" class="col-nivel">Nível</th>
           }
@@ -182,6 +189,11 @@
               [class.linha-grupo-nivel-2]="item.isGroup && item.nivel === 2"
               [class.linha-grupo-nivel-3]="item.isGroup && item.nivel === 3"
               [class.linha-grupo-nivel-4]="item.isGroup && item.nivel >= 4">
+            <td class="centro">
+              <input type="checkbox" [disabled]="store.travada()" [checked]="selecao.estaSelecionado(item)"
+                     (change)="alternarSelecaoLinha(item)"
+                     [title]="item.isGroup ? 'Selecionar o grupo e todos os itens dentro dele' : 'Selecionar a linha (ações em lote)'" />
+            </td>
             @if (!store.travada()) {
               <td class="centro">
                 <select class="select-nivel" [value]="item.nivel"
@@ -388,7 +400,7 @@
             (19/08/2026, pedido do Lucas).
           -->
           <tr>
-            <th colspan="5" class="rotulo-rodape">S/ DEFINIÇÃO</th>
+            <th colspan="6" class="rotulo-rodape">S/ DEFINIÇÃO</th>
             @if (store.mostrarColunasTipo()) {
               @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                 <th class="celula-orc-real">
@@ -413,7 +425,7 @@
         }
 
         <tr>
-          <th [attr.colspan]="store.travada() ? 5 : 6" class="rotulo-rodape">TOTAIS</th>
+          <th [attr.colspan]="store.travada() ? 6 : 7" class="rotulo-rodape">TOTAIS</th>
 
           @if (store.cabecalho().isConfirmed) {
             @if (store.ui().modoTotais === 'saldo') {
@@ -665,11 +677,12 @@
                   <th class="valor ordenavel" (click)="alternarOrdenacaoPagamentos('valorTotal')">
                     Valor total{{ setaOrdenacao(ordenacaoPagamentos(), 'valorTotal') }}
                   </th>
+                  <th class="centro">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 @for (p of pagamentosVinculados(); track p.numeroPagamento) {
-                  <tr>
+                  <tr class="linha-clicavel" (click)="abrirPagamentoDoPopup(p)" title="Clique para abrir o pagamento">
                     <td>
                       {{ p.numeroPagamento }}
                       @if (p.pendente) { <span class="marca-pendente">pendente</span> }
@@ -707,6 +720,12 @@
                     <td>{{ formatarData(p.dataPagamento) }}</td>
                     <td>{{ p.descricao }}</td>
                     <td class="valor">{{ formatarMoeda(p.valorTotal) }}</td>
+                    <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                      @if (p.pendente) {
+                        <button type="button" title="Confirmar pagamento — passa a contar no Realizado" (click)="confirmarPagamentoDoPopup(p)">✔</button>
+                      }
+                      <button type="button" title="Excluir" (click)="excluirPagamentoDoPopup(p)">✖</button>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -721,6 +740,16 @@
         </div>
       </div>
     </div>
+  }
+
+  <!-- Editor do pagamento aberto a partir do popup (irmão do popup, nunca aninhado nele). -->
+  @if (pagamentoEmEdicao(); as pagamento) {
+    <app-editar-pagamento-modal
+      [pagamento]="pagamento"
+      [snapshotEap]="snapshotEapPagamentos()"
+      [obraId]="pagamento.obraId || obraId()"
+      (salvar)="salvarPagamentoDoPopup($event)"
+      (fechar)="fecharEditorDePagamento()" />
   }
 
   <!-- ============ Modal: importar Excel ============ -->

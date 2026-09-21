@@ -209,7 +209,7 @@ button:disabled {
 // tem exatamente a mesma altura (28px) e a mesma fonte deles, sem
 // precisar de nenhuma regra especial de tamanho/alinhamento.
 
-.col-num { width: 36px; }
+.col-num { width: 34px; }
 .col-desc { min-width: 130px; }
 .col-tipo { width: 128px; }
 .col-qtde { width: 56px; }
@@ -919,3 +919,15 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
 
   &:hover { background: var(--cor-primaria-clara); }
 }
+
+// Seleção em lote (20/09/2026): a caixa mora na célula do "#", à esquerda do número.
+.indice-selecao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+
+  input { width: auto; height: auto; margin: 0; }
+}
+
+.caixa-indice { width: auto; height: auto; margin: 0; }

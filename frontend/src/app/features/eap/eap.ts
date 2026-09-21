@@ -16,8 +16,12 @@ import {
 } from '../../shared/ordenacao/ordenacao';
 import { dataDentroDoIntervalo, valoresDistintos } from '../../shared/filtros/filtros';
 import { expandirItensPagamento, parsearBR } from '../pagamentos/pagamentos-calc';
-import { ItemPagamentoCalculado } from '../pagamentos/pagamentos.models';
+import { ItemPagamentoCalculado, Pagamento } from '../pagamentos/pagamentos.models';
+import { EditarPagamentoModal } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
+import { mensagemExclusaoPagamento } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ehDescendente } from './eap-engine';
 import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
@@ -45,7 +49,7 @@ import {
  */
 @Component({
   selector: 'app-eap',
-  imports: [DecimalPipe, NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea],
+  imports: [DecimalPipe, NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, EditarPagamentoModal],
   providers: [EapStore, PagamentosStore],
   templateUrl: './eap.html',
   styleUrl: './eap.scss',
@@ -270,7 +274,8 @@ export class Eap implements OnInit {
 
     // adicional, EAP, descrição, quantidade, unidade — "Nível" some
     // confirmada (03/09/2026, pedido do Lucas).
-    let colunas = this.store.travada() ? 5 : 6;
+    // (+1: coluna de seleção em lote, sempre presente)
+    let colunas = this.store.travada() ? 6 : 7;
 
     if (this.store.cabecalho().isConfirmed) {
       // Bloco único "Totais (Orçado x Realizado)": uma coluna por
@@ -374,6 +379,45 @@ export class Eap implements OnInit {
     const valor = parsearBR((evento.target as HTMLInputElement).value);
     const campo = item.bdiMode === 'pct' ? 'bdiPercent' : 'bdiValue';
     this.store.atualizarItem(item.id, { [campo]: valor });
+  }
+
+  // ---- Seleção em lote (20/09/2026) — opcional: os botões de cada linha (↑ ↓ + ✖) continuam. ----
+  protected readonly selecao = new SelecaoMultipla<ItemEap>((item) => item.id);
+  /** Só as marcadas que ainda existem; com a EAP confirmada (travada) não há ação em lote. */
+  protected readonly selecionadas = computed(() =>
+    this.store.travada() ? [] : this.selecao.selecionados(this.store.itens()),
+  );
+  protected readonly acoesLista = computed<AcaoLista[]>(() => [
+    { chave: 'subir', rotulo: 'Mover para cima' },
+    { chave: 'descer', rotulo: 'Mover para baixo' },
+    { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+  ]);
+
+  /** Marcar um grupo leva junto TODOS os itens dentro dele (desmarcar também). */
+  protected alternarSelecaoLinha(item: ItemEap): void {
+    if (!item.isGroup) {
+      this.selecao.alternar(item);
+      return;
+    }
+    const filhos = this.store.itens().filter((outro) => ehDescendente(item.eap, outro.eap));
+    this.selecao.definir([item, ...filhos], !this.selecao.estaSelecionado(item));
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionadas();
+    if (!alvos.length) return;
+    const ids = alvos.map((item) => item.id);
+
+    if (chave === 'subir' || chave === 'descer') {
+      this.store.moverVarios(ids, chave === 'subir' ? -1 : 1);
+      return;
+    }
+    if (chave !== 'excluir') return;
+
+    const nomes = alvos.map((item) => [item.eap, item.desc].filter(Boolean).join(' — '));
+    if (!confirmarExclusaoEmLote(alvos.length, 'linha da EAP', 'linhas da EAP', '', nomes)) return;
+    this.store.removerVarios(ids);
+    this.selecao.limpar();
   }
 
   protected remover(item: ItemEap): void {
@@ -894,6 +938,39 @@ export class Eap implements OnInit {
     });
   }
 
+  // ---- Ações por linha no popup de pagamentos vinculados (21/09/2026) ----
+  /** Pagamento aberto no editor a partir do popup; `null` = fechado. */
+  protected readonly pagamentoEmEdicao = signal<Pagamento | null>(null);
+  protected readonly snapshotEapPagamentos = computed(() => this.pagamentosStore.snapshotEap());
+
+  protected abrirPagamentoDoPopup(linha: PagamentoVinculado): void {
+    // cópia: o editor não pode mexer no pagamento da lista antes de salvar
+    this.pagamentoEmEdicao.set(JSON.parse(JSON.stringify(linha.pagamento)) as Pagamento);
+  }
+
+  protected fecharEditorDePagamento(): void {
+    this.pagamentoEmEdicao.set(null);
+  }
+
+  protected salvarPagamentoDoPopup(evento: { pagamento: Pagamento }): void {
+    this.pagamentosStore.inserirOuAtualizar(evento.pagamento, evento.pagamento.id, () => this.fecharEditorDePagamento());
+  }
+
+  /** ✔ da linha: confirma o pagamento pendente — o Realizado da EAP se atualiza sozinho (mesma lista do `PagamentosStore`). */
+  protected confirmarPagamentoDoPopup(linha: PagamentoVinculado): void {
+    this.pagamentosStore.confirmarVarios([linha.pagamento]).subscribe(({ falhas }) => {
+      if (falhas.length) window.alert('Não foi possível confirmar o pagamento.');
+    });
+  }
+
+  /** ✖ da linha: exclui com aviso do que muda. */
+  protected excluirPagamentoDoPopup(linha: PagamentoVinculado): void {
+    if (!window.confirm(mensagemExclusaoPagamento(linha.pagamento))) return;
+    this.pagamentosStore.removerVarios([linha.pagamento]).subscribe(({ falhas }) => {
+      if (falhas.length) window.alert('Não foi possível excluir o pagamento.');
+    });
+  }
+
   protected fecharModalPagamentos(): void {
     this.filtroPagamentosAberto.set(null);
     this.filtroPopupBeneficiado.set('');
@@ -995,6 +1072,7 @@ export class Eap implements OnInit {
       if (!itensDirecionados.length) continue;
 
       lista.push({
+        pagamento,
         numeroPagamento: pagamento.numeroPagamento,
         fornecedor: pagamento.fornecedor,
         dataSolicitacao: pagamento.dataSolicitacao,
@@ -1052,6 +1130,8 @@ type ColunaPagamentoVinculado =
   | 'valorDirecionado';
 
 interface PagamentoVinculado {
+  /** O pagamento de origem — as ações da linha (abrir, ✔, ✖) agem sobre ele. */
+  pagamento: Pagamento;
   numeroPagamento: string;
   fornecedor: string;
   dataSolicitacao: string;

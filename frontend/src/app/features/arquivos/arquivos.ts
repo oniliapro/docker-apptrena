@@ -1,6 +1,8 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal, untracked } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
+import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ItemArquivo } from './item-arquivo/item-arquivo';
 import { PreviewModal } from './preview-modal/preview-modal';
 import { ArquivosStore } from './arquivos.store';
@@ -24,7 +26,7 @@ import {
  */
 @Component({
   selector: 'app-arquivos',
-  imports: [ItemArquivo, PreviewModal],
+  imports: [ItemArquivo, PreviewModal, BarraSelecao],
   providers: [ArquivosStore],
   templateUrl: './arquivos.html',
   styleUrl: './arquivos.scss',
@@ -40,19 +42,68 @@ export class Arquivos implements OnInit {
   protected readonly modosIcone = MODOS_ICONE;
   protected readonly formatarTamanho = formatarTamanho;
 
+  // ---- Seleção múltipla (20/09/2026) — opcional: os botões de cada item continuam. ----
+  protected readonly selecao = new SelecaoMultipla<ItemPastaOuArquivo>((item) => item.id);
+  protected readonly selecionados = computed(() => this.selecao.selecionados(this.itens()));
+  protected readonly acoesLista: AcaoLista[] = [
+    { chave: 'mover', rotulo: 'Mover para…' },
+    { chave: 'excluir', rotulo: 'Excluir', perigo: true },
+  ];
+
+  protected renomearSelecionado(): void {
+    const [primeiro] = this.selecionados();
+    if (primeiro) this.renomearItem(primeiro);
+  }
+
+  protected aoAcaoLista(chave: string): void {
+    const alvos = this.selecionados();
+    if (!alvos.length) return;
+
+    if (chave === 'mover') {
+      this.abrirMoverVarios(alvos);
+      return;
+    }
+    if (chave !== 'excluir') return;
+
+    const temPasta = alvos.some((i) => i.tipo === 'pasta');
+    if (
+      !confirmarExclusaoEmLote(
+        alvos.length,
+        'item',
+        'itens',
+        temPasta ? 'As pastas são excluídas junto com tudo o que há dentro delas.' : '',
+        alvos.map((i) => i.nome),
+      )
+    ) {
+      return;
+    }
+    this.store.excluirVarios(alvos.map((i) => ({ tipo: i.tipo, id: i.id, nome: i.nome })));
+    this.selecao.limpar();
+  }
+
   protected readonly criandoPasta = signal(false);
   protected readonly nomeNovaPasta = signal('');
 
   protected readonly previewAberto = signal<Arquivo | null>(null);
 
   // ---- Modal "mover para..." ----
-  protected readonly moverAlvo = signal<{ tipo: 'pasta' | 'arquivo'; item: Pasta | Arquivo } | null>(null);
+  /** Um ou vários itens sendo movidos (o modal serve tanto ao ⇄ de uma linha quanto ao "Mover" da seleção). */
+  protected readonly moverAlvo = signal<{ tipo: 'pasta' | 'arquivo'; item: Pasta | Arquivo }[] | null>(null);
   protected readonly moverConteudo = signal<ConteudoPasta | null>(null);
 
   protected readonly moverAlvoNome = computed(() => {
-    const alvo = this.moverAlvo();
-    if (!alvo) return '';
-    return alvo.tipo === 'pasta' ? (alvo.item as Pasta).nome : (alvo.item as Arquivo).nome_original;
+    const alvos = this.moverAlvo();
+    if (!alvos?.length) return '';
+    if (alvos.length > 1) return `${alvos.length} itens`;
+    const [alvo] = alvos;
+    const nome = alvo.tipo === 'pasta' ? (alvo.item as Pasta).nome : (alvo.item as Arquivo).nome_original;
+    return `"${nome}"`;
+  });
+
+  // Trocar de pasta zera a seleção: a ação não pode agir sobre o que a pessoa não está vendo.
+  private readonly limparAoTrocarDePasta = effect(() => {
+    this.store.conteudo()?.pasta.id;
+    untracked(() => this.selecao.limpar());
   });
 
   protected readonly itens = computed<ItemPastaOuArquivo[]>(() => {
@@ -152,14 +203,19 @@ export class Arquivos implements OnInit {
 
   // ---- Mover ----
   protected abrirMover(item: ItemPastaOuArquivo): void {
+    this.abrirMoverVarios([item]);
+  }
+
+  private abrirMoverVarios(itens: ItemPastaOuArquivo[]): void {
     const raiz = this.store.raizes();
-    if (!raiz) return;
+    if (!raiz || !itens.length) return;
+    const item = itens[0];
 
     const ownerAtual =
       item.tipo === 'pasta' ? item.pasta!.owner_user_id : this.store.pastaAtual()?.owner_user_id ?? null;
     const idInicial = ownerAtual === null ? raiz.compartilhada.id : raiz.propria.id;
 
-    this.moverAlvo.set({ tipo: item.tipo, item: (item.pasta ?? item.arquivo)! });
+    this.moverAlvo.set(itens.map((i) => ({ tipo: i.tipo, item: (i.pasta ?? i.arquivo)! })));
     this.navegarMover(idInicial);
   }
 
@@ -171,12 +227,25 @@ export class Arquivos implements OnInit {
   }
 
   protected confirmarMover(): void {
-    const alvo = this.moverAlvo();
+    const alvos = this.moverAlvo();
     const destino = this.moverConteudo()?.pasta;
-    if (!alvo || !destino) return;
+    if (!alvos?.length || !destino) return;
 
-    if (alvo.tipo === 'pasta') this.store.moverPasta(alvo.item as Pasta, destino.id);
-    else this.store.moverArquivo(alvo.item as Arquivo, destino.id);
+    if (alvos.length === 1) {
+      const [alvo] = alvos;
+      if (alvo.tipo === 'pasta') this.store.moverPasta(alvo.item as Pasta, destino.id);
+      else this.store.moverArquivo(alvo.item as Arquivo, destino.id);
+    } else {
+      this.store.moverVarios(
+        alvos.map((a) => ({
+          tipo: a.tipo,
+          id: a.item.id,
+          nome: a.tipo === 'pasta' ? (a.item as Pasta).nome : (a.item as Arquivo).nome_original,
+        })),
+        destino.id,
+      );
+      this.selecao.limpar();
+    }
 
     this.fecharMover();
   }
