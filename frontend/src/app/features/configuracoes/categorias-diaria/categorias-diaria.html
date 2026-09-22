@@ -1,0 +1,35 @@
+<h2>Categorias de custo padrão — Diárias</h2>
+<p class="atenuado pequeno">
+  Em qual categoria de custo cada tipo de lançamento de diária entra quando o fechamento gera o
+  pagamento. Vale para toda diária da empresa — não é escolhido lançamento a lançamento.
+</p>
+
+@if (carregando()) {
+  <p class="atenuado pequeno">Carregando…</p>
+} @else {
+  <div class="linhas-categoria">
+    @for (campo of campos; track campo) {
+      <label class="linha-categoria">
+        <span>{{ rotulo[campo] }}</span>
+        <select [value]="categorias()[campo]" (change)="mudarCategoria(campo, $event)">
+          @for (tipo of tiposCusto; track tipo.chave) {
+            <option [value]="tipo.chave" [selected]="tipo.chave === categorias()[campo]">{{ tipo.rotulo }}</option>
+          }
+        </select>
+      </label>
+    }
+  </div>
+
+  @if (erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <div class="rodape-categoria">
+    @if (salvo()) {
+      <span class="atenuado pequeno">Salvo.</span>
+    }
+    <button type="button" class="primario" [disabled]="salvando()" (click)="salvar()">
+      {{ salvando() ? 'Salvando…' : 'Salvar' }}
+    </button>
+  </div>
+}

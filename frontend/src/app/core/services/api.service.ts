@@ -9,6 +9,7 @@ import {
   DadosMaterialEquipamento,
   MaterialEquipamento,
 } from '../../features/cadastros/materiais-equipamentos/materiais-equipamentos.models';
+import { PayloadDiaria } from '../../features/diarias/diarias-normalize';
 import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
@@ -674,6 +675,58 @@ export class ApiService {
 
   removerFotoMaterialEquipamento(id: string): Observable<MaterialEquipamento> {
     return this.http.delete<MaterialEquipamento>(`${this.base}/materiais-equipamentos/${id}/foto`);
+  }
+
+  // ---------------- Diárias (22/09/2026, F7) ----------------
+  listarDiarias(obraId: string): Observable<Record<string, unknown>[]> {
+    return this.http.get<Record<string, unknown>[]>(`${this.base}/obras/${obraId}/diarias`);
+  }
+
+  criarDiaria(obraId: string, dados: PayloadDiaria): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(`${this.base}/obras/${obraId}/diarias`, dados);
+  }
+
+  atualizarDiaria(obraId: string, id: string, dados: PayloadDiaria): Observable<Record<string, unknown>> {
+    return this.http.put<Record<string, unknown>>(`${this.base}/obras/${obraId}/diarias/${id}`, dados);
+  }
+
+  excluirDiaria(obraId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/obras/${obraId}/diarias/${id}`);
+  }
+
+  /** Fecha um lote de diárias (mesma obra) num único Pagamento pendente — ver `DiariaController::fechar`. */
+  fecharDiarias(
+    obraId: string,
+    payload: {
+      numero_pagamento: string;
+      fornecedor?: string;
+      descricao?: string;
+      data_solicitacao?: string | null;
+      data_pagamento?: string | null;
+      diaria_ids: string[];
+      valor_total: number;
+      itens: Array<{
+        descricao: string;
+        tipo: string;
+        eap_item_id: string;
+        valor: number;
+        diaria_id: string;
+      }>;
+    },
+  ): Observable<{ pagamentoId: string; diarias: Record<string, unknown>[] }> {
+    return this.http.post<{ pagamentoId: string; diarias: Record<string, unknown>[] }>(
+      `${this.base}/obras/${obraId}/diarias/fechar`,
+      payload,
+    );
+  }
+
+  /** "Categorias de custo padrão" das diárias, em Configurações — vale pra empresa toda. */
+  obterCategoriasDiaria(): Observable<Record<string, string>> {
+    return this.http.get<Record<string, string>>(`${this.base}/diarias/categorias`);
+  }
+
+  salvarCategoriasDiaria(categorias: Record<string, string>): Observable<Record<string, string>> {
+    return this.http.put<Record<string, string>>(`${this.base}/diarias/categorias`, { categorias });
   }
 
   // ---------------- Configurações — Controle de permissões (31/08/2026) ----------------

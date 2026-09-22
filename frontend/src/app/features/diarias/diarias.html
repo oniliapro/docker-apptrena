@@ -1,0 +1,274 @@
+<div class="cabecalho">
+  <div>
+    <h1>Diárias</h1>
+    <div class="atenuado">Lançamento de diárias por profissional — fechar gera um pagamento</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Nova diária</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="mudarFiltro($event)">
+    <option value="todas">Situação: todas</option>
+    <option value="rascunho">Em aberto</option>
+    <option value="fechada">Fechadas</option>
+  </select>
+
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista" [podeEditar]="false"
+                     (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
+  <span class="espacador"></span>
+
+  @if (store.salvando()) {
+    <span class="atenuado pequeno">salvando…</span>
+  }
+</div>
+
+<div class="painel sem-preenchimento">
+  @if (store.carregando()) {
+    <div class="mensagem atenuado">Carregando…</div>
+  } @else if (store.erro(); as mensagem) {
+    <div class="mensagem atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table>
+        <thead>
+          <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(rascunhosDaLista())"
+                     (change)="selecao.alternarTodos(rascunhosDaLista())"
+                     [disabled]="!rascunhosDaLista().length" title="Selecionar as em aberto" />
+            </th>
+            <th>Data</th>
+            <th>Profissional</th>
+            <th>Função</th>
+            <th class="centro">Meia</th>
+            <th>Etapas</th>
+            <th class="direita">Diária</th>
+            <th class="direita">Adicionais</th>
+            <th class="direita">Total</th>
+            <th class="centro">Situação</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of listaFiltrada(); track d.id) {
+            <tr [class.linha-clicavel]="d.status === 'rascunho'" [class.fechada]="d.status === 'fechada'"
+                (click)="editar(d)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                @if (d.status === 'rascunho') {
+                  <input type="checkbox" [checked]="selecao.estaSelecionado(d)" (change)="selecao.alternar(d)" />
+                }
+              </td>
+              <td class="mono">{{ d.data }}</td>
+              <td class="nome">{{ d.profissionalNome }}</td>
+              <td>{{ d.profissionalFuncao || '—' }}</td>
+              <td class="centro">{{ d.meiaDiaria ? '½' : '—' }}</td>
+              <td class="pequeno etapas">{{ rotuloEtapasDaLinha(d) }}</td>
+              <td class="direita mono">{{ formatarMoeda(valorDiaria(d)) }}</td>
+              <td class="direita mono">{{ formatarMoeda(valorTotalDiaria(d) - valorDiaria(d)) }}</td>
+              <td class="direita mono forte">{{ formatarMoeda(valorTotalDiaria(d)) }}</td>
+              <td class="centro">
+                <span class="etiqueta" [class.fechada-etiqueta]="d.status === 'fechada'">
+                  {{ d.status === 'fechada' ? 'Fechada' : 'Em aberto' }}
+                </span>
+              </td>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                @if (d.status === 'rascunho') {
+                  <button type="button" title="Excluir" (click)="removerUm(d)">✖</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="11" class="centro atenuado vazio">Nenhuma diária lançada.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
+
+    <div class="modal-cartao estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">{{ editandoId() ? 'Editar diária' : 'Nova diária' }}</span>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span class="obrigatorio">Profissional</span>
+            @if (store.opcoesProfissional().length) {
+              <app-autocomplete modo="restrito" placeholder="Buscar profissional…"
+                                mensagemVazia="Nenhum profissional com esse nome"
+                                [opcoes]="store.opcoesProfissional()" [valor]="fProfissionalId()"
+                                (confirmou)="escolherProfissional($event)" />
+            } @else {
+              <span class="atenuado pequeno">Cadastre um profissional primeiro</span>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Data</span>
+            <input type="date" [value]="fData()" (change)="fData.set(texto($event))" />
+          </label>
+
+          <label class="campo campo-checkbox">
+            <input type="checkbox" [checked]="fMeiaDiaria()"
+                   (change)="fMeiaDiaria.set($any($event.target).checked)" />
+            <span>Meia diária (50%)</span>
+          </label>
+
+          <label class="campo">
+            <span>Valor da diária</span>
+            <input type="text" class="valor" [value]="fValorDiariaBase()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="fValorDiariaBase.set(texto($event))" />
+          </label>
+
+          <label class="campo">
+            <span>Vale transporte</span>
+            <input type="text" class="valor" [value]="fValeTransporte()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="fValeTransporte.set(texto($event))" />
+          </label>
+
+          <label class="campo">
+            <span>Vale alimentação</span>
+            <input type="text" class="valor" [value]="fValeAlimentacao()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="fValeAlimentacao.set(texto($event))" />
+          </label>
+
+          <label class="campo">
+            <span>Combustível</span>
+            <input type="text" class="valor" [value]="fCombustivel()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="fCombustivel.set(texto($event))" />
+          </label>
+
+          <label class="campo">
+            <span>Valor extra</span>
+            <input type="text" class="valor" [value]="fValorExtra()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="fValorExtra.set(texto($event))" />
+          </label>
+
+          <label class="campo campo-total">
+            <span>Observações</span>
+            <input type="text" [value]="fObservacoes()" (input)="fObservacoes.set(texto($event))" />
+          </label>
+        </div>
+
+        <div class="secao-etapas">
+          <div class="secao-cabecalho">
+            <span class="rotulo-secao">
+              Etapas da EAP
+              <span class="pequeno" [class.soma-ok]="somaPercentuais() === 100" [class.soma-erro]="somaPercentuais() !== 100">
+                (soma {{ somaPercentuais() }}%{{ somaPercentuais() === 100 ? ' ✓' : '' }})
+              </span>
+            </span>
+            <button type="button" class="link-adicionar" (click)="adicionarEtapa()">+ Adicionar etapa</button>
+          </div>
+
+          @for (linha of fEtapas(); track $index) {
+            <div class="linha-etapa">
+              <div class="linha-etapa-campo">
+                @if (store.opcoesEtapa().length) {
+                  <app-autocomplete modo="restrito" placeholder="Buscar etapa da EAP…"
+                                    mensagemVazia="Nenhuma etapa com esse texto"
+                                    [opcoes]="store.opcoesEtapa()" [valor]="linha.eapItemId"
+                                    (confirmou)="mudarEtapaEap($index, $event)" />
+                } @else {
+                  <span class="atenuado pequeno">Cadastre a EAP primeiro</span>
+                }
+              </div>
+              <input type="text" class="percentual" [value]="linha.percentual" inputmode="decimal"
+                     placeholder="%" (change)="mudarEtapaPercentual($index, $event)" />
+              <button type="button" class="link-completar" title="Completar com o que falta pra 100%"
+                      (click)="completarComOResto($index)">= 100%</button>
+              <button type="button" title="Remover etapa" (click)="removerEtapa($index)">✖</button>
+            </div>
+          }
+        </div>
+
+        <div class="resumo-total">
+          Total do lançamento: <strong>{{ formatarMoeda(previaTotal()) }}</strong>
+        </div>
+
+        @if (erroFormulario(); as mensagem) {
+          <div class="aviso-erro">{{ mensagem }}</div>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="button" [disabled]="store.salvando()" (click)="salvar()">
+          {{ store.salvando() ? 'Salvando…' : editandoId() ? 'Salvar alterações' : 'Lançar diária' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (fechamentoAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharPopupFechamento()"></div>
+
+    <div class="modal-cartao estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Fechar {{ fechamentoIds().length }} diária{{ fechamentoIds().length === 1 ? '' : 's' }}</span>
+        <button type="button" (click)="fecharPopupFechamento()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          Gera UM pagamento pendente com um item por etapa e categoria de cada diária —
+          depois de fechada, a diária não pode mais ser editada nem excluída.
+        </p>
+
+        <div class="grade">
+          <label class="campo campo-largo">
+            <span>Fornecedor (opcional)</span>
+            <input type="text" [value]="fechamentoFornecedor()" (input)="fechamentoFornecedor.set(texto($event))" />
+          </label>
+          <label class="campo">
+            <span>Data do pagamento</span>
+            <input type="date" [value]="fechamentoData()" (change)="fechamentoData.set(texto($event))" />
+          </label>
+          <label class="campo campo-total">
+            <span>Descrição</span>
+            <input type="text" [value]="fechamentoDescricao()" (input)="fechamentoDescricao.set(texto($event))" />
+          </label>
+        </div>
+
+        @if (previaFechamento(); as previa) {
+          <table class="tabela-previa">
+            <thead>
+              <tr><th>Item</th><th class="direita">Valor</th></tr>
+            </thead>
+            <tbody>
+              @for (item of previa.itens; track $index) {
+                <tr><td>{{ item.descricao }}</td><td class="direita mono">{{ formatarMoeda(item.valor) }}</td></tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr><td>Total</td><td class="direita mono forte">{{ formatarMoeda(previa.total) }}</td></tr>
+            </tfoot>
+          </table>
+        }
+
+        @if (fechamentoErro(); as mensagem) {
+          <div class="aviso-erro">{{ mensagem }}</div>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fecharPopupFechamento()">Cancelar</button>
+        <button class="primario" type="button" [disabled]="store.salvando()" (click)="confirmarFechamento()">
+          {{ store.salvando() ? 'Gerando…' : 'Gerar pagamento' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

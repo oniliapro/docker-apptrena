@@ -103,6 +103,14 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/recebimentos/recebimentos').then((m) => m.Recebimentos),
   },
   {
+    // Diárias (22/09/2026, F7) — lançamento manual; o lançamento automático
+    // a partir do RDO ao finalizar o dia chega na F9.
+    path: 'diarias',
+    data: { titulo: 'Diárias da obra' },
+    canActivate: [permissaoModuloGuard('diarias')],
+    loadComponent: () => import('./features/diarias/diarias').then((m) => m.Diarias),
+  },
+  {
     ...reservada('diarios', 'Diários desta obra'),
     canActivate: [permissaoModuloGuard('diario_obra')],
   },

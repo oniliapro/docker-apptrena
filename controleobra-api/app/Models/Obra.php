@@ -78,6 +78,11 @@ class Obra extends Model
         return $this->hasMany(Pagamento::class);
     }
 
+    public function diarias(): HasMany
+    {
+        return $this->hasMany(Diaria::class);
+    }
+
     public function medicoes(): HasMany
     {
         return $this->hasMany(Medicao::class)->orderBy('sequencia');

@@ -27,6 +27,10 @@
                 (click)="selecionarAba('tags')">
           Tags
         </button>
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'diarias'"
+                (click)="selecionarAba('diarias')">
+          Diárias
+        </button>
       </aside>
 
       <div class="painel-config">
@@ -42,6 +46,9 @@
           }
           @case ('tags') {
             <app-tags />
+          }
+          @case ('diarias') {
+            <app-categorias-diaria />
           }
         }
       </div>

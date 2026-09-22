@@ -15,6 +15,7 @@ const MODULOS = [
   { chave: 'mapas', rotulo: 'Mapas' },
   { chave: 'empreitas', rotulo: 'Empreitas' },
   { chave: 'pagamentos', rotulo: 'Pagamentos' },
+  { chave: 'diarias', rotulo: 'Diárias' },
   { chave: 'diario_obra', rotulo: 'Diário de obra' },
   { chave: 'relatorios', rotulo: 'Relatórios' },
   { chave: 'arquivos', rotulo: 'Arquivos' },

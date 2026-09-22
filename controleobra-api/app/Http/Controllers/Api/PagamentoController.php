@@ -79,7 +79,7 @@ class PagamentoController extends Controller
             'fornecedor' => 'nullable|string|max:120',
             'descricao' => 'nullable|string',
             'valor_total' => 'required|numeric',
-            'origem_tipo' => 'nullable|in:mapa,empreita,manual,outro',
+            'origem_tipo' => 'nullable|in:mapa,empreita,diaria,manual,outro',
             'origem_ref_id' => 'nullable|string',
             'mapa_id' => 'nullable|string|exists:mapas,id',
             'empreita_id' => 'nullable|string|exists:empreitas,id',

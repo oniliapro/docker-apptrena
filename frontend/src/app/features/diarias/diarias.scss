@@ -1,0 +1,289 @@
+// =====================================================================
+// Aba Diárias (F7, 22/09/2026) — mesma estrutura dos cadastros/Pagamentos:
+// cabeçalho com botão, barra de filtros, tabela e formulário em modal.
+// =====================================================================
+
+:host { display: block; }
+
+.cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+
+  h1 { margin: 0 0 2px; }
+}
+
+.botao-novo {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--raio-md);
+  background: var(--cor-destaque);
+  color: var(--cor-primaria-escura);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover { filter: brightness(1.05); }
+}
+
+.painel { margin-bottom: 14px; }
+.painel.sem-preenchimento { padding: 0; overflow-x: auto; }
+
+.barra-ferramentas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  select { width: auto; height: 28px; }
+}
+
+.espacador { flex: 1; }
+.mensagem { padding: 20px 16px; }
+.vazio { padding: 34px 16px; }
+
+// ---- Tabela ----
+.mono { font-family: var(--fonte-mono); font-size: 11.5px; }
+.nome { font-weight: 600; }
+.direita { text-align: right; }
+.forte { font-weight: 700; }
+.etapas { max-width: 260px; color: var(--cor-texto-suave); }
+
+.linha-clicavel { cursor: pointer; }
+.linha-clicavel:hover td { background: var(--cor-fundo-alt); }
+
+// Diária já fechada: mais apagada, sem cursor de clique (não edita mais).
+tr.fechada td { opacity: 0.75; }
+
+.etiqueta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--cor-destaque-bg, var(--cor-fundo-alt));
+  color: var(--cor-primaria-escura);
+
+  &.fechada-etiqueta {
+    background: var(--cor-sucesso-bg);
+    color: var(--cor-sucesso);
+  }
+}
+
+.acoes-linha {
+  white-space: nowrap;
+
+  button {
+    width: 24px;
+    padding: 2px 0;
+    font-size: 11px;
+    line-height: 1;
+  }
+}
+
+// ---- Modal de formulário ----
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cartao.estreito { width: min(560px, 94vw); }
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+// ---- Campos ----
+.grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+}
+
+.campo-largo { grid-column: span 2; }
+.campo-total { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .grade { grid-template-columns: 1fr; }
+  .campo-largo, .campo-total { grid-column: auto; }
+}
+
+.campo {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+
+  span.obrigatorio::after {
+    content: ' *';
+    color: var(--cor-perigo);
+  }
+
+  input { height: 30px; font-size: 13px; padding: 4px 8px; }
+}
+
+.campo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+
+  span { margin: 0; text-transform: none; font-family: var(--fonte); font-size: 12.5px; letter-spacing: normal; color: var(--cor-texto); }
+  input { width: 16px; height: 16px; }
+}
+
+.erro-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--cor-perigo);
+}
+
+.aviso-erro {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-md);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 12px;
+}
+
+// ---- Etapas da EAP (percentual de rateio) ----
+.secao-etapas { margin-top: 16px; }
+
+.secao-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rotulo-secao {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+}
+
+.soma-ok { color: var(--cor-sucesso); font-weight: 700; }
+.soma-erro { color: var(--cor-perigo); font-weight: 700; }
+
+.link-adicionar {
+  border: none;
+  background: transparent;
+  color: var(--cor-primaria);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+.linha-etapa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+
+  .linha-etapa-campo { flex: 1; min-width: 0; }
+
+  input.percentual {
+    width: 62px;
+    height: 30px;
+    font-size: 13px;
+    padding: 4px 6px;
+    text-align: right;
+  }
+
+  button[title='Remover etapa'] {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+}
+
+.link-completar {
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+  border-radius: var(--raio-sm);
+  padding: 4px 6px;
+  font-size: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover { background: var(--cor-destaque-bg, var(--cor-fundo-alt)); }
+}
+
+.resumo-total {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 13px;
+
+  strong { font-size: 15px; }
+}
+
+// ---- Popup de fechamento: prévia dos itens do pagamento ----
+.tabela-previa {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th, td { padding: 5px 6px; border-bottom: 1px solid var(--cor-borda); text-align: left; }
+  tfoot td { border-top: 2px solid var(--cor-borda); border-bottom: none; font-weight: 700; }
+}

@@ -1218,3 +1218,32 @@ AppTrena/
   equipamentos, sem duplicar e sem tocar nas tabelas antigas — rodar UMA vez no VPS
   depois do migrate (`--dry-run` mostra antes). O RDO e o Diário antigo ainda usam os
   catálogos deles; a troca para este cadastro fica para as fases do RDO (F8–F10).
+- 22/09/2026 (F7 — aba Diárias; 4 migrations: `create_diarias_table`,
+  `create_diaria_etapas_table`, `add_diaria_id_to_pagamento_itens`,
+  `create_diaria_categorias_custo_table`; novo módulo de permissão `diarias`).
+  Nova aba "Diárias" em cada obra: lançamento manual de diária por profissional
+  (vem do cadastro de Profissionais/F6 — nome, função e valor da diária entram
+  como SNAPSHOT no momento do lançamento, não mudam se o cadastro mudar depois),
+  com meia diária, uma ou mais etapas da EAP com percentual de divisão (soma tem
+  que fechar 100%) e os 4 adicionais (vale transporte, vale alimentação,
+  combustível, valor extra) — todos os campos de valor aceitam `=conta` (F3).
+  **Fechamento**: seleciona uma ou mais diárias em aberto e gera UM Pagamento
+  pendente; o rateio é calculado no motor puro `features/diarias/diarias-engine.ts`
+  (com 32 casos de teste) — cada diária é resolvida isoladamente, então os
+  adicionais de uma diária nunca vazam para a etapa de outra do mesmo lote,
+  mesmo quando duas diárias do lote têm a mesma etapa. Depois de fechada, a
+  diária vira só histórico (não edita nem exclui; desfazer é excluir o Pagamento
+  gerado). `DiariaController::fechar` reconfere no banco (não só no front) que
+  nenhuma diária do lote já foi fechada por outra ação, e que a soma dos itens
+  bate com o total, antes de gravar. **Categorias de custo padrão**: nova aba
+  "Diárias" em Configurações — em qual categoria de custo (Mat/MO/Equip/Outros/
+  Adm) cada um dos 5 tipos de lançamento entra; vale pra empresa toda, sem
+  precisar escolher lançamento a lançamento. Achado durante o teste (corrigido):
+  `<select>` com `[value]` ligado a um signal e `<option>` vindas de `@for` NÃO
+  seleciona a opção certa sem também pôr `[selected]` em cada `<option>` — mesmo
+  ajuste que o `<select>` de tipo de custo da Empreita já usava; qualquer select
+  novo com opções de `@for` precisa dos dois. Também corrigido: `PagamentoItem`
+  não tinha `diaria_id` no `$fillable`, então o rastreio de qual diária gerou
+  cada item do pagamento era descartado em silêncio. RDO ainda não lança diária
+  automaticamente ao finalizar o dia — isso é F9, evita mexer no RDO antes de
+  combinar com a Onilia.

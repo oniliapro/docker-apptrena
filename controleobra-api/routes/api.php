@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CronogramaPdfController;
 use App\Http\Controllers\Api\CronogramaPlanejamentoController;
+use App\Http\Controllers\Api\DiariaController;
 use App\Http\Controllers\Api\DiarioObraController;
 use App\Http\Controllers\Api\EapPdfController;
 use App\Http\Controllers\Api\EmpreitaController;
@@ -176,6 +177,27 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:medicoes,excluir', 'permissaoObra:lancar']);
     Route::get('medicoes/{medicao}/relatorio/pdf', [MedicaoPdfController::class, 'relatorioMedicao'])
         ->middleware(['permissaoModulo:medicoes,usar', 'permissaoObra:ver']);
+
+    // Diárias (F7, 22/09/2026) — mesmo mecanismo de Medições: rota de obra
+    // pra listar/criar; editar/excluir/fechar levam o id "solto" (o
+    // obra_id do model já resolve o PermissaoObra). "fechar" vem antes de
+    // '{diaria}' só por organização — os métodos HTTP não colidem.
+    Route::get('obras/{obra}/diarias', [DiariaController::class, 'index'])
+        ->middleware(['permissaoModulo:diarias,usar', 'permissaoObra:ver']);
+    Route::post('obras/{obra}/diarias', [DiariaController::class, 'store'])
+        ->middleware(['permissaoModulo:diarias,criar', 'permissaoObra:lancar']);
+    Route::post('obras/{obra}/diarias/fechar', [DiariaController::class, 'fechar'])
+        ->middleware(['permissaoModulo:diarias,editar', 'permissaoObra:lancar']);
+    Route::put('obras/{obra}/diarias/{diaria}', [DiariaController::class, 'update'])
+        ->middleware(['permissaoModulo:diarias,editar', 'permissaoObra:lancar']);
+    Route::delete('obras/{obra}/diarias/{diaria}', [DiariaController::class, 'destroy'])
+        ->middleware(['permissaoModulo:diarias,excluir', 'permissaoObra:lancar']);
+
+    // Configurações — "Categorias de custo padrão" das diárias (vale pra empresa toda).
+    Route::get('diarias/categorias', [DiariaController::class, 'categorias'])
+        ->middleware('permissaoModulo:diarias,usar');
+    Route::put('diarias/categorias', [DiariaController::class, 'salvarCategorias'])
+        ->middleware('permissaoModulo:diarias,editar');
 
     // Diário de obra — `GET /diario` sem obra_id lista de TODAS as obras
     // (resumo do dashboard), então não leva `permissaoObra` na rota — o
