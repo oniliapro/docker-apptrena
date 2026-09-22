@@ -5,6 +5,10 @@ import { Observable } from 'rxjs';
 import { Arquivo, ConteudoPasta, Pasta, RaizesPastas } from '../../features/arquivos/arquivos.models';
 import { ResumoContratoEmpreita } from '../../features/empreita/empreita.models';
 import { Tag } from '../../features/configuracoes/tags/tags.models';
+import {
+  DadosMaterialEquipamento,
+  MaterialEquipamento,
+} from '../../features/cadastros/materiais-equipamentos/materiais-equipamentos.models';
 import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
 import {
@@ -643,6 +647,33 @@ export class ApiService {
 
   excluirTag(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/tags/${id}`);
+  }
+
+  // ---------------- Cadastro — Materiais e equipamentos (22/09/2026, F6) ----------------
+  listarMateriaisEquipamentos(): Observable<MaterialEquipamento[]> {
+    return this.http.get<MaterialEquipamento[]>(`${this.base}/materiais-equipamentos`);
+  }
+
+  criarMaterialEquipamento(dados: DadosMaterialEquipamento): Observable<MaterialEquipamento> {
+    return this.http.post<MaterialEquipamento>(`${this.base}/materiais-equipamentos`, dados);
+  }
+
+  atualizarMaterialEquipamento(id: string, dados: DadosMaterialEquipamento): Observable<MaterialEquipamento> {
+    return this.http.put<MaterialEquipamento>(`${this.base}/materiais-equipamentos/${id}`, dados);
+  }
+
+  excluirMaterialEquipamento(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/materiais-equipamentos/${id}`);
+  }
+
+  enviarFotoMaterialEquipamento(id: string, foto: File): Observable<MaterialEquipamento> {
+    const dados = new FormData();
+    dados.append('foto', foto);
+    return this.http.post<MaterialEquipamento>(`${this.base}/materiais-equipamentos/${id}/foto`, dados);
+  }
+
+  removerFotoMaterialEquipamento(id: string): Observable<MaterialEquipamento> {
+    return this.http.delete<MaterialEquipamento>(`${this.base}/materiais-equipamentos/${id}/foto`);
   }
 
   // ---------------- Configurações — Controle de permissões (31/08/2026) ----------------

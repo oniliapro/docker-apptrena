@@ -915,3 +915,20 @@ tfoot th {
 }
 
 .col-selecao { width: 34px; }
+
+// ---- Fórmulas nas células (F5, 21/09/2026) ----
+// Célula com fórmula: faixa azul à esquerda; célula com erro na fórmula: fundo avermelhado.
+input.celula-formula { box-shadow: inset 3px 0 0 var(--cor-aco); }
+input.celula-erro {
+  background: var(--cor-perigo-bg);
+  border-color: var(--cor-perigo);
+}
+
+.aviso-formulas {
+  padding: 2px 8px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+  cursor: help;
+}

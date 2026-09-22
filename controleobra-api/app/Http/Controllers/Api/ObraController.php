@@ -205,6 +205,8 @@ class ObraController extends Controller
                 'bdiPercent' => (float) $item->bdi_percent,
                 'bdiValue' => (float) $item->bdi_value,
                 'orcadoCongelado' => $orcadoCongelado,
+                // Fórmulas das células (F5): só as que existem; ausente = tudo número comum.
+                'formulas' => !empty($item->formulas) ? $item->formulas : null,
             ];
         })->values();
 
@@ -328,6 +330,7 @@ class ObraController extends Controller
                         'bdi_mode' => $raw['bdiMode'] ?? 'pct',
                         'bdi_percent' => $raw['bdiPercent'] ?? 0,
                         'bdi_value' => $raw['bdiValue'] ?? 0,
+                        'formulas' => $this->formulasValidas($raw['formulas'] ?? null),
                     ]
                 );
 
@@ -371,6 +374,27 @@ class ObraController extends Controller
      * mundo acessa toda obra, só quem tem uma linha explícita fica
      * restrito.
      */
+    /**
+     * Fórmulas de um item da EAP (F5): só pares campo => texto, ambos strings
+     * não vazios. Qualquer outra coisa vira `null` (item sem fórmulas). O texto
+     * em si é validado no frontend (motor de fórmulas); aqui só se garante o
+     * formato e um limite de tamanho.
+     */
+    private function formulasValidas(mixed $bruto): ?array
+    {
+        if (!is_array($bruto)) return null;
+
+        $limpas = [];
+        foreach ($bruto as $campo => $texto) {
+            if (!is_string($campo) || !is_string($texto)) continue;
+            $texto = trim($texto);
+            if ($texto === '' || strlen($texto) > 2000) continue;
+            $limpas[$campo] = $texto;
+        }
+
+        return $limpas ?: null;
+    }
+
     public function listarAcessos(Request $request, Obra $obra)
     {
         $this->garantirPodeGerenciar($request);

@@ -16,7 +16,9 @@ import {
 } from '../../../core/utils/documento';
 import { gerarId } from '../../eap/eap-normalize';
 import { CadastroStore } from '../cadastro.store';
-import { DadosRecebimento, Empreiteiro, TipoPessoa, rotuloTipoPessoa } from '../cadastros.models';
+import { DadosRecebimento, Empreiteiro, TipoPessoa, VinculoProfissional, rotuloTipoPessoa } from '../cadastros.models';
+import { formatarMoeda } from '../../../core/utils/formato';
+import { parsearBR } from '../../pagamentos/pagamentos-calc';
 import { BarraSelecao, AcaoLista } from '../../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../../shared/selecao-lista/selecao-lista';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
@@ -47,6 +49,9 @@ export function normalizarEmpreiteiro(bruto: Record<string, unknown>): Empreitei
     telefone: apenasDigitos(bruto['telefone']),
     email: String(bruto['email'] ?? ''),
     especialidade: String(bruto['especialidade'] ?? ''),
+    valorDiaria: Math.max(0, Number(bruto['valorDiaria']) || 0),
+    // Cadastros antigos não têm o campo: eram terceirizados (empreiteiros), então "externo".
+    vinculo: String(bruto['vinculo'] ?? '').toLowerCase() === 'interno' ? 'interno' : 'externo',
     ativo: bruto['ativo'] !== false,
     observacoes: String(bruto['observacoes'] ?? ''),
     dadosRecebimento: recebimentosBrutos.map((r) => normalizarDadosRecebimento(r as Record<string, unknown>)),
@@ -136,6 +141,8 @@ export class Empreiteiros implements OnInit {
     tipo: ['PF' as TipoPessoa],
     documento: ['', [documentoValido]],
     especialidade: [''],
+    valorDiaria: [''],
+    vinculo: ['externo' as VinculoProfissional],
     telefone: [''],
     email: ['', [Validators.email]],
     observacoes: [''],
@@ -208,7 +215,7 @@ export class Empreiteiros implements OnInit {
   protected novo(): void {
     this.editandoId.set(null);
     this.dadosRecebimento.clear();
-    this.formulario.reset({ tipo: 'PF', codigo: this.proximoCodigo() });
+    this.formulario.reset({ tipo: 'PF', codigo: this.proximoCodigo(), vinculo: 'externo' });
     this.abaAtiva.set('geral');
     this.formularioAberto.set(true);
   }
@@ -224,6 +231,8 @@ export class Empreiteiros implements OnInit {
       tipo: registro.tipo,
       documento: formatarDocumento(registro.documento),
       especialidade: registro.especialidade,
+      valorDiaria: registro.valorDiaria ? formatarMoeda(registro.valorDiaria) : '',
+      vinculo: registro.vinculo,
       telefone: formatarTelefone(registro.telefone),
       email: registro.email,
       observacoes: registro.observacoes,
@@ -250,6 +259,21 @@ export class Empreiteiros implements OnInit {
     const formatado = formatarDocumento(alvo.value);
     alvo.value = formatado;
     this.formulario.controls.documento.setValue(formatado);
+  }
+
+  protected readonly formatarMoeda = formatarMoeda;
+
+  protected mudarVinculo(vinculo: VinculoProfissional): void {
+    this.formulario.patchValue({ vinculo });
+  }
+
+  /** Valor da diária: aceita `=conta` (a conta já foi resolvida pelo campo antes deste `change`) e mostra como moeda. */
+  protected aoMudarValorDiaria(evento: Event): void {
+    const alvo = evento.target as HTMLInputElement;
+    const numero = parsearBR(alvo.value);
+    const texto = numero ? formatarMoeda(numero) : '';
+    alvo.value = texto;
+    this.formulario.controls.valorDiaria.setValue(texto);
   }
 
   protected mascararTelefone(evento: Event): void {
@@ -290,6 +314,8 @@ export class Empreiteiros implements OnInit {
       telefone: apenasDigitos(valores.telefone),
       email: valores.email.trim(),
       especialidade: valores.especialidade.trim(),
+      valorDiaria: parsearBR(valores.valorDiaria),
+      vinculo: valores.vinculo,
       ativo: id ? (this.store.obter(id)?.ativo ?? true) : true,
       observacoes: valores.observacoes.trim(),
       dadosRecebimento,
@@ -319,21 +345,31 @@ export class Empreiteiros implements OnInit {
 
   private readonly filtroTipoAtual = signal<TipoPessoa | ''>('');
   private readonly filtroEspecialidadeAtual = signal('');
+  private readonly filtroVinculoAtual = signal<VinculoProfissional | ''>('');
 
   private aplicarFiltroExtra(): void {
     const tipo = this.filtroTipoAtual();
     const especialidade = this.filtroEspecialidadeAtual();
-    if (!tipo && !especialidade) {
+    const vinculo = this.filtroVinculoAtual();
+    if (!tipo && !especialidade && !vinculo) {
       this.store.filtroExtra.set(null);
       return;
     }
     this.store.filtroExtra.set(
-      (e) => (!tipo || e.tipo === tipo) && (!especialidade || e.especialidade === especialidade),
+      (e) =>
+        (!tipo || e.tipo === tipo) &&
+        (!especialidade || e.especialidade === especialidade) &&
+        (!vinculo || e.vinculo === vinculo),
     );
   }
 
   protected mudarFiltroTipo(evento: Event): void {
     this.filtroTipoAtual.set((evento.target as HTMLSelectElement).value as TipoPessoa | '');
+    this.aplicarFiltroExtra();
+  }
+
+  protected mudarFiltroVinculo(evento: Event): void {
+    this.filtroVinculoAtual.set((evento.target as HTMLSelectElement).value as VinculoProfissional | '');
     this.aplicarFiltroExtra();
   }
 

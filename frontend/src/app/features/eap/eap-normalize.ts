@@ -226,6 +226,16 @@ export function normalizarItemEap(bruto: Record<string, unknown> | null | undefi
       ? normalizarPorTipo(orcadoCongeladoBruto)
       : null;
 
+  // Fórmulas guardadas (objeto campo → texto); qualquer outra coisa é ignorada.
+  const formulasBrutas = raw['formulas'];
+  let formulas: Record<string, string> | undefined;
+  if (formulasBrutas && typeof formulasBrutas === 'object' && !Array.isArray(formulasBrutas)) {
+    const limpas = Object.entries(formulasBrutas as Record<string, unknown>).filter(
+      ([, texto]) => typeof texto === 'string' && texto.trim() !== '',
+    ) as [string, string][];
+    if (limpas.length) formulas = Object.fromEntries(limpas);
+  }
+
   return {
     id: raw['id'] ? String(raw['id']) : gerarId(),
     isGroup: Boolean(raw['isGroup']),
@@ -240,6 +250,7 @@ export function normalizarItemEap(bruto: Record<string, unknown> | null | undefi
     bdiPercent: Number(raw['bdiPercent']) || 0,
     bdiValue: Number(raw['bdiValue']) || 0,
     orcadoCongelado,
+    ...(formulas ? { formulas } : {}),
   };
 }
 

@@ -134,6 +134,13 @@ export interface ItemEap {
    * caso o Orçado exibido continua sendo o cálculo ao vivo.
    */
   orcadoCongelado: PorTipo | null;
+  /**
+   * Fórmulas das células editáveis (F5, 21/09/2026) — chave = campo (`qtde`,
+   * `unit.material`…, `bdi`), valor = fórmula na FORMA CANÔNICA (referências por
+   * id de item; ver `eap-formulas.ts`). Ausente/vazio = todas as células são
+   * números comuns. O valor calculado continua gravado em `qtde`/`unit`/`bdi*`.
+   */
+  formulas?: Record<string, string>;
 }
 
 /**

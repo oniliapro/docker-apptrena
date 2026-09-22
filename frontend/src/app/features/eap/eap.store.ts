@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal, untracked } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
 import { EapItem as EapItemApi } from '../../core/models/api.models';
@@ -13,6 +13,17 @@ import {
   normalizarItemEap,
   normalizarUi,
 } from './eap-normalize';
+import {
+  CampoCelula,
+  ContextoRealizado,
+  atualizarSnapshotDosItensComFormula,
+  chaveDaCelula,
+  comValor,
+  paraCanonico,
+  paraExibicao,
+  recalcularFormulas,
+  remapearFormulas,
+} from './eap-formulas';
 import { CabecalhoObra, ChaveTipo, EstadoUi, ItemEap, PorTipo, TIPOS_CUSTO } from './eap.models';
 
 /**
@@ -45,6 +56,110 @@ export class EapStore {
   readonly carregando = signal(true);
   readonly erro = signal<string | null>(null);
   readonly salvando = signal(false);
+
+  // ------------------------------------------------------------------
+  // Fórmulas (F5, 21/09/2026) — ver `eap-formulas.ts`
+  // ------------------------------------------------------------------
+  /** Realizado dos pagamentos confirmados; `null` enquanto os pagamentos não carregaram. */
+  private contextoRealizado: ContextoRealizado | null = null;
+
+  /** Erros das células com fórmula (chave = `chaveDaCelula`); célula com erro mantém o último valor. */
+  readonly errosFormulas = signal<Map<string, string>>(new Map());
+
+  /**
+   * Recalcula as fórmulas sobre uma lista já numerada. Com a EAP confirmada
+   * (travada) as fórmulas continuam dinâmicas: os itens que têm fórmula refazem
+   * o snapshot do Orçado. Atualiza `errosFormulas`.
+   */
+  private aplicarFormulas(lista: ItemEap[]): { itens: ItemEap[]; alterou: boolean } {
+    const resultado = recalcularFormulas(lista, this.cabecalho(), this.contextoRealizado);
+    let itens = resultado.itens;
+    let alterou = resultado.alterou;
+    if (this.travada()) {
+      const comSnapshot = atualizarSnapshotDosItensComFormula(itens, this.cabecalho());
+      if (comSnapshot !== itens) {
+        itens = comSnapshot;
+        alterou = true;
+      }
+    }
+    this.errosFormulas.set(resultado.erros);
+    return { itens, alterou };
+  }
+
+  /** Renumera a EAP e recalcula as fórmulas — todo caminho que muda a lista termina aqui. */
+  private consolidar(lista: ItemEap[]): ItemEap[] {
+    return this.aplicarFormulas(aplicarNumeracaoAutomatica(lista)).itens;
+  }
+
+  /**
+   * A tela entrega o Realizado (pagamentos confirmados) sempre que ele muda.
+   * Reaplica as fórmulas — também com a EAP travada — e, se algum valor mudou,
+   * grava (Real./Saldo. mexem no valor das células).
+   */
+  definirRealizado(contexto: ContextoRealizado): void {
+    this.contextoRealizado = contexto;
+    untracked(() => {
+      const resultado = this.aplicarFormulas(this.itens());
+      if (!resultado.alterou) return;
+      this.itens.set(resultado.itens);
+      this.salvar();
+    });
+  }
+
+  /** Texto da fórmula da célula para mostrar/editar (com os códigos ATUAIS dos itens), ou `null` se a célula é um número comum. */
+  formulaDaCelula(id: string, campo: string): string | null {
+    const lista = this.itens();
+    const canonico = lista.find((i) => i.id === id)?.formulas?.[campo];
+    return canonico ? paraExibicao(canonico, lista) : null;
+  }
+
+  /** Erro atual de uma célula com fórmula (ex.: item referenciado foi excluído), ou `null`. */
+  erroDaCelula(id: string, campo: string): string | null {
+    return this.errosFormulas().get(chaveDaCelula(id, campo)) ?? null;
+  }
+
+  /**
+   * Guarda a fórmula digitada numa célula. Devolve a mensagem de erro (e não
+   * altera nada) se a fórmula não servir; `null` = gravada.
+   */
+  definirFormula(id: string, campo: CampoCelula, texto: string): string | null {
+    if (this.travada()) return 'A EAP está confirmada: reabra para editar as fórmulas.';
+    const lista = this.itens();
+    const alvo = lista.find((i) => i.id === id);
+    if (!alvo || alvo.isGroup) return 'Só itens (não grupos) aceitam fórmula.';
+
+    const convertida = paraCanonico(texto, lista);
+    if (!convertida.ok) return convertida.erro;
+
+    const tentativa = lista.map((i) =>
+      i.id === id ? { ...i, formulas: { ...(i.formulas ?? {}), [campo]: convertida.canonico } } : i,
+    );
+    const teste = recalcularFormulas(tentativa, this.cabecalho(), this.contextoRealizado);
+    const erro = teste.erros.get(chaveDaCelula(id, campo));
+    if (erro) return erro;
+
+    this.itens.set(this.consolidar(tentativa));
+    this.salvar();
+    return null;
+  }
+
+  /** Grava um número comum na célula (some a fórmula que ela tinha). */
+  definirNumero(id: string, campo: CampoCelula, valor: number): void {
+    if (this.travada()) return;
+    this.itens.update((lista) =>
+      this.consolidar(
+        lista.map((item) => {
+          if (item.id !== id) return item;
+          const { formulas, ...resto } = item;
+          const restantes = { ...(formulas ?? {}) };
+          delete restantes[campo];
+          const semFormula: ItemEap = Object.keys(restantes).length ? { ...resto, formulas: restantes } : resto;
+          return comValor(semFormula, campo, valor);
+        }),
+      ),
+    );
+    this.salvar();
+  }
 
   /** Recalculado sozinho a cada mudança em itens ou cabeçalho. */
   readonly cache = computed(() => calcularCacheOrcado(this.itens(), this.cabecalho()));
@@ -108,7 +223,7 @@ export class EapStore {
       ? itensBrutos.map((i) => normalizarItemEap(i as Record<string, unknown>))
       : [];
 
-    this.itens.set(aplicarNumeracaoAutomatica(itens));
+    this.itens.set(this.consolidar(itens));
   }
 
   salvar(): void {
@@ -237,7 +352,7 @@ export class EapStore {
 
       const copia = [...lista];
       copia.splice(destino, 0, novo);
-      return aplicarNumeracaoAutomatica(copia);
+      return this.consolidar(copia);
     });
     this.salvar();
   }
@@ -245,9 +360,7 @@ export class EapStore {
   atualizarItem(id: string, alteracao: Partial<ItemEap>): void {
     if (this.travada()) return;
     this.itens.update((lista) =>
-      aplicarNumeracaoAutomatica(
-        lista.map((item) => (item.id === id ? { ...item, ...alteracao } : item)),
-      ),
+      this.consolidar(lista.map((item) => (item.id === id ? { ...item, ...alteracao } : item))),
     );
     this.salvar();
   }
@@ -286,7 +399,7 @@ export class EapStore {
 
   removerItem(id: string): void {
     if (this.travada()) return;
-    this.itens.update((lista) => aplicarNumeracaoAutomatica(lista.filter((i) => i.id !== id)));
+    this.itens.update((lista) => this.consolidar(lista.filter((i) => i.id !== id)));
     this.salvar();
   }
 
@@ -294,7 +407,7 @@ export class EapStore {
   removerVarios(ids: readonly string[]): void {
     if (this.travada() || !ids.length) return;
     const alvo = new Set(ids);
-    this.itens.update((lista) => aplicarNumeracaoAutomatica(lista.filter((i) => !alvo.has(i.id))));
+    this.itens.update((lista) => this.consolidar(lista.filter((i) => !alvo.has(i.id))));
     this.salvar();
   }
 
@@ -317,7 +430,7 @@ export class EapStore {
           if (marcados.has(copia[i].id) && !marcados.has(copia[i + 1].id)) [copia[i + 1], copia[i]] = [copia[i], copia[i + 1]];
         }
       }
-      return aplicarNumeracaoAutomatica(copia);
+      return this.consolidar(copia);
     });
     this.salvar();
   }
@@ -332,7 +445,7 @@ export class EapStore {
 
       const copia = [...lista];
       [copia[atual], copia[destino]] = [copia[destino], copia[atual]];
-      return aplicarNumeracaoAutomatica(copia);
+      return this.consolidar(copia);
     });
     this.salvar();
   }
@@ -356,7 +469,7 @@ export class EapStore {
     if (this.travada()) return;
     this.itens.update((atual) => {
       const combinados = modo === 'substituir' ? itensImportados : [...atual, ...itensImportados];
-      return aplicarNumeracaoAutomatica(combinados);
+      return this.consolidar(combinados);
     });
     this.salvar();
   }
@@ -388,12 +501,15 @@ export class EapStore {
       bdiByType: headerOrigem.bdiByType,
     }));
 
-    const itens = (Array.isArray(itensOrigemBrutos) ? itensOrigemBrutos : []).map((i) => ({
-      ...normalizarItemEap(i as Record<string, unknown>),
-      id: gerarId(),
-      orcadoCongelado: null,
-    }));
-    this.itens.set(aplicarNumeracaoAutomatica(itens));
+    // Os ids mudam na cópia; as fórmulas (que guardam ids) são reescritas para os ids novos.
+    const mapaIds = new Map<string, string>();
+    const copiados = (Array.isArray(itensOrigemBrutos) ? itensOrigemBrutos : []).map((i) => {
+      const normalizado = normalizarItemEap(i as Record<string, unknown>);
+      const novoId = gerarId();
+      mapaIds.set(normalizado.id, novoId);
+      return { ...normalizado, id: novoId, orcadoCongelado: null };
+    });
+    this.itens.set(this.consolidar(remapearFormulas(copiados, mapaIds)));
 
     this.salvar();
   }

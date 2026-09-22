@@ -2,6 +2,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
 
+import { eapFormulasInterceptor } from './features/eap/eap-formulas-sync';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { routes } from './app.routes';
 
@@ -17,6 +18,6 @@ export const appConfig: ApplicationConfig = {
       // que faltava para "obra como contexto" (ver INTEGRACAO.md).
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, eapFormulasInterceptor])),
   ],
 };

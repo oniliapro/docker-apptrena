@@ -33,6 +33,12 @@
 
       <span class="espacador"></span>
 
+      @if (resumoErrosFormulas(); as erros) {
+        <span class="aviso-formulas" [title]="erros.detalhe">
+          ⚠ {{ erros.quantidade }} fórmula{{ erros.quantidade === 1 ? '' : 's' }} com erro
+        </span>
+      }
+
       @if (store.salvando()) {
         <span class="atenuado pequeno">salvando…</span>
       }
@@ -226,8 +232,14 @@
             </td>
             <td>
               @if (!item.isGroup) {
-                <input type="text" class="valor" [value]="numeroOuVazio(item.qtde)" [disabled]="store.travada()"
-                       (change)="editarQuantidade(item, $event)" />
+                <input type="text" class="valor" data-formula-propria
+                       [class.celula-formula]="celulaTemFormula(item, 'qtde')"
+                       [class.celula-erro]="!!store.erroDaCelula(item.id, 'qtde')"
+                       [title]="tituloDaCelula(item, 'qtde')"
+                       [value]="numeroOuVazio(item.qtde)" [disabled]="store.travada()"
+                       (focus)="mostrarFormulaNoCampo(item, 'qtde', $event)"
+                       (blur)="restaurarCelula(item, 'qtde', $event)"
+                       (change)="editarCelula(item, 'qtde', $event)" />
               }
             </td>
             <td>
@@ -313,8 +325,14 @@
                       <div class="linha-unit">
                         <span class="rotulo-custo">Unit.</span>
                         @if (!item.isGroup) {
-                          <input type="text" class="valor" [value]="moedaOuVazio(item.unit[tipo.chave])"
-                                 (change)="editarCusto(item, tipo.chave, $event)" />
+                          <input type="text" class="valor" data-formula-propria
+                                 [class.celula-formula]="celulaTemFormula(item, 'unit.' + tipo.chave)"
+                                 [class.celula-erro]="!!store.erroDaCelula(item.id, 'unit.' + tipo.chave)"
+                                 [title]="tituloDaCelula(item, 'unit.' + tipo.chave)"
+                                 [value]="moedaOuVazio(item.unit[tipo.chave])"
+                                 (focus)="mostrarFormulaNoCampo(item, 'unit.' + tipo.chave, $event)"
+                                 (blur)="restaurarCelula(item, 'unit.' + tipo.chave, $event)"
+                                 (change)="editarCelula(item, 'unit.' + tipo.chave, $event)" />
                         }
                       </div>
                       <div class="linha-total">
@@ -348,8 +366,14 @@
                         <button type="button" class="alternar-bdi" (click)="alternarModoBdiItem(item)">
                           {{ item.bdiMode === 'pct' ? '%' : 'R$' }}
                         </button>
-                        <input type="text" class="valor" [value]="valorBdiItem(item)"
-                               (change)="editarBdiItem(item, $event)" />
+                        <input type="text" class="valor" data-formula-propria
+                               [class.celula-formula]="celulaTemFormula(item, 'bdi')"
+                               [class.celula-erro]="!!store.erroDaCelula(item.id, 'bdi')"
+                               [title]="tituloDaCelula(item, 'bdi')"
+                               [value]="valorBdiItem(item)"
+                               (focus)="mostrarFormulaNoCampo(item, 'bdi', $event)"
+                               (blur)="restaurarCelula(item, 'bdi', $event)"
+                               (change)="editarCelula(item, 'bdi', $event)" />
                       </span>
                     }
                   </div>

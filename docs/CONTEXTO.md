@@ -1172,3 +1172,49 @@ AppTrena/
   funcionando sem abrir o editor. (4) Bug antigo corrigido: em Pagamentos e
   Recebimentos da obra, o título/estado "Editar" x "Novo" do popup ficava preso
   no primeiro valor (`computed` sobre campo comum); agora `idEditando` é signal.
+- 21/09/2026 (F5 — fórmulas na EAP; 1 migration: `2026_09_21_000000_add_formulas_to_eap_itens`,
+  coluna JSON `formulas` em `eap_itens`). Em quantidade, custo unitário (Mat/MO/Equip/
+  Outros/Adm) e BDI do item, digitar `=conta` guarda a fórmula; a célula mostra o número
+  e, ao receber foco, mostra a fórmula (com os códigos ATUAIS dos itens). Número comum
+  desfaz a fórmula. O número calculado continua gravado nas colunas de sempre (relatórios
+  e PDFs do PHP leem esses valores). Referências a outros itens: `"1.4-qtd"`,
+  `"1.1-Unit.Mat"` (Unit.MO/Equip/Outros/Adm, BDI); a referência guarda o id do item e
+  acompanha renumeração/movimentação. Referência a grupo, item excluído ou ciclo = erro
+  (célula vermelha + aviso "N fórmulas com erro" na barra; fórmula nova inválida nem é
+  gravada e mostra um alerta). Totais da obra podem entrar na conta: `Orç.*`, `Real.*` e
+  `Saldo.*` com Mat, MO, Equip, Outros, Adm, Total, BDI. Nomes sem aspas (`qtd`, `Unit.Mat`,
+  `BDI`, `Orç.Mat`, `Real.MO`, `Saldo.Total`…) valem para o PRÓPRIO item da célula (decisão do
+  Lucas); a obra inteira é `Obra.Real.Mat` etc.; outro item/grupo é `"2-Real.Mat"`. Ex.:
+  `=0,15*(Obra.Real.Mat+Obra.Real.MO+Obra.Real.Equip+Obra.Real.Outros)` calcula a
+  administração sobre custos não previstos sem mexer na EAP. Fórmulas são dinâmicas mesmo com a EAP confirmada
+  (travada): ao mudar o realizado, os itens com fórmula recalculam, regravam e refazem o
+  snapshot `orcadoCongelado` só deles. Copiar EAP de outra obra leva as fórmulas
+  (ids reescritos); importar Excel continua só valores. Motor puro em
+  `features/eap/eap-formulas.ts` (grafo de dependências, ciclos, ordem de cálculo);
+  parser em `shared/numero/formula.ts` (agora com nomes simples como `Real.Mat`).
+  Limitações conhecidas: `Real.BDI` é sempre 0 (BDI só existe sobre o orçado); fórmula no BDI global/por
+  categoria do cabeçalho não existe (só BDI do item); para manter dashboard/cronograma/PDF em dia sem abrir a EAP, um interceptor
+  (`eap-formulas-sync.ts`) observa criar/editar/confirmar/excluir pagamento em qualquer
+  tela e, se a obra tem fórmulas, relê EAP+pagamentos, recalcula e regrava (só roda no
+  navegador de quem fez a alteração; se a gravação for feita fora do sistema, a EAP
+  recalcula quando for aberta). Verificado: casos do motor em script,
+  navegador (foco, dependentes, erro/ciclo, renumeração, exclusão, recarga, EAP travada
+  com pagamento, cópia entre obras). Obs.: `VERIFICAR.bat` já apontava 10 divergências na
+  EAP (numeração de nível 1 começando em 0), 1 no Mapa e falha ao compilar a Empreita
+  ANTES do F5 — idênticas no commit anterior.
+- 22/09/2026 (F6 — cadastros; 1 migration: `2026_09_22_000000_create_materiais_equipamentos_table`,
+  mais o comando `php artisan cadastros:migrar-equipamentos [--dry-run]`).
+  (1) **Profissionais** ganharam **Valor da diária** (aceita `=conta`), **Vínculo**
+  (interno/externo; cadastros antigos ficam "externo") e a especialidade passou a ser
+  mostrada como **Função**; a lista tem colunas Vínculo e Diária e filtro por vínculo.
+  Continuam na ponte de storage (`controleObra.empreiteiros.v1`), sem tabela.
+  (2) **Materiais e equipamentos** (novo, Cadastros → menu): um cadastro com Tipo
+  (material/equipamento), nome, foto, unidade, valor unitário, lista de marcas e
+  ativo; nome único por empresa+tipo (422 com mensagem). Este SIM tem tabela
+  (`materiais_equipamentos`, por empresa) e API própria (`/api/materiais-equipamentos`,
+  foto em `/{id}/foto`, disco `public/materiais`) — sem módulo de permissão próprio,
+  como os outros cadastros. (3) O comando copia os nomes dos catálogos antigos
+  (`equipamentos_catalogo` do Diário antigo e `rdo_equipamentos_catalogo` do RDO) como
+  equipamentos, sem duplicar e sem tocar nas tabelas antigas — rodar UMA vez no VPS
+  depois do migrate (`--dry-run` mostra antes). O RDO e o Diário antigo ainda usam os
+  catálogos deles; a troca para este cadastro fica para as fases do RDO (F8–F10).

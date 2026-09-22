@@ -20,6 +20,9 @@
 
 export type ResolvedorReferencia = (referencia: string) => number;
 
+/** Resolve um NOME solto (sem aspas e sem parênteses), ex.: `Real.Mat` — na EAP são os totais da obra. */
+export type ResolvedorNome = (nome: string) => number;
+
 export interface ResultadoFormula {
   ok: boolean;
   valor: number;
@@ -103,12 +106,30 @@ export function extrairReferencias(expr: string): string[] {
   }
 }
 
+/** Nomes soltos citados na fórmula (sem aspas e não seguidos de "(") — ex.: `Real.Mat`. */
+export function extrairNomes(expr: string): string[] {
+  try {
+    const tokens = tokenizar(expr.startsWith('=') ? expr.slice(1) : expr);
+    const nomes: string[] = [];
+    tokens.forEach((t, i) => {
+      if (t.tipo !== 'nome') return;
+      const proximo = tokens[i + 1];
+      if (proximo?.tipo === 'simbolo' && proximo.valor === '(') return;
+      nomes.push(t.valor);
+    });
+    return nomes;
+  } catch {
+    return [];
+  }
+}
+
 class Avaliador {
   private posicao = 0;
 
   constructor(
     private readonly tokens: Token[],
     private readonly resolver?: ResolvedorReferencia,
+    private readonly resolverNome?: ResolvedorNome,
   ) {}
 
   avaliar(): number {
@@ -215,7 +236,12 @@ class Avaliador {
 
     if (token.tipo === 'nome') {
       this.posicao++;
-      return this.chamarFuncao(token.valor);
+      // Com "(" é função; sem, é um nome solto (ex.: `Real.Mat`).
+      if (this.ehSimbolo('(')) return this.chamarFuncao(token.valor);
+      if (!this.resolverNome) throw new ErroFormula(`Nome desconhecido: "${token.valor}".`);
+      const valor = this.resolverNome(token.valor);
+      if (!Number.isFinite(valor)) throw new ErroFormula(`Nome sem valor: "${token.valor}".`);
+      return valor;
     }
 
     if (token.valor === '(') {
@@ -270,10 +296,14 @@ class Avaliador {
 }
 
 /** Calcula a fórmula (com ou sem o "=" na frente). Nunca lança — o erro vem no resultado. */
-export function avaliarFormula(expr: string, resolver?: ResolvedorReferencia): ResultadoFormula {
+export function avaliarFormula(
+  expr: string,
+  resolver?: ResolvedorReferencia,
+  resolverNome?: ResolvedorNome,
+): ResultadoFormula {
   try {
     const corpo = expr.trim().replace(/^=/, '');
-    const valor = new Avaliador(tokenizar(corpo), resolver).avaliar();
+    const valor = new Avaliador(tokenizar(corpo), resolver, resolverNome).avaliar();
     if (!Number.isFinite(valor)) return { ok: false, valor: 0, erro: 'Resultado inválido.' };
     return { ok: true, valor, erro: null };
   } catch (erro) {

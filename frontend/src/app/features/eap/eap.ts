@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
@@ -23,6 +23,8 @@ import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ehDescendente } from './eap-engine';
+import { CampoCelula, apelidoDaChave } from './eap-formulas';
+import { calcularContextoRealizado } from './eap-realizado';
 import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
@@ -125,24 +127,9 @@ export class Eap implements OnInit {
    * `realizadoPorItem` acima — por isso a soma das categorias pode ficar
    * um pouco abaixo do total nessas linhas, de propósito.
    */
-  protected readonly realizadoPorItemPorTipo = computed(() => {
-    const mapa = new Map<string, PorTipo>();
-    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
+  private readonly contextoDosPagamentos = computed(() => calcularContextoRealizado(this.pagamentosStore.pagamentos()));
 
-    for (const pagamento of this.pagamentosStore.pagamentos()) {
-      if (pagamento.status === 'pendente') continue;
-      for (const item of expandirItensPagamento(pagamento)) {
-        if (!item.eapId) continue;
-        const tipo = item.tipo as ChaveTipo;
-        if (!chaves.has(tipo)) continue;
-
-        const atual = mapa.get(item.eapId) ?? criarVazioPorTipo();
-        atual[tipo] += item.valorCalculado;
-        mapa.set(item.eapId, atual);
-      }
-    }
-    return mapa;
-  });
+  protected readonly realizadoPorItemPorTipo = computed(() => this.contextoDosPagamentos().porItem);
 
   /**
    * Contrapartida de `realizadoPorItemPorTipo`: soma, por item da EAP, dos
@@ -188,21 +175,7 @@ export class Eap implements OnInit {
    * sem etapa cai em "S/ Definição" na coluna Material; sem tipo E sem
    * etapa cai em "S/ Definição" na coluna "S/ Categoria".
    */
-  protected readonly realizadoSemDefinicaoPorTipo = computed(() => {
-    const totais = criarVazioPorTipo();
-    const chaves = new Set(TIPOS_CUSTO.map((t) => t.chave));
-
-    for (const pagamento of this.pagamentosStore.pagamentos()) {
-      if (pagamento.status === 'pendente') continue;
-      for (const item of expandirItensPagamento(pagamento)) {
-        if (item.eapId) continue;
-        const tipo = item.tipo as ChaveTipo;
-        if (!chaves.has(tipo)) continue;
-        totais[tipo] += item.valorCalculado;
-      }
-    }
-    return totais;
-  });
+  protected readonly realizadoSemDefinicaoPorTipo = computed(() => this.contextoDosPagamentos().semDefinicao);
 
   /** Contrapartida de `realizadoSemDefinicaoPorTipo`: sem etapa E sem categoria padrão. */
   protected readonly realizadoSemDefinicaoSemCategoria = computed(() => {
@@ -343,17 +316,89 @@ export class Eap implements OnInit {
     this.store.atualizarItem(item.id, { [campo]: alvo.value });
   }
 
-  protected editarQuantidade(item: ItemEap, evento: Event): void {
-    this.store.atualizarItem(item.id, { qtde: parsearBR((evento.target as HTMLInputElement).value) });
+  // ------------------------------------------------------------------
+  // Células com fórmula (F5, 21/09/2026): quantidade, custo unitário e BDI do
+  // item. A célula mostra o número; ao receber foco mostra a FÓRMULA (com os
+  // códigos atuais dos itens) para editar; `=...` vira fórmula, número comum
+  // desfaz a fórmula. Ver `eap-formulas.ts` e `EapStore.definirFormula`.
+  // ------------------------------------------------------------------
+  /** Texto que a célula mostra em repouso (o número formatado). */
+  private textoDaCelula(item: ItemEap, campo: CampoCelula): string {
+    if (campo === 'qtde') return this.numeroOuVazio(item.qtde);
+    if (campo === 'bdi') return this.valorBdiItem(item);
+    return this.moedaOuVazio(item.unit[campo.slice(5) as ChaveTipo]);
   }
 
-  protected editarCusto(item: ItemEap, tipo: ChaveTipo, evento: Event): void {
-    this.store.atualizarCustoUnitario(
-      item.id,
-      tipo,
-      parsearBR((evento.target as HTMLInputElement).value),
-    );
+  protected celulaTemFormula(item: ItemEap, campo: string): boolean {
+    return !!item.formulas?.[campo];
   }
+
+  /** Dica da célula: o erro da fórmula, ou a fórmula em si. */
+  protected tituloDaCelula(item: ItemEap, campo: string): string {
+    const erro = this.store.erroDaCelula(item.id, campo as CampoCelula);
+    if (erro) return 'Erro na fórmula: ' + erro;
+    const formula = this.store.formulaDaCelula(item.id, campo as CampoCelula);
+    return formula ? 'Fórmula: ' + formula : '';
+  }
+
+  protected mostrarFormulaNoCampo(item: ItemEap, campo: string, evento: Event): void {
+    const formula = this.store.formulaDaCelula(item.id, campo as CampoCelula);
+    if (!formula) return;
+    const campoTexto = evento.target as HTMLInputElement;
+    campoTexto.value = formula;
+    campoTexto.select();
+  }
+
+  protected editarCelula(item: ItemEap, campo: string, evento: Event): void {
+    const campoTexto = evento.target as HTMLInputElement;
+    const texto = campoTexto.value.trim();
+    const celula = campo as CampoCelula;
+
+    if (texto.startsWith('=')) {
+      const erro = this.store.definirFormula(item.id, celula, texto);
+      if (erro) {
+        // Fórmula que não serve não é gravada: avisa o motivo e devolve o valor anterior.
+        window.alert('Fórmula inválida: ' + erro);
+        this.restaurarTexto(item.id, celula, campoTexto);
+        return;
+      }
+    } else {
+      this.store.definirNumero(item.id, celula, parsearBR(texto));
+    }
+
+    this.restaurarTexto(item.id, celula, campoTexto);
+  }
+
+  protected restaurarCelula(item: ItemEap, campo: string, evento: Event): void {
+    this.restaurarTexto(item.id, campo as CampoCelula, evento.target as HTMLInputElement);
+  }
+
+  private restaurarTexto(id: string, campo: CampoCelula, campoTexto: HTMLInputElement): void {
+    const atual = this.store.itens().find((i) => i.id === id);
+    if (atual) campoTexto.value = this.textoDaCelula(atual, campo);
+  }
+
+  /** Resumo das fórmulas com erro para a barra de ferramentas (também com a EAP confirmada). */
+  protected readonly resumoErrosFormulas = computed(() => {
+    const erros = this.store.errosFormulas();
+    if (!erros.size) return null;
+    const itens = this.store.itens();
+    const linhas = [...erros.entries()].map(([chave, mensagem]) => {
+      const [id, campo] = chave.split('|');
+      const codigo = itens.find((i) => i.id === id)?.eap ?? '?';
+      return `${codigo} (${apelidoDaChave(campo)}): ${mensagem}`;
+    });
+    return { quantidade: erros.size, detalhe: linhas.join('\n') };
+  });
+
+  /** Entrega ao motor de fórmulas o Realizado dos pagamentos (Real./Saldo.) sempre que ele muda. */
+  private readonly enviarRealizadoAsFormulas = effect(() => {
+    if (this.pagamentosStore.carregando()) return;
+    this.store.definirRealizado({
+      porItem: this.realizadoPorItemPorTipo(),
+      semDefinicao: this.realizadoSemDefinicaoPorTipo(),
+    });
+  });
 
   /**
    * Nível (1-4) escolhido pelo usuário — decisão de 14/08/2026, substitui a
@@ -375,11 +420,6 @@ export class Eap implements OnInit {
     this.store.atualizarItem(item.id, { bdiMode: item.bdiMode === 'pct' ? 'value' : 'pct' });
   }
 
-  protected editarBdiItem(item: ItemEap, evento: Event): void {
-    const valor = parsearBR((evento.target as HTMLInputElement).value);
-    const campo = item.bdiMode === 'pct' ? 'bdiPercent' : 'bdiValue';
-    this.store.atualizarItem(item.id, { [campo]: valor });
-  }
 
   // ---- Seleção em lote (20/09/2026) — opcional: os botões de cada linha (↑ ↓ + ✖) continuam. ----
   protected readonly selecao = new SelecaoMultipla<ItemEap>((item) => item.id);

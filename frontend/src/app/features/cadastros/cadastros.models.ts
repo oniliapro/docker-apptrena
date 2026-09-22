@@ -79,6 +79,8 @@ export interface DadosRecebimento {
   chavePix: string;
 }
 
+export type VinculoProfissional = 'interno' | 'externo';
+
 /** Empreiteiro que executa serviços. */
 export interface Empreiteiro {
   id: string;
@@ -89,8 +91,12 @@ export interface Empreiteiro {
   documento: string;
   telefone: string;
   email: string;
-  /** Área em que atua: alvenaria, elétrica, pintura… */
+  /** Função/especialidade: alvenaria, elétrica, pintura… (no RDO e nas diárias é a "função"). */
   especialidade: string;
+  /** Valor da diária (F6, 22/09/2026) — base das diárias; meia diária = 50%. */
+  valorDiaria: number;
+  /** Interno (equipe própria) ou externo (terceirizado) — separa a mão de obra no RDO. */
+  vinculo: VinculoProfissional;
   ativo: boolean;
   observacoes: string;
   dadosRecebimento: DadosRecebimento[];

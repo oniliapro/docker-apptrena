@@ -1,0 +1,187 @@
+<div class="cabecalho">
+  <div>
+    <h1>Materiais e equipamentos</h1>
+    <div class="atenuado">Catálogo da empresa: nome, foto, unidade, valor unitário e marcas</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="novo()">+ Novo item</button>
+</div>
+
+<div class="painel barra-ferramentas">
+  <select (change)="filtroTipo.set(texto($event) === 'material' ? 'material' : texto($event) === 'equipamento' ? 'equipamento' : '')">
+    <option value="">Tipo: todos</option>
+    <option value="material">Materiais</option>
+    <option value="equipamento">Equipamentos</option>
+  </select>
+
+  <select (change)="filtroSituacao.set($any(texto($event)))">
+    <option value="todos">Situação: todos</option>
+    <option value="ativos">Ativos</option>
+    <option value="inativos">Inativos</option>
+  </select>
+
+  <select (change)="filtroMarca.set(texto($event))">
+    <option value="">Marca: todas</option>
+    @for (marca of marcasDisponiveis(); track marca) {
+      <option [value]="marca">{{ marca }}</option>
+    }
+  </select>
+
+  <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista"
+                     (editar)="editarSelecionado()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
+
+  <span class="espacador"></span>
+
+  <input class="busca" type="search" placeholder="Buscar por nome, unidade ou marca…"
+         (input)="busca.set(texto($event))" />
+</div>
+
+<div class="painel sem-preenchimento">
+  @if (carregando()) {
+    <div class="mensagem atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="mensagem atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table trenaRedimensionarColunas>
+        <thead>
+          <tr>
+            <th class="centro">
+              <input type="checkbox" [checked]="selecao.todosSelecionados(lista())"
+                     (change)="selecao.alternarTodos(lista())" title="Selecionar todos" />
+            </th>
+            <th class="centro">Foto</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('tipo')">Tipo{{ setaOrdenacao(ordenacao(), 'tipo') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('nome')">Nome{{ setaOrdenacao(ordenacao(), 'nome') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('unidade')">Unidade{{ setaOrdenacao(ordenacao(), 'unidade') }}</th>
+            <th>Marcas</th>
+            <th class="ordenavel" style="text-align: right" (click)="alternarOrdenacaoColuna('valor_unitario')">Valor unitário{{ setaOrdenacao(ordenacao(), 'valor_unitario') }}</th>
+            <th class="centro">Ativo</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (registro of lista(); track registro.id) {
+            <tr class="linha-clicavel" [class.inativo]="!registro.ativo" (click)="editar(registro)">
+              <td class="centro" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selecao.estaSelecionado(registro)" (change)="selecao.alternar(registro)" />
+              </td>
+              <td class="centro">
+                @if (registro.foto_url) {
+                  <img class="miniatura" [src]="registro.foto_url" [alt]="registro.nome" />
+                } @else {
+                  <span class="miniatura vazia">—</span>
+                }
+              </td>
+              <td class="centro">
+                <span class="etiqueta" [class.pj]="registro.tipo === 'equipamento'">{{ rotuloTipo[registro.tipo] }}</span>
+              </td>
+              <td class="nome">{{ registro.nome }}</td>
+              <td class="centro">{{ registro.unidade || '—' }}</td>
+              <td>{{ registro.marcas?.length ? registro.marcas!.join(', ') : '—' }}</td>
+              <td class="mono" style="text-align: right">{{ registro.valor_unitario ? formatarMoeda(registro.valor_unitario) : '—' }}</td>
+              <td class="centro" (click)="$event.stopPropagation()">
+                <button type="button" class="chave" [class.ligada]="registro.ativo"
+                        [title]="registro.ativo ? 'Desativar' : 'Reativar'"
+                        (click)="alternarAtivo(registro)"></button>
+              </td>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="removerUm(registro)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="centro atenuado vazio">Nenhum item cadastrado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (formularioAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fechar()"></div>
+
+    <form class="modal-cartao estreito" (submit)="$event.preventDefault(); salvar()">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">{{ editandoId() ? 'Editar item' : 'Novo item' }}</span>
+        <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="tipo-pessoa">
+          <button type="button" [class.ativo]="fTipo() === 'material'" (click)="fTipo.set('material')">Material</button>
+          <button type="button" [class.ativo]="fTipo() === 'equipamento'" (click)="fTipo.set('equipamento')">Equipamento</button>
+        </div>
+
+        <div class="grade">
+          <label class="campo campo-total">
+            <span class="obrigatorio">Nome</span>
+            <input type="text" [value]="fNome()" (input)="fNome.set(texto($event)); nomeVazio.set(false)" />
+            @if (nomeVazio()) {
+              <small class="erro-campo">Informe o nome.</small>
+            }
+          </label>
+
+          <label class="campo">
+            <span>Unidade</span>
+            <input type="text" [value]="fUnidade()" placeholder="Ex.: un, m², sc, h"
+                   (input)="fUnidade.set(texto($event))" />
+          </label>
+
+          <label class="campo">
+            <span>Valor unitário</span>
+            <input type="text" class="valor" [value]="fValor()" inputmode="decimal" placeholder="R$ 0,00"
+                   (change)="aoMudarValor($event)" />
+          </label>
+
+          <div class="campo campo-total">
+            <span>Marcas</span>
+            <div class="lista-marcas">
+              @for (marca of fMarcas(); track marca) {
+                <span class="marca-item">{{ marca }}
+                  <button type="button" [title]="'Remover ' + marca" (click)="removerMarca(marca)">✖</button>
+                </span>
+              }
+              <input type="text" class="nova-marca" [value]="fNovaMarca()" placeholder="Digite e tecle Enter"
+                     (input)="fNovaMarca.set(texto($event))" (keydown)="teclaMarca($event)"
+                     (blur)="confirmarMarca($any($event.target))" />
+            </div>
+          </div>
+
+          <div class="campo campo-total">
+            <span>Foto</span>
+            <div class="foto-editor">
+              @if (fotoMostrada(); as url) {
+                <img class="foto-previa" [src]="url" alt="Foto do item" />
+              } @else {
+                <div class="foto-previa vazia">Sem foto</div>
+              }
+              <div class="foto-acoes">
+                <label class="botao-arquivo">
+                  {{ fotoMostrada() ? 'Trocar foto' : 'Escolher foto' }}
+                  <input type="file" accept="image/*" (change)="escolherFoto($event)" hidden />
+                </label>
+                @if (fotoMostrada()) {
+                  <button type="button" (click)="removerFotoDoFormulario()">Remover foto</button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        @if (erroFormulario(); as mensagem) {
+          <div class="aviso-erro">{{ mensagem }}</div>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" (click)="fechar()">Cancelar</button>
+        <button class="primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : editandoId() ? 'Salvar alterações' : 'Cadastrar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

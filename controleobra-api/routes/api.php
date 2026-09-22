@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\PublicoDiarioController;
 use App\Http\Controllers\Api\RecebimentoController;
 use App\Http\Controllers\Api\PastaController;
 use App\Http\Controllers\Api\RelatorioPdfController;
+use App\Http\Controllers\Api\MaterialEquipamentoController;
 use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\UsuarioController;
@@ -97,6 +98,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('tags', [TagController::class, 'store']);
     Route::put('tags/{tag}', [TagController::class, 'update']);
     Route::delete('tags/{tag}', [TagController::class, 'destroy']);
+
+    // Cadastro Materiais e equipamentos (22/09/2026, F6) — sem módulo de permissão próprio,
+    // como os outros cadastros: basta estar logado (tudo filtrado pela empresa).
+    Route::get('materiais-equipamentos', [MaterialEquipamentoController::class, 'index']);
+    Route::post('materiais-equipamentos', [MaterialEquipamentoController::class, 'store']);
+    Route::put('materiais-equipamentos/{materiaisEquipamento}', [MaterialEquipamentoController::class, 'update']);
+    Route::delete('materiais-equipamentos/{materiaisEquipamento}', [MaterialEquipamentoController::class, 'destroy']);
+    Route::post('materiais-equipamentos/{materiaisEquipamento}/foto', [MaterialEquipamentoController::class, 'salvarFoto']);
+    Route::delete('materiais-equipamentos/{materiaisEquipamento}/foto', [MaterialEquipamentoController::class, 'removerFoto']);
 
     // 31/08/2026, "Controle de permissões" — achado testando o pedido do
     // Lucas de mexer no acesso por obra: `show`/`update`/`destroy` não

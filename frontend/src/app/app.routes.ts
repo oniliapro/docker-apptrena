@@ -262,6 +262,14 @@ export const routes: Routes = [
           import('./features/cadastros/empreiteiros/empreiteiros').then((m) => m.Empreiteiros),
       },
       {
+        path: 'materiais-equipamentos',
+        data: { titulo: 'Materiais e equipamentos' },
+        loadComponent: () =>
+          import('./features/cadastros/materiais-equipamentos/materiais-equipamentos').then(
+            (m) => m.MateriaisEquipamentos,
+          ),
+      },
+      {
         path: 'fornecedores',
         data: { titulo: 'Fornecedores' },
         loadComponent: () =>

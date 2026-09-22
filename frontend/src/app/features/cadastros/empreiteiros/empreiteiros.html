@@ -20,10 +20,16 @@
   </select>
 
   <select (change)="mudarFiltroEspecialidade($event)">
-    <option value="">Especialidade: todas</option>
+    <option value="">Função: todas</option>
     @for (especialidade of especialidadesDisponiveis(); track especialidade) {
       <option [value]="especialidade">{{ especialidade }}</option>
     }
+  </select>
+
+  <select (change)="mudarFiltroVinculo($event)">
+    <option value="">Vínculo: todos</option>
+    <option value="interno">Interno</option>
+    <option value="externo">Externo</option>
   </select>
 
   <app-barra-selecao [contagem]="selecionados().length" [acoes]="acoesLista"
@@ -35,7 +41,7 @@
     <span class="atenuado pequeno">salvando…</span>
   }
 
-  <input class="busca" type="search" placeholder="Buscar por nome ou especialidade…"
+  <input class="busca" type="search" placeholder="Buscar por nome ou função…"
          (input)="mudarBusca($event)" />
 </div>
 
@@ -55,7 +61,9 @@
             </th>
             <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('codigo')">Código{{ store.setaOrdenacao(store.ordenacao(), 'codigo') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('nome')">Nome{{ store.setaOrdenacao(store.ordenacao(), 'nome') }}</th>
-            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('especialidade')">Especialidade{{ store.setaOrdenacao(store.ordenacao(), 'especialidade') }}</th>
+            <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('especialidade')">Função{{ store.setaOrdenacao(store.ordenacao(), 'especialidade') }}</th>
+            <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('vinculo')">Vínculo{{ store.setaOrdenacao(store.ordenacao(), 'vinculo') }}</th>
+            <th class="ordenavel" style="text-align: right" (click)="store.alternarOrdenacaoColuna('valorDiaria')">Diária{{ store.setaOrdenacao(store.ordenacao(), 'valorDiaria') }}</th>
             <th class="centro ordenavel" (click)="store.alternarOrdenacaoColuna('tipo')">Tipo{{ store.setaOrdenacao(store.ordenacao(), 'tipo') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('documento')">CPF / CNPJ{{ store.setaOrdenacao(store.ordenacao(), 'documento') }}</th>
             <th class="ordenavel" (click)="store.alternarOrdenacaoColuna('telefone')">Telefone{{ store.setaOrdenacao(store.ordenacao(), 'telefone') }}</th>
@@ -72,6 +80,8 @@
               <td class="centro mono">{{ registro.codigo || '—' }}</td>
               <td class="nome">{{ registro.nome }}</td>
               <td>{{ registro.especialidade || '—' }}</td>
+              <td class="centro">{{ registro.vinculo === 'interno' ? 'Interno' : 'Externo' }}</td>
+              <td class="mono" style="text-align: right">{{ registro.valorDiaria ? formatarMoeda(registro.valorDiaria) : '—' }}</td>
               <td class="centro">
                 <span class="etiqueta" [class.pj]="registro.tipo === 'PJ'">
                   {{ rotuloTipoPessoa(registro.tipo) }}
@@ -94,7 +104,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="9" class="centro atenuado vazio">Nenhum profissional cadastrado.</td>
+              <td colspan="11" class="centro atenuado vazio">Nenhum profissional cadastrado.</td>
             </tr>
           }
         </tbody>
@@ -163,9 +173,25 @@
             </label>
 
             <label class="campo">
-              <span>Especialidade</span>
+              <span>Função / especialidade</span>
               <input type="text" formControlName="especialidade"
-                     placeholder="Ex.: Alvenaria, Elétrica" />
+                     placeholder="Ex.: Pedreiro, Eletricista" />
+            </label>
+
+            <div class="campo">
+              <span>Vínculo</span>
+              <div class="tipo-pessoa tipo-pessoa-compacto">
+                <button type="button" [class.ativo]="formulario.controls.vinculo.value === 'interno'"
+                        (click)="mudarVinculo('interno')">Interno</button>
+                <button type="button" [class.ativo]="formulario.controls.vinculo.value === 'externo'"
+                        (click)="mudarVinculo('externo')">Externo</button>
+              </div>
+            </div>
+
+            <label class="campo">
+              <span>Valor da diária</span>
+              <input type="text" class="valor" formControlName="valorDiaria" inputmode="decimal"
+                     placeholder="R$ 0,00" (change)="aoMudarValorDiaria($event)" />
             </label>
 
             <label class="campo">

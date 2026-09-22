@@ -149,6 +149,7 @@ export class AppShell {
         { rota: '/responsaveis', texto: 'Responsáveis' },
         { rota: '/empreiteiros', texto: 'Profissionais' },
         { rota: '/fornecedores', texto: 'Fornecedores' },
+        { rota: '/materiais-equipamentos', texto: 'Materiais e equipamentos' },
       ],
     },
     // Fora de Cadastros (19/08/2026, pedido do Lucas) — Obras é o ponto de
