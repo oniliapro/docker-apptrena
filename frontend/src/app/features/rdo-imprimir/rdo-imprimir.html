@@ -9,8 +9,8 @@
     <!-- Cabeçalho: empresa + identificação do documento -->
     <header class="cabecalho">
       <div class="empresa">
-        @if (empresa()?.logoUrl) {
-          <img class="logo" [src]="empresa()?.logoUrl" alt="">
+        @if (urlLogo(); as logo) {
+          <img class="logo" [src]="logo" alt="">
         }
         <div>
           <p class="empresa-nome">{{ empresa()?.razaoSocial || empresa()?.nome || 'AppTrena' }}</p>
@@ -158,14 +158,21 @@
                 <div class="fotos-tarefa">
                   @for (foto of fotosDaTarefa(t.id); track foto.id) {
                     <figure>
-                      <div class="quadro">
-                        <img [src]="foto.url" alt="">
-                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                          <span class="marcador"
-                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                        }
-                      </div>
+                      @if (foto.tipo === 'video') {
+                        <div class="quadro quadro-video">
+                          <span class="icone-video-impressao">▶</span>
+                          <span class="video-rotulo">Vídeo anexado</span>
+                        </div>
+                      } @else {
+                        <div class="quadro">
+                          <img [src]="urlMidia(foto)" alt="">
+                          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                            <span class="marcador"
+                                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                          }
+                        </div>
+                      }
                       @if (foto.legenda || foto.marcador_nota) {
                         <figcaption>{{ foto.legenda }}{{ foto.marcador_nota ? ' — ' + foto.marcador_nota : '' }}</figcaption>
                       }
@@ -244,14 +251,21 @@
         <div class="fotos-dia">
           @for (foto of fotosDoDia(); track foto.id) {
             <figure>
-              <div class="quadro">
-                <img [src]="foto.url" alt="">
-                @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                  <span class="marcador"
-                        [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                        [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                }
-              </div>
+              @if (foto.tipo === 'video') {
+                <div class="quadro quadro-video">
+                  <span class="icone-video-impressao">▶</span>
+                  <span class="video-rotulo">Vídeo anexado</span>
+                </div>
+              } @else {
+                <div class="quadro">
+                  <img [src]="urlMidia(foto)" alt="">
+                  @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                    <span class="marcador"
+                          [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                          [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                  }
+                </div>
+              }
               @if (foto.legenda) { <figcaption>{{ foto.legenda }}</figcaption> }
             </figure>
           }

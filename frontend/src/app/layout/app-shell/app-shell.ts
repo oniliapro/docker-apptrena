@@ -180,17 +180,11 @@ export class AppShell {
       moduloChave: 'recebimentos',
     },
     {
-      id: 'diarios',
-      rota: '/diario-obra',
-      icone: 'caderno',
-      texto: 'Diários de obra',
-      moduloChave: 'diario_obra',
-    },
-    {
-      // Relatório Diário de Obra (RDO) — módulo reconstruído em 17/09/2026.
-      // Entra ao lado do Diário antigo, não no lugar dele: os dois convivem
-      // até a migração terminar, para não tirar do ar o que já está em uso.
-      // Mesma chave de permissão, então quem já via o Diário vê este também.
+      // Relatório Diário de Obra (RDO) — módulo reconstruído em 17/09/2026;
+      // único diário do sistema desde 22/09/2026 (F8), quando o item de
+      // menu do Diário antigo ("Diários de obra") foi removido daqui.
+      // Mesma chave de permissão de sempre, então quem já via o Diário
+      // antigo continua vendo este.
       id: 'rdo',
       rota: '/rdo',
       icone: 'caderno',

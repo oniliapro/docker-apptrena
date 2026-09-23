@@ -337,34 +337,11 @@
     }
   </div>
 
-  <!-- Diários de obra — só o layout posicionado, sem nenhum dado real ainda
-       (14/09/2026, pedido do Lucas: o modelo de dados do Diário está sendo
-       refeito, não vale a pena ligar campos que vão mudar de novo).
-       Data do diário/N° do diário · Nome da obra/Responsável · N° de Tarefas · Status do diário/N° de Ocorrências -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Diários de obra</h3>
-      <a routerLink="/diario-obra">Ver todos →</a>
-    </div>
-
-    @for (linha of [1, 2, 3]; track linha) {
-      <div class="linha linha-colunas">
-        <span class="coluna coluna-estreita">
-          <span class="col-l1">Data do diário</span>
-          <span class="col-l2">Nº do diário</span>
-        </span>
-        <span class="coluna coluna-descricao">
-          <span class="col-l1 forte">Nome da obra</span>
-          <span class="col-l2">Responsável</span>
-        </span>
-        <span class="coluna-valor coluna-valor-placeholder">Nº de Tarefas</span>
-        <span class="coluna coluna-direita">
-          <span class="col-l1"><span class="etiqueta andamento">Status do diário</span></span>
-          <span class="col-l2">Nº de Ocorrências</span>
-        </span>
-      </div>
-    }
-  </div>
+  <!-- O card "Diários de obra" (14/09/2026) nunca teve dado real — era só o
+       layout posicionado, esperando o modelo de dados ser refeito. Removido
+       em 22/09/2026 (F8): o Diário antigo, pra onde ele apontava, foi
+       aposentado (virou RDO); um card de verdade com dados do RDO fica pra
+       quando fizer sentido, não é o mesmo componente. -->
 </div>
 
 <!-- Editor de pagamento/recebimento aberto ao clicar num item dos cards (21/09/2026) -->

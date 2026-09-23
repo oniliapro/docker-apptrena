@@ -1,0 +1,142 @@
+<header class="rdo-lista-topo">
+  <div>
+    <h1>{{ geral() ? 'RDO' : 'RDO da obra' }}</h1>
+    <p class="subtitulo">O calendário mostra os dias com relatório — clique numa data pra filtrar a lista, ou num relatório pra abrir.</p>
+  </div>
+
+  <div class="topo-acoes">
+    @if (geral()) {
+      <select [value]="obraEscolhida()" (change)="obraEscolhida.set($any($event.target).value)">
+        <option value="">Escolha a obra…</option>
+        @for (obra of obras(); track obra.id) {
+          <option [value]="obra.id">{{ obra.obra_nome || '(sem nome)' }}</option>
+        }
+      </select>
+    }
+    <button type="button" class="botao-primario" (click)="novoRdo()">+ Novo RDO</button>
+  </div>
+</header>
+
+@if (erro()) {
+  <p class="alerta alerta-erro" role="alert">{{ erro() }}</p>
+}
+@if (aviso()) {
+  <p class="alerta alerta-ok" role="status">{{ aviso() }}</p>
+}
+
+@if (carregando()) {
+  <p class="carregando">Carregando…</p>
+} @else {
+
+  <section class="painel calendario">
+    <div class="calendario-topo">
+      <button type="button" (click)="mudarMes(-1)" aria-label="Mês anterior">‹</button>
+      <h2>{{ rotuloMes() }}</h2>
+      <button type="button" (click)="mudarMes(1)" aria-label="Próximo mês">›</button>
+    </div>
+
+    <div class="grade">
+      @for (dia of diasSemana; track dia) {
+        <div class="cabecalho-dia">{{ dia }}</div>
+      }
+
+      @for (semana of semanas(); track $index) {
+        @for (celula of semana; track celula.data) {
+          <button type="button" class="celula"
+                  [class.fora]="!celula.doMes" [class.hoje]="celula.hoje"
+                  [class.com-registro]="!!celula.registros.length"
+                  [class.selecionada]="dataFiltro() === celula.data"
+                  (click)="selecionarDia(celula.data)">
+            <span class="numero">{{ celula.dia }}</span>
+            @if (celula.registros.length) {
+              <span class="marca-dia" [class.rascunho]="celula.registros[0].status === 'rascunho'">
+                {{ celula.registros.length }} RDO{{ celula.registros.length === 1 ? '' : 's' }}
+              </span>
+            }
+          </button>
+        }
+      }
+    </div>
+
+    <p class="legenda">
+      <span class="ponto"></span> dias com relatório — clique numa data pra filtrar a lista abaixo
+      @if (dataFiltro()) {
+        · <button type="button" class="link-limpar" (click)="limparFiltro()">limpar filtro ({{ dataFiltro() }})</button>
+      }
+    </p>
+  </section>
+
+  <section class="painel sem-preenchimento">
+    <table class="tabela-rdo">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th class="centro">Nº</th>
+          @if (geral()) { <th>Obra</th> }
+          <th class="centro">Situação</th>
+          <th class="centro">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (registro of listaFiltrada(); track registro.id) {
+          <tr class="linha-clicavel" (click)="abrir(registro)">
+            <td class="mono">{{ registro.data | date: 'dd/MM/yyyy' }}</td>
+            <td class="centro mono">{{ registro.numero }}</td>
+            @if (geral()) { <td>{{ registro.obra?.obra_nome || '—' }}</td> }
+            <td class="centro">
+              @if (registro.status === 'rascunho') {
+                <span class="etiqueta etiqueta-rascunho">rascunho</span>
+              } @else {
+                <span class="etiqueta etiqueta-assinado">assinado</span>
+              }
+            </td>
+            <td class="centro acoes-linha">
+              <button type="button" title="Excluir" (click)="excluir(registro, $event)">✖</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="geral() ? 5 : 4" class="centro atenuado vazio">
+              @if (dataFiltro()) {
+                Nenhum RDO em {{ dataFiltro() }}.
+              } @else {
+                Nenhum RDO lançado {{ geral() ? '' : 'nesta obra ' }}ainda.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  @if (!geral()) {
+    <!-- Link de acompanhamento do contratante — é da OBRA, não de um RDO específico. -->
+    <section class="painel">
+      <h2>Acompanhamento do contratante</h2>
+      <p class="dica">
+        Link somente leitura, sem senha. O contratante acompanha os relatórios finalizados —
+        não assina e não escreve nada.
+      </p>
+
+      <div class="linha">
+        <input type="email" placeholder="E-mail para aviso (opcional)" #campoEmail>
+        <button type="button" class="botao-secundario" (click)="gerarLink(campoEmail.value); campoEmail.value = ''">
+          Gerar link
+        </button>
+      </div>
+
+      @for (link of links(); track link.id) {
+        <div class="linha link-item" [class.revogado]="!link.ativo">
+          <code>{{ urlPublica(link) }}</code>
+          @if (link.email) { <span class="link-email">{{ link.email }}</span> }
+          @if (link.ativo) {
+            <button type="button" class="botao-secundario" (click)="copiarLink(link)">Copiar</button>
+            <button type="button" class="botao-remover" (click)="revogarLink(link)">Revogar</button>
+          } @else {
+            <span class="etiqueta">revogado</span>
+          }
+        </div>
+      }
+    </section>
+  }
+}

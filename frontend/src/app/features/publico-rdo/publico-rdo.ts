@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 
 import { environment } from '../../../environments/environment';
 import { CLIMAS, RdoFoto, RdoRegistro, TIPOS_OCORRENCIA } from '../rdo/rdo.models';
+import { DiaCalendario, construirSemanas, mesComPasso, mesDoMaisRecente } from '../rdo/rdo-calendario';
 
 interface ResumoRegistro {
   id: string;
@@ -16,14 +17,6 @@ interface ResumoRegistro {
 
 interface RespostaPublica {
   obra: { nome: string; local: string } | null;
-  registros: ResumoRegistro[];
-}
-
-/** Uma célula do calendário mensal. */
-interface DiaCalendario {
-  data: string;
-  dia: number;
-  doMes: boolean;
   registros: ResumoRegistro[];
 }
 
@@ -72,49 +65,23 @@ export class PublicoRdo implements OnInit {
   );
 
   /**
-   * Grade do mês: começa no domingo da semana do dia 1 e vai até completar a
-   * última semana, como qualquer calendário mensal.
+   * `foto.url` vem relativo (`/storage/...`) desde 23/09/2026 (ver
+   * `RdoFoto::getUrlAttribute()`) — mesma ideia de `ApiService.baseStorage()`,
+   * só que esta tela pública não usa o `ApiService` (não tem sessão/token de
+   * usuário), então monta a base direto de `environment.apiUrl`.
    */
-  protected readonly semanas = computed<DiaCalendario[][]>(() => {
-    const referencia = this.mesAtual();
-    const ano = referencia.getFullYear();
-    const mes = referencia.getMonth();
+  protected urlMidia(foto: RdoFoto): string {
+    return this.base.replace(/\/api\/?$/, '') + foto.url;
+  }
 
-    const inicio = new Date(ano, mes, 1);
-    inicio.setDate(inicio.getDate() - inicio.getDay());
-
-    const fim = new Date(ano, mes + 1, 0);
-    fim.setDate(fim.getDate() + (6 - fim.getDay()));
-
-    const porData = new Map<string, ResumoRegistro[]>();
-    this.registros().forEach((r) => {
-      const chave = r.data.substring(0, 10);
-      porData.set(chave, [...(porData.get(chave) ?? []), r]);
-    });
-
-    const semanas: DiaCalendario[][] = [];
-    let semana: DiaCalendario[] = [];
-    const cursor = new Date(inicio);
-
-    while (cursor <= fim) {
-      const iso = this.paraIso(cursor);
-      semana.push({
-        data: iso,
-        dia: cursor.getDate(),
-        doMes: cursor.getMonth() === mes,
-        registros: porData.get(iso) ?? [],
-      });
-
-      if (semana.length === 7) {
-        semanas.push(semana);
-        semana = [];
-      }
-
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return semanas;
-  });
+  /**
+   * Grade do mês: começa no domingo da semana do dia 1 e vai até completar a
+   * última semana, como qualquer calendário mensal — ver `rdo-calendario.ts`
+   * (extraído daqui em 22/09/2026, F8, pra também virar a tela interna).
+   */
+  protected readonly semanas = computed<DiaCalendario<ResumoRegistro>[][]>(() =>
+    construirSemanas(this.mesAtual(), this.registros(), (r) => r.data),
+  );
 
   ngOnInit(): void {
     this.token = this.rota.snapshot.paramMap.get('token') ?? '';
@@ -125,11 +92,8 @@ export class PublicoRdo implements OnInit {
         this.registros.set(resposta.registros ?? []);
         // Abre no mês do relatório mais recente, não no mês corrente: se a
         // obra parou há três meses, abrir em "hoje" mostraria um mês vazio.
-        const maisRecente = resposta.registros?.[0];
-        if (maisRecente) {
-          const d = new Date(`${maisRecente.data.substring(0, 10)}T12:00:00`);
-          this.mesAtual.set(new Date(d.getFullYear(), d.getMonth(), 1));
-        }
+        const mes = mesDoMaisRecente(resposta.registros ?? [], (r) => r.data);
+        if (mes) this.mesAtual.set(mes);
         this.carregando.set(false);
       },
       error: () => {
@@ -140,8 +104,7 @@ export class PublicoRdo implements OnInit {
   }
 
   protected mudarMes(passo: number): void {
-    const atual = this.mesAtual();
-    this.mesAtual.set(new Date(atual.getFullYear(), atual.getMonth() + passo, 1));
+    this.mesAtual.set(mesComPasso(this.mesAtual(), passo));
   }
 
   protected abrir(registro: ResumoRegistro): void {
@@ -179,12 +142,5 @@ export class PublicoRdo implements OnInit {
 
   protected rotuloOcorrencia(valor: string): string {
     return TIPOS_OCORRENCIA.find((t) => t.valor === valor)?.rotulo ?? valor;
-  }
-
-  private paraIso(data: Date): string {
-    const mes = String(data.getMonth() + 1).padStart(2, '0');
-    const dia = String(data.getDate()).padStart(2, '0');
-
-    return `${data.getFullYear()}-${mes}-${dia}`;
   }
 }

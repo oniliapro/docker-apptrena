@@ -36,6 +36,8 @@ class RdoRegistro extends Model
         'clima_manha', 'clima_tarde', 'clima_noite', 'impacto_cronograma',
         'observacoes', 'status', 'autor_user_id',
         'assinado_em', 'assinado_por_user_id', 'assinante_nome', 'assinante_crea',
+        // Preenchido só nos RDOs vindos do Diário antigo, ver `MigrarDiarioParaRdo` (F8).
+        'origem_diario_id',
     ];
 
     protected $casts = [

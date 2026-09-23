@@ -341,6 +341,15 @@ class RdoController extends Controller
             'fotos_meta.*.x' => 'nullable|numeric|min:0|max:1',
             'fotos_meta.*.y' => 'nullable|numeric|min:0|max:1',
             'fotos_meta.*.nota' => 'nullable|string|max:200',
+
+            // Vídeo (F8, 22/09/2026, "D1" do plano) — junto das fotos na mesma
+            // galeria; sem croqui (não faz sentido marcar ponto num vídeo).
+            // 100 MB por arquivo, cabe no limite do servidor (110 MB).
+            'videos' => 'nullable|array|max:5',
+            'videos.*' => 'file|mimetypes:video/mp4,video/quicktime,video/webm|max:102400',
+            'videos_meta' => 'nullable|array',
+            'videos_meta.*.tarefa_id' => 'nullable|string|max:36',
+            'videos_meta.*.legenda' => 'nullable|string|max:200',
         ];
 
         if ($criando) {
@@ -468,34 +477,49 @@ class RdoController extends Controller
     }
 
     /**
-     * Grava os arquivos enviados. `fotos_meta[i]` descreve `fotos[i]`: a qual
-     * tarefa a foto pertence (opcional — sem isso é foto do dia), a legenda e
-     * o ponto do croqui.
+     * Grava os arquivos enviados — fotos e vídeos (F8) na mesma tabela e na
+     * mesma sequência de `ordem`, é assim que a galeria mistura os dois.
+     * `fotos_meta[i]`/`videos_meta[i]` descreve `fotos[i]`/`videos[i]`: a
+     * qual tarefa a mídia pertence (opcional — sem isso é mídia do dia) e a
+     * legenda; só foto tem o ponto do croqui.
      */
     private function guardarFotos(RdoRegistro $rdo, Request $request, array $data): void
     {
         $ultimaOrdem = (int) RdoFoto::where('rdo_id', $rdo->id)->max('ordem');
         $idsDeTarefa = RdoTarefa::where('rdo_id', $rdo->id)->pluck('id')->all();
 
+        $tarefaValida = function (?string $tarefaId) use ($idsDeTarefa): ?string {
+            // Só aceita tarefa deste mesmo RDO — impede pendurar mídia na
+            // tarefa de outro registro passando um id qualquer.
+            return $tarefaId && in_array($tarefaId, $idsDeTarefa, true) ? $tarefaId : null;
+        };
+
         foreach ($request->file('fotos', []) as $i => $arquivo) {
             $meta = $data['fotos_meta'][$i] ?? [];
-            $tarefaId = $meta['tarefa_id'] ?? null;
-
-            // Só aceita tarefa deste mesmo RDO — impede pendurar foto na
-            // tarefa de outro registro passando um id qualquer.
-            if ($tarefaId && !in_array($tarefaId, $idsDeTarefa, true)) {
-                $tarefaId = null;
-            }
 
             RdoFoto::create([
                 'rdo_id' => $rdo->id,
-                'tarefa_id' => $tarefaId,
+                'tarefa_id' => $tarefaValida($meta['tarefa_id'] ?? null),
+                'tipo' => 'foto',
                 'caminho' => $arquivo->store('rdo', 'public'),
                 'legenda' => $meta['legenda'] ?? null,
                 'ordem' => ++$ultimaOrdem,
                 'marcador_x' => $meta['x'] ?? null,
                 'marcador_y' => $meta['y'] ?? null,
                 'marcador_nota' => $meta['nota'] ?? null,
+            ]);
+        }
+
+        foreach ($request->file('videos', []) as $i => $arquivo) {
+            $meta = $data['videos_meta'][$i] ?? [];
+
+            RdoFoto::create([
+                'rdo_id' => $rdo->id,
+                'tarefa_id' => $tarefaValida($meta['tarefa_id'] ?? null),
+                'tipo' => 'video',
+                'caminho' => $arquivo->store('rdo', 'public'),
+                'legenda' => $meta['legenda'] ?? null,
+                'ordem' => ++$ultimaOrdem,
             ]);
         }
     }

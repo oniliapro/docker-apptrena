@@ -84,6 +84,25 @@ export class RdoImprimir implements OnInit {
     return (this.rdo()?.fotos ?? []).filter((f) => !f.tarefa_id);
   }
 
+  /**
+   * `foto.url`/`logoUrl` vêm relativos (`/storage/...`) — achado em
+   * 23/09/2026: nenhuma foto aparecia no PDF de nenhum módulo porque o
+   * Chromium headless que renderiza esta tela roda *dentro* do container
+   * `phpfpm`, onde a URL absoluta que a API montava (`APP_URL`) não existe.
+   * `ApiService.baseStorage()` já resolve pro host certo neste contexto de
+   * impressão (mesmo mecanismo da logo da empresa, ver
+   * `Empresa::getLogoUrlAttribute()`) — faltava aplicar nas mídias do RDO
+   * (e, por um descuido à parte, na própria logo aqui nesta tela).
+   */
+  protected urlMidia(foto: RdoFoto): string {
+    return this.api.baseStorage() + foto.url;
+  }
+
+  protected urlLogo(): string | null {
+    const caminho = this.empresa()?.logoUrl;
+    return caminho ? this.api.baseStorage() + caminho : null;
+  }
+
   protected rotuloClima(valor: string | null | undefined): string {
     return CLIMAS.find((c) => c.valor === valor)?.rotulo ?? '—';
   }

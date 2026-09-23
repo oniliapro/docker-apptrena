@@ -106,11 +106,16 @@
                   @for (foto of fotosDaTarefa(rdo, tarefa.id); track foto.id) {
                     <figure class="miniatura" (click)="ampliar(foto)">
                       <div class="circulo">
-                        <img [src]="foto.url" [alt]="foto.legenda || 'Foto da tarefa'">
-                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                          <span class="marcador"
-                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                        @if (foto.tipo === 'video') {
+                          <video [src]="urlMidia(foto)" muted></video>
+                          <span class="icone-video">▶</span>
+                        } @else {
+                          <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto da tarefa'">
+                          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                            <span class="marcador"
+                                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                          }
                         }
                       </div>
                       <figcaption>{{ foto.legenda || '—' }}</figcaption>
@@ -125,11 +130,18 @@
 
       @if (fotosDoDia(rdo).length) {
         <section class="bloco">
-          <h3>Fotos do dia</h3>
+          <h3>Fotos e vídeos do dia</h3>
           <div class="miniaturas">
             @for (foto of fotosDoDia(rdo); track foto.id) {
               <figure class="miniatura" (click)="ampliar(foto)">
-                <div class="circulo"><img [src]="foto.url" [alt]="foto.legenda || 'Foto do dia'"></div>
+                <div class="circulo">
+                  @if (foto.tipo === 'video') {
+                    <video [src]="urlMidia(foto)" muted></video>
+                    <span class="icone-video">▶</span>
+                  } @else {
+                    <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto do dia'">
+                  }
+                </div>
                 <figcaption>{{ foto.legenda || '—' }}</figcaption>
               </figure>
             }
@@ -208,11 +220,15 @@
     <div class="foto-grande">
       <button type="button" class="modal-fechar" (click)="fecharFoto()" aria-label="Fechar">×</button>
       <div class="foto-quadro">
-        <img [src]="foto.url" [alt]="foto.legenda || 'Foto do relatório'">
-        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-          <span class="marcador marcador-grande"
-                [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+        @if (foto.tipo === 'video') {
+          <video [src]="urlMidia(foto)" controls autoplay></video>
+        } @else {
+          <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto do relatório'">
+          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+            <span class="marcador marcador-grande"
+                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+          }
         }
       </div>
       @if (foto.legenda) { <p class="foto-legenda">{{ foto.legenda }}</p> }

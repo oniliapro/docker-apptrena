@@ -1,34 +1,37 @@
-import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 
-import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { hojeIso } from '../../core/utils/formato';
 import {
   CLIMAS,
   FotoSelecionada,
-  RdoContratanteLink,
   RdoFoto,
   RdoObraDados,
   RdoPreparo,
   RdoRegistro,
+  TAMANHO_MAXIMO_VIDEO,
   TIPOS_OCORRENCIA,
+  VideoSelecionado,
 } from './rdo.models';
 import { RdoService } from './rdo.service';
-
-const CHAVE_OBRA_ATIVA = 'trenaapp.obraAtiva.v1';
 
 /**
  * Relatório Diário de Obra (RDO) — módulo reconstruído em 17/09/2026.
  *
- * Substitui o Diário de Obra anterior, que não dava conta do RDO clássico
- * (planilha-modelo enviada pela Onilia). As três diferenças que motivaram
- * refazer, e que moldam esta tela:
+ * Este componente é só o EDITOR de UM RDO (criar ou editar) — a lista, o
+ * calendário e o link de acompanhamento do contratante moraram pra
+ * `rdo-lista.ts` em 22/09/2026 (F8, pedido do Lucas: "a página RDO vai ser
+ * somente a lista... o calendário não fica dentro do diário, fica fora, na
+ * lista"). Sempre dentro de uma obra (`/obras/:id/rdo/novo` ou
+ * `/obras/:id/rdo/:rdoId`) — o RDO nunca existe fora de uma obra.
  *
+ * As três diferenças que motivaram refazer o Diário antigo, e que moldam
+ * esta tela:
  *  1. TAREFAS são entidades numeradas, não um campo de texto do dia. É delas
- *     que as fotos penduram — cada tarefa mostra suas evidências como
- *     miniaturas com legenda, e clicar abre a foto grande.
+ *     que as fotos/vídeos penduram — cada tarefa mostra suas evidências como
+ *     miniaturas com legenda, e clicar abre a foto/vídeo grande.
  *  2. MÃO DE OBRA é função + quantidade, em duas categorias (indireta e
  *     direta), várias linhas — não um número só. Vem pré-preenchida com a do
  *     RDO anterior, porque na prática a equipe muda pouco de um dia pro outro.
@@ -38,41 +41,40 @@ const CHAVE_OBRA_ATIVA = 'trenaapp.obraAtiva.v1';
  * Só a contratada assina (decisão de 08/09/2026, reconfirmada em 17/09/2026):
  * finalizar É assinar, e o contratante da obra nunca assina nem escreve — ele
  * só acompanha pelo link somente-leitura.
- *
- * Este módulo não altera nada fora do próprio escopo: usa serviço próprio
- * (`RdoService`), tipos próprios (`rdo.models.ts`) e tabelas `rdo_*`. Do que é
- * compartilhado, só LÊ — `ApiService.listarObras()` para preencher o seletor
- * de obra.
  */
 @Component({
   selector: 'app-rdo',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule],
   templateUrl: './rdo.html',
   styleUrl: './rdo.scss',
 })
 export class Rdo implements OnInit {
-  private readonly api = inject(ApiService);
   private readonly rdoApi = inject(RdoService);
+  private readonly api = inject(ApiService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+
+  /** Vêm da rota via withComponentInputBinding(): `/obras/:id/rdo/:rdoId`. */
+  readonly obraId = input.required<string>({ alias: 'id' });
+  /** Literal `'novo'` = criando; qualquer outro valor = o id do RDO a editar. */
+  readonly rdoId = input.required<string>();
 
   protected readonly climas = CLIMAS;
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA;
 
-  protected readonly obras = signal<Obra[]>([]);
-  protected readonly obraAtiva = signal<string>('');
   protected readonly preparo = signal<RdoPreparo | null>(null);
-  protected readonly registros = signal<RdoRegistro[]>([]);
-  protected readonly links = signal<RdoContratanteLink[]>([]);
+  /** RDO carregado, só em modo edição — fonte das fotos/vídeos JÁ salvos. */
+  protected readonly registroAtual = signal<RdoRegistro | null>(null);
 
-  protected readonly carregando = signal(false);
+  protected readonly carregando = signal(true);
   protected readonly salvando = signal(false);
   protected readonly erro = signal<string | null>(null);
   protected readonly aviso = signal<string | null>(null);
 
-  /** Id do RDO em edição; null = criando um novo. */
-  protected readonly editandoId = signal<string | null>(null);
   protected readonly fotosSelecionadas = signal<FotoSelecionada[]>([]);
-  /** Foto aberta em tamanho grande no popup. */
+  /** Vídeos escolhidos, ainda não salvos (F8, 22/09/2026) — mesma ideia de `fotosSelecionadas`. */
+  protected readonly videosSelecionados = signal<VideoSelecionado[]>([]);
+  /** Foto (ou vídeo) já salva, aberta em tamanho grande no popup. */
   protected readonly fotoAmpliada = signal<RdoFoto | null>(null);
   /** Qual seção está aberta no layout de celular (uma por vez). */
   protected readonly secaoAberta = signal<string>('identificacao');
@@ -105,48 +107,22 @@ export class Rdo implements OnInit {
     contratante_nome: [''],
   });
 
+  protected readonly ehNovo = computed(() => this.rdoId() === 'novo');
   protected readonly numeroPrevisto = computed(() => this.preparo()?.proximo_numero ?? 1);
-
-  protected readonly obraSelecionada = computed(
-    () => this.obras().find((o) => o.id === this.obraAtiva()) ?? null,
-  );
 
   ngOnInit(): void {
     this.carregando.set(true);
-    this.api.listarObras().subscribe({
-      next: (obras) => {
-        this.obras.set(obras);
-        const lembrada = localStorage.getItem(CHAVE_OBRA_ATIVA);
-        const escolhida = obras.find((o) => o.id === lembrada)?.id ?? obras[0]?.id ?? '';
-        if (escolhida) {
-          this.selecionarObra(escolhida);
-        } else {
-          this.carregando.set(false);
-        }
-      },
-      error: () => {
-        this.erro.set('Não foi possível carregar as obras.');
-        this.carregando.set(false);
-      },
-    });
-  }
 
-  // ------------------------------------------------------------------
-  // Obra e carregamento
-  // ------------------------------------------------------------------
-
-  protected selecionarObra(obraId: string): void {
-    this.obraAtiva.set(obraId);
-    localStorage.setItem(CHAVE_OBRA_ATIVA, obraId);
-    this.carregando.set(true);
-    this.erro.set(null);
-
-    this.rdoApi.preparar(obraId).subscribe({
+    // O cabeçalho técnico é por OBRA (não por RDO) — sempre carrega, criando
+    // ou editando; é dele também que vêm as sugestões pro RDO novo.
+    this.rdoApi.preparar(this.obraId()).subscribe({
       next: (preparo) => {
         this.preparo.set(preparo);
         this.aplicarCabecalho(preparo.cabecalho);
-        this.novoRegistro();
-        this.carregando.set(false);
+        if (this.ehNovo()) {
+          this.novoRegistro();
+          this.carregando.set(false);
+        }
       },
       error: () => {
         this.erro.set('Não foi possível preparar o RDO desta obra.');
@@ -154,15 +130,18 @@ export class Rdo implements OnInit {
       },
     });
 
-    this.rdoApi.listar(obraId).subscribe({
-      next: (registros) => this.registros.set(registros),
-      error: () => this.erro.set('Não foi possível carregar os relatórios.'),
-    });
-
-    this.rdoApi.listarLinks(obraId).subscribe({
-      next: (links) => this.links.set(links),
-      error: () => void 0,
-    });
+    if (!this.ehNovo()) {
+      this.rdoApi.obter(this.rdoId()).subscribe({
+        next: (registro) => {
+          this.aplicarRegistro(registro);
+          this.carregando.set(false);
+        },
+        error: () => {
+          this.erro.set('Não foi possível carregar este relatório.');
+          this.carregando.set(false);
+        },
+      });
+    }
   }
 
   /**
@@ -170,9 +149,7 @@ export class Rdo implements OnInit {
    * pré-preenchimento do lançamento anterior (etapas não concluídas e a mão
    * de obra de ontem).
    */
-  protected novoRegistro(): void {
-    this.editandoId.set(null);
-    this.fotosSelecionadas.set([]);
+  private novoRegistro(): void {
     this.formulario.reset({
       data: hojeIso(),
       clima_manha: 'claro',
@@ -195,10 +172,11 @@ export class Rdo implements OnInit {
     }
   }
 
-  /** Abre um RDO já salvo para edição. Permitido mesmo depois de assinado. */
-  protected editar(registro: RdoRegistro): void {
-    this.editandoId.set(registro.id);
+  /** Carrega um RDO já salvo no formulário. Editar é permitido mesmo depois de assinado. */
+  private aplicarRegistro(registro: RdoRegistro): void {
+    this.registroAtual.set(registro);
     this.fotosSelecionadas.set([]);
+    this.videosSelecionados.set([]);
     this.limparArrays();
 
     this.formulario.patchValue({
@@ -224,9 +202,10 @@ export class Rdo implements OnInit {
     if (this.arr('tarefas').length === 0) {
       this.adicionarTarefa();
     }
+  }
 
-    this.secaoAberta.set('identificacao');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  protected voltarParaLista(): void {
+    void this.router.navigate(['/obras', this.obraId(), 'rdo']);
   }
 
   // ------------------------------------------------------------------
@@ -248,6 +227,21 @@ export class Rdo implements OnInit {
       .filter((linha) => linha.grupo.get('categoria')?.value === categoria);
   }
 
+  /**
+   * Esvazia os 8 FormArrays antes de `novoRegistro()`/`aplicarRegistro()` reconstruí-los.
+   *
+   * Bug corrigido em 22/09/2026 (F8, achado ao fazer o calendário — hoje na
+   * lista — chamar isto repetidas vezes): os `@for` destes arrays no template
+   * tinham `track $index`. Como o índice de uma linha não muda entre um
+   * "limpar e recriar" (só o CONTEÚDO muda), o Angular reaproveitava o
+   * elemento do DOM e nunca reconectava `[formGroupName]`/`[formArrayName]`
+   * ao FormGroup NOVO — ficava preso no antigo, já removido do array, e a
+   * seção ficava "ng-invalid" para sempre mesmo com o campo preenchido
+   * corretamente. Corrigido trocando o `track` de cada um deles para a
+   * própria linha/control (`track tarefa`, `track linha.grupo` etc.) — objeto
+   * novo, DOM recriado, liga certo. Vale pra qualquer FormArray novo que este
+   * módulo ganhar: nunca usar `track $index` aqui.
+   */
   private limparArrays(): void {
     ['etapas', 'mao_de_obra', 'equipamentos', 'tarefas', 'ocorrencias', 'pendencias', 'responsaveis', 'comentarios']
       .forEach((nome) => this.arr(nome).clear());
@@ -335,19 +329,23 @@ export class Rdo implements OnInit {
   }
 
   /**
-   * Ao remover uma tarefa, as fotos que apontavam para ela viram fotos do dia
-   * em vez de sumirem — o mesmo que o backend faz (nullOnDelete).
+   * Ao remover uma tarefa, as fotos/vídeos que apontavam para ela viram
+   * fotos/vídeos do dia em vez de sumirem — o mesmo que o backend faz
+   * (nullOnDelete).
    */
   protected removerTarefa(i: number): void {
     const id = this.grupo('tarefas', i).get('id')?.value as string;
     this.fotosSelecionadas.update((fotos) =>
       fotos.map((f) => (f.tarefaRef === id ? { ...f, tarefaRef: null } : f)),
     );
+    this.videosSelecionados.update((videos) =>
+      videos.map((v) => (v.tarefaRef === id ? { ...v, tarefaRef: null } : v)),
+    );
     this.arr('tarefas').removeAt(i);
   }
 
   // ------------------------------------------------------------------
-  // Fotos
+  // Fotos e vídeos — ainda não salvos (escolhidos agora)
   // ------------------------------------------------------------------
 
   protected escolherFotos(evento: Event, tarefaRef: string | null): void {
@@ -369,6 +367,47 @@ export class Rdo implements OnInit {
 
   protected fotosDaTarefa(tarefaRef: string | null): FotoSelecionada[] {
     return this.fotosSelecionadas().filter((f) => f.tarefaRef === tarefaRef);
+  }
+
+  protected escolherVideos(evento: Event, tarefaRef: string | null): void {
+    const input = evento.target as HTMLInputElement;
+    const arquivos = Array.from(input.files ?? []);
+    input.value = '';
+
+    const grandeDemais = arquivos.filter((a) => a.size > TAMANHO_MAXIMO_VIDEO);
+    if (grandeDemais.length) {
+      this.erro.set(
+        `${grandeDemais.map((a) => a.name).join(', ')}: vídeo maior que 100 MB — comprima ou grave em qualidade menor.`,
+      );
+    }
+
+    const novos = arquivos
+      .filter((a) => a.size <= TAMANHO_MAXIMO_VIDEO)
+      .map((arquivo) => ({ arquivo, previewUrl: URL.createObjectURL(arquivo), tarefaRef, legenda: '' }));
+
+    this.videosSelecionados.update((atual) => [...atual, ...novos]);
+  }
+
+  protected videosDaTarefa(tarefaRef: string | null): VideoSelecionado[] {
+    return this.videosSelecionados().filter((v) => v.tarefaRef === tarefaRef);
+  }
+
+  protected indiceDoVideo(video: VideoSelecionado): number {
+    return this.videosSelecionados().indexOf(video);
+  }
+
+  protected atualizarLegendaVideo(indice: number, valor: string): void {
+    this.videosSelecionados.update((videos) =>
+      videos.map((v, i) => (i === indice ? { ...v, legenda: valor } : v)),
+    );
+  }
+
+  protected descartarVideo(indice: number): void {
+    const video = this.videosSelecionados()[indice];
+    if (video) {
+      URL.revokeObjectURL(video.previewUrl);
+    }
+    this.videosSelecionados.update((videos) => videos.filter((_, i) => i !== indice));
   }
 
   protected indiceDaFoto(foto: FotoSelecionada): number {
@@ -411,13 +450,30 @@ export class Rdo implements OnInit {
     this.fotosSelecionadas.update((fotos) => fotos.filter((_, i) => i !== indice));
   }
 
-  /** Fotos já salvas de uma tarefa, para exibir no card do registro. */
-  protected fotosSalvasDaTarefa(registro: RdoRegistro, tarefaId: string): RdoFoto[] {
-    return (registro.fotos ?? []).filter((f) => f.tarefa_id === tarefaId);
+  // ------------------------------------------------------------------
+  // Fotos e vídeos JÁ SALVOS (só existem em modo edição) — mostrados junto
+  // dos recém-escolhidos, na mesma tarefa/dia, pra dar pra ver o que já tem
+  // sem precisar sair da edição (22/09/2026, F8: antes só dava pra ver pela
+  // lista separada que virou `rdo-lista.ts`).
+  // ------------------------------------------------------------------
+
+  protected fotosSalvasDaTarefa(tarefaId: string): RdoFoto[] {
+    return (this.registroAtual()?.fotos ?? []).filter((f) => f.tarefa_id === tarefaId);
   }
 
-  protected fotosSalvasDoDia(registro: RdoRegistro): RdoFoto[] {
-    return (registro.fotos ?? []).filter((f) => !f.tarefa_id);
+  protected fotosSalvasDoDia(): RdoFoto[] {
+    return (this.registroAtual()?.fotos ?? []).filter((f) => !f.tarefa_id);
+  }
+
+  /**
+   * `foto.url` vem relativo (`/storage/...`) — achado em 23/09/2026:
+   * nenhuma foto/vídeo aparecia no PDF de nenhum módulo porque a API
+   * devolvia URL absoluta (`APP_URL`), que só existe do ponto de vista do
+   * navegador do usuário. Mesmo mecanismo já usado pra logo da empresa
+   * (`ApiService.baseStorage()`), agora também pras mídias do RDO.
+   */
+  protected urlMidia(foto: RdoFoto): string {
+    return this.api.baseStorage() + foto.url;
   }
 
   protected ampliar(foto: RdoFoto): void {
@@ -428,6 +484,26 @@ export class Rdo implements OnInit {
     this.fotoAmpliada.set(null);
   }
 
+  protected removerFotoSalva(foto: RdoFoto): void {
+    const rotulo = foto.tipo === 'video' ? 'este vídeo' : 'esta foto';
+    if (!confirm(`Remover ${rotulo}? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    const registro = this.registroAtual();
+    if (!registro) {
+      return;
+    }
+    this.rdoApi.removerFoto(registro.id, foto.id).subscribe({
+      next: () => {
+        this.registroAtual.set({ ...registro, fotos: registro.fotos.filter((f) => f.id !== foto.id) });
+        if (this.fotoAmpliada()?.id === foto.id) {
+          this.fecharAmpliada();
+        }
+      },
+      error: (e) => this.erro.set(this.mensagemDeErro(e)),
+    });
+  }
+
   // ------------------------------------------------------------------
   // Salvar / finalizar
   // ------------------------------------------------------------------
@@ -436,13 +512,6 @@ export class Rdo implements OnInit {
     if (this.formulario.invalid) {
       this.formulario.markAllAsTouched();
       this.erro.set('Confira os campos destacados antes de salvar.');
-
-      return;
-    }
-
-    const obraId = this.obraAtiva();
-    if (!obraId) {
-      this.erro.set('Escolha uma obra antes de salvar.');
 
       return;
     }
@@ -458,19 +527,24 @@ export class Rdo implements OnInit {
       tarefas: (bruto.tarefas as Array<{ descricao: string }>).filter((t) => t.descricao?.trim()),
     };
 
-    const id = this.editandoId();
     const fotos = this.fotosSelecionadas();
-    const requisicao = id
-      ? this.rdoApi.atualizar(id, payload, fotos)
-      : this.rdoApi.criar({ ...payload, obra_id: obraId }, fotos);
+    const videos = this.videosSelecionados();
+    const ehNovo = this.ehNovo();
+    const requisicao = ehNovo
+      ? this.rdoApi.criar({ ...payload, obra_id: this.obraId() }, fotos, videos)
+      : this.rdoApi.atualizar(this.rdoId(), payload, fotos, videos);
 
     requisicao.subscribe({
-      next: () => {
+      next: (registro) => {
         this.salvando.set(false);
-        this.aviso.set(id ? 'Relatório atualizado.' : 'Relatório salvo como rascunho.');
-        this.recarregarLista();
-        this.recarregarPreparo();
-        this.novoRegistro();
+        this.aviso.set(ehNovo ? 'Relatório salvo como rascunho.' : 'Relatório atualizado.');
+        if (ehNovo) {
+          // Troca pra URL de edição de verdade — salvar de novo já vira update,
+          // e recarregar a página continua funcionando.
+          void this.router.navigate(['/obras', this.obraId(), 'rdo', registro.id]);
+        } else {
+          this.aplicarRegistro(registro);
+        }
       },
       error: (e) => {
         this.salvando.set(false);
@@ -480,15 +554,19 @@ export class Rdo implements OnInit {
   }
 
   /** Finalizar É assinar — e é o que dispara o aviso por e-mail ao contratante. */
-  protected finalizar(registro: RdoRegistro): void {
+  protected finalizar(): void {
+    const registro = this.registroAtual();
+    if (!registro) {
+      return;
+    }
     if (!confirm(`Finalizar e assinar o RDO nº ${registro.numero}? O contratante será avisado por e-mail.`)) {
       return;
     }
 
     this.rdoApi.finalizar(registro.id).subscribe({
-      next: () => {
+      next: (atualizado) => {
         this.aviso.set('Relatório finalizado e assinado.');
-        this.recarregarLista();
+        this.aplicarRegistro(atualizado);
       },
       error: (e) => this.erro.set(this.mensagemDeErro(e)),
     });
@@ -499,7 +577,11 @@ export class Rdo implements OnInit {
    * Sanctum no cabeçalho), então o download é disparado por uma URL temporária
    * de objeto, revogada logo em seguida para não vazar memória.
    */
-  protected baixarPdf(registro: RdoRegistro): void {
+  protected baixarPdf(): void {
+    const registro = this.registroAtual();
+    if (!registro) {
+      return;
+    }
     this.aviso.set('Gerando o PDF…');
 
     this.rdoApi.baixarPdf(registro.id).subscribe({
@@ -519,70 +601,29 @@ export class Rdo implements OnInit {
     });
   }
 
-  protected excluir(registro: RdoRegistro): void {
+  protected excluir(): void {
+    const registro = this.registroAtual();
+    if (!registro) {
+      return;
+    }
     if (!confirm(`Excluir o RDO nº ${registro.numero}? Esta ação não pode ser desfeita.`)) {
       return;
     }
 
     this.rdoApi.excluir(registro.id).subscribe({
-      next: () => {
-        this.aviso.set('Relatório excluído.');
-        this.recarregarLista();
-      },
+      next: () => this.voltarParaLista(),
       error: (e) => this.erro.set(this.mensagemDeErro(e)),
     });
   }
 
   protected salvarCabecalho(): void {
-    const obraId = this.obraAtiva();
-    if (!obraId) {
-      return;
-    }
-
-    this.rdoApi.salvarCabecalho(obraId, this.cabecalho.getRawValue() as RdoObraDados).subscribe({
+    this.rdoApi.salvarCabecalho(this.obraId(), this.cabecalho.getRawValue() as RdoObraDados).subscribe({
       next: () => {
         this.aviso.set('Cabeçalho da obra salvo.');
         this.mostrarCabecalho.set(false);
       },
       error: (e) => this.erro.set(this.mensagemDeErro(e)),
     });
-  }
-
-  protected gerarLink(email: string): void {
-    const obraId = this.obraAtiva();
-    if (!obraId) {
-      return;
-    }
-
-    this.rdoApi.criarLink(obraId, email || null).subscribe({
-      next: () => {
-        this.aviso.set('Link de acompanhamento gerado.');
-        this.rdoApi.listarLinks(obraId).subscribe((links) => this.links.set(links));
-      },
-      error: (e) => this.erro.set(this.mensagemDeErro(e)),
-    });
-  }
-
-  protected revogarLink(link: RdoContratanteLink): void {
-    this.rdoApi.revogarLink(link.id).subscribe({
-      next: () => {
-        this.aviso.set('Link revogado.');
-        const obraId = this.obraAtiva();
-        if (obraId) {
-          this.rdoApi.listarLinks(obraId).subscribe((links) => this.links.set(links));
-        }
-      },
-      error: (e) => this.erro.set(this.mensagemDeErro(e)),
-    });
-  }
-
-  protected urlPublica(link: RdoContratanteLink): string {
-    return `${window.location.origin}/publico/rdo/${link.token}`;
-  }
-
-  protected copiarLink(link: RdoContratanteLink): void {
-    navigator.clipboard?.writeText(this.urlPublica(link));
-    this.aviso.set('Link copiado.');
   }
 
   protected alternarSecao(secao: string): void {
@@ -607,20 +648,6 @@ export class Rdo implements OnInit {
       prazo: dados?.prazo ?? '',
       contratante_nome: dados?.contratante_nome ?? '',
     });
-  }
-
-  private recarregarLista(): void {
-    const obraId = this.obraAtiva();
-    if (obraId) {
-      this.rdoApi.listar(obraId).subscribe((registros) => this.registros.set(registros));
-    }
-  }
-
-  private recarregarPreparo(): void {
-    const obraId = this.obraAtiva();
-    if (obraId) {
-      this.rdoApi.preparar(obraId).subscribe((preparo) => this.preparo.set(preparo));
-    }
   }
 
   private mensagemDeErro(e: unknown): string {

@@ -35,15 +35,19 @@ export interface RdoTarefa {
   descricao: string;
 }
 
+/** 'video' = mp4/mov/webm (F8, 22/09/2026) — mesma tabela e mesma galeria das fotos. */
+export type TipoMidiaRdo = 'foto' | 'video';
+
 export interface RdoFoto {
   id: string;
-  /** Nulo = foto geral do dia. Preenchido = evidência daquela tarefa. */
+  /** Nulo = mídia geral do dia. Preenchido = evidência daquela tarefa. */
   tarefa_id: string | null;
+  tipo: TipoMidiaRdo;
   caminho: string;
   url: string;
   legenda: string | null;
   ordem: number;
-  /** Croqui: ponto marcado sobre a foto, em coordenadas relativas 0–1. */
+  /** Croqui: ponto marcado sobre a foto, em coordenadas relativas 0–1. Exclusivo de foto — sempre nulo em vídeo. */
   marcador_x: number | null;
   marcador_y: number | null;
   marcador_nota: string | null;
@@ -176,3 +180,19 @@ export interface FotoSelecionada {
   marcador: { x: number; y: number } | null;
   nota: string;
 }
+
+/**
+ * Vídeo escolhido no formulário, antes de subir (F8, 22/09/2026) — mesma
+ * ideia de `FotoSelecionada`, mais simples (sem croqui: não faz sentido
+ * marcar um ponto num vídeo). `previewUrl` alimenta um `<video>` de prévia,
+ * não uma miniatura estática.
+ */
+export interface VideoSelecionado {
+  arquivo: File;
+  previewUrl: string;
+  tarefaRef: string | null;
+  legenda: string;
+}
+
+/** 100 MB — cabe no limite do servidor (110 MB, ver `RdoController::validarPayload`). */
+export const TAMANHO_MAXIMO_VIDEO = 100 * 1024 * 1024;

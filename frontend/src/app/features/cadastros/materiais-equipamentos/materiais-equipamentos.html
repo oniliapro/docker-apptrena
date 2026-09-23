@@ -67,7 +67,7 @@
               </td>
               <td class="centro">
                 @if (registro.foto_url) {
-                  <img class="miniatura" [src]="registro.foto_url" [alt]="registro.nome" />
+                  <img class="miniatura" [src]="urlFoto(registro.foto_url)" [alt]="registro.nome" />
                 } @else {
                   <span class="miniatura vazia">—</span>
                 }

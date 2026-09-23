@@ -9,6 +9,7 @@ import {
   RdoObraDados,
   RdoPreparo,
   RdoRegistro,
+  VideoSelecionado,
 } from './rdo.models';
 
 /**
@@ -62,16 +63,25 @@ export class RdoService {
     return this.http.get<RdoPreparo>(`${this.base}/rdo/preparar`, { params });
   }
 
-  criar(payload: Record<string, unknown>, fotos: FotoSelecionada[]): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/rdo`, this.montarCorpo(payload, fotos));
+  criar(
+    payload: Record<string, unknown>,
+    fotos: FotoSelecionada[],
+    videos: VideoSelecionado[] = [],
+  ): Observable<RdoRegistro> {
+    return this.http.post<RdoRegistro>(`${this.base}/rdo`, this.montarCorpo(payload, fotos, videos));
   }
 
   /**
-   * POST e não PUT: o formulário envia fotos junto (multipart) e o PHP não
-   * popula $_FILES em requisições PUT.
+   * POST e não PUT: o formulário envia fotos/vídeos junto (multipart) e o PHP
+   * não popula $_FILES em requisições PUT.
    */
-  atualizar(id: string, payload: Record<string, unknown>, fotos: FotoSelecionada[]): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}`, this.montarCorpo(payload, fotos));
+  atualizar(
+    id: string,
+    payload: Record<string, unknown>,
+    fotos: FotoSelecionada[],
+    videos: VideoSelecionado[] = [],
+  ): Observable<RdoRegistro> {
+    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}`, this.montarCorpo(payload, fotos, videos));
   }
 
   /** Finalizar É assinar — não existe ação separada de assinatura. */
@@ -134,7 +144,11 @@ export class RdoService {
    * (`tarefas[0][descricao]`) porque o FormData é plano; é assim que o
    * Laravel remonta o array no `$request->validate`.
    */
-  private montarCorpo(payload: Record<string, unknown>, fotos: FotoSelecionada[]): FormData {
+  private montarCorpo(
+    payload: Record<string, unknown>,
+    fotos: FotoSelecionada[],
+    videos: VideoSelecionado[],
+  ): FormData {
     const corpo = new FormData();
     this.anexar(corpo, payload);
 
@@ -152,6 +166,17 @@ export class RdoService {
       }
       if (foto.nota) {
         corpo.append(`fotos_meta[${i}][nota]`, foto.nota);
+      }
+    });
+
+    // Vídeo (F8, 22/09/2026) — mesma ideia, sem croqui.
+    videos.forEach((video, i) => {
+      corpo.append(`videos[${i}]`, video.arquivo, video.arquivo.name);
+      if (video.tarefaRef) {
+        corpo.append(`videos_meta[${i}][tarefa_id]`, video.tarefaRef);
+      }
+      if (video.legenda) {
+        corpo.append(`videos_meta[${i}][legenda]`, video.legenda);
       }
     });
 

@@ -22,9 +22,16 @@ class DiarioFoto extends Model
         return $this->belongsTo(DiarioRegistro::class, 'registro_id');
     }
 
+    /**
+     * Caminho RELATIVO — mesmo bug/correção do `RdoFoto::getUrlAttribute()`
+     * (23/09/2026): URL absoluta via `Storage::url()` não é alcançável de
+     * fora do navegador do usuário. Diário antigo está aposentado das
+     * telas normais, mas o link público de quem ainda tinha aberto e o
+     * comando de migração leem este campo — mantido correto por segurança.
+     */
     public function getUrlAttribute(): string
     {
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->caminho);
+        return '/storage/'.$this->caminho;
     }
 
     protected $appends = ['url'];

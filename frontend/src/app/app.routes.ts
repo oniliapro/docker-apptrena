@@ -111,8 +111,28 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/diarias/diarias').then((m) => m.Diarias),
   },
   {
-    ...reservada('diarios', 'Diários desta obra'),
+    // Lista de RDOs desta obra (F8, 22/09/2026) — o calendário É a lista
+    // (`rdo-lista.ts`); "Novo RDO" e clicar num relatório levam pro editor
+    // (`rdo.ts`), embaixo. Substituiu o placeholder "Diários desta obra".
+    path: 'rdo',
+    data: { titulo: 'RDO da obra' },
     canActivate: [permissaoModuloGuard('diario_obra')],
+    loadComponent: () => import('./features/rdo/rdo-lista').then((m) => m.RdoLista),
+  },
+  {
+    path: 'rdo/novo',
+    // 'rdo/novo' é literal na rota, sem `:rdoId` — o valor 'novo' que o
+    // componente espera (`Rdo.rdoId`) vem daqui, do `data`, que o
+    // `withComponentInputBinding()` liga do mesmo jeito que um param de rota.
+    data: { titulo: 'Novo RDO', rdoId: 'novo' },
+    canActivate: [permissaoModuloGuard('diario_obra')],
+    loadComponent: () => import('./features/rdo/rdo').then((m) => m.Rdo),
+  },
+  {
+    path: 'rdo/:rdoId',
+    data: { titulo: 'RDO' },
+    canActivate: [permissaoModuloGuard('diario_obra')],
+    loadComponent: () => import('./features/rdo/rdo').then((m) => m.Rdo),
   },
   {
     path: 'relatorios',
@@ -206,20 +226,12 @@ export const routes: Routes = [
       import('./features/medicoes/medicao-imprimir').then((m) => m.MedicaoImprimir),
   },
   {
-    // Acesso PÚBLICO (sem login, sem AppShell) do contratante da obra
-    // (cliente final) ao Diário de Obra (08/09/2026) — autorizado só
-    // pelo token na própria URL, o mesmo padrão de segurança das rotas
-    // "imprimir" acima (nada de authGuard aqui: a pessoa não tem, e não
-    // precisa ter, uma conta no AppTrena). Sempre somente leitura — ver
-    // PublicoDiario e PublicoDiarioController.
-    path: 'publico/diario/:token',
-    loadComponent: () =>
-      import('./features/publico-diario/publico-diario').then((m) => m.PublicoDiario),
-  },
-  {
-    // Acompanhamento do contratante no RDO novo (17/09/2026). Mesmo regime da
-    // rota acima: fora do AppShell e sem authGuard, porque quem abre é o dono
-    // da obra, que não tem conta no AppTrena. Somente leitura.
+    // Acompanhamento do contratante no RDO (17/09/2026) — o único diário
+    // daqui pra frente (F8, 22/09/2026: a rota pública do Diário antigo,
+    // `publico/diario/:token`, foi retirada daqui — os links antigos param
+    // de abrir, mas nada foi apagado do banco, ver `MigrarDiarioParaRdo`).
+    // Mesmo regime: fora do AppShell e sem authGuard, porque quem abre é o
+    // dono da obra, que não tem conta no AppTrena. Somente leitura.
     path: 'publico/rdo/:token',
     loadComponent: () => import('./features/publico-rdo/publico-rdo').then((m) => m.PublicoRdo),
   },
@@ -325,23 +337,22 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/recebimentos/recebimentos-geral').then((m) => m.RecebimentosGeral),
       },
+      // A rota 'diario-obra' (Diário antigo) foi retirada em 22/09/2026 (F8)
+      // — o RDO abaixo é o único diário daqui pra frente. Nada foi apagado
+      // do banco (tabelas `diario_*` e os arquivos continuam intactos); só a
+      // TELA saiu do ar, e quem tinha o link direto agora cai em "página não
+      // encontrada". Os registros existentes viram RDO com
+      // `php artisan diario:migrar-para-rdo`, ver `MigrarDiarioParaRdo`.
       {
-        path: 'diario-obra',
-        data: { titulo: 'Diários de obra' },
-        canActivate: [permissaoModuloGuard('diario_obra')],
-        loadComponent: () =>
-          import('./features/diario-obra/diario-obra').then((m) => m.DiarioObra),
-      },
-      {
-        // Relatório Diário de Obra (RDO) — módulo reconstruído em
-        // 17/09/2026. Rota nova, ao lado da antiga: o `diario-obra` acima
-        // continua funcionando até a migração terminar, para não tirar do ar
-        // o que já está em uso. Reaproveita a permissão `diario_obra`, então
-        // quem já tinha acesso ao Diário entra aqui sem mexer em permissão.
+        // Lista geral de RDOs, todas as obras (F8, 22/09/2026: virou lista +
+        // calendário, mesma forma que as outras listas gerais — o editor de
+        // um RDO específico vive em /obras/:id/rdo/:rdoId, obra-scoped, ver
+        // `abasDaObra`). Reaproveita a permissão `diario_obra`, então quem já
+        // tinha acesso ao Diário antigo entra aqui sem mexer em permissão.
         path: 'rdo',
-        data: { titulo: 'Relatório Diário de Obra' },
+        data: { titulo: 'RDO' },
         canActivate: [permissaoModuloGuard('diario_obra')],
-        loadComponent: () => import('./features/rdo/rdo').then((m) => m.Rdo),
+        loadComponent: () => import('./features/rdo/rdo-lista').then((m) => m.RdoLista),
       },
       // Relatórios também mudou para /obras/:id/relatorios (mesma task,
       // 28/07/2026): o relatório cruza a EAP com os Pagamentos de UMA

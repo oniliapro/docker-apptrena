@@ -1,5 +1,5 @@
 <!--
-  Relatório Diário de Obra (RDO).
+  Relatório Diário de Obra (RDO) — editor de UM RDO (criar ou editar).
 
   Duas leituras do mesmo formulário, como pedido em 08/09/2026: no desktop as
   seções ficam todas abertas lado a lado (quem lança do escritório vê tudo de
@@ -10,29 +10,28 @@
 
 <header class="rdo-topo">
   <div>
-    <h1>Relatório Diário de Obra</h1>
+    <button type="button" class="botao-voltar" (click)="voltarParaLista()">← Voltar à lista</button>
+    <h1>{{ ehNovo() ? 'Novo RDO' : 'RDO nº ' + (registroAtual()?.numero ?? '') }}</h1>
     <p class="rdo-subtitulo">Registro técnico do canteiro — vale como prova de responsabilidade técnica.</p>
   </div>
 
   <div class="rdo-topo-acoes">
-    <label class="campo-obra">
-      <span>Obra</span>
-      @if (obras().length) {
-        <select [value]="obraAtiva()" (change)="selecionarObra($any($event.target).value)">
-          @for (obra of obras(); track obra.id) {
-            <option [value]="obra.id">{{ obra.obra_nome || '(sem nome)' }}</option>
-          }
-        </select>
+    @if (!ehNovo() && registroAtual(); as registro) {
+      @if (registro.status === 'rascunho') {
+        <span class="etiqueta etiqueta-rascunho">rascunho</span>
+        <button type="button" class="botao-primario" (click)="finalizar()">Finalizar e assinar</button>
       } @else {
-        <select disabled><option>Nenhuma obra cadastrada</option></select>
+        <span class="etiqueta etiqueta-assinado">
+          assinado por {{ registro.assinante_nome }}
+          @if (registro.assinante_crea) { — CREA {{ registro.assinante_crea }} }
+        </span>
       }
-    </label>
-
-    @if (obraAtiva()) {
-      <button type="button" class="botao-secundario" (click)="mostrarCabecalho.set(!mostrarCabecalho())">
-        {{ mostrarCabecalho() ? 'Fechar cabeçalho' : 'Cabeçalho da obra' }}
-      </button>
+      <button type="button" class="botao-secundario" (click)="baixarPdf()">PDF</button>
+      <button type="button" class="botao-remover" (click)="excluir()">Excluir</button>
     }
+    <button type="button" class="botao-secundario" (click)="mostrarCabecalho.set(!mostrarCabecalho())">
+      {{ mostrarCabecalho() ? 'Fechar cabeçalho' : 'Cabeçalho da obra' }}
+    </button>
   </div>
 </header>
 
@@ -67,7 +66,7 @@
 
 @if (carregando()) {
   <p class="carregando">Carregando…</p>
-} @else if (obraAtiva()) {
+} @else {
 
   <form class="rdo-form" [formGroup]="formulario" (ngSubmit)="salvar()">
 
@@ -76,7 +75,7 @@
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('identificacao')">
         <h2>Identificação e clima</h2>
         <span class="secao-resumo">
-          @if (editandoId()) { Editando RDO } @else { RDO nº {{ numeroPrevisto() }} }
+          @if (!ehNovo()) { Editando RDO } @else { RDO nº {{ numeroPrevisto() }} }
         </span>
       </button>
 
@@ -84,7 +83,7 @@
         <div class="grade-identificacao">
           <label>
             <span>Nº do RDO</span>
-            <input type="text" [value]="editandoId() ? '—' : numeroPrevisto()" disabled>
+            <input type="text" [value]="!ehNovo() ? '—' : numeroPrevisto()" disabled>
           </label>
           <label>
             <span>Data</span>
@@ -119,8 +118,7 @@
 
         <label class="campo-largo">
           <span>Impacto no cronograma</span>
-          <textarea formControlName="impacto_cronograma" rows="2"
-                    placeholder="Ex.: chuva das 14h às 17h parou a concretagem"></textarea>
+          <textarea formControlName="impacto_cronograma" rows="2" placeholder="Ex.: chuva impediu concretagem, atraso de 1 dia"></textarea>
         </label>
       </div>
     </section>
@@ -128,31 +126,25 @@
     <!-- Etapas -->
     <section class="painel secao" [class.aberta]="secaoAberta() === 'etapas'">
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('etapas')">
-        <h2>Etapas da obra</h2>
+        <h2>Etapas</h2>
         <span class="secao-resumo">{{ arr('etapas').length }} etapa(s)</span>
       </button>
 
-      <div class="secao-corpo">
-        <p class="dica">Já vêm marcadas as etapas que não foram concluídas no relatório anterior.</p>
-
-        <div formArrayName="etapas">
-          @for (etapa of arr('etapas').controls; track $index; let i = $index) {
-            <div class="linha" [formGroupName]="i">
-              <label class="checkbox">
-                <input type="checkbox" formControlName="concluida">
-                <span>Concluída</span>
-              </label>
-              <input type="text" formControlName="nome" placeholder="Ex.: Alvenaria do 2º pavimento">
-              <button type="button" class="botao-remover" (click)="remover('etapas', i)" aria-label="Remover etapa">×</button>
-            </div>
-          }
-        </div>
-
+      <div class="secao-corpo" formArrayName="etapas">
+        @for (etapa of arr('etapas').controls; track etapa; let i = $index) {
+          <div class="linha" [formGroupName]="i">
+            <label class="checkbox">
+              <input type="checkbox" formControlName="concluida">
+            </label>
+            <input type="text" formControlName="nome" placeholder="Nome da etapa">
+            <button type="button" class="botao-remover" (click)="remover('etapas', i)" aria-label="Remover">×</button>
+          </div>
+        }
         <button type="button" class="botao-adicionar" (click)="adicionarEtapa()">+ Etapa</button>
       </div>
     </section>
 
-    <!-- Mão de obra: duas categorias, como as colunas do RDO -->
+    <!-- Mão de obra -->
     <section class="painel secao" [class.aberta]="secaoAberta() === 'mao'">
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('mao')">
         <h2>Mão de obra</h2>
@@ -167,7 +159,7 @@
             <div class="coluna-mao">
               <h3>{{ categoria === 'indireta' ? 'Mão de obra indireta' : 'Mão de obra direta' }}</h3>
 
-              @for (linha of maoDeObraDe($any(categoria)); track linha.indice) {
+              @for (linha of maoDeObraDe($any(categoria)); track linha.grupo) {
                 <div class="linha" [formGroupName]="linha.indice">
                   <!-- [attr.list] e não list="...{{ }}": com interpolação o
                        Angular trataria `list` como property do elemento, e
@@ -206,28 +198,22 @@
       </button>
 
       <div class="secao-corpo" formArrayName="equipamentos">
-        @for (eq of arr('equipamentos').controls; track $index; let i = $index) {
+        @for (eq of arr('equipamentos').controls; track eq; let i = $index) {
           <div class="linha" [formGroupName]="i">
-            <input type="text" formControlName="descricao" placeholder="Descrição" list="rdo-equipamentos">
+            <input type="text" formControlName="descricao" placeholder="Equipamento" list="rdo-equipamentos-catalogo">
             <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
             <button type="button" class="botao-remover" (click)="remover('equipamentos', i)" aria-label="Remover">×</button>
           </div>
         }
+        <button type="button" class="botao-adicionar" (click)="adicionarEquipamento()">+ Equipamento</button>
 
-        <datalist id="rdo-equipamentos">
+        <datalist id="rdo-equipamentos-catalogo">
           @for (e of preparo()?.equipamentos_catalogo ?? []; track e.id) { <option [value]="e.nome"></option> }
         </datalist>
-
-        <button type="button" class="botao-adicionar" (click)="adicionarEquipamento()">+ Equipamento</button>
       </div>
     </section>
 
-    <!--
-      Tarefas realizadas. É a seção que o módulo antigo não tinha: cada tarefa
-      é um item numerado com as SUAS fotos, não um texto solto do dia.
-      Vincular foto à tarefa é opcional — quem quiser só registrar o dia usa a
-      galeria geral mais abaixo.
-    -->
+    <!-- Tarefas (com fotos/vídeos por tarefa) -->
     <section class="painel secao" [class.aberta]="secaoAberta() === 'tarefas'">
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('tarefas')">
         <h2>Tarefas realizadas</h2>
@@ -235,7 +221,7 @@
       </button>
 
       <div class="secao-corpo" formArrayName="tarefas">
-        @for (tarefa of arr('tarefas').controls; track $index; let i = $index) {
+        @for (tarefa of arr('tarefas').controls; track tarefa; let i = $index) {
           <article class="tarefa" [formGroupName]="i">
             <div class="tarefa-linha">
               <span class="tarefa-numero">{{ i + 1 }}</span>
@@ -252,6 +238,35 @@
                        (change)="escolherFotos($event, grupo('tarefas', i).get('id')?.value)">
                 <span>+ Foto desta tarefa</span>
               </label>
+              <label class="botao-foto botao-video">
+                <!-- Vídeo (F8, 22/09/2026) — mp4/mov/webm até 100 MB, junto das fotos. -->
+                <input type="file" accept="video/mp4,video/quicktime,video/webm" capture="environment" multiple hidden
+                       (change)="escolherVideos($event, grupo('tarefas', i).get('id')?.value)">
+                <span>+ Vídeo desta tarefa</span>
+              </label>
+
+              <!-- Já salvas (só em edição) -->
+              @for (foto of fotosSalvasDaTarefa(grupo('tarefas', i).get('id')?.value); track foto.id) {
+                <figure class="miniatura-edicao miniatura-salva">
+                  <div class="miniatura-imagem" (click)="ampliar(foto)" title="Clique para ampliar">
+                    @if (foto.tipo === 'video') {
+                      <video [src]="urlMidia(foto)" muted></video>
+                      <span class="icone-video">▶</span>
+                    } @else {
+                      <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto da tarefa'">
+                      @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                        <span class="marcador"
+                              [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                              [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                      }
+                    }
+                  </div>
+                  <figcaption>
+                    <span class="legenda-salva">{{ foto.legenda || '—' }}</span>
+                    <button type="button" class="botao-remover" (click)="removerFotoSalva(foto)">Remover</button>
+                  </figcaption>
+                </figure>
+              }
 
               @for (foto of fotosDaTarefa(grupo('tarefas', i).get('id')?.value); track foto.previewUrl) {
                 <figure class="miniatura-edicao">
@@ -277,6 +292,19 @@
                   </figcaption>
                 </figure>
               }
+
+              @for (video of videosDaTarefa(grupo('tarefas', i).get('id')?.value); track video.previewUrl) {
+                <figure class="miniatura-edicao miniatura-video">
+                  <video class="miniatura-imagem" [src]="video.previewUrl" controls muted></video>
+                  <figcaption>
+                    <input type="text" placeholder="Legenda" [value]="video.legenda"
+                           (input)="atualizarLegendaVideo(indiceDoVideo(video), $any($event.target).value)">
+                    <button type="button" class="botao-remover" (click)="descartarVideo(indiceDoVideo(video))">
+                      Descartar
+                    </button>
+                  </figcaption>
+                </figure>
+              }
             </div>
           </article>
         }
@@ -285,23 +313,45 @@
       </div>
     </section>
 
-    <!-- Fotos gerais do dia, sem vínculo com tarefa -->
+    <!-- Fotos e vídeos gerais do dia, sem vínculo com tarefa -->
     <section class="painel secao" [class.aberta]="secaoAberta() === 'fotos'">
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('fotos')">
-        <h2>Fotos do dia</h2>
-        <span class="secao-resumo">{{ fotosDaTarefa(null).length }} foto(s)</span>
+        <h2>Fotos e vídeos do dia</h2>
+        <span class="secao-resumo">{{ fotosSalvasDoDia().length + fotosDaTarefa(null).length + videosDaTarefa(null).length }} arquivo(s)</span>
       </button>
 
       <div class="secao-corpo">
-        <p class="dica">Fotos gerais do canteiro, sem vínculo com uma tarefa específica.</p>
+        <p class="dica">Fotos e vídeos gerais do canteiro, sem vínculo com uma tarefa específica.</p>
 
         <label class="botao-foto">
           <input type="file" accept="image/*" capture="environment" multiple hidden
                  (change)="escolherFotos($event, null)">
           <span>+ Foto do dia</span>
         </label>
+        <label class="botao-foto botao-video">
+          <input type="file" accept="video/mp4,video/quicktime,video/webm" capture="environment" multiple hidden
+                 (change)="escolherVideos($event, null)">
+          <span>+ Vídeo do dia</span>
+        </label>
 
         <div class="galeria-edicao">
+          @for (foto of fotosSalvasDoDia(); track foto.id) {
+            <figure class="miniatura-edicao miniatura-salva">
+              <div class="miniatura-imagem" (click)="ampliar(foto)" title="Clique para ampliar">
+                @if (foto.tipo === 'video') {
+                  <video [src]="urlMidia(foto)" muted></video>
+                  <span class="icone-video">▶</span>
+                } @else {
+                  <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto do dia'">
+                }
+              </div>
+              <figcaption>
+                <span class="legenda-salva">{{ foto.legenda || '—' }}</span>
+                <button type="button" class="botao-remover" (click)="removerFotoSalva(foto)">Remover</button>
+              </figcaption>
+            </figure>
+          }
+
           @for (foto of fotosDaTarefa(null); track foto.previewUrl) {
             <figure class="miniatura-edicao">
               <div class="miniatura-imagem" (click)="marcarCroqui($event, indiceDaFoto(foto))"
@@ -319,6 +369,17 @@
               </figcaption>
             </figure>
           }
+
+          @for (video of videosDaTarefa(null); track video.previewUrl) {
+            <figure class="miniatura-edicao miniatura-video">
+              <video class="miniatura-imagem" [src]="video.previewUrl" controls muted></video>
+              <figcaption>
+                <input type="text" placeholder="Legenda" [value]="video.legenda"
+                       (input)="atualizarLegendaVideo(indiceDoVideo(video), $any($event.target).value)">
+                <button type="button" class="botao-remover" (click)="descartarVideo(indiceDoVideo(video))">Descartar</button>
+              </figcaption>
+            </figure>
+          }
         </div>
       </div>
     </section>
@@ -331,24 +392,23 @@
       </button>
 
       <div class="secao-corpo" formArrayName="ocorrencias">
-        @for (oc of arr('ocorrencias').controls; track $index; let i = $index) {
+        @for (oc of arr('ocorrencias').controls; track oc; let i = $index) {
           <article class="bloco" [formGroupName]="i">
-            <div class="linha">
-              <span class="tarefa-numero">{{ i + 1 }}</span>
-              <select formControlName="tipo">
-                @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
-              </select>
-              <button type="button" class="botao-remover" (click)="remover('ocorrencias', i)" aria-label="Remover">×</button>
-            </div>
-            <textarea formControlName="descricao" rows="2" placeholder="O que aconteceu"></textarea>
             <div class="grade-dupla">
-              <input type="text" formControlName="responsavel" placeholder="Responsável">
-              <input type="text" formControlName="motivo" placeholder="Motivo que originou">
+              <label>
+                <span>Tipo</span>
+                <select formControlName="tipo">
+                  @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
+                </select>
+              </label>
+              <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
             </div>
-            <input type="text" formControlName="danos_materiais" placeholder="Danos materiais (se houve)">
+            <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
+            <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
+            <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
+            <button type="button" class="botao-remover" (click)="remover('ocorrencias', i)">Remover ocorrência</button>
           </article>
         }
-
         <button type="button" class="botao-adicionar" (click)="adicionarOcorrencia()">+ Ocorrência</button>
       </div>
     </section>
@@ -361,23 +421,23 @@
       </button>
 
       <div class="secao-corpo" formArrayName="pendencias">
-        @for (pe of arr('pendencias').controls; track $index; let i = $index) {
+        @for (pe of arr('pendencias').controls; track pe; let i = $index) {
           <article class="bloco" [formGroupName]="i">
-            <div class="linha">
-              <input type="text" formControlName="descricao" placeholder="O que ficou pendente">
-              <button type="button" class="botao-remover" (click)="remover('pendencias', i)" aria-label="Remover">×</button>
-            </div>
+            <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
             <div class="grade-tripla">
-              <input type="text" formControlName="responsavel" placeholder="Responsável">
-              <input type="date" formControlName="prazo" aria-label="Prazo">
-              <select formControlName="status">
-                <option value="aberta">Aberta</option>
-                <option value="concluida">Concluída</option>
-              </select>
+              <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+              <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
+              <label>
+                <span>Status</span>
+                <select formControlName="status">
+                  <option value="aberta">Aberta</option>
+                  <option value="concluida">Concluída</option>
+                </select>
+              </label>
             </div>
+            <button type="button" class="botao-remover" (click)="remover('pendencias', i)">Remover pendência</button>
           </article>
         }
-
         <button type="button" class="botao-adicionar" (click)="adicionarPendencia()">+ Pendência</button>
       </div>
     </section>
@@ -390,22 +450,17 @@
       </button>
 
       <div class="secao-corpo" formArrayName="responsaveis">
-        <p class="dica">Terceiros e empreiteiras presentes no dia, com o contrato correspondente.</p>
-
-        @for (re of arr('responsaveis').controls; track $index; let i = $index) {
+        @for (re of arr('responsaveis').controls; track re; let i = $index) {
           <article class="bloco" [formGroupName]="i">
-            <div class="linha">
-              <input type="text" formControlName="nome" placeholder="Nome">
-              <button type="button" class="botao-remover" (click)="remover('responsaveis', i)" aria-label="Remover">×</button>
+            <div class="grade-dupla">
+              <label><span>Nome</span><input type="text" formControlName="nome"></label>
+              <label><span>Empresa</span><input type="text" formControlName="empresa"></label>
+              <label><span>Função</span><input type="text" formControlName="funcao"></label>
+              <label><span>Contrato de referência</span><input type="text" formControlName="contrato_referencia"></label>
             </div>
-            <div class="grade-tripla">
-              <input type="text" formControlName="empresa" placeholder="Empresa">
-              <input type="text" formControlName="funcao" placeholder="Função">
-              <input type="text" formControlName="contrato_referencia" placeholder="Contrato">
-            </div>
+            <button type="button" class="botao-remover" (click)="remover('responsaveis', i)">Remover</button>
           </article>
         }
-
         <button type="button" class="botao-adicionar" (click)="adicionarResponsavel()">+ Responsável</button>
       </div>
     </section>
@@ -420,7 +475,7 @@
       <div class="secao-corpo" formArrayName="comentarios">
         <p class="dica">Por padrão o contratante não vê estas notas — marque a caixa para liberar.</p>
 
-        @for (co of arr('comentarios').controls; track $index; let i = $index) {
+        @for (co of arr('comentarios').controls; track co; let i = $index) {
           <article class="bloco" [formGroupName]="i">
             <div class="linha">
               <textarea formControlName="texto" rows="2" placeholder="Ex.: combinado verbal com o profissional"></textarea>
@@ -434,7 +489,17 @@
         }
 
         <button type="button" class="botao-adicionar" (click)="adicionarComentario()">+ Observação</button>
+      </div>
 
+      <!-- `.secao-corpo` próprio (não dentro do formArrayName="comentarios" de
+           cima) de propósito: este campo é do formulário principal
+           (`this.formulario.observacoes`), não um item da lista de
+           comentários — bug de aninhamento corrigido em 22/09/2026 (F8),
+           estava jogando "Cannot find control with path: 'comentarios ->
+           observacoes'" no console a cada render desta seção. Continua um
+           `.secao-corpo` (e não um elemento solto) pra manter o
+           esconde/mostra do acordeão no celular. -->
+      <div class="secao-corpo">
         <label class="campo-largo">
           <span>Observações gerais do dia</span>
           <textarea formControlName="observacoes" rows="2"></textarea>
@@ -444,155 +509,28 @@
 
     <div class="rdo-acoes">
       <button type="submit" class="botao-primario" [disabled]="salvando()">
-        {{ salvando() ? 'Salvando…' : (editandoId() ? 'Salvar alterações' : 'Salvar rascunho') }}
+        {{ salvando() ? 'Salvando…' : (ehNovo() ? 'Salvar rascunho' : 'Salvar alterações') }}
       </button>
-      @if (editandoId()) {
-        <button type="button" class="botao-secundario" (click)="novoRegistro()">Cancelar edição</button>
-      }
+      <button type="button" class="botao-secundario" (click)="voltarParaLista()">Voltar à lista</button>
     </div>
   </form>
-
-  <!-- Link de acompanhamento do contratante -->
-  <section class="painel">
-    <h2>Acompanhamento do contratante</h2>
-    <p class="dica">
-      Link somente leitura, sem senha. O contratante acompanha os relatórios finalizados —
-      não assina e não escreve nada.
-    </p>
-
-    <div class="linha">
-      <input type="email" placeholder="E-mail para aviso (opcional)" #campoEmail>
-      <button type="button" class="botao-secundario" (click)="gerarLink(campoEmail.value); campoEmail.value = ''">
-        Gerar link
-      </button>
-    </div>
-
-    @for (link of links(); track link.id) {
-      <div class="linha link-item" [class.revogado]="!link.ativo">
-        <code>{{ urlPublica(link) }}</code>
-        @if (link.email) { <span class="link-email">{{ link.email }}</span> }
-        @if (link.ativo) {
-          <button type="button" class="botao-secundario" (click)="copiarLink(link)">Copiar</button>
-          <button type="button" class="botao-remover" (click)="revogarLink(link)">Revogar</button>
-        } @else {
-          <span class="etiqueta">revogado</span>
-        }
-      </div>
-    }
-  </section>
-
-  <!-- Relatórios já lançados -->
-  <section class="rdo-lista">
-    <h2>Relatórios lançados</h2>
-
-    @if (!registros().length) {
-      <p class="vazio">Nenhum relatório lançado nesta obra ainda.</p>
-    }
-
-    @for (registro of registros(); track registro.id) {
-      <article class="painel registro" [class.rascunho]="registro.status === 'rascunho'">
-        <header class="registro-topo">
-          <div>
-            <span class="registro-numero">RDO nº {{ registro.numero }}</span>
-            <span class="registro-data">{{ registro.data | date: 'dd/MM/yyyy' }}</span>
-          </div>
-
-          <div class="registro-acoes">
-            @if (registro.status === 'rascunho') {
-              <span class="etiqueta etiqueta-rascunho">rascunho</span>
-              <button type="button" class="botao-primario" (click)="finalizar(registro)">Finalizar e assinar</button>
-            } @else {
-              <span class="etiqueta etiqueta-assinado">
-                assinado por {{ registro.assinante_nome }}
-                @if (registro.assinante_crea) { — CREA {{ registro.assinante_crea }} }
-              </span>
-            }
-            <button type="button" class="botao-secundario" (click)="baixarPdf(registro)">PDF</button>
-            <button type="button" class="botao-secundario" (click)="editar(registro)">Editar</button>
-            <button type="button" class="botao-remover" (click)="excluir(registro)">Excluir</button>
-          </div>
-        </header>
-
-        <p class="registro-clima">
-          Manhã: {{ rotuloClima(registro.clima_manha) }} ·
-          Tarde: {{ rotuloClima(registro.clima_tarde) }} ·
-          Noite: {{ rotuloClima(registro.clima_noite) }}
-        </p>
-
-        @if (registro.etapas?.length) {
-          <p class="registro-etapas">
-            @for (e of registro.etapas; track e.id) {
-              <span class="etapa-chip" [class.concluida]="e.concluida">{{ e.nome }}</span>
-            }
-          </p>
-        }
-
-        <!-- Cada tarefa com as suas fotos: miniaturas com legenda embaixo -->
-        @if (registro.tarefas?.length) {
-          <div class="registro-tarefas">
-            @for (tarefa of registro.tarefas; track tarefa.id) {
-              <div class="registro-tarefa">
-                <p><strong>{{ tarefa.ordem }}.</strong> {{ tarefa.descricao }}</p>
-
-                @if (fotosSalvasDaTarefa(registro, tarefa.id).length) {
-                  <div class="miniaturas">
-                    @for (foto of fotosSalvasDaTarefa(registro, tarefa.id); track foto.id) {
-                      <figure class="miniatura" (click)="ampliar(foto)">
-                        <div class="miniatura-circulo">
-                          <img [src]="foto.url" [alt]="foto.legenda || 'Foto da tarefa'">
-                          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                            <span class="marcador"
-                                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                          }
-                        </div>
-                        <figcaption>{{ foto.legenda || '—' }}</figcaption>
-                      </figure>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        }
-
-        @if (fotosSalvasDoDia(registro).length) {
-          <div class="miniaturas">
-            @for (foto of fotosSalvasDoDia(registro); track foto.id) {
-              <figure class="miniatura" (click)="ampliar(foto)">
-                <div class="miniatura-circulo">
-                  <img [src]="foto.url" [alt]="foto.legenda || 'Foto do dia'">
-                </div>
-                <figcaption>{{ foto.legenda || '—' }}</figcaption>
-              </figure>
-            }
-          </div>
-        }
-
-        @if (registro.ocorrencias?.length) {
-          <div class="registro-ocorrencias">
-            <h3>Ocorrências</h3>
-            @for (oc of registro.ocorrencias; track oc.id) {
-              <p><strong>{{ rotuloOcorrencia(oc.tipo) }}:</strong> {{ oc.descricao }}</p>
-            }
-          </div>
-        }
-      </article>
-    }
-  </section>
 }
 
-<!-- Popup da foto ampliada: foto grande + descrição da foto + da tarefa -->
+<!-- Popup da foto/vídeo ampliado (só o que já está salvo) -->
 @if (fotoAmpliada(); as foto) {
   <div class="popup-fundo" (fecharModal)="fecharAmpliada()">
     <div class="popup">
       <button type="button" class="popup-fechar" (click)="fecharAmpliada()" aria-label="Fechar">×</button>
       <div class="popup-imagem">
-        <img [src]="foto.url" [alt]="foto.legenda || 'Foto do relatório'">
-        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-          <span class="marcador marcador-grande"
-                [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+        @if (foto.tipo === 'video') {
+          <video [src]="urlMidia(foto)" controls autoplay></video>
+        } @else {
+          <img [src]="urlMidia(foto)" [alt]="foto.legenda || 'Foto do relatório'">
+          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+            <span class="marcador marcador-grande"
+                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+          }
         }
       </div>
       @if (foto.legenda) { <p class="popup-legenda">{{ foto.legenda }}</p> }

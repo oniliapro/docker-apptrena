@@ -1247,3 +1247,86 @@ AppTrena/
   cada item do pagamento era descartado em silêncio. RDO ainda não lança diária
   automaticamente ao finalizar o dia — isso é F9, evita mexer no RDO antes de
   combinar com a Onilia.
+- 22/09/2026 (F8 — RDO base: vídeo, calendário e aposentadoria do Diário antigo;
+  2 migrations: `add_tipo_to_rdo_fotos`, `add_origem_diario_id_to_rdo_registros`;
+  1 comando: `php artisan diario:migrar-para-rdo [--dry-run]`).
+  **(D1) Vídeo junto das fotos**: `rdo_fotos` ganhou `tipo` ('foto'/'video') e
+  passou a guardar os dois na MESMA galeria/ordem — mp4/mov/webm até 100 MB
+  (cabe no limite do servidor, 110 MB); sem croqui (marcação de ponto é só de
+  foto). Aparece em toda tela que já mostrava foto do RDO (edição, galeria
+  salva, popup ampliado, acompanhamento público); no PDF (que é estático) o
+  vídeo vira um aviso "Vídeo anexado" em vez de tentar embutir.
+  **(D2) Calendário mensal como a própria lista**: pedido do Lucas depois de
+  ver a primeira versão (calendário dentro do editor) — reformulado para
+  separar lista e edição em telas diferentes, no mesmo padrão de
+  Mapas/MapasObra/Mapa. A grade do calendário foi extraída de `publico-rdo.ts`
+  (que já tinha, desde 15/09) para `rdo-calendario.ts` (função pura, com
+  testes) e passou a alimentar um componente novo, `rdo-lista.ts`, usado em
+  dois lugares: `/rdo` no menu lateral (todas as obras, com seletor de obra
+  pra criar) e `/obras/:id/rdo` na aba da obra (só os RDOs dela, com a seção
+  de link do contratante). O calendário FICA na lista, não no editor: cada
+  dia é um botão só, clicar marca/filtra a tabela de RDOs abaixo dele pela
+  data (clicar de novo limpa o filtro), clicar numa linha da tabela abre a
+  edição. O editor (`rdo.ts`, agora só isso) virou rota própria da obra —
+  `/obras/:id/rdo/novo` cria, `/obras/:id/rdo/:rdoId` edita — com botão
+  "Voltar à lista", sem select de obra e sem calendário. "Novo RDO" só cria
+  o relatório de fato quando alguém confirma explicitamente pelo botão (não
+  existe mais "clicar num dia vazio cria"). Corrigidos DE PASSAGEM dois bugs
+  pré-existentes que o calendário expôs (nenhum dos dois é do calendário em
+  si): (1) o campo "Observações gerais do dia" estava aninhado dentro do
+  `formArrayName="comentarios"` por engano, jogando erro no console toda vez
+  que a seção renderizava; (2) todos os `@for` dos FormArrays do RDO (tarefas,
+  etapas, mão de obra, equipamentos, ocorrências, pendências, responsáveis,
+  comentários) usavam `track $index` — ao chamar `novoRegistro()`/reabrir um
+  RDO mais de uma vez seguida (exatamente o que acontece ao navegar entre
+  RDOs pela lista), o Angular reaproveitava o elemento do DOM sem reconectar
+  o FormGroup novo, deixando a seção "inválida" para sempre mesmo com os
+  campos certos. Corrigido trocando `track $index` por `track <a própria
+  linha>` em todos — vale pra qualquer FormArray novo que este módulo ganhar.
+  Detalhe de rota: `/obras/:id/rdo/novo` é um segmento literal (sem
+  `:rdoId`), então o `withComponentInputBinding()` não amarra sozinho —
+  precisou de `data: { rdoId: 'novo' }` na rota pra o componente saber que é
+  criação (o binding por input também lê de `data`, não só de `params`).
+  **Diário antigo aposentado**: rota interna (`/diario-obra`) e a pública
+  (`/publico/diario/:token`) removidas do Angular — quem tinha o link antigo
+  agora cai fora do sistema; o menu lateral e o atalho "Lançar" perderam a
+  entrada do Diário antigo (o atalho agora tem "Novo RDO" no lugar). O card
+  "Diários de obra" do painel inicial, que nunca teve dado real (era só
+  layout), foi removido. NADA foi apagado do banco — tabelas `diario_*`,
+  arquivos e o backend (`DiarioObraController`, `PublicoDiarioController`)
+  continuam intactos, só sem tela que os use.
+  **Comando de migração**: copia cada `diario_registros` para um `rdo_registros`
+  novo (título vira observação quando diferente da descrição; descrição vira a
+  tarefa nº 1; clima livre é reconhecido contra as 5 opções do RDO — sem
+  bater, viram observação; quantidade de operários vira 1 linha de mão de
+  obra "direta"; equipamento do catálogo antigo entra como texto livre, sem
+  linkar no catálogo novo; responsável com `presente=false` não é migrado;
+  fotos reaproveitam o MESMO arquivo em disco, sem copiar). Idempotente
+  (marca `origem_diario_id`, pula o que já migrou) e por registro (uma falha
+  não derruba as demais). Ainda não rodado em produção — roda depois do
+  `migrate --force`, com `--dry-run` primeiro.
+- 23/09/2026 — **Bug: nenhuma foto/vídeo aparecia em PDF nenhum** (achado pelo
+  Lucas). Causa: `RdoFoto`/`MaterialEquipamento`/`DiarioFoto` montavam a URL
+  da mídia com `Storage::disk('public')->url()`, que usa `APP_URL` — um host
+  que só existe do ponto de vista do navegador do usuário. O Chromium
+  headless que gera qualquer PDF (`RdoPdfController` e os demais, ver
+  docs/GERAR-PDF.md) roda *dentro* do container `phpfpm`, onde esse host não
+  é alcançável, então toda `<img>`/`<video>` de mídia real vinha como ícone
+  quebrado — mesmo bug (e mesma correção) já resolvidos só para a logo da
+  empresa em 28/08/2026 (`Empresa::getLogoUrlAttribute()`), sem ter sido
+  generalizado pro resto do sistema na época. Corrigido replicando o mesmo
+  padrão: os três modelos passaram a devolver caminho RELATIVO
+  (`/storage/...`), e cada tela que exibe essas mídias (`rdo.ts`/`.html`,
+  `rdo-imprimir.ts`/`.html`, `publico-rdo.ts`/`.html`,
+  `materiais-equipamentos.ts`/`.html`) monta a URL final somando
+  `ApiService.baseStorage()` (ou o equivalente manual nas duas telas
+  públicas/sem sessão, que usam `environment.apiUrl` direto). De passagem,
+  achado e corrigido um segundo descuido no mesmo arquivo: a logo da empresa
+  em `rdo-imprimir.html` usava `empresa()?.logoUrl` direto, sem o
+  `baseStorage()` que `mapa-imprimir.ts`/`cabecalho-impressao.ts` já
+  aplicavam — mesma causa, ponto isolado que ficou pra trás. Reproduzido e
+  confirmado visualmente (screenshot do PDF renderizado) antes e depois da
+  correção. `DiarioFoto` também corrigido por consistência, mas sem efeito
+  prático hoje — as rotas que a exibiam foram retiradas no F8. Nenhuma
+  migration: são só accessors de modelo: nada pra rodar no VPS além do
+  deploy normal do código.

@@ -280,6 +280,21 @@
 
 .fotos-dia .quadro { height: 32mm; }
 
+/* Vídeo (F8, 22/09/2026) — o PDF é estático, não toca vídeo: em vez da
+   imagem, um aviso de que existe uma mídia anexada só no sistema. */
+.quadro-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2pt;
+  background: #f0f1ed;
+  color: #5b6560;
+}
+
+.icone-video-impressao { font-size: 12pt; }
+.video-rotulo { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.04em; }
+
 /* Croqui: o ponto que o engenheiro marcou sobre a foto. */
 .marcador {
   position: absolute;

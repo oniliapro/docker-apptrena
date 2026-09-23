@@ -42,14 +42,17 @@
   gap: 0.5rem;
 }
 
-.campo-obra {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.75rem;
+.botao-voltar {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.8rem;
   color: var(--cor-texto-suave);
+  cursor: pointer;
 
-  select { min-width: 210px; }
+  &:hover { color: var(--cor-primaria); text-decoration: underline; }
 }
 
 .painel {
@@ -388,12 +391,25 @@ button {
   overflow: hidden;
   border: 2px solid var(--cor-borda-forte);
 
-  img {
+  img, video {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
   }
+}
+
+/* Vídeo (F8, 22/09/2026) — ícone de "play" sobre a miniatura circular, já
+   que o <video> sem controles só mostra o primeiro quadro. */
+.icone-video {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.1rem;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
 }
 
 .miniatura-edicao {
@@ -411,6 +427,17 @@ button {
   .botao-remover { font-size: 0.7rem; align-self: flex-start; }
 }
 
+/* Foto/vídeo JÁ salvo, mostrado junto dos recém-escolhidos ao editar
+   (22/09/2026, F8) — a miniatura abre o popup de ampliar em vez do
+   croqui/legenda-editável dos recém-escolhidos. */
+.miniatura-salva .miniatura-imagem { cursor: pointer; }
+
+.legenda-salva {
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave);
+  word-break: break-word;
+}
+
 .miniatura-imagem {
   position: relative;
   width: 132px;
@@ -422,6 +449,19 @@ button {
 
   img { width: 100%; height: 100%; object-fit: cover; display: block; }
 }
+
+/* Vídeo (F8, 22/09/2026): a prévia é o próprio elemento `<video>` com
+   `.miniatura-imagem` — mesmo tamanho/moldura da foto, mas sem o cursor de
+   croqui (não existe marcação de ponto em vídeo) e com controles nativos. */
+video.miniatura-imagem {
+  width: 132px;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+  cursor: auto;
+}
+
+.botao-video { background: var(--cor-fundo-alt); }
 
 /* Croqui: ponto marcado sobre a foto. Posicionado em %, por isso acompanha
    qualquer tamanho de exibição. */
@@ -470,7 +510,7 @@ button {
   display: inline-block;
   max-width: 100%;
 
-  img {
+  img, video {
     display: block;
     max-width: 100%;
     max-height: 70vh;
@@ -492,90 +532,7 @@ button {
 .popup-legenda { margin: 0.6rem 0 0; font-size: 0.9rem; }
 .popup-nota { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--cor-texto-suave); }
 
-/* ---------- Lista de relatórios ---------- */
-
-.rdo-lista h2 {
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1rem;
-  color: var(--cor-primaria);
-}
-
-.registro {
-  border-left: 3px solid var(--cor-sucesso);
-
-  &.rascunho { border-left-color: var(--cor-alerta); }
-}
-
-.registro-topo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.registro-numero {
-  font-weight: 700;
-  color: var(--cor-primaria);
-  margin-right: 0.5rem;
-}
-
-.registro-data {
-  font-size: 0.85rem;
-  color: var(--cor-texto-suave);
-  font-variant-numeric: tabular-nums;
-}
-
-.registro-acoes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.registro-clima {
-  margin: 0 0 0.4rem;
-  font-size: 0.78rem;
-  color: var(--cor-texto-suave);
-}
-
-.registro-etapas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0 0 0.5rem;
-}
-
-.etapa-chip {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 3px;
-  background: var(--cor-fundo-alt);
-  border: 1px solid var(--cor-borda);
-
-  &.concluida {
-    background: var(--cor-sucesso-bg);
-    color: var(--cor-sucesso);
-    border-color: var(--cor-sucesso);
-    text-decoration: line-through;
-  }
-}
-
-.registro-tarefa {
-  padding: 0.4rem 0;
-  border-top: 1px solid var(--cor-borda);
-
-  p { margin: 0; font-size: 0.85rem; }
-}
-
-.registro-ocorrencias {
-  margin-top: 0.6rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--cor-borda);
-
-  p { margin: 0.2rem 0; font-size: 0.82rem; }
-}
+/* ---------- Etiquetas de status (rascunho/assinado) — no topo do editor ---------- */
 
 .etiqueta {
   font-size: 0.68rem;
@@ -599,24 +556,6 @@ button {
   letter-spacing: 0;
 }
 
-.link-item {
-  font-size: 0.78rem;
-
-  code {
-    font-family: var(--fonte);
-    font-size: 0.72rem;
-    background: var(--cor-fundo-alt);
-    padding: 0.2rem 0.35rem;
-    border-radius: 3px;
-    word-break: break-all;
-    flex: 1;
-  }
-
-  &.revogado { opacity: 0.55; }
-}
-
-.link-email { color: var(--cor-texto-suave); }
-
 /* ---------- Celular: acordeão ---------- */
 
 /* 860px = $quebra-mobile em styles/_tokens.scss. Literal aqui porque
@@ -625,7 +564,6 @@ button {
 @media (max-width: 860px) {
   .rdo-topo { flex-direction: column; align-items: stretch; }
   .rdo-topo-acoes { flex-direction: column; align-items: stretch; }
-  .campo-obra select { min-width: 0; width: 100%; }
 
   .grade-dupla,
   .grade-tripla,
@@ -660,5 +598,5 @@ button {
   .botao-foto { display: block; text-align: center; width: 100%; }
 
   .tarefa-fotos { padding-left: 0; }
-  .registro-acoes { width: 100%; }
 }
+

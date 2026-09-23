@@ -186,6 +186,16 @@ export class MateriaisEquipamentos implements OnInit {
     this.fFotoNovaUrl() ?? (this.fRemoverFoto() ? null : this.fFotoAtual()),
   );
 
+  /**
+   * `foto_url` vem relativo (`/storage/...`) — mesmo motivo de `logoUrl`
+   * em `Empresa::getLogoUrlAttribute()` (achado em 23/09/2026: nenhuma
+   * foto aparecia nos PDFs porque a URL absoluta só existe do ponto de
+   * vista do navegador do usuário).
+   */
+  protected urlFoto(caminho: string): string {
+    return this.api.baseStorage() + caminho;
+  }
+
   protected novo(): void {
     this.abrir(null);
   }
@@ -206,7 +216,7 @@ export class MateriaisEquipamentos implements OnInit {
     this.fMarcas.set([...(registro?.marcas ?? [])]);
     this.fNovaMarca.set('');
     this.fAtivo.set(registro?.ativo ?? true);
-    this.fFotoAtual.set(registro?.foto_url ?? null);
+    this.fFotoAtual.set(registro?.foto_url ? this.urlFoto(registro.foto_url) : null);
     this.fRemoverFoto.set(false);
     this.formularioAberto.set(true);
   }
