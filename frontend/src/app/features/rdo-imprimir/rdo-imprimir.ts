@@ -15,7 +15,7 @@ import { RdoService } from '../rdo/rdo.service';
  *
  * O layout traz todos os campos da planilha-modelo de RDO que o mercado usa
  * (cabeçalho com contrato/CREA/ART, nº do relatório, clima por turno, mão de
- * obra indireta e direta, equipamentos, tarefas numeradas, ocorrências e o
+ * obra interna e externa, equipamentos, tarefas numeradas, ocorrências e o
  * bloco de assinaturas), mas na identidade visual do AppTrena — foi a escolha
  * da Onilia em 17/09/2026: mesmos campos, layout próprio.
  *
@@ -72,7 +72,7 @@ export class RdoImprimir implements OnInit {
     });
   }
 
-  protected maoDeObraDe(categoria: 'indireta' | 'direta') {
+  protected maoDeObraDe(categoria: 'interno' | 'externo') {
     return (this.rdo()?.mao_de_obra ?? []).filter((m) => m.categoria === categoria);
   }
 

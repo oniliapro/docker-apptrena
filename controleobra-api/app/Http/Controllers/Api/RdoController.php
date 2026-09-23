@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppStorageItem;
+use App\Models\Diaria;
+use App\Models\EapItem;
 use App\Models\Obra;
 use App\Models\RdoComentarioInterno;
 use App\Models\RdoContratanteLink;
@@ -115,22 +118,24 @@ class RdoController extends Controller
             'proximo_numero' => $this->proximoNumero($obra->id),
             'etapas_sugeridas' => $anterior
                 ? $anterior->etapas->where('concluida', false)->values()
-                    ->map(fn ($e) => ['nome' => $e->nome, 'concluida' => false])
+                    ->map(fn ($e) => ['eap_item_id' => $e->eap_item_id, 'nome' => $e->nome, 'concluida' => false])
                 : [],
             'mao_de_obra_sugerida' => $anterior
                 ? $anterior->maoDeObra->map(fn ($m) => [
                     'categoria' => $m->categoria,
+                    'profissional_id' => $m->profissional_id,
+                    'profissional_nome' => $m->profissional_nome,
                     'funcao' => $m->funcao,
                     'quantidade' => $m->quantidade,
                 ])->values()
                 : [],
             'equipamentos_catalogo' => RdoEquipamentoCatalogo::orderBy('nome')->get(),
-            // Autocomplete de função: as funções que esta empresa já usou em
-            // RDOs anteriores. Não há cadastro de profissionais no sistema
-            // (verificado em 17/09/2026 — os cadastros de Responsáveis/
-            // Empreiteiros nem tabela própria têm, vivem na ponte chave-valor),
-            // então a lista se forma sozinha pelo uso, sem tela de cadastro
-            // para manter.
+            // Autocomplete de função pras linhas MANUAIS (sem profissional
+            // vinculado): as funções que esta empresa já usou em RDOs
+            // anteriores. O cadastro de Profissionais (F6, na ponte
+            // chave-valor, `controleObra.empreiteiros.v1`) é a via preferida
+            // desde a F9 — o frontend lê ele direto (mesmo jeito que
+            // `DiariasStore` já lê), este endpoint não precisa duplicar.
             'funcoes_usadas' => RdoMaoDeObra::query()
                 ->join('rdo_registros', 'rdo_registros.id', '=', 'rdo_mao_de_obra.rdo_id')
                 ->where('rdo_registros.empresa_id', $request->user()->empresa_id)
@@ -225,9 +230,68 @@ class RdoController extends Controller
             'assinante_crea' => $cabecalho?->crea,
         ]);
 
+        $this->gerarDiariasAutomaticas($rdo);
         $this->avisarContratante($rdo);
 
         return $rdo->fresh(self::RELACOES);
+    }
+
+    /**
+     * F9 (24/09/2026): ao finalizar o RDO, cada linha de mão de obra COM
+     * profissional vinculado vira uma diária em rascunho (aba Diárias, F7) —
+     * sem etapa/vales/meia-diária: quem for fechar o pagamento completa isso
+     * depois na própria aba (decisão do Lucas, 23/09/2026 — manter o
+     * formulário do RDO enxuto, principalmente com equipes grandes).
+     *
+     * O valor da diária vem do cadastro de Profissionais NO MOMENTO da
+     * finalização (lido direto de `app_storage`, mesma tabela que
+     * `StorageController` usa — não há cadastro relacional, ver
+     * `Empreiteiro`/"Profissionais"). Idempotente: reabrir e finalizar de
+     * novo o mesmo RDO não duplica a diária de um profissional que já tem
+     * uma gerada por ele nesta data.
+     */
+    private function gerarDiariasAutomaticas(RdoRegistro $rdo): void
+    {
+        $linhas = $rdo->maoDeObra()->whereNotNull('profissional_id')->get();
+        if ($linhas->isEmpty()) {
+            return;
+        }
+
+        $bruto = AppStorageItem::where('empresa_id', $rdo->empresa_id)
+            ->where('key_name', 'controleObra.empreiteiros.v1')
+            ->value('value');
+        $profissionais = collect(json_decode($bruto ?? '[]', true) ?: [])->keyBy('id');
+
+        foreach ($linhas as $linha) {
+            $jaExiste = Diaria::where('empresa_id', $rdo->empresa_id)
+                ->where('profissional_id', $linha->profissional_id)
+                ->where('data', $rdo->data)
+                ->where('origem', 'rdo')
+                ->exists();
+            if ($jaExiste) {
+                continue;
+            }
+
+            $profissional = $profissionais->get($linha->profissional_id);
+
+            Diaria::create([
+                'empresa_id' => $rdo->empresa_id,
+                'obra_id' => $rdo->obra_id,
+                'profissional_id' => $linha->profissional_id,
+                'profissional_nome' => $linha->profissional_nome ?: ($profissional['nome'] ?? $linha->funcao),
+                'profissional_funcao' => $linha->funcao,
+                'data' => $rdo->data,
+                'meia_diaria' => false,
+                'valor_diaria_base' => (float) ($profissional['valorDiaria'] ?? 0),
+                'vale_transporte' => 0,
+                'vale_alimentacao' => 0,
+                'combustivel' => 0,
+                'valor_extra' => 0,
+                'observacoes' => "Gerada automaticamente ao finalizar o RDO nº {$rdo->numero}.",
+                'status' => 'rascunho',
+                'origem' => 'rdo',
+            ]);
+        }
     }
 
     public function destroy(RdoRegistro $rdo)
@@ -295,8 +359,14 @@ class RdoController extends Controller
             'tarefas.*.id' => 'nullable|string|max:36',
             'tarefas.*.descricao' => 'required|string',
 
+            // profissional_id/profissional_nome (F9): linha "de verdade",
+            // vinculada ao cadastro de Profissionais — só ela gera diária
+            // automática ao finalizar. Sem os dois = linha manual (ex.:
+            // "Ajudante avulso", quantidade > 1), continua valendo.
             'mao_de_obra' => 'nullable|array|max:100',
-            'mao_de_obra.*.categoria' => 'required|string|in:indireta,direta',
+            'mao_de_obra.*.categoria' => 'required|string|in:interno,externo',
+            'mao_de_obra.*.profissional_id' => 'nullable|string|max:36',
+            'mao_de_obra.*.profissional_nome' => 'nullable|string|max:150',
             'mao_de_obra.*.funcao' => 'required|string|max:120',
             'mao_de_obra.*.quantidade' => 'required|integer|min:0',
 
@@ -319,6 +389,7 @@ class RdoController extends Controller
             'pendencias.*.status' => 'nullable|string|in:aberta,concluida',
 
             'etapas' => 'nullable|array|max:50',
+            'etapas.*.eap_item_id' => 'nullable|string|max:36',
             'etapas.*.nome' => 'required|string|max:150',
             'etapas.*.concluida' => 'nullable|boolean',
 
@@ -388,6 +459,8 @@ class RdoController extends Controller
             RdoMaoDeObra::create([
                 'rdo_id' => $rdo->id,
                 'categoria' => $item['categoria'],
+                'profissional_id' => $item['profissional_id'] ?? null,
+                'profissional_nome' => $item['profissional_nome'] ?? null,
                 'funcao' => $item['funcao'],
                 'quantidade' => $item['quantidade'],
                 'ordem' => $ordem,
@@ -447,8 +520,20 @@ class RdoController extends Controller
         }
 
         foreach ($data['etapas'] ?? [] as $ordem => $item) {
+            // Mesmo cuidado do obra_id/equipamento: o item vem do cliente,
+            // então confirmamos que é mesmo um item da EAP DESTA obra antes de
+            // gravar o vínculo — senão daria pra "adivinhar" um id de outra
+            // obra (ou de outra empresa) só digitando o UUID.
+            $eapItemId = null;
+            if (!empty($item['eap_item_id'])) {
+                $eapItemId = EapItem::where('obra_id', $rdo->obra_id)
+                    ->where('id', $item['eap_item_id'])
+                    ->value('id');
+            }
+
             RdoEtapa::create([
                 'rdo_id' => $rdo->id,
+                'eap_item_id' => $eapItemId,
                 'nome' => $item['nome'],
                 'concluida' => (bool) ($item['concluida'] ?? false),
                 'ordem' => $ordem,

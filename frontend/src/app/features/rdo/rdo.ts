@@ -3,7 +3,12 @@ import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } fr
 import { Router } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
+import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { hojeIso } from '../../core/utils/formato';
+import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
+import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
+import { Empreiteiro } from '../cadastros/cadastros.models';
+import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import {
   CLIMAS,
   FotoSelecionada,
@@ -44,13 +49,14 @@ import { RdoService } from './rdo.service';
  */
 @Component({
   selector: 'app-rdo',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, Autocomplete],
   templateUrl: './rdo.html',
   styleUrl: './rdo.scss',
 })
 export class Rdo implements OnInit {
   private readonly rdoApi = inject(RdoService);
   private readonly api = inject(ApiService);
+  private readonly armazenamento = inject(ArmazenamentoService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
 
@@ -61,6 +67,55 @@ export class Rdo implements OnInit {
 
   protected readonly climas = CLIMAS;
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA;
+
+  // F9 (24/09/2026): mão de obra por profissional do cadastro (Empreiteiros/
+  // "Profissionais", F6 — ainda na ponte de storage, ver `Empreiteiro`) e
+  // etapas ligadas a um item de verdade da EAP — mesmo jeito que
+  // `DiariasStore` já lê as duas fontes.
+  protected readonly profissionais = signal<Empreiteiro[]>([]);
+  protected readonly itensEap = signal<ItemEapResumo[]>([]);
+
+  /** Só os ativos, por vínculo — cada coluna da mão de obra busca só na sua lista. */
+  protected opcoesProfissional(vinculo: 'interno' | 'externo'): OpcaoAutocomplete[] {
+    return this.profissionais()
+      .filter((p) => p.ativo !== false && p.vinculo === vinculo)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      .map((p) => ({ id: p.id, rotulo: p.especialidade ? `${p.nome} — ${p.especialidade}` : p.nome }));
+  }
+
+  /** Etapas-folha da EAP (grupo não recebe lançamento direto) — pro seletor de etapa. */
+  protected readonly opcoesEtapaEap = computed<OpcaoAutocomplete[]>(() =>
+    this.itensEap()
+      .filter((i) => !i.isGroup)
+      .map((i) => ({ id: i.id, rotulo: this.rotuloEap(i) })),
+  );
+
+  private rotuloEap(item: ItemEapResumo): string {
+    const eap = String(item.eap ?? '').trim();
+    const desc = String(item.desc ?? '').trim();
+    if (eap && desc) return `${eap} - ${desc}`;
+    return eap || desc || '—';
+  }
+
+  private carregarProfissionaisEEap(): void {
+    this.armazenamento.ler(CHAVE_EMPREITEIROS).subscribe({
+      next: (bruto) => {
+        if (!bruto) return;
+        try {
+          const dados = JSON.parse(bruto);
+          if (Array.isArray(dados)) this.profissionais.set(dados.map((d) => normalizarEmpreiteiro(d)));
+        } catch {
+          // cadastro fica vazio, o seletor só mostra "(nenhum)"
+        }
+      },
+      error: () => this.profissionais.set([]),
+    });
+
+    this.api.obterEap(this.obraId()).subscribe({
+      next: (payload) => this.itensEap.set(extrairItensEapResumo(payload.eapItems)),
+      error: () => this.itensEap.set([]),
+    });
+  }
 
   protected readonly preparo = signal<RdoPreparo | null>(null);
   /** RDO carregado, só em modo edição — fonte das fotos/vídeos JÁ salvos. */
@@ -112,6 +167,7 @@ export class Rdo implements OnInit {
 
   ngOnInit(): void {
     this.carregando.set(true);
+    this.carregarProfissionaisEEap();
 
     // O cabeçalho técnico é por OBRA (não por RDO) — sempre carrega, criando
     // ou editando; é dele também que vêm as sugestões pro RDO novo.
@@ -162,9 +218,9 @@ export class Rdo implements OnInit {
     this.limparArrays();
 
     const preparo = this.preparo();
-    preparo?.etapas_sugeridas.forEach((e) => this.adicionarEtapa(e.nome, false));
+    preparo?.etapas_sugeridas.forEach((e) => this.adicionarEtapa(null, e.nome, false));
     preparo?.mao_de_obra_sugerida.forEach((m) =>
-      this.adicionarMaoDeObra(m.categoria, m.funcao, m.quantidade),
+      this.adicionarMaoDeObra(m.categoria, m.profissional_id, m.profissional_nome, m.funcao, m.quantidade),
     );
 
     if (this.arr('tarefas').length === 0) {
@@ -188,8 +244,10 @@ export class Rdo implements OnInit {
       observacoes: registro.observacoes ?? '',
     });
 
-    registro.etapas?.forEach((e) => this.adicionarEtapa(e.nome, e.concluida));
-    registro.mao_de_obra?.forEach((m) => this.adicionarMaoDeObra(m.categoria, m.funcao, m.quantidade));
+    registro.etapas?.forEach((e) => this.adicionarEtapa(e.eap_item_id, e.nome, e.concluida));
+    registro.mao_de_obra?.forEach((m) =>
+      this.adicionarMaoDeObra(m.categoria, m.profissional_id, m.profissional_nome, m.funcao, m.quantidade),
+    );
     registro.equipamentos?.forEach((e) => this.adicionarEquipamento(e.descricao, e.quantidade));
     registro.tarefas?.forEach((t) => this.adicionarTarefa(t.descricao, t.id));
     registro.ocorrencias?.forEach((o) => this.adicionarOcorrencia(o));
@@ -220,8 +278,8 @@ export class Rdo implements OnInit {
     return this.arr(nome).at(i) as FormGroup;
   }
 
-  /** Mão de obra de uma categoria, com o índice real no FormArray. */
-  protected maoDeObraDe(categoria: 'indireta' | 'direta'): Array<{ indice: number; grupo: FormGroup }> {
+  /** Mão de obra de uma categoria (interno/externo), com o índice real no FormArray. */
+  protected maoDeObraDe(categoria: 'interno' | 'externo'): Array<{ indice: number; grupo: FormGroup }> {
     return this.arr('mao_de_obra').controls
       .map((controle, indice) => ({ indice, grupo: controle as FormGroup }))
       .filter((linha) => linha.grupo.get('categoria')?.value === categoria);
@@ -247,18 +305,68 @@ export class Rdo implements OnInit {
       .forEach((nome) => this.arr(nome).clear());
   }
 
-  protected adicionarEtapa(nome = '', concluida = false): void {
-    this.arr('etapas').push(this.fb.group({ nome: [nome, Validators.required], concluida: [concluida] }));
+  protected adicionarEtapa(eapItemId: string | null = null, nome = '', concluida = false): void {
+    this.arr('etapas').push(
+      this.fb.group({
+        eap_item_id: [eapItemId],
+        nome: [nome, Validators.required],
+        concluida: [concluida],
+      }),
+    );
   }
 
-  protected adicionarMaoDeObra(categoria: 'indireta' | 'direta', funcao = '', quantidade = 0): void {
+  /** Etapa nova a partir da EAP: id fica no formulário, nome vem como rótulo (ainda editável depois). */
+  protected escolherEtapaEap(indice: number, opcao: OpcaoAutocomplete | null): void {
+    const grupo = this.grupo('etapas', indice);
+    grupo.patchValue({ eap_item_id: opcao?.id ?? null, nome: opcao?.rotulo ?? grupo.get('nome')?.value });
+  }
+
+  protected adicionarMaoDeObra(
+    categoria: 'interno' | 'externo',
+    profissionalId: string | null = null,
+    profissionalNome: string | null = null,
+    funcao = '',
+    quantidade = 1,
+  ): void {
     this.arr('mao_de_obra').push(
       this.fb.group({
         categoria: [categoria],
+        profissional_id: [profissionalId],
+        profissional_nome: [profissionalNome],
         funcao: [funcao, Validators.required],
         quantidade: [quantidade, [Validators.required, Validators.min(0)]],
       }),
     );
+  }
+
+  /** Campo de busca de profissional por coluna (`[(valor)]` do autocomplete) — some depois de escolher. */
+  protected readonly buscaProfissionalInterno = signal('');
+  protected readonly buscaProfissionalExterno = signal('');
+
+  /**
+   * Adiciona uma linha de mão de obra a partir de um profissional escolhido
+   * no autocomplete (F9) — categoria/função vêm do próprio cadastro, cada
+   * escolha é uma pessoa (`quantidade` sempre 1). Limpa o campo de busca
+   * depois, pra poder buscar o próximo sem apagar na mão.
+   */
+  protected adicionarProfissionalPresente(opcao: OpcaoAutocomplete | null): void {
+    if (!opcao) return;
+    const profissional = this.profissionais().find((p) => p.id === opcao.id);
+    if (!profissional) return;
+
+    this.adicionarMaoDeObra(
+      profissional.vinculo,
+      profissional.id,
+      profissional.nome,
+      profissional.especialidade || 'Sem função definida',
+    );
+    this.buscaProfissionalInterno.set('');
+    this.buscaProfissionalExterno.set('');
+  }
+
+  /** Linha manual (sem profissional do cadastro) — função/quantidade digitadas, como era antes da F9. */
+  protected adicionarMaoDeObraManual(categoria: 'interno' | 'externo'): void {
+    this.adicionarMaoDeObra(categoria, null, null, '', 1);
   }
 
   protected adicionarEquipamento(descricao = '', quantidade = 0): void {

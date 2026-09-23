@@ -131,12 +131,17 @@
       </button>
 
       <div class="secao-corpo" formArrayName="etapas">
+        <p class="dica">Ligar a um item da EAP é opcional — só ajuda a rastrear em qual etapa do orçamento o dia aconteceu.</p>
         @for (etapa of arr('etapas').controls; track etapa; let i = $index) {
-          <div class="linha" [formGroupName]="i">
+          <div class="linha linha-etapa" [formGroupName]="i">
             <label class="checkbox">
               <input type="checkbox" formControlName="concluida">
             </label>
             <input type="text" formControlName="nome" placeholder="Nome da etapa">
+            <app-autocomplete modo="restrito" placeholder="Vincular à EAP (opcional)…"
+                               [opcoes]="opcoesEtapaEap()"
+                               [valor]="etapa.get('eap_item_id')?.value ?? ''"
+                               (confirmou)="escolherEtapaEap(i, $event)"></app-autocomplete>
             <button type="button" class="botao-remover" (click)="remover('etapas', i)" aria-label="Remover">×</button>
           </div>
         }
@@ -152,41 +157,71 @@
       </button>
 
       <div class="secao-corpo" formArrayName="mao_de_obra">
-        <p class="dica">Vem preenchida com a equipe do relatório anterior — ajuste quem faltou ou entrou.</p>
+        <p class="dica">Vem preenchida com a equipe do relatório anterior — ajuste quem faltou ou entrou. Quem tem cadastro de Profissional vira diária em rascunho ao finalizar.</p>
 
         <div class="colunas-mao">
-          @for (categoria of ['indireta', 'direta']; track categoria) {
-            <div class="coluna-mao">
-              <h3>{{ categoria === 'indireta' ? 'Mão de obra indireta' : 'Mão de obra direta' }}</h3>
+          <div class="coluna-mao">
+            <h3>Mão de obra interna</h3>
 
-              @for (linha of maoDeObraDe($any(categoria)); track linha.grupo) {
-                <div class="linha" [formGroupName]="linha.indice">
-                  <!-- [attr.list] e não list="...{{ }}": com interpolação o
-                       Angular trataria `list` como property do elemento, e
-                       <input> não tem essa property — só o atributo. -->
-                  <input type="text" formControlName="funcao" placeholder="Função / cargo"
-                         [attr.list]="'rdo-funcoes-' + categoria">
+            <app-autocomplete modo="restrito" placeholder="Buscar profissional interno…"
+                               [opcoes]="opcoesProfissional('interno')"
+                               [(valor)]="buscaProfissionalInterno"
+                               (confirmou)="adicionarProfissionalPresente($event)"></app-autocomplete>
+
+            @for (linha of maoDeObraDe('interno'); track linha.grupo) {
+              <div class="linha" [formGroupName]="linha.indice">
+                @if (linha.grupo.get('profissional_id')?.value) {
+                  <span class="profissional-linha">{{ linha.grupo.get('profissional_nome')?.value }} — {{ linha.grupo.get('funcao')?.value }}</span>
+                } @else {
+                  <input type="text" formControlName="funcao" placeholder="Função / cargo" list="rdo-funcoes-interno">
                   <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
-                  <button type="button" class="botao-remover" (click)="remover('mao_de_obra', linha.indice)"
-                          aria-label="Remover função">×</button>
-                </div>
-              }
-
-              <button type="button" class="botao-adicionar" (click)="adicionarMaoDeObra($any(categoria))">
-                + {{ categoria === 'indireta' ? 'Indireta' : 'Direta' }}
-              </button>
-            </div>
-          }
-        </div>
-
-        <!-- Autocomplete alimentado pelo que a empresa já digitou antes. -->
-        @for (categoria of ['indireta', 'direta']; track categoria) {
-          <datalist id="rdo-funcoes-{{ categoria }}">
-            @for (f of preparo()?.funcoes_usadas ?? []; track f.funcao) {
-              @if (f.categoria === categoria) { <option [value]="f.funcao"></option> }
+                }
+                <button type="button" class="botao-remover" (click)="remover('mao_de_obra', linha.indice)"
+                        aria-label="Remover">×</button>
+              </div>
             }
-          </datalist>
-        }
+
+            <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('interno')">
+              + Lançamento manual (sem cadastro)
+            </button>
+            <datalist id="rdo-funcoes-interno">
+              @for (f of preparo()?.funcoes_usadas ?? []; track f.funcao) {
+                @if (f.categoria === 'interno') { <option [value]="f.funcao"></option> }
+              }
+            </datalist>
+          </div>
+
+          <div class="coluna-mao">
+            <h3>Mão de obra externa</h3>
+
+            <app-autocomplete modo="restrito" placeholder="Buscar profissional externo…"
+                               [opcoes]="opcoesProfissional('externo')"
+                               [(valor)]="buscaProfissionalExterno"
+                               (confirmou)="adicionarProfissionalPresente($event)"></app-autocomplete>
+
+            @for (linha of maoDeObraDe('externo'); track linha.grupo) {
+              <div class="linha" [formGroupName]="linha.indice">
+                @if (linha.grupo.get('profissional_id')?.value) {
+                  <span class="profissional-linha">{{ linha.grupo.get('profissional_nome')?.value }} — {{ linha.grupo.get('funcao')?.value }}</span>
+                } @else {
+                  <input type="text" formControlName="funcao" placeholder="Função / cargo" list="rdo-funcoes-externo">
+                  <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
+                }
+                <button type="button" class="botao-remover" (click)="remover('mao_de_obra', linha.indice)"
+                        aria-label="Remover">×</button>
+              </div>
+            }
+
+            <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('externo')">
+              + Lançamento manual (sem cadastro)
+            </button>
+            <datalist id="rdo-funcoes-externo">
+              @for (f of preparo()?.funcoes_usadas ?? []; track f.funcao) {
+                @if (f.categoria === 'externo') { <option [value]="f.funcao"></option> }
+              }
+            </datalist>
+          </div>
+        </div>
       </div>
     </section>
 

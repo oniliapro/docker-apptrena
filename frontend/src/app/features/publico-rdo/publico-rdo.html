@@ -158,7 +158,7 @@
               @for (m of rdo.mao_de_obra; track m.id) {
                 <tr>
                   <td>{{ m.funcao }}</td>
-                  <td>{{ m.categoria === 'indireta' ? 'Indireta' : 'Direta' }}</td>
+                  <td>{{ m.categoria === 'interno' ? 'Interno' : 'Externo' }}</td>
                   <td class="num">{{ m.quantidade }}</td>
                 </tr>
               }

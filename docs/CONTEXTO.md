@@ -1330,3 +1330,43 @@ AppTrena/
   prático hoje — as rotas que a exibiam foram retiradas no F8. Nenhuma
   migration: são só accessors de modelo: nada pra rodar no VPS além do
   deploy normal do código.
+- 24/09/2026 (F9 — RDO: mão de obra por profissional, etapas ligadas à EAP,
+  diária automática ao finalizar; 2 migrations:
+  `add_profissional_a_mao_de_obra_rdo`, `add_eap_item_a_etapas_rdo`).
+  **Mão de obra por profissional**: o critério de coluna muda de
+  indireta/direta (tipo de trabalho) pra interno/externo (vínculo com a
+  empresa, do cadastro de Profissionais/F6) — decisão do Lucas, 23/09/2026;
+  dados já lançados foram migrados (indireta→interno, direta→externo, não é
+  correspondência perfeita, mas evita RDO antigo com rótulo desconhecido se
+  reimpresso). Cada coluna ganhou um autocomplete restrito de profissional
+  (por vínculo) — escolher um adiciona uma linha com nome/função vindos do
+  cadastro (`quantidade` sempre 1); **continua dando pra lançar manual**
+  (função + quantidade digitadas, sem cadastro, ex.: "Ajudante avulso x3") —
+  só a linha COM profissional gera diária automática. **Etapas do RDO**
+  ganharam um vínculo opcional a um item de verdade da EAP da obra (mesmo
+  padrão de `DiariaEtapa`) — autocomplete ao lado do nome livre, que
+  continua podendo ser digitado sem vínculo nenhum (etapas fora da EAP, ex.:
+  "Limpeza do canteiro"). **Diária automática ao finalizar**: cada linha de
+  mão de obra COM profissional vinculado vira uma diária em rascunho (aba
+  Diárias, F7) — decisão do Lucas, 23/09/2026: SEM etapa/meia-diária/vales
+  preenchidos no próprio RDO (deixaria o formulário pesado com equipes
+  grandes); quem for fechar o pagamento completa isso depois, direto na aba
+  Diárias (o formulário de lá já cai bem num rascunho sem etapa — mostra
+  campos vazios pra preencher, sem precisar de nenhuma mudança). O valor da
+  diária vem do cadastro de Profissionais NO MOMENTO da finalização (lido
+  direto de `app_storage`, a mesma ponte chave-valor — não há tabela
+  relacional). Idempotente por profissional+data+origem (reabrir e
+  refinalizar o mesmo RDO não duplica). A lista de Diárias mostra uma
+  etiqueta "RDO" ao lado do nome de quem veio assim, e "Falta definir
+  (gerada pelo RDO)" no lugar da etapa até alguém completar. Testado de
+  ponta a ponta: profissional interno e externo lançados via autocomplete,
+  lançamento manual lado a lado, salvar/reabrir preservando o vínculo,
+  finalizar gerando as duas diárias com o valor certo do cadastro, PDF com
+  as colunas Interna/Externa corretas. Zero migrations de dado perdido —
+  **durante o teste, uma limpeza de dado de teste quase sobrescreveu por
+  engano o único profissional real cadastrado localmente
+  (`controleObra.empreiteiros.v1`, ao zerar a chave inteira em vez de só
+  remover as entradas de teste); percebido e restaurado a partir do dump
+  local antes de seguir** — lição pra qualquer limpeza futura numa chave da
+  ponte de storage: ler o valor atual, tirar só as entradas de teste, nunca
+  sobrescrever a chave inteira com uma lista nova.

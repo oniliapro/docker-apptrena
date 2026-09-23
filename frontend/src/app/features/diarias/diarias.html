@@ -60,7 +60,12 @@
                 }
               </td>
               <td class="mono">{{ d.data }}</td>
-              <td class="nome">{{ d.profissionalNome }}</td>
+              <td class="nome">
+                {{ d.profissionalNome }}
+                @if (d.origem === 'rdo') {
+                  <span class="etiqueta-origem" title="Gerada automaticamente ao finalizar o RDO">RDO</span>
+                }
+              </td>
               <td>{{ d.profissionalFuncao || '—' }}</td>
               <td class="centro">{{ d.meiaDiaria ? '½' : '—' }}</td>
               <td class="pequeno etapas">{{ rotuloEtapasDaLinha(d) }}</td>

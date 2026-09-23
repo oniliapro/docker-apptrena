@@ -75,6 +75,20 @@ tr.fechada td { opacity: 0.75; }
   }
 }
 
+/* Diária gerada automaticamente ao finalizar um RDO (F9, 24/09/2026) — ao lado do nome, na lista. */
+.etiqueta-origem {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  vertical-align: middle;
+}
+
 .acoes-linha {
   white-space: nowrap;
 

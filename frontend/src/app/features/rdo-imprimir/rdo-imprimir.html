@@ -106,26 +106,26 @@
       <h2>Mão de obra e equipamentos</h2>
       <div class="tres-colunas">
         <table class="tabela">
-          <thead><tr><th colspan="2">Mão de obra indireta</th></tr>
+          <thead><tr><th colspan="2">Mão de obra interna</th></tr>
                  <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
           <tbody>
-            @for (m of maoDeObraDe('indireta'); track m.id) {
+            @for (m of maoDeObraDe('interno'); track m.id) {
               <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
             }
-            @for (vazio of preenchimento(maoDeObraDe('indireta').length, 4); track vazio) {
+            @for (vazio of preenchimento(maoDeObraDe('interno').length, 4); track vazio) {
               <tr class="vazia"><td>&nbsp;</td><td></td></tr>
             }
           </tbody>
         </table>
 
         <table class="tabela">
-          <thead><tr><th colspan="2">Mão de obra direta</th></tr>
+          <thead><tr><th colspan="2">Mão de obra externa</th></tr>
                  <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
           <tbody>
-            @for (m of maoDeObraDe('direta'); track m.id) {
+            @for (m of maoDeObraDe('externo'); track m.id) {
               <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
             }
-            @for (vazio of preenchimento(maoDeObraDe('direta').length, 4); track vazio) {
+            @for (vazio of preenchimento(maoDeObraDe('externo').length, 4); track vazio) {
               <tr class="vazia"><td>&nbsp;</td><td></td></tr>
             }
           </tbody>

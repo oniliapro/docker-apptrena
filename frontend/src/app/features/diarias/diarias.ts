@@ -310,7 +310,7 @@ export class Diarias implements OnInit {
   }
 
   protected rotuloEtapasDaLinha(d: Diaria): string {
-    if (!d.etapas.length) return '—';
+    if (!d.etapas.length) return d.origem === 'rdo' ? 'Falta definir (gerada pelo RDO)' : '—';
     return d.etapas
       .map((e) => {
         const item = this.store.itensEap().find((i) => i.id === e.eapItemId);

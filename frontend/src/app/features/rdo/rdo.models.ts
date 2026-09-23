@@ -27,7 +27,13 @@ export const TIPOS_OCORRENCIA: ReadonlyArray<{ valor: string; rotulo: string }> 
 ];
 
 /** Mão de obra é registrada nas duas colunas do RDO. */
-export type CategoriaMaoDeObra = 'indireta' | 'direta';
+/**
+ * F9 (24/09/2026): critério mudou de tipo de trabalho (indireta/direta) pra
+ * vínculo com a empresa (interno/externo), vindo do cadastro de
+ * Profissionais (F6) — ver a migration de dados em
+ * `2026_09_24_000000_add_profissional_a_mao_de_obra_rdo`.
+ */
+export type CategoriaMaoDeObra = 'interno' | 'externo';
 
 export interface RdoTarefa {
   id: string;
@@ -56,6 +62,9 @@ export interface RdoFoto {
 export interface RdoMaoDeObra {
   id: string;
   categoria: CategoriaMaoDeObra;
+  /** F9: preenchidos = linha vinculada a um profissional real do cadastro (gera diária ao finalizar). Vazios = lançamento manual (ex.: "Ajudante avulso x3"). */
+  profissional_id: string | null;
+  profissional_nome: string | null;
   funcao: string;
   quantidade: number;
 }
@@ -87,6 +96,8 @@ export interface RdoPendencia {
 
 export interface RdoEtapa {
   id: string;
+  /** F9: opcional — liga a etapa a um item de verdade da EAP da obra, pra rastreio. */
+  eap_item_id: string | null;
   nome: string;
   concluida: boolean;
 }
@@ -152,8 +163,14 @@ export interface RdoPreparo {
   obra: { id: string; obra_nome: string; local_obra?: string; cliente?: string };
   cabecalho: RdoObraDados | null;
   proximo_numero: number;
-  etapas_sugeridas: Array<{ nome: string; concluida: boolean }>;
-  mao_de_obra_sugerida: Array<{ categoria: CategoriaMaoDeObra; funcao: string; quantidade: number }>;
+  etapas_sugeridas: Array<{ eap_item_id: string | null; nome: string; concluida: boolean }>;
+  mao_de_obra_sugerida: Array<{
+    categoria: CategoriaMaoDeObra;
+    profissional_id: string | null;
+    profissional_nome: string | null;
+    funcao: string;
+    quantidade: number;
+  }>;
   equipamentos_catalogo: Array<{ id: string; nome: string }>;
   funcoes_usadas: Array<{ categoria: CategoriaMaoDeObra; funcao: string }>;
 }

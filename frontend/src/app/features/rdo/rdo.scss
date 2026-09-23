@@ -257,6 +257,28 @@ textarea { resize: vertical; }
   border: 1px solid var(--cor-borda);
   border-radius: 3px;
   padding: 0.6rem;
+
+  app-autocomplete { display: block; margin-bottom: 0.5rem; }
+}
+
+/* Linha de mão de obra com profissional vinculado (F9): só mostra o rótulo, sem inputs (função/quantidade vêm do cadastro). */
+.profissional-linha {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.botao-manual {
+  width: 100%;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+}
+
+/* Etapa com autocomplete de EAP ao lado do nome (F9) — quebra em duas linhas no celular. */
+.linha-etapa {
+  flex-wrap: wrap;
+
+  input[type='text']:not(.campo-qtde) { flex: 1 1 160px; }
+  app-autocomplete { flex: 1 1 200px; }
 }
 
 /* ---------- Botões ---------- */
