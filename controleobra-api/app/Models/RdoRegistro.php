@@ -112,6 +112,12 @@ class RdoRegistro extends Model
         return $this->hasMany(RdoComentarioInterno::class, 'rdo_id');
     }
 
+    /** Fichas de verificação de serviço preenchidas neste RDO (F10). */
+    public function fvsPreenchimentos(): HasMany
+    {
+        return $this->hasMany(FvsPreenchimento::class, 'rdo_id');
+    }
+
     public function estaFinalizado(): bool
     {
         return $this->status === self::STATUS_FINALIZADO;

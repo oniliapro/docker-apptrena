@@ -359,3 +359,36 @@
   font-size: 6.8pt;
   color: #5b6560;
 }
+
+/* ---------- Fichas de Verificação de Serviço, anexadas (F10, 25/09/2026) ---------- */
+
+.anexo-fvs {
+  page-break-before: always;
+  padding-top: 4mm;
+}
+
+.cabecalho-anexo-fvs {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 0.6pt solid #2f3b35;
+  padding-bottom: 2mm;
+  margin-bottom: 3mm;
+}
+
+.etiqueta-status-impressao {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.8pt 4pt;
+  border: 0.6pt solid #2f3b35;
+
+  &.status-reprovada { border-color: #a83a26; color: #a83a26; }
+  &.status-aprovada { border-color: #2f6d3f; color: #2f6d3f; }
+}
+
+.anexo-fvs-linha { margin: 0 0 1.5mm; font-size: 8.5pt; }
+
+.anexo-fvs-tabela th, .anexo-fvs-tabela td { font-size: 8pt; }
+
+.linha-fotos-fvs td { padding-top: 0; padding-bottom: 3mm; }

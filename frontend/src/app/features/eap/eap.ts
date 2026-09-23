@@ -20,6 +20,8 @@ import { ItemPagamentoCalculado, Pagamento } from '../pagamentos/pagamentos.mode
 import { EditarPagamentoModal } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
 import { mensagemExclusaoPagamento } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
+import { FvsModelo, FvsVinculo } from '../fvs/fvs.models';
+import { FvsService } from '../fvs/fvs.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ehDescendente } from './eap-engine';
@@ -71,6 +73,53 @@ export class Eap implements OnInit {
    * (providers acima), então isso não interfere com a aba Pagamentos.
    */
   private readonly pagamentosStore = inject(PagamentosStore);
+
+  /**
+   * Vínculo com modelos de FVS (F10, 25/09/2026, "qualquer linha da EAP
+   * pode ter uma ou mais fichas") — carregado à parte do resto da EAP
+   * (`EapStore`) porque é uma peça pequena e nova, sem afetar o motor de
+   * cálculo. `fvsModelos` é o cadastro de Configurações; `fvsVinculos`, os
+   * vínculos já feitos NESTA obra.
+   */
+  private readonly fvsApi = inject(FvsService);
+  protected readonly fvsModelos = signal<FvsModelo[]>([]);
+  protected readonly fvsVinculos = signal<FvsVinculo[]>([]);
+  protected readonly fvsPopupItemId = signal<string | null>(null);
+
+  protected vinculosDoItem(itemId: string): FvsVinculo[] {
+    return this.fvsVinculos().filter((v) => v.eap_item_id === itemId);
+  }
+
+  protected abrirPopupFvs(itemId: string): void {
+    this.fvsPopupItemId.set(itemId);
+  }
+
+  protected fecharPopupFvs(): void {
+    this.fvsPopupItemId.set(null);
+  }
+
+  protected estaVinculado(modeloId: string): boolean {
+    const itemId = this.fvsPopupItemId();
+    return !!itemId && this.fvsVinculos().some((v) => v.eap_item_id === itemId && v.fvs_modelo_id === modeloId);
+  }
+
+  protected alternarVinculoFvs(modeloId: string): void {
+    const itemId = this.fvsPopupItemId();
+    if (!itemId) return;
+    const existente = this.fvsVinculos().find((v) => v.eap_item_id === itemId && v.fvs_modelo_id === modeloId);
+
+    if (existente) {
+      this.fvsApi.desvincular(this.obraId(), existente.id).subscribe({
+        next: () => this.fvsVinculos.update((lista) => lista.filter((v) => v.id !== existente.id)),
+        error: () => window.alert('Não foi possível desvincular.'),
+      });
+    } else {
+      this.fvsApi.vincular(this.obraId(), itemId, modeloId).subscribe({
+        next: (vinculo) => this.fvsVinculos.update((lista) => [...lista, vinculo]),
+        error: () => window.alert('Não foi possível vincular.'),
+      });
+    }
+  }
 
   /**
    * Id da obra — vem do param `:id` da rota pai (/obras/:id), herdado
@@ -268,6 +317,9 @@ export class Eap implements OnInit {
   ngOnInit(): void {
     this.store.carregar(this.obraId());
     this.pagamentosStore.carregar(this.obraId());
+
+    this.fvsApi.listarModelos().subscribe({ next: (lista) => this.fvsModelos.set(lista), error: () => void 0 });
+    this.fvsApi.listarVinculos(this.obraId()).subscribe({ next: (lista) => this.fvsVinculos.set(lista), error: () => void 0 });
   }
 
   // ------------------------------------------------------------------

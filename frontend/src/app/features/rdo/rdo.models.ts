@@ -1,3 +1,5 @@
+import { FvsPreenchimento } from '../fvs/fvs.models';
+
 /**
  * Relatório Diário de Obra (RDO) — tipos do módulo reconstruído em
  * 17/09/2026.
@@ -143,6 +145,8 @@ export interface RdoRegistro {
   etapas: RdoEtapa[];
   responsaveis_presentes: RdoResponsavelPresente[];
   comentarios_internos: RdoComentarioInterno[];
+  /** F10 — fichas de verificação nascidas/copiadas sozinhas ao salvar este RDO (ver `RdoController`). */
+  fvs_preenchimentos: FvsPreenchimento[];
 }
 
 /** Cabeçalho técnico da obra — campos que o RDO exige e a obra não tem. */

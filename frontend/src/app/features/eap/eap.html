@@ -401,6 +401,10 @@
                   <button type="button" title="Inserir item logo abaixo" [disabled]="store.travada()" (click)="inserirAbaixo(i)">+</button>
                   <button type="button" title="Excluir" [disabled]="store.travada()" (click)="remover(item)">✖</button>
                 </div>
+                <button type="button" class="botao-fvs" [class.com-vinculo]="vinculosDoItem(item.id).length"
+                        title="Fichas de verificação vinculadas" (click)="abrirPopupFvs(item.id)">
+                  FVS @if (vinculosDoItem(item.id).length) { ({{ vinculosDoItem(item.id).length }}) }
+                </button>
               </div>
             </td>
           </tr>
@@ -891,6 +895,43 @@
 
         <div class="modal-rodape">
           <button type="button" (click)="fecharModalCopiarEap()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Vincular modelos de FVS a um item da EAP (F10, 25/09/2026) -->
+  @if (fvsPopupItemId(); as itemId) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="fecharPopupFvs()"></div>
+      <div class="modal-cartao estreito">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">Fichas de verificação deste item</span>
+          <button type="button" (click)="fecharPopupFvs()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          @if (!fvsModelos().length) {
+            <p class="atenuado pequeno">
+              Nenhum modelo cadastrado ainda — crie um em Configurações → Fichas de verificação.
+            </p>
+          } @else {
+            <ul class="lista-fvs-modelos">
+              @for (modelo of fvsModelos(); track modelo.id) {
+                <li>
+                  <label>
+                    <input type="checkbox" [checked]="estaVinculado(modelo.id)" (change)="alternarVinculoFvs(modelo.id)">
+                    {{ modelo.nome }}
+                    <span class="atenuado pequeno">({{ modelo.itens.length }} item(ns))</span>
+                  </label>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharPopupFvs()">Fechar</button>
         </div>
       </div>
     </div>

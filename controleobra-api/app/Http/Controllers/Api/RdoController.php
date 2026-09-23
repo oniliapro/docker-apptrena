@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AppStorageItem;
 use App\Models\Diaria;
 use App\Models\EapItem;
+use App\Models\FvsPreenchimento;
+use App\Models\FvsPreenchimentoItem;
+use App\Models\FvsVinculo;
 use App\Models\Obra;
 use App\Models\RdoComentarioInterno;
 use App\Models\RdoContratanteLink;
@@ -59,6 +62,7 @@ class RdoController extends Controller
         'etapas',
         'responsaveisPresentes',
         'comentariosInternos',
+        'fvsPreenchimentos.itens.fotos',
     ];
 
     public function index(Request $request, PermissaoService $permissoes)
@@ -170,6 +174,7 @@ class RdoController extends Controller
 
             $this->sincronizarFilhos($rdo, $data, $usuario);
             $this->guardarFotos($rdo, $request, $data);
+            $this->copiarFichasReprovadasParaNovoRdo($rdo);
 
             return $rdo;
         });
@@ -342,6 +347,100 @@ class RdoController extends Controller
         $maior = RdoRegistro::where('obra_id', $obraId)->max('numero');
 
         return (int) $maior + 1;
+    }
+
+    /**
+     * F10 — pedido do Lucas (23/09/2026): a ficha nasce PENDENTE assim que a
+     * etapa (ligada a um item com FVS vinculada) entra no RDO do dia, sem
+     * precisar de nenhuma ação extra do usuário. Idempotente por natureza
+     * (`firstOrCreate`): salvar o mesmo RDO de novo com a mesma etapa não
+     * duplica a ficha. Opcional — não preencher nada não impede finalizar.
+     */
+    private function gerarFichasFvsPendentes(RdoRegistro $rdo, string $eapItemId): void
+    {
+        $vinculos = \App\Models\FvsVinculo::where('eap_item_id', $eapItemId)->with('modelo')->get();
+
+        foreach ($vinculos as $vinculo) {
+            $modelo = $vinculo->modelo;
+            if (!$modelo) {
+                continue;
+            }
+
+            $existe = \App\Models\FvsPreenchimento::where('rdo_id', $rdo->id)
+                ->where('eap_item_id', $eapItemId)
+                ->where('fvs_modelo_id', $modelo->id)
+                ->exists();
+            if ($existe) {
+                continue;
+            }
+
+            $preenchimento = \App\Models\FvsPreenchimento::create([
+                'empresa_id' => $rdo->empresa_id,
+                'obra_id' => $rdo->obra_id,
+                'eap_item_id' => $eapItemId,
+                'fvs_modelo_id' => $modelo->id,
+                'modelo_nome_snapshot' => $modelo->nome,
+                'rdo_id' => $rdo->id,
+                'numero' => $this->proximoNumeroFvs($rdo->obra_id),
+                'revisao' => 0,
+                'status' => 'pendente',
+            ]);
+
+            foreach ($modelo->itens as $ordem => $item) {
+                \App\Models\FvsPreenchimentoItem::create([
+                    'fvs_preenchimento_id' => $preenchimento->id,
+                    'ordem' => $ordem,
+                    'descricao' => $item['descricao'],
+                ]);
+            }
+        }
+    }
+
+    private function proximoNumeroFvs(string $obraId): int
+    {
+        $maior = \App\Models\FvsPreenchimento::where('obra_id', $obraId)->max('numero');
+
+        return (int) $maior + 1;
+    }
+
+    /**
+     * F10 — "reprovada gera... no PRÓXIMO RDO da obra, uma cópia completa em
+     * branco da mesma verificação, sem perder a anterior": roda só ao CRIAR
+     * um RDO (não em update — senão duplicaria a cada salvamento). Cobre
+     * qualquer ficha reprovada da obra que ainda não tenha uma revisão
+     * seguinte, não só a do RDO imediatamente anterior — se pularem RDOs sem
+     * corrigir, a cópia continua sendo oferecida.
+     */
+    private function copiarFichasReprovadasParaNovoRdo(RdoRegistro $rdo): void
+    {
+        $reprovadas = \App\Models\FvsPreenchimento::where('obra_id', $rdo->obra_id)
+            ->where('status', 'reprovada')
+            ->whereDoesntHave('origemDe')
+            ->with('itens')
+            ->get();
+
+        foreach ($reprovadas as $origem) {
+            $copia = \App\Models\FvsPreenchimento::create([
+                'empresa_id' => $rdo->empresa_id,
+                'obra_id' => $rdo->obra_id,
+                'eap_item_id' => $origem->eap_item_id,
+                'fvs_modelo_id' => $origem->fvs_modelo_id,
+                'modelo_nome_snapshot' => $origem->modelo_nome_snapshot,
+                'rdo_id' => $rdo->id,
+                'numero' => $origem->numero,
+                'revisao' => $origem->revisao + 1,
+                'status' => 'pendente',
+                'origem_preenchimento_id' => $origem->id,
+            ]);
+
+            foreach ($origem->itens as $item) {
+                \App\Models\FvsPreenchimentoItem::create([
+                    'fvs_preenchimento_id' => $copia->id,
+                    'ordem' => $item->ordem,
+                    'descricao' => $item->descricao,
+                ]);
+            }
+        }
     }
 
     private function validarPayload(Request $request, bool $criando): array
@@ -538,6 +637,10 @@ class RdoController extends Controller
                 'concluida' => (bool) ($item['concluida'] ?? false),
                 'ordem' => $ordem,
             ]);
+
+            if ($eapItemId) {
+                $this->gerarFichasFvsPendentes($rdo, $eapItemId);
+            }
         }
 
         foreach ($data['responsaveis'] ?? [] as $ordem => $item) {

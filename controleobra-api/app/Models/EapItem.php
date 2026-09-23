@@ -45,4 +45,10 @@ class EapItem extends Model
     {
         return $this->hasMany(EapItemOrcadoCongelado::class);
     }
+
+    /** Modelos de FVS vinculados a este item (F10). */
+    public function fvsVinculos(): HasMany
+    {
+        return $this->hasMany(FvsVinculo::class, 'eap_item_id');
+    }
 }

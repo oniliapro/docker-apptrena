@@ -316,6 +316,62 @@
       <span>{{ r.obra?.obra_nome }} — RDO nº {{ numeroFormatado() }} — {{ r.data | date: 'dd/MM/yyyy' }}</span>
       <span>Gerado pelo AppTrena</span>
     </footer>
+
+    <!--
+      Fichas de Verificação de Serviço (F10, 25/09/2026) — anexadas no fim
+      do documento, cada uma numa página nova (plano, D4). Browsershot não
+      toca em vídeo (não se aplica aqui — FVS só tem foto).
+    -->
+    @if (r.fvs_preenchimentos?.length) {
+      @for (ficha of r.fvs_preenchimentos; track ficha.id) {
+        <section class="anexo-fvs">
+          <header class="cabecalho-anexo-fvs">
+            <div>
+              <p class="documento-titulo">Ficha de Verificação de Serviço</p>
+              <p class="documento-numero">{{ ficha.codigo }}</p>
+            </div>
+            <span class="etiqueta-status-impressao" [class]="'status-' + ficha.status">
+              {{ ficha.status === 'pendente' ? 'Pendente' : ficha.status === 'aprovada' ? 'Aprovada' : 'Reprovada' }}
+            </span>
+          </header>
+
+          <p class="anexo-fvs-linha"><strong>Modelo:</strong> {{ ficha.modelo_nome_snapshot }}</p>
+          @if (ficha.eap_item) {
+            <p class="anexo-fvs-linha"><strong>Item da EAP:</strong> {{ ficha.eap_item.codigo_eap }} {{ ficha.eap_item.descricao }}</p>
+          }
+
+          <table class="tabela anexo-fvs-tabela">
+            <thead><tr><th>Item</th><th class="centro">Resultado</th><th>Observação</th></tr></thead>
+            <tbody>
+              @for (item of ficha.itens; track item.id) {
+                <tr>
+                  <td>{{ item.descricao }}</td>
+                  <td class="centro">
+                    {{ item.resultado === 'conforme' ? 'Conforme' : item.resultado === 'nao_conforme' ? 'Não conforme' : item.resultado === 'nao_se_aplica' ? 'Não se aplica' : '—' }}
+                  </td>
+                  <td>{{ item.observacao || '—' }}</td>
+                </tr>
+                @if (item.fotos.length) {
+                  <tr class="linha-fotos-fvs">
+                    <td colspan="3">
+                      <div class="fotos-tarefa">
+                        @for (foto of item.fotos; track foto.id) {
+                          <figure><div class="quadro"><img [src]="urlFotoFvs(foto.url)" alt=""></div></figure>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+
+          @if (ficha.observacao_geral) {
+            <p class="observacao"><strong>Observação geral:</strong> {{ ficha.observacao_geral }}</p>
+          }
+        </section>
+      }
+    }
   </article>
 } @else {
   <p class="carregando">Carregando relatório…</p>

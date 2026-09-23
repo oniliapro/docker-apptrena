@@ -1,0 +1,70 @@
+<div class="fvs-modelos">
+  <div class="topo">
+    <h2>Fichas de verificação de serviço</h2>
+    <button type="button" class="botao-primario" (click)="novo()">+ Novo modelo</button>
+  </div>
+  <p class="dica">Modelos reaproveitáveis entre obras — vincule cada um a um item da EAP direto na tela da EAP da obra.</p>
+
+  @if (erro()) {
+    <p class="alerta alerta-erro">{{ erro() }}</p>
+  }
+
+  @if (carregando()) {
+    <p class="carregando">Carregando…</p>
+  } @else if (!modelos().length) {
+    <p class="vazio">Nenhum modelo cadastrado ainda.</p>
+  } @else {
+    <ul class="lista-modelos">
+      @for (modelo of modelos(); track modelo.id) {
+        <li>
+          <div class="linha-modelo" (click)="editar(modelo)">
+            <span class="nome-modelo">{{ modelo.nome }}</span>
+            <span class="qtde-itens">{{ modelo.itens.length }} item(ns)</span>
+          </div>
+          <button type="button" class="botao-remover" title="Excluir" (click)="excluir(modelo)">✖</button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (formularioAberto()) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="fechar()"></div>
+      <div class="modal-cartao estreito">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">{{ editandoId() ? 'Editar modelo' : 'Novo modelo' }}</span>
+          <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          @if (erroFormulario()) {
+            <p class="alerta alerta-erro">{{ erroFormulario() }}</p>
+          }
+
+          <label class="campo">
+            <span class="obrigatorio">Nome do modelo</span>
+            <input type="text" [value]="fNome()" (input)="mudarNome($event)" placeholder="Ex.: Verificação de alvenaria">
+          </label>
+
+          <div class="itens-modelo">
+            <span class="rotulo-itens">Itens a verificar</span>
+            @for (item of fItens(); track $index; let i = $index) {
+              <div class="linha-item">
+                <input type="text" [value]="item" (input)="mudarItem(i, $event)" [placeholder]="'Item ' + (i + 1)">
+                <button type="button" class="botao-remover" (click)="removerItem(i)" aria-label="Remover">×</button>
+              </div>
+            }
+            <button type="button" class="botao-adicionar" (click)="adicionarItem()">+ Item</button>
+          </div>
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" class="botao-secundario" (click)="fechar()">Cancelar</button>
+          <button type="button" class="botao-primario" [disabled]="salvando()" (click)="salvar()">
+            {{ salvando() ? 'Salvando…' : 'Salvar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

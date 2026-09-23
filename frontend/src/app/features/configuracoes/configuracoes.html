@@ -31,6 +31,10 @@
                 (click)="selecionarAba('diarias')">
           Diárias
         </button>
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'fvs'"
+                (click)="selecionarAba('fvs')">
+          Fichas de verificação
+        </button>
       </aside>
 
       <div class="painel-config">
@@ -49,6 +53,9 @@
           }
           @case ('diarias') {
             <app-categorias-diaria />
+          }
+          @case ('fvs') {
+            <app-fvs-modelos />
           }
         }
       </div>

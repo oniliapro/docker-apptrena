@@ -9,6 +9,8 @@ import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autoc
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
 import { Empreiteiro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
+import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
+import { FvsService } from '../fvs/fvs.service';
 import {
   CLIMAS,
   FotoSelecionada,
@@ -55,6 +57,7 @@ import { RdoService } from './rdo.service';
 })
 export class Rdo implements OnInit {
   private readonly rdoApi = inject(RdoService);
+  private readonly fvsApi = inject(FvsService);
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
   private readonly fb = inject(FormBuilder);
@@ -162,6 +165,135 @@ export class Rdo implements OnInit {
     contratante_nome: [''],
   });
 
+  /**
+   * Fichas de verificação de serviço (F10) — nascem/são copiadas sozinhas
+   * pelo backend ao salvar o RDO (ver `RdoController`); esta tela só
+   * exibe/edita as respostas. Fica FORA de `formulario` de propósito: cada
+   * ficha se salva com um PUT próprio (`FvsService.salvar`), independente
+   * do resto do RDO — não precisa salvar o RDO inteiro de novo só pra
+   * marcar um item como conforme.
+   */
+  protected readonly formularioFvs: FormArray = this.fb.array([]);
+  protected readonly salvandoFvs = signal<Set<string>>(new Set());
+  protected readonly erroFvs = signal<string | null>(null);
+
+  private montarFormularioFvs(fichas: FvsPreenchimento[]): void {
+    this.formularioFvs.clear();
+    fichas.forEach((ficha) => {
+      this.formularioFvs.push(
+        this.fb.group({
+          id: [ficha.id],
+          observacao_geral: [ficha.observacao_geral ?? ''],
+          itens: this.fb.array(
+            ficha.itens.map((item) =>
+              this.fb.group({
+                id: [item.id],
+                descricao: [item.descricao],
+                resultado: [item.resultado],
+                observacao: [item.observacao ?? ''],
+              }),
+            ),
+          ),
+        }),
+      );
+    });
+  }
+
+  protected fichaGrupo(i: number): FormGroup {
+    return this.formularioFvs.at(i) as FormGroup;
+  }
+
+  protected itensFicha(i: number): FormArray {
+    return this.fichaGrupo(i).get('itens') as FormArray;
+  }
+
+  protected escolherResultado(fichaIndice: number, itemIndice: number, resultado: ResultadoFvs): void {
+    (this.itensFicha(fichaIndice).at(itemIndice) as FormGroup).patchValue({ resultado });
+  }
+
+  /** Metadados só de leitura (código, status, item da EAP, RDO de origem) — vêm do `registroAtual()`, não do form. */
+  protected metaFicha(fichaId: string): FvsPreenchimento | undefined {
+    return this.registroAtual()?.fvs_preenchimentos.find((f) => f.id === fichaId);
+  }
+
+  protected salvarFicha(i: number): void {
+    const grupo = this.fichaGrupo(i);
+    const fichaId = grupo.get('id')?.value as string;
+
+    this.salvandoFvs.update((s) => new Set(s).add(fichaId));
+    this.erroFvs.set(null);
+
+    const itens = (grupo.get('itens') as FormArray).controls.map((c) => ({
+      id: c.get('id')?.value,
+      resultado: c.get('resultado')?.value || null,
+      observacao: c.get('observacao')?.value || null,
+    }));
+
+    this.fvsApi.salvar(fichaId, { observacao_geral: grupo.get('observacao_geral')?.value || null, itens }).subscribe({
+      next: (fichaAtualizada) => {
+        this.salvandoFvs.update((s) => {
+          const novo = new Set(s);
+          novo.delete(fichaId);
+          return novo;
+        });
+        const registro = this.registroAtual();
+        if (registro) {
+          this.registroAtual.set({
+            ...registro,
+            fvs_preenchimentos: registro.fvs_preenchimentos.map((f) => (f.id === fichaId ? fichaAtualizada : f)),
+          });
+        }
+        this.aviso.set('Ficha salva.');
+      },
+      error: () => {
+        this.salvandoFvs.update((s) => {
+          const novo = new Set(s);
+          novo.delete(fichaId);
+          return novo;
+        });
+        this.erroFvs.set('Não foi possível salvar esta ficha.');
+      },
+    });
+  }
+
+  protected enviarFotoFicha(itemId: string, arquivo: File | null): void {
+    if (!arquivo) return;
+    this.fvsApi.enviarFoto(itemId, arquivo).subscribe({
+      next: (foto) => {
+        const registro = this.registroAtual();
+        if (!registro) return;
+        this.registroAtual.set({
+          ...registro,
+          fvs_preenchimentos: registro.fvs_preenchimentos.map((ficha) => ({
+            ...ficha,
+            itens: ficha.itens.map((item) => (item.id === itemId ? { ...item, fotos: [...item.fotos, foto] } : item)),
+          })),
+        });
+      },
+      error: () => this.erroFvs.set('Não foi possível enviar a foto.'),
+    });
+  }
+
+  protected removerFotoFicha(itemId: string, fotoId: string): void {
+    if (!confirm('Remover esta foto?')) return;
+    this.fvsApi.removerFoto(fotoId).subscribe({
+      next: () => {
+        const registro = this.registroAtual();
+        if (!registro) return;
+        this.registroAtual.set({
+          ...registro,
+          fvs_preenchimentos: registro.fvs_preenchimentos.map((ficha) => ({
+            ...ficha,
+            itens: ficha.itens.map((item) =>
+              item.id === itemId ? { ...item, fotos: item.fotos.filter((f) => f.id !== fotoId) } : item,
+            ),
+          })),
+        });
+      },
+      error: () => this.erroFvs.set('Não foi possível remover a foto.'),
+    });
+  }
+
   protected readonly ehNovo = computed(() => this.rdoId() === 'novo');
   protected readonly numeroPrevisto = computed(() => this.preparo()?.proximo_numero ?? 1);
 
@@ -216,6 +348,7 @@ export class Rdo implements OnInit {
     });
 
     this.limparArrays();
+    this.formularioFvs.clear();
 
     const preparo = this.preparo();
     preparo?.etapas_sugeridas.forEach((e) => this.adicionarEtapa(null, e.nome, false));
@@ -253,6 +386,7 @@ export class Rdo implements OnInit {
     registro.ocorrencias?.forEach((o) => this.adicionarOcorrencia(o));
     registro.pendencias?.forEach((p) => this.adicionarPendencia(p));
     registro.responsaveis_presentes?.forEach((r) => this.adicionarResponsavel(r));
+    this.montarFormularioFvs(registro.fvs_preenchimentos ?? []);
     registro.comentarios_internos?.forEach((c) =>
       this.adicionarComentario(c.texto, c.visivel_contratante),
     );
@@ -582,6 +716,11 @@ export class Rdo implements OnInit {
    */
   protected urlMidia(foto: RdoFoto): string {
     return this.api.baseStorage() + foto.url;
+  }
+
+  /** Mesma ideia de `urlMidia()`, pras fotos de evidência das fichas de verificação (F10). */
+  protected urlFotoFvs(url: string): string {
+    return this.api.baseStorage() + url;
   }
 
   protected ampliar(foto: RdoFoto): void {

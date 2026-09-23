@@ -549,6 +549,100 @@
       <button type="button" class="botao-secundario" (click)="voltarParaLista()">Voltar à lista</button>
     </div>
   </form>
+
+  <!--
+    Fichas de Verificação de Serviço (F10, 25/09/2026) — fora do <form>
+    principal de propósito: cada ficha se salva sozinha (PUT próprio), sem
+    depender de salvar o RDO inteiro de novo. Nasce/é copiada em branco
+    sozinha ao salvar uma etapa ligada à EAP com ficha vinculada (ver
+    `RdoController`) — só aparece depois que o RDO já foi salvo ao menos
+    uma vez. Opcional: não preencher nada não impede finalizar o RDO.
+  -->
+  @if (formularioFvs.length) {
+    <section class="painel secao aberta">
+      <div class="secao-cabecalho-fixo">
+        <h2>Fichas de verificação de serviço</h2>
+        <span class="secao-resumo">{{ formularioFvs.length }} ficha(s)</span>
+      </div>
+
+      @if (erroFvs()) {
+        <p class="alerta alerta-erro">{{ erroFvs() }}</p>
+      }
+
+      <div class="secao-corpo">
+        @for (ficha of formularioFvs.controls; track ficha; let fi = $index) {
+          @if (metaFicha(ficha.get('id')?.value); as meta) {
+            <article class="ficha-fvs" [formGroup]="fichaGrupo(fi)">
+              <header class="ficha-fvs-cabecalho">
+                <div>
+                  <strong>{{ meta.codigo }}</strong> — {{ meta.modelo_nome_snapshot }}
+                  @if (meta.eap_item) {
+                    <span class="atenuado pequeno"> · {{ meta.eap_item.codigo_eap }} {{ meta.eap_item.descricao }}</span>
+                  }
+                </div>
+                <span class="etiqueta-status-fvs" [class]="'status-' + meta.status">
+                  {{ meta.status === 'pendente' ? 'Pendente' : meta.status === 'aprovada' ? 'Aprovada' : 'Reprovada' }}
+                </span>
+              </header>
+
+              @if (meta.origem_preenchimento_id) {
+                <p class="dica">Cópia gerada após reprovação anterior desta mesma verificação.</p>
+              }
+
+              <div formArrayName="itens">
+                @for (item of itensFicha(fi).controls; track item; let ii = $index) {
+                  <div class="ficha-fvs-item" [formGroupName]="ii">
+                    <p class="ficha-fvs-item-descricao">{{ item.get('descricao')?.value }}</p>
+
+                    <div class="ficha-fvs-resultados">
+                      <label [class.selecionado]="item.get('resultado')?.value === 'conforme'">
+                        <input type="radio" [checked]="item.get('resultado')?.value === 'conforme'"
+                               (change)="escolherResultado(fi, ii, 'conforme')"> Conforme
+                      </label>
+                      <label [class.selecionado]="item.get('resultado')?.value === 'nao_conforme'">
+                        <input type="radio" [checked]="item.get('resultado')?.value === 'nao_conforme'"
+                               (change)="escolherResultado(fi, ii, 'nao_conforme')"> Não conforme
+                      </label>
+                      <label [class.selecionado]="item.get('resultado')?.value === 'nao_se_aplica'">
+                        <input type="radio" [checked]="item.get('resultado')?.value === 'nao_se_aplica'"
+                               (change)="escolherResultado(fi, ii, 'nao_se_aplica')"> Não se aplica
+                      </label>
+                    </div>
+
+                    <textarea formControlName="observacao" rows="1" placeholder="Observação (opcional)"></textarea>
+
+                    <div class="ficha-fvs-fotos">
+                      @for (foto of metaFicha(ficha.get('id')?.value)?.itens?.[ii]?.fotos ?? []; track foto.id) {
+                        <figure class="miniatura-edicao miniatura-salva">
+                          <img [src]="urlFotoFvs(foto.url)" alt="">
+                          <button type="button" class="botao-remover" (click)="removerFotoFicha(item.get('id')?.value, foto.id)">Remover</button>
+                        </figure>
+                      }
+                      <label class="botao-foto">
+                        📷 Foto
+                        <input type="file" accept="image/*" capture="environment" hidden
+                               (change)="enviarFotoFicha(item.get('id')?.value, $any($event.target).files?.[0] ?? null); $any($event.target).value = ''">
+                      </label>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <label class="campo-largo">
+                <span>Observação geral da ficha</span>
+                <textarea formControlName="observacao_geral" rows="2"></textarea>
+              </label>
+
+              <button type="button" class="botao-primario" [disabled]="salvandoFvs().has(ficha.get('id')?.value)"
+                      (click)="salvarFicha(fi)">
+                {{ salvandoFvs().has(ficha.get('id')?.value) ? 'Salvando…' : 'Salvar ficha' }}
+              </button>
+            </article>
+          }
+        }
+      </div>
+    </section>
+  }
 }
 
 <!-- Popup da foto/vídeo ampliado (só o que já está salvo) -->

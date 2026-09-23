@@ -1370,3 +1370,45 @@ AppTrena/
   local antes de seguir** — lição pra qualquer limpeza futura numa chave da
   ponte de storage: ler o valor atual, tirar só as entradas de teste, nunca
   sobrescrever a chave inteira com uma lista nova.
+- 25/09/2026 (F10 — Ficha de Verificação de Serviço (FVS), a última fase do
+  lote de melhorias de setembro/2026; 2 migrations:
+  `create_fvs_modelos_e_vinculos`, `create_fvs_preenchimentos` — 5 tabelas
+  novas: `fvs_modelos`, `fvs_vinculos`, `fvs_preenchimentos`,
+  `fvs_preenchimento_itens`, `fvs_fotos`). Três peças, como no plano (D4):
+  **(1) Modelos** — cadastro reaproveitável em Configurações → "Fichas de
+  verificação" (nome + lista de itens Conforme/Não conforme/Não se aplica),
+  mesmo espírito de Materiais/Profissionais. **(2) Vínculo com a EAP** —
+  botão "FVS" na coluna de ações de cada linha da EAP abre um popup com os
+  modelos da empresa em checkbox; marcar/desmarcar vincula/desvincula na
+  hora — qualquer item pode ter vários modelos, e o mesmo modelo vale pra
+  vários itens. **(3) Preenchimento** — decisão do Lucas (23/09): a ficha
+  nasce PENDENTE sozinha assim que uma etapa do RDO ligada a um item com FVS
+  vinculada é SALVA (não precisa de nenhuma ação extra do usuário), com os
+  itens já copiados do modelo; aparece numa seção própria "Fichas de
+  verificação de serviço" no editor do RDO, FORA do `<form>` principal — cada
+  ficha se salva com um PUT próprio (`FvsService.salvar`), sem depender de
+  salvar o RDO inteiro de novo. O status é sempre CALCULADO no backend
+  (nunca vem do cliente): qualquer item "não conforme" = reprovada; todos
+  respondidos (conforme/não se aplica) = aprovada; senão, pendente.
+  Reprovar pela primeira vez abre uma pendência no próprio RDO
+  (`rdo_pendencias`) automaticamente. **Ao criar o PRÓXIMO RDO da obra**
+  (não só o imediatamente seguinte — qualquer RDO novo, mesmo pulando
+  alguns), toda ficha reprovada sem revisão seguinte ainda ganha uma cópia
+  em branco (mesmos itens, `numero` igual, `revisao+1`,
+  `origem_preenchimento_id` apontando pra reprovada) — sem apagar a
+  anterior. Numeração `FVS-0001-REV000`, reprovada vira `REV001` na cópia,
+  sequência por obra. Fica opcional (não bloqueia finalizar o RDO) e entra
+  anexada no fim do PDF do RDO, uma página por ficha, com a tabela de itens
+  e as fotos de evidência. Testado de ponta a ponta via Puppeteer: criar
+  modelo, vincular a um item da EAP, etapa ligada gerando a ficha sozinha ao
+  salvar, marcar item não conforme + foto + observação, salvar reprovando a
+  ficha e abrindo a pendência, finalizar, criar o RDO seguinte e confirmar a
+  cópia em branco (REV001) chegando pronta, PDF com a página de anexo
+  correta. **Achado e corrigido durante o teste**: `FvsController.php`
+  esqueceu o `use App\Http\Controllers\Controller;` — `php -l` (checagem de
+  sintaxe) não pega isso, só um teste de verdade rodando a rota (erro
+  "Class Controller not found" só aparece em runtime); todo controller novo
+  precisa desse import, mesmo sendo fácil de esquecer copiando um trecho de
+  outro arquivo. Sem migration extra pra isso, só o código. Com a F10
+  publicada, **todo o lote de melhorias de setembro/2026 (F0 a F10) está
+  concluído** — falta só publicar F9+F10 em produção.

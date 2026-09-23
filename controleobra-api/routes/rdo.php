@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\FvsController;
+use App\Http\Controllers\Api\FvsModeloController;
+use App\Http\Controllers\Api\FvsVinculoController;
 use App\Http\Controllers\Api\PublicoRdoController;
 use App\Http\Controllers\Api\RdoContratanteLinkController;
 use App\Http\Controllers\Api\RdoController;
@@ -80,4 +83,35 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:diario_obra,excluir', 'permissaoObra:lancar']);
     Route::delete('rdo/{rdo}/fotos/{fotoId}', [RdoController::class, 'removerFoto'])
         ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
+
+    // Ficha de Verificação de Serviço (F10, 25/09/2026) — a ficha em si nasce
+    // e é copiada sozinha por `RdoController` (ver `gerarFichasFvsPendentes`/
+    // `copiarFichasReprovadasParaNovoRdo`); aqui só o cadastro de modelos
+    // (Configurações), o vínculo com a EAP e o preenchimento.
+    Route::get('fvs-modelos', [FvsModeloController::class, 'index'])
+        ->middleware('permissaoModulo:diario_obra,usar');
+    Route::post('fvs-modelos', [FvsModeloController::class, 'store'])
+        ->middleware('permissaoModulo:diario_obra,criar');
+    Route::put('fvs-modelos/{fvsModelo}', [FvsModeloController::class, 'update'])
+        ->middleware('permissaoModulo:diario_obra,editar');
+    Route::delete('fvs-modelos/{fvsModelo}', [FvsModeloController::class, 'destroy'])
+        ->middleware('permissaoModulo:diario_obra,excluir');
+
+    Route::get('obras/{obra}/fvs-vinculos', [FvsVinculoController::class, 'index'])
+        ->middleware(['permissaoModulo:diario_obra,usar', 'permissaoObra:ver']);
+    Route::post('obras/{obra}/fvs-vinculos', [FvsVinculoController::class, 'store'])
+        ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
+    Route::delete('obras/{obra}/fvs-vinculos/{fvsVinculo}', [FvsVinculoController::class, 'destroy'])
+        ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
+
+    // "Banco de verificações da obra" (plano, D4) — todas as fichas de todos os RDOs.
+    Route::get('obras/{obra}/fvs', [FvsController::class, 'porObra'])
+        ->middleware(['permissaoModulo:diario_obra,usar', 'permissaoObra:ver']);
+
+    Route::put('fvs/{fvsPreenchimento}', [FvsController::class, 'salvar'])
+        ->middleware(['permissaoModulo:diario_obra,editar', 'permissaoObra:lancar']);
+    Route::post('fvs/itens/{item}/fotos', [FvsController::class, 'enviarFoto'])
+        ->middleware('permissaoModulo:diario_obra,editar');
+    Route::delete('fvs/fotos/{foto}', [FvsController::class, 'removerFoto'])
+        ->middleware('permissaoModulo:diario_obra,editar');
 });

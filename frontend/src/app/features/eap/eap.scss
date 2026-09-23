@@ -607,6 +607,34 @@ li:last-child .item-obra-copiar { border-bottom: none; }
   }
 }
 
+// Vincular fichas de verificação a este item (F10, 25/09/2026) — largura
+// própria (o resto dos botões da coluna de ações é quadrado, 22px).
+.botao-fvs {
+  width: auto !important;
+  padding: 2px 6px !important;
+  font-size: 9px !important;
+  border: 1px solid var(--cor-borda-forte);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+
+  &.com-vinculo {
+    background: var(--cor-alerta-bg);
+    color: var(--cor-alerta);
+    border-color: var(--cor-alerta);
+  }
+}
+
+.lista-fvs-modelos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; }
+}
+
 .vazio { padding: 30px 16px; }
 
 .rotulo-rodape {

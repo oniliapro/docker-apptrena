@@ -98,6 +98,11 @@ export class RdoImprimir implements OnInit {
     return this.api.baseStorage() + foto.url;
   }
 
+  /** Mesma ideia de `urlMidia()`, pras fotos de evidência das fichas de verificação (F10). */
+  protected urlFotoFvs(url: string): string {
+    return this.api.baseStorage() + url;
+  }
+
   protected urlLogo(): string | null {
     const caminho = this.empresa()?.logoUrl;
     return caminho ? this.api.baseStorage() + caminho : null;
