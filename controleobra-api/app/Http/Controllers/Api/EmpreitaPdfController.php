@@ -24,6 +24,12 @@ use Spatie\Browsershot\Browsershot;
  */
 class EmpreitaPdfController extends Controller
 {
+    /** Opções do popup "O que mostrar no PDF" da Empreita que a tela de impressão entende. */
+    private const OPCOES_EMPREITA = ['empreiteiro', 'reserva', 'total'];
+
+    /** Colunas da tabela de serviços que o popup pode ligar/desligar (25/09/2026). */
+    private const COLUNAS_EMPREITA = ['tipo', 'etapa', 'contrato', 'medicao', 'jaPago', 'pagamento', 'saldoApos'];
+
     public function relatorioEmpreita(Request $request, Empreita $empreita)
     {
         $user = $request->user();
@@ -40,12 +46,29 @@ class EmpreitaPdfController extends Controller
             . '?token=' . urlencode($tokenTemporario->plainTextToken)
             . '&apiUrl=' . urlencode($baseApi);
 
-        // "Simplificar" (01/09/2026, pedido do Lucas) — esconde Empreiteiro/
-        // Reserva no relatório, mostra só o Total. Repassado como query
-        // param até `EmpreitaImprimir`, sem persistir nada (mesmo mecanismo
-        // stateless de `token`/`apiUrl`).
-        if ($request->boolean('simplificado')) {
-            $url .= '&simplificado=1';
+        // "O que mostrar no PDF" (25/09/2026, pedido do Lucas; antes só o
+        // "Simplificar" de 01/09/2026): só as chaves LIGADAS no popup do
+        // Angular, repassadas como query param até `EmpreitaImprimir` sem
+        // persistir nada (mesmo mecanismo stateless de `token`/`apiUrl`).
+        // Parâmetro ausente = mostra tudo; presente e vazio = nenhuma
+        // dessas informações. Qualquer chave fora da lista é descartada.
+        if ($request->has('opcoes')) {
+            $opcoes = collect(explode(',', (string) $request->query('opcoes')))
+                ->map(fn ($opcao) => trim($opcao))
+                ->filter(fn ($opcao) => in_array($opcao, self::OPCOES_EMPREITA, true))
+                ->unique()
+                ->values();
+            $url .= '&opcoes=' . urlencode($opcoes->implode(','));
+        }
+
+        // Colunas visíveis (25/09/2026) — mesma ideia: só as ligadas, ausente = todas.
+        if ($request->has('colunas')) {
+            $colunas = collect(explode(',', (string) $request->query('colunas')))
+                ->map(fn ($coluna) => trim($coluna))
+                ->filter(fn ($coluna) => in_array($coluna, self::COLUNAS_EMPREITA, true))
+                ->unique()
+                ->values();
+            $url .= '&colunas=' . urlencode($colunas->implode(','));
         }
 
         try {

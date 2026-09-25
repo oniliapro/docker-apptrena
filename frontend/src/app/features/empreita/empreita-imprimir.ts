@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { PerfilEmpresa } from '../../core/models/api.models';
@@ -7,6 +7,14 @@ import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
+import {
+  COLUNAS_PDF_EMPREITA_TODAS,
+  ColunasPdfEmpreita,
+  OPCOES_PDF_EMPREITA_TODAS,
+  OpcoesPdfEmpreita,
+  lerColunasPdfEmpreita,
+  lerOpcoesPdfEmpreita,
+} from './empreita-pdf-opcoes';
 import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
 import { ItemEmpreita, LinhaEmpreitaEstendida } from './empreita.models';
@@ -41,8 +49,56 @@ export class EmpreitaImprimir implements OnInit {
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
-  /** "Simplificar" (01/09/2026) — lido da query string, mesmo mecanismo de `token`/`apiUrl`. */
-  protected readonly simplificado = signal(false);
+  /**
+   * "O que mostrar" (25/09/2026, pedido do Lucas; antes só o "Simplificar" de
+   * 01/09/2026) — lido da query string `?opcoes=`, mesmo mecanismo de
+   * `token`/`apiUrl`. Vale pros serviços e pros pagamentos registrados.
+   */
+  protected readonly opcoes = signal<OpcoesPdfEmpreita>({ ...OPCOES_PDF_EMPREITA_TODAS });
+
+  /** Colunas visíveis da tabela (25/09/2026) — `?colunas=`; ausente = todas. */
+  protected readonly colunas = signal<ColunasPdfEmpreita>({ ...COLUNAS_PDF_EMPREITA_TODAS });
+
+  /** Colunas fixas do começo da tabela: "#" e "Serviço" + Tipo e Etapa, se ligadas. */
+  protected readonly colunasFixas = computed(() => 2 + (this.colunas().tipo ? 1 : 0) + (this.colunas().etapa ? 1 : 0));
+
+  /** Total de colunas da tabela — usado no `colspan` da linha vazia. */
+  protected readonly totalColunas = computed(() => {
+    const c = this.colunas();
+    const blocos = (c.contrato ? 1 : 0) + (c.medicao ? 1 : 0);
+    const confirmados = this.store.travada() ? (c.jaPago ? 1 : 0) + (c.pagamento ? 1 : 0) + (c.saldoApos ? 1 : 0) : 0;
+    return this.colunasFixas() + blocos + confirmados;
+  });
+
+  /** Valor "de verdade" — descarta o resíduo de ponto flutuante (0,00000001). */
+  private tem(valor: number | null | undefined): boolean {
+    return Math.abs(Number(valor) || 0) > 0.005;
+  }
+
+  /**
+   * Índices dos serviços que entram no PDF. Com "Total" marcado (ou sem
+   * nenhuma opção) entram todos; senão, o serviço só entra se tiver valor
+   * em ALGUMA das opções marcadas — empreiteiro (contrato, já pago ou
+   * pagamento) ou reserva (idem). Os números da coluna "#" continuam os da
+   * tela (índice original + 1).
+   */
+  protected readonly linhasVisiveis = computed<number[]>(() => {
+    const o = this.opcoes();
+    const itens = this.store.itens();
+    const todos = itens.map((_, i) => i);
+    if (o.total || (!o.empreiteiro && !o.reserva)) return todos;
+
+    const linhas = this.store.linhasEstendidas();
+    return todos.filter((i) => {
+      const item = itens[i];
+      const linha = linhas[i];
+      const temEmpreiteiro =
+        this.tem(item.contratoEmp) || this.tem(linha?.jaPago.empreiteiro) || this.tem(linha?.pagamentoEmpDraft);
+      const temReserva =
+        this.tem(item.contratoReserva) || this.tem(linha?.jaPago.reserva) || this.tem(linha?.pagamentoReservaDraft);
+      return (o.empreiteiro && temEmpreiteiro) || (o.reserva && temReserva);
+    });
+  });
 
   protected rotuloEap(itemEap: ItemEap): string {
     const eap = String(itemEap.eap ?? '').trim();
@@ -184,7 +240,8 @@ export class EmpreitaImprimir implements OnInit {
     const apiUrl = this.route.snapshot.queryParamMap.get('apiUrl');
     if (apiUrl) this.api.definirBaseParaImpressao(apiUrl);
 
-    this.simplificado.set(this.route.snapshot.queryParamMap.get('simplificado') === '1');
+    this.opcoes.set(lerOpcoesPdfEmpreita(this.route.snapshot.queryParamMap.get('opcoes')));
+    this.colunas.set(lerColunasPdfEmpreita(this.route.snapshot.queryParamMap.get('colunas')));
   }
 
   ngOnInit(): void {

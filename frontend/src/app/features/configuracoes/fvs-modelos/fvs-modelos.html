@@ -1,4 +1,5 @@
 <div class="fvs-modelos">
+@if (!formularioAberto()) {
   <div class="topo">
     <h2>Fichas de verificação de serviço</h2>
     <button type="button" class="botao-primario" (click)="novo()">+ Novo modelo</button>
@@ -26,45 +27,42 @@
       }
     </ul>
   }
+} @else {
+  <!--
+    Formulário INLINE no painel (em vez de popup): esta tela já vive dentro do
+    popup de Configurações, e um popup dentro do outro nasce preso ao
+    cartão de fora (transform) — o "Novo modelo" chegou a renderizar solto,
+    sem sobreposição, dentro do painel.
+  -->
+  <div class="topo">
+    <h2>{{ editandoId() ? 'Editar modelo' : 'Novo modelo' }}</h2>
+  </div>
 
-  @if (formularioAberto()) {
-    <div class="modal">
-      <div class="modal-fundo" (fecharModal)="fechar()"></div>
-      <div class="modal-cartao estreito">
-        <div class="modal-cabecalho">
-          <span class="modal-titulo">{{ editandoId() ? 'Editar modelo' : 'Novo modelo' }}</span>
-          <button type="button" (click)="fechar()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
-        </div>
-
-        <div class="modal-corpo">
-          @if (erroFormulario()) {
-            <p class="alerta alerta-erro">{{ erroFormulario() }}</p>
-          }
-
-          <label class="campo">
-            <span class="obrigatorio">Nome do modelo</span>
-            <input type="text" [value]="fNome()" (input)="mudarNome($event)" placeholder="Ex.: Verificação de alvenaria">
-          </label>
-
-          <div class="itens-modelo">
-            <span class="rotulo-itens">Itens a verificar</span>
-            @for (item of fItens(); track $index; let i = $index) {
-              <div class="linha-item">
-                <input type="text" [value]="item" (input)="mudarItem(i, $event)" [placeholder]="'Item ' + (i + 1)">
-                <button type="button" class="botao-remover" (click)="removerItem(i)" aria-label="Remover">×</button>
-              </div>
-            }
-            <button type="button" class="botao-adicionar" (click)="adicionarItem()">+ Item</button>
-          </div>
-        </div>
-
-        <div class="modal-rodape">
-          <button type="button" class="botao-secundario" (click)="fechar()">Cancelar</button>
-          <button type="button" class="botao-primario" [disabled]="salvando()" (click)="salvar()">
-            {{ salvando() ? 'Salvando…' : 'Salvar' }}
-          </button>
-        </div>
-      </div>
-    </div>
+  @if (erroFormulario()) {
+    <p class="alerta alerta-erro">{{ erroFormulario() }}</p>
   }
+
+  <label class="campo">
+    <span class="obrigatorio">Nome do modelo</span>
+    <input type="text" [value]="fNome()" (input)="mudarNome($event)" placeholder="Ex.: Verificação de alvenaria">
+  </label>
+
+  <div class="itens-modelo">
+    <span class="rotulo-itens">Itens a verificar</span>
+    @for (item of fItens(); track $index; let i = $index) {
+      <div class="linha-item">
+        <input type="text" [value]="item" (input)="mudarItem(i, $event)" [placeholder]="'Item ' + (i + 1)">
+        <button type="button" class="botao-remover" (click)="removerItem(i)" aria-label="Remover">×</button>
+      </div>
+    }
+    <button type="button" class="botao-adicionar" (click)="adicionarItem()">+ Item</button>
+  </div>
+
+  <div class="rodape-form">
+    <button type="button" class="botao-secundario" (click)="fechar()">Cancelar</button>
+    <button type="button" class="botao-primario" [disabled]="salvando()" (click)="salvar()">
+      {{ salvando() ? 'Salvando…' : 'Salvar' }}
+    </button>
+  </div>
+}
 </div>

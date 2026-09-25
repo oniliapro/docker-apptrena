@@ -1412,3 +1412,68 @@ AppTrena/
   outro arquivo. Sem migration extra pra isso, só o código. Com a F10
   publicada, **todo o lote de melhorias de setembro/2026 (F0 a F10) está
   concluído** — falta só publicar F9+F10 em produção.
+- 25/09/2026 — **Empreitas: popup "O que mostrar" antes de gerar o PDF, "Simplificar"
+  ligado por padrão e serviço novo como Mão de obra** (pedido do Lucas, sem
+  migration). (1) "⭳ Baixar PDF" da tela da empreita agora só ABRE um popup com 4
+  opções — Valor do empreiteiro, Reserva, Total e Saldos —; "Gerar PDF" manda as
+  chaves ligadas em `?opcoes=` até `EmpreitaPdfController` (lista branca
+  `OPCOES_EMPREITA`, o que sobrar é descartado) e daí até `EmpreitaImprimir`
+  (`lerOpcoesPdfEmpreita`; parâmetro ausente = mostra tudo). Vale pros SERVIÇOS
+  (tabela, rodapé de totais, painel "Medição deste período") e pros PAGAMENTOS
+  REGISTRADOS (`EmpreitaRelatorioPagamentos` ganhou 4 `input()` `mostrar*`, todos
+  `true` por padrão — a tela normal não muda). "Total" também cobre a linha
+  "Contrato" dos pagamentos; "Saldos" cobre "Saldo disp.", o bloco inteiro "Saldo
+  após pagamento" (coluna some, colgroup e colspan acompanham) e o "Saldo
+  empreita" dos pagamentos. As escolhas do popup valem só pro PDF, não mexem na
+  tela; ele abre já partindo do "Simplificar" da tela (ligado = Empreiteiro e
+  Reserva desmarcados). O parâmetro antigo `?simplificado=1` foi substituído por
+  `?opcoes=` (só o Angular chamava). Regra em `empreita-pdf-opcoes.ts`. (2)
+  "Simplificar" da tela da empreita nasce LIGADO (`simplificado = signal(true)`):
+  as colunas Empreiteiro/Reserva ficam escondidas até desmarcar. (3) Serviço novo
+  na empreita nasce com tipo Mão de obra (`EmpreitaStore.adicionarItem`); o
+  `?? 'material'` de `normalizar` (dado vindo do banco sem tipo) NÃO mudou, pra
+  não reinterpretar serviço antigo. Testado via Puppeteer: popup abre com os
+  padrões certos, `?opcoes=total,saldos`/`empreiteiro,reserva`/`total` gerando
+  PDFs coerentes (inclusive o de pagamentos, numa empreita com 7 pagamentos), e
+  serviço novo persistindo como Mão de obra ao recarregar.
+  **Correção no mesmo dia (o popup "não abria")**: o teste só conferia que o popup
+  existia no DOM — e `.modal`/`.modal-cartao` são estilos POR COMPONENTE (não há
+  global), então sem eles em `empreita.scss` o popup renderizava solto no fim da
+  página, invisível na prática. Copiado o bloco de modal pro `empreita.scss`. O
+  mesmo defeito existia no popup "Novo modelo" da FVS (Configurações) — agora o
+  formulário é INLINE no painel (popup dentro do popup de Configurações nasce
+  preso ao cartão de fora, por causa do `transform`) — e o popup de vínculo de FVS
+  na EAP ficou com checkbox esticado/largura de 920px (ajustado em `eap.scss`).
+  **Lição pra todo popup novo**: conferir com screenshot/posição (`position: fixed`
+  e cartão dentro da janela), não só a presença no DOM, e definir os estilos de
+  `.modal*` no scss do próprio componente.
+- 25/09/2026 — **Empreitas: opções do PDF redefinidas** (pedido do Lucas, mesmo dia,
+  sem migration; substitui a semântica descrita na entrada anterior). Agora TODAS as
+  colunas aparecem sempre (Contrato, Medição, Já pago, Pagamento, Saldo após
+  pagamento + Pagamentos registrados) e a opção "Saldos" foi REMOVIDA. Sobram três
+  opções, combináveis: **Valor do empreiteiro**, **Reserva** e **Total**. Marcar
+  empreiteiro (ou reserva) mostra SÓ as informações dele em todos os blocos e nos
+  pagamentos registrados, e esconde os serviços (e os pagamentos) sem valor dele
+  (contrato, já pago ou pagamento; `EmpreitaImprimir.linhasVisiveis` e
+  `EmpreitaRelatorioPagamentos.linhasExibidas`); com mais de uma marcada o serviço
+  fica se tiver valor em qualquer uma. "Total" mostra os totais de cada bloco, o
+  "Saldo disp.", a linha "Etapa" do saldo após pagamento, o "Saldo empreita" dos
+  pagamentos e o painel "Contrato x orçado" (que só sai com Total) — e com Total
+  nenhum serviço é escondido. "Medido" e "Divergência" (que são do empreiteiro) saem
+  com empreiteiro OU total. A tabela mantém a numeração original (#) mesmo com
+  serviços escondidos. O popup exige ao menos uma opção marcada (senão "Gerar PDF"
+  fica desabilitado) e explica cada opção; ainda abre partindo do "Simplificar" da
+  tela (ligado = só Total). `?opcoes=` agora aceita só `empreiteiro,reserva,total`.
+  Ainda não publicado.
+- 25/09/2026 — **Empreitas: colunas visíveis no PDF** (pedido do Lucas, mesmo dia,
+  sem migration). O popup "O que mostrar" ganhou a seção "Colunas visíveis": Tipo,
+  Etapa (EAP), Contrato, Medição de contrato (Quantidades, se a empreita ainda não
+  está confirmada), Já pago, Pagamento e Saldo após pagamento; "#" e "Serviço"
+  sempre aparecem. Já pago/Pagamento/Saldo após pagamento só são oferecidos com a
+  empreita confirmada (`store.travada()`), porque só existem nela na tela de
+  impressão. Trafega como `?colunas=` (só as ligadas; ausente = todas), com lista
+  branca `COLUNAS_EMPREITA` no `EmpreitaPdfController`. As colunas escondidas somem
+  do `colgroup`, do cabeçalho, do corpo e do rodapé, e os `colspan` (TOTAIS e linha
+  vazia) acompanham (`colunasFixas`/`totalColunas` em `EmpreitaImprimir`). Vale só
+  pro PDF e volta a começar com todas ligadas a cada abertura do popup. Regra em
+  `empreita-pdf-opcoes.ts`. Ainda não publicado.

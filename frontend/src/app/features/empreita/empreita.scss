@@ -478,3 +478,96 @@ tfoot th {
     &:hover { background: #a83a26; }
   }
 }
+
+/* Popup "PDF da empreita — o que mostrar" (25/09/2026).
+   Os estilos de modal são por componente (não há global) — sem este bloco o
+   popup renderizava solto no fim da página, sem fundo nem centralização, e
+   "não abria" pro usuário. Mesmo bloco de empreitas-obra.scss. */
+.modal { position: fixed; inset: 0; z-index: 200; }
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-estreito { width: min(440px, 94vw); }
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; }
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.opcoes-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.titulo-opcoes-pdf {
+  margin-top: 6px;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--cor-texto-suave);
+}
+
+.colunas-pdf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 8px 0;
+
+  .checagem-inline { font-size: 13px; }
+}
+
+.opcao-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+
+  .checagem-inline { font-size: 13px; font-weight: 600; }
+  .pequeno { margin-left: 22px; }
+}

@@ -9,7 +9,15 @@
 <!-- Mesma estrutura de empreita.html — classes reaproveitadas de
      empreita.scss (importado via @use), sem os inputs/selects/botões
      editáveis (tudo aqui é só leitura). Layout espelhado do redesenho de
-     25/08/2026: 5 colunas de bloco, um serviço = uma categoria só. -->
+     25/08/2026: 5 colunas de bloco, um serviço = uma categoria só.
+
+     `opcoes()` (25/09/2026, pedido do Lucas — popup "O que mostrar" antes de
+     gerar o PDF): empreiteiro / reserva / total. TODAS as colunas aparecem
+     sempre; a opção decide quais VALORES entram em cada bloco (contrato, já
+     pago, pagamento, saldo após pagamento) e nos pagamentos registrados
+     (`app-empreita-relatorio-pagamentos`). Sem "Total" marcado, serviços sem
+     valor nas opções marcadas somem (`linhasVisiveis`), o "Saldo disp." e a
+     linha "Etapa" do saldo somem e o painel "Contrato x orçado" não sai. -->
 <div class="painel">
   <div class="grade-cabecalho">
     <label class="campo">
@@ -40,72 +48,114 @@
     <colgroup>
       <col class="col-num" />
       <col class="col-desc" />
-      <col class="col-tipo" />
-      <col class="col-eap" />
-      <col class="col-grupo" />
-      @if (!store.travada()) {
+      @if (colunas().tipo) {
+        <col class="col-tipo" />
+      }
+      @if (colunas().etapa) {
+        <col class="col-eap" />
+      }
+      @if (colunas().contrato) {
         <col class="col-grupo" />
-      } @else {
+      }
+      @if (colunas().medicao) {
         <col class="col-grupo" />
-        <col class="col-grupo" />
-        <col class="col-grupo" />
-        <col class="col-grupo" />
+      }
+      @if (store.travada()) {
+        @if (colunas().jaPago) {
+          <col class="col-grupo" />
+        }
+        @if (colunas().pagamento) {
+          <col class="col-grupo" />
+        }
+        @if (colunas().saldoApos) {
+          <col class="col-grupo" />
+        }
       }
     </colgroup>
     <thead>
       <tr>
         <th class="col-num">#</th>
         <th class="col-desc">Serviço</th>
-        <th class="col-tipo">Tipo</th>
-        <th class="col-eap">Etapa (EAP)</th>
-        <th class="grupo-contrato">Contrato (R$)</th>
-        @if (!store.travada()) {
-          <th class="grupo-quantidades">Quantidades</th>
-        } @else {
-          <th class="grupo-medicao">Medição de contrato</th>
-          <th class="grupo-ja-pago">Já pago (R$)</th>
-          <th class="grupo-pagamento">Pagamento (R$)</th>
-          <th class="grupo-saldo-apos">Saldo após pagamento (R$)</th>
+        @if (colunas().tipo) {
+          <th class="col-tipo">Tipo</th>
+        }
+        @if (colunas().etapa) {
+          <th class="col-eap">Etapa (EAP)</th>
+        }
+        @if (colunas().contrato) {
+          <th class="grupo-contrato">Contrato (R$)</th>
+        }
+        @if (colunas().medicao) {
+          @if (!store.travada()) {
+            <th class="grupo-quantidades">Quantidades</th>
+          } @else {
+            <th class="grupo-medicao">Medição de contrato</th>
+          }
+        }
+        @if (store.travada()) {
+          @if (colunas().jaPago) {
+            <th class="grupo-ja-pago">Já pago (R$)</th>
+          }
+          @if (colunas().pagamento) {
+            <th class="grupo-pagamento">Pagamento (R$)</th>
+          }
+          @if (colunas().saldoApos) {
+            <th class="grupo-saldo-apos">Saldo após pagamento (R$)</th>
+          }
         }
       </tr>
     </thead>
 
     <tbody>
-      @for (item of store.itens(); track item.id; let i = $index) {
-        <tr [class.zebra]="i % 2 === 1">
+      @for (i of linhasVisiveis(); track i; let n = $index) {
+        @let item = store.itens()[i];
+        <tr [class.zebra]="n % 2 === 1">
           <td class="centro indice">{{ i + 1 }}</td>
           <td class="descricao">{{ item.desc || '—' }}</td>
-          <td class="descricao">{{ rotuloTipo(item.tipo) }}</td>
-          <td class="etapa">{{ rotuloEapDoItem(item.eapId) }}</td>
+          @if (colunas().tipo) {
+            <td class="descricao">{{ rotuloTipo(item.tipo) }}</td>
+          }
+          @if (colunas().etapa) {
+            <td class="etapa">{{ rotuloEapDoItem(item.eapId) }}</td>
+          }
 
+          @if (colunas().contrato) {
           <!-- Contrato -->
           <td class="celula-grupo">
-            <div class="subcampo">
-              <span class="rotulo-subcampo">Saldo disp.</span>
-              <span class="valor-subcampo"
-                    [class.saldo-positivo]="valorSaldoDisp(i) >= 0"
-                    [class.saldo-negativo]="valorSaldoDisp(i) < 0">
-                {{ moedaOuVazio(valorSaldoDisp(i)) }}
-              </span>
-            </div>
-            @if (!simplificado()) {
+            @if (opcoes().total) {
+              <div class="subcampo">
+                <span class="rotulo-subcampo">Saldo disp.</span>
+                <span class="valor-subcampo"
+                      [class.saldo-positivo]="valorSaldoDisp(i) >= 0"
+                      [class.saldo-negativo]="valorSaldoDisp(i) < 0">
+                  {{ moedaOuVazio(valorSaldoDisp(i)) }}
+                </span>
+              </div>
+            }
+            @if (opcoes().empreiteiro) {
               <div class="subcampo">
                 <span class="rotulo-subcampo">Empreiteiro</span>
                 <span class="valor-subcampo">{{ valorContrato(item, 'contratoEmp') }}</span>
               </div>
+            }
+            @if (opcoes().reserva) {
               <div class="subcampo">
                 <span class="rotulo-subcampo">Reserva</span>
                 <span class="valor-subcampo">{{ valorContrato(item, 'contratoReserva') }}</span>
               </div>
             }
-            <div class="subcampo destaque">
-              <span class="rotulo-subcampo">Total</span>
-              <span class="valor-subcampo">{{ valorContratoTotal(i) }}</span>
-            </div>
+            @if (opcoes().total) {
+              <div class="subcampo destaque">
+                <span class="rotulo-subcampo">Total</span>
+                <span class="valor-subcampo">{{ valorContratoTotal(i) }}</span>
+              </div>
+            }
           </td>
+          }
 
           @if (!store.travada()) {
-            <!-- Quantidades (só em edição) -->
+            @if (colunas().medicao) {
+          <!-- Quantidades (só em edição) -->
             <td class="celula-grupo">
               <div class="subcampo">
                 <span class="rotulo-subcampo">Qtde. EAP</span>
@@ -128,8 +178,11 @@
                 <span class="valor-subcampo">{{ valorQtdeContratadaExibida(item) }}</span>
               </div>
             </td>
+          }
+
           } @else {
-            <!-- Medição de contrato -->
+            @if (colunas().medicao) {
+          <!-- Medição de contrato -->
             <td class="celula-grupo">
               <div class="subcampo">
                 <span class="rotulo-subcampo">Qtde. contrat.</span>
@@ -148,101 +201,128 @@
                 <span class="valor-subcampo">{{ valorAvanco(i) }}</span>
               </div>
             </td>
+          }
 
-            <!-- Já pago -->
+          @if (colunas().jaPago) {
+          <!-- Já pago -->
             <td class="celula-grupo">
-              @if (!simplificado()) {
+              @if (opcoes().empreiteiro) {
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Empreiteiro</span>
                   <span class="valor-subcampo">{{ valorJaPagoEmpreiteiro(i) }}</span>
                 </div>
+              }
+              @if (opcoes().reserva) {
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Reserva</span>
                   <span class="valor-subcampo">{{ valorJaPagoReserva(i) }}</span>
                 </div>
               }
-              <div class="subcampo">
-                <span class="rotulo-subcampo">Divergência</span>
-                <span class="valor-subcampo"
-                      [class.saldo-positivo]="numDivergencia(i) >= 0"
-                      [class.saldo-negativo]="numDivergencia(i) < 0">
-                  {{ valorJaPagoDivergencia(i) }}
-                </span>
-              </div>
-              <div class="subcampo destaque">
-                <span class="rotulo-subcampo">Total</span>
-                <span class="valor-subcampo">{{ valorJaPagoTotal(i) }}</span>
-              </div>
+              @if (opcoes().empreiteiro || opcoes().total) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Divergência</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="numDivergencia(i) >= 0"
+                        [class.saldo-negativo]="numDivergencia(i) < 0">
+                    {{ valorJaPagoDivergencia(i) }}
+                  </span>
+                </div>
+              }
+              @if (opcoes().total) {
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Total</span>
+                  <span class="valor-subcampo">{{ valorJaPagoTotal(i) }}</span>
+                </div>
+              }
             </td>
+          }
 
-            <!-- Pagamento -->
+          @if (colunas().pagamento) {
+          <!-- Pagamento -->
             <td class="celula-grupo">
-              <div class="subcampo">
-                <span class="rotulo-subcampo">Medido</span>
-                <span class="valor-subcampo"
-                      [class.saldo-positivo]="numMedido(i) >= 0"
-                      [class.saldo-negativo]="numMedido(i) < 0">
-                  {{ valorMedido(i) }}
-                </span>
-              </div>
-              @if (!simplificado()) {
+              @if (opcoes().empreiteiro || opcoes().total) {
+                <div class="subcampo">
+                  <span class="rotulo-subcampo">Medido</span>
+                  <span class="valor-subcampo"
+                        [class.saldo-positivo]="numMedido(i) >= 0"
+                        [class.saldo-negativo]="numMedido(i) < 0">
+                    {{ valorMedido(i) }}
+                  </span>
+                </div>
+              }
+              @if (opcoes().empreiteiro) {
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Empreiteiro</span>
                   <span class="valor-subcampo">{{ valorPagamentoDraftExibido(i, 'pagamentoEmpDraft') }}</span>
                 </div>
+              }
+              @if (opcoes().reserva) {
                 <div class="subcampo">
                   <span class="rotulo-subcampo">Reserva</span>
                   <span class="valor-subcampo">{{ valorPagamentoDraftExibido(i, 'pagamentoReservaDraft') }}</span>
                 </div>
               }
-              <div class="subcampo destaque">
-                <span class="rotulo-subcampo">Total</span>
-                <span class="valor-subcampo">{{ valorPagamentoDraftTotal(i) }}</span>
-              </div>
-            </td>
-
-            <!-- Saldo após pagamento -->
-            <td class="celula-grupo">
-              <div class="subcampo">
-                <span class="rotulo-subcampo">Etapa</span>
-                <span class="valor-subcampo"
-                      [class.saldo-positivo]="valorSaldoAposPagamentoEtapa(i) >= 0"
-                      [class.saldo-negativo]="valorSaldoAposPagamentoEtapa(i) < 0">
-                  {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
-                </span>
-              </div>
-              @if (!simplificado()) {
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Empreiteiro</span>
-                  <span class="valor-subcampo"
-                        [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
-                        [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
-                  </span>
-                </div>
-                <div class="subcampo">
-                  <span class="rotulo-subcampo">Reserva</span>
-                  <span class="valor-subcampo"
-                        [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
-                        [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
-                    {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
-                  </span>
+              @if (opcoes().total) {
+                <div class="subcampo destaque">
+                  <span class="rotulo-subcampo">Total</span>
+                  <span class="valor-subcampo">{{ valorPagamentoDraftTotal(i) }}</span>
                 </div>
               }
-              <div class="subcampo destaque">
-                <span class="rotulo-subcampo">Total</span>
-                <span class="valor-subcampo"
-                      [class.saldo-positivo]="valorSaldoAposPagamentoTotal(i) >= 0"
-                      [class.saldo-negativo]="valorSaldoAposPagamentoTotal(i) < 0">
-                  {{ moedaOuVazio(valorSaldoAposPagamentoTotal(i)) }}
-                </span>
-              </div>
             </td>
+          }
+
+          @if (colunas().saldoApos) {
+          <!-- Saldo após pagamento (sempre; "Etapa" só com Total) -->
+            <td class="celula-grupo">
+                @if (opcoes().total) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Etapa</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoEtapa(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoEtapa(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoEtapa(i)) }}
+                    </span>
+                  </div>
+                }
+                @if (opcoes().empreiteiro) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Empreiteiro</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoEmp(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoEmp(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoEmp(i)) }}
+                    </span>
+                  </div>
+                }
+                @if (opcoes().reserva) {
+                  <div class="subcampo">
+                    <span class="rotulo-subcampo">Reserva</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoReserva(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoReserva(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoReserva(i)) }}
+                    </span>
+                  </div>
+                }
+                @if (opcoes().total) {
+                  <div class="subcampo destaque">
+                    <span class="rotulo-subcampo">Total</span>
+                    <span class="valor-subcampo"
+                          [class.saldo-positivo]="valorSaldoAposPagamentoTotal(i) >= 0"
+                          [class.saldo-negativo]="valorSaldoAposPagamentoTotal(i) < 0">
+                      {{ moedaOuVazio(valorSaldoAposPagamentoTotal(i)) }}
+                    </span>
+                  </div>
+                }
+            </td>
+          }
+
+          
           }
         </tr>
       } @empty {
         <tr>
-          <td [attr.colspan]="store.travada() ? 8 : 5" class="centro atenuado vazio">Nenhum serviço lançado.</td>
+          <td [attr.colspan]="totalColunas()" class="centro atenuado vazio">{{ store.itens().length ? 'Nenhum serviço com valor nas opções marcadas.' : 'Nenhum serviço lançado.' }}</td>
         </tr>
       }
     </tbody>
@@ -250,88 +330,124 @@
     @if (store.itens().length) {
       <tfoot>
         <tr>
-          <th colspan="4" class="rotulo-rodape">TOTAIS</th>
+          <th [attr.colspan]="colunasFixas()" class="rotulo-rodape">TOTAIS</th>
 
-          <th class="celula-grupo-rodape">
-            <div class="subcampo-rodape">Saldo disp. <span class="atenuado">—</span></div>
-            @if (!simplificado()) {
+          @if (colunas().contrato) {
+            <th class="celula-grupo-rodape">
+            @if (opcoes().total) {
+              <div class="subcampo-rodape">Saldo disp. <span class="atenuado">—</span></div>
+            }
+            @if (opcoes().empreiteiro) {
               <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totais().valorEmp) }}</b></div>
+            }
+            @if (opcoes().reserva) {
               <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totais().valorReserva) }}</b></div>
             }
-            <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
+            @if (opcoes().total) {
+              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totais().valorTotal) }}</b></div>
+            }
           </th>
+            }
 
           @if (!store.travada()) {
+            @if (colunas().medicao) {
             <th class="celula-grupo-rodape">
               <div class="subcampo-rodape">Qtde. EAP <span class="atenuado">—</span></div>
               <div class="subcampo-rodape">Un. EAP <span class="atenuado">—</span></div>
               <div class="subcampo-rodape">Qtde. disp. <span class="atenuado">—</span></div>
               <div class="subcampo-rodape destaque">Qtde. contrat. <span class="atenuado">—</span></div>
             </th>
+            }
           } @else {
+            @if (colunas().medicao) {
             <th class="celula-grupo-rodape">
               <div class="subcampo-rodape">Qtde. contrat. <span class="atenuado">—</span></div>
               <div class="subcampo-rodape">Acumulado <span class="atenuado">—</span></div>
               <div class="subcampo-rodape">Atual <span class="atenuado">—</span></div>
               <div class="subcampo-rodape destaque">Avanço <span class="atenuado">—</span></div>
             </th>
+            }
 
+            @if (colunas().jaPago) {
             <th class="celula-grupo-rodape">
-              @if (!simplificado()) {
+              @if (opcoes().empreiteiro) {
                 <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoEmpreiteiro) }}</b></div>
+              }
+              @if (opcoes().reserva) {
                 <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoReserva) }}</b></div>
               }
-              <div class="subcampo-rodape">
-                Divergência
-                <b [class.saldo-positivo]="store.totaisEstendidos().jaPagoDivergencia >= 0"
-                   [class.saldo-negativo]="store.totaisEstendidos().jaPagoDivergencia < 0">
-                  {{ formatarMoeda(store.totaisEstendidos().jaPagoDivergencia) }}
-                </b>
-              </div>
-              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoTotal) }}</b></div>
+              @if (opcoes().empreiteiro || opcoes().total) {
+                <div class="subcampo-rodape">
+                  Divergência
+                  <b [class.saldo-positivo]="store.totaisEstendidos().jaPagoDivergencia >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().jaPagoDivergencia < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().jaPagoDivergencia) }}
+                  </b>
+                </div>
+              }
+              @if (opcoes().total) {
+                <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().jaPagoTotal) }}</b></div>
+              }
             </th>
+            }
 
+            @if (colunas().pagamento) {
             <th class="celula-grupo-rodape">
-              <div class="subcampo-rodape">
-                Medido
-                <b [class.saldo-positivo]="store.totaisEstendidos().medidoTotal >= 0"
-                   [class.saldo-negativo]="store.totaisEstendidos().medidoTotal < 0">
-                  {{ formatarMoeda(store.totaisEstendidos().medidoTotal) }}
-                </b>
-              </div>
-              @if (!simplificado()) {
+              @if (opcoes().empreiteiro || opcoes().total) {
+                <div class="subcampo-rodape">
+                  Medido
+                  <b [class.saldo-positivo]="store.totaisEstendidos().medidoTotal >= 0"
+                     [class.saldo-negativo]="store.totaisEstendidos().medidoTotal < 0">
+                    {{ formatarMoeda(store.totaisEstendidos().medidoTotal) }}
+                  </b>
+                </div>
+              }
+              @if (opcoes().empreiteiro) {
                 <div class="subcampo-rodape">Empreiteiro <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftEmp) }}</b></div>
+              }
+              @if (opcoes().reserva) {
                 <div class="subcampo-rodape">Reserva <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftReserva) }}</b></div>
               }
-              <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftTotal) }}</b></div>
-            </th>
-
-            <th class="celula-grupo-rodape">
-              <div class="subcampo-rodape">Etapa <span class="atenuado">—</span></div>
-              @if (!simplificado()) {
-                <div class="subcampo-rodape">
-                  Empreiteiro
-                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
-                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
-                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
-                  </b>
-                </div>
-                <div class="subcampo-rodape">
-                  Reserva
-                  <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
-                     [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
-                    {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
-                  </b>
-                </div>
+              @if (opcoes().total) {
+                <div class="subcampo-rodape destaque">Total <b>{{ formatarMoeda(store.totaisEstendidos().pagamentoDraftTotal) }}</b></div>
               }
-              <div class="subcampo-rodape destaque">
-                Total
-                <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoTotal >= 0"
-                   [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoTotal < 0">
-                  {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoTotal) }}
-                </b>
-              </div>
             </th>
+            }
+
+            @if (colunas().saldoApos) {
+            <th class="celula-grupo-rodape">
+                @if (opcoes().total) {
+                  <div class="subcampo-rodape">Etapa <span class="atenuado">—</span></div>
+                }
+                @if (opcoes().empreiteiro) {
+                  <div class="subcampo-rodape">
+                    Empreiteiro
+                    <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoEmp >= 0"
+                       [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoEmp < 0">
+                      {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoEmp) }}
+                    </b>
+                  </div>
+                }
+                @if (opcoes().reserva) {
+                  <div class="subcampo-rodape">
+                    Reserva
+                    <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoReserva >= 0"
+                       [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoReserva < 0">
+                      {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoReserva) }}
+                    </b>
+                  </div>
+                }
+                @if (opcoes().total) {
+                  <div class="subcampo-rodape destaque">
+                    Total
+                    <b [class.saldo-positivo]="store.totaisEstendidos().saldoAposPagamentoTotal >= 0"
+                       [class.saldo-negativo]="store.totaisEstendidos().saldoAposPagamentoTotal < 0">
+                      {{ formatarMoeda(store.totaisEstendidos().saldoAposPagamentoTotal) }}
+                    </b>
+                  </div>
+                }
+            </th>
+            }
           }
         </tr>
       </tfoot>
@@ -344,20 +460,27 @@
     <div class="painel">
       <div class="painel-titulo">Medição deste período</div>
 
-      <div class="linha-resumo">
-        <span>A pagar ao empreiteiro</span>
-        <b>{{ formatarMoeda(store.totais().pagarEmp) }}</b>
-      </div>
-      <div class="linha-resumo">
-        <span>Reserva discricionária</span>
-        <b>{{ formatarMoeda(store.totais().reservarPgto) }}</b>
-      </div>
-      <div class="linha-resumo destaque">
-        <span>Total do período</span>
-        <b>{{ formatarMoeda(store.totais().totalPeriodo) }}</b>
-      </div>
+      @if (opcoes().empreiteiro) {
+        <div class="linha-resumo">
+          <span>A pagar ao empreiteiro</span>
+          <b>{{ formatarMoeda(store.totais().pagarEmp) }}</b>
+        </div>
+      }
+      @if (opcoes().reserva) {
+        <div class="linha-resumo">
+          <span>Reserva discricionária</span>
+          <b>{{ formatarMoeda(store.totais().reservarPgto) }}</b>
+        </div>
+      }
+      @if (opcoes().total) {
+        <div class="linha-resumo destaque">
+          <span>Total do período</span>
+          <b>{{ formatarMoeda(store.totais().totalPeriodo) }}</b>
+        </div>
+      }
     </div>
 
+    @if (opcoes().total) {
     <div class="painel">
       <div class="painel-titulo">Contrato x orçado</div>
       <table class="tabela-resumo">
@@ -398,11 +521,15 @@
         </tfoot>
       </table>
     </div>
+    }
 
     <div class="painel painel-relatorio-pagamentos">
       <app-empreita-relatorio-pagamentos
         [pagamentos]="store.pagamentosDaEmpreita()"
-        [contratoTotalEmpreita]="store.totais().valorTotal" />
+        [contratoTotalEmpreita]="store.totais().valorTotal"
+        [mostrarEmpreiteiro]="opcoes().empreiteiro"
+        [mostrarReserva]="opcoes().reserva"
+        [mostrarTotal]="opcoes().total" />
     </div>
   </div>
 }

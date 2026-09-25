@@ -122,3 +122,10 @@ button {
 
   input { flex: 1; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--cor-borda); border-radius: 3px; }
 }
+
+.rodape-form {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

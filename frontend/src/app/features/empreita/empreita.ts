@@ -23,6 +23,17 @@ import {
   valorContratoParaPct,
 } from './empreita-engine';
 import { exportarEmpreitaXlsx, LinhaExportEmpreita } from './empreita-exportar';
+import {
+  CHAVES_OPCOES_PDF_EMPREITA,
+  COLUNAS_PDF_EMPREITA_TODAS,
+  ColunasPdfEmpreita,
+  DICAS_OPCOES_PDF_EMPREITA,
+  OpcoesPdfEmpreita,
+  ROTULOS_OPCOES_PDF_EMPREITA,
+  chavesColunasDisponiveis,
+  opcoesDoSimplificado,
+  rotuloColunaPdfEmpreita,
+} from './empreita-pdf-opcoes';
 import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
 import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao } from './empreita.models';
@@ -95,10 +106,12 @@ export class Empreita implements OnInit {
    * "Simplificar" (01/09/2026, pedido do Lucas) — esconde as colunas
    * Empreiteiro/Reserva de todos os blocos (Contrato, Já pago, Pagamento,
    * Saldo após pagamento) e mostra só o Total, tanto na tela ao vivo
-   * quanto no PDF gerado (`baixarPdf()` repassa como query param). Não
-   * persiste nada — vale só pra esta visita/geração.
+   * quanto no PDF gerado (o popup de `baixarPdf()` já abre com Empreiteiro/
+   * Reserva desmarcados quando está ligado). Não persiste nada — vale só
+   * pra esta visita/geração. Nasce LIGADO desde 25/09/2026 (pedido do
+   * Lucas); desmarcar mostra as colunas de novo.
    */
-  protected readonly simplificado = signal(false);
+  protected readonly simplificado = signal(true);
 
   protected alternarSimplificado(): void {
     this.simplificado.update((v) => !v);
@@ -242,15 +255,64 @@ export class Empreita implements OnInit {
     this.store.removerItem(item.id);
   }
 
+  // ---- PDF da Empreita: popup "O que mostrar" antes de gerar (25/09/2026) ----
+  protected readonly chavesOpcoesPdf = CHAVES_OPCOES_PDF_EMPREITA;
+  protected readonly rotulosOpcoesPdf = ROTULOS_OPCOES_PDF_EMPREITA;
+  protected readonly dicasOpcoesPdf = DICAS_OPCOES_PDF_EMPREITA;
+  /** Sem nenhuma opção marcada o PDF sairia sem valores — o botão "Gerar PDF" fica desabilitado. */
+  protected readonly algumaOpcaoPdf = computed(() => CHAVES_OPCOES_PDF_EMPREITA.some((chave) => this.opcoesPdf()[chave]));
+  protected readonly pdfOpcoesAberto = signal(false);
+  protected readonly opcoesPdf = signal<OpcoesPdfEmpreita>(opcoesDoSimplificado(true));
+
+  /** Colunas visíveis da tabela no PDF (25/09/2026) — começam todas ligadas a cada abertura do popup. */
+  protected readonly colunasPdf = signal<ColunasPdfEmpreita>({ ...COLUNAS_PDF_EMPREITA_TODAS });
+  /** Só as colunas que a tela de impressão tem: Já pago/Pagamento/Saldo após pagamento exigem empreita confirmada. */
+  protected readonly colunasPdfDisponiveis = computed(() => chavesColunasDisponiveis(this.store.travada()));
+  protected rotuloColunaPdf(chave: keyof ColunasPdfEmpreita): string {
+    return rotuloColunaPdfEmpreita(chave, this.store.travada());
+  }
+
   /**
-   * Baixa o PDF da Empreita (23/08/2026) — ver EmpreitaPdfController/
-   * empreita-imprimir.ts. Mesmo padrão de `Mapa.baixarPdf()`.
+   * "⭳ Baixar PDF" agora só ABRE o popup (pedido do Lucas, 25/09/2026): as
+   * opções partem do "Simplificar" da tela — ligado, Empreiteiro/Reserva
+   * começam desmarcados —, mas mexer nelas aqui vale só pro PDF, não muda a
+   * tela.
    */
   protected baixarPdf(): void {
     this.erroPdf.set(null);
+    this.opcoesPdf.set(opcoesDoSimplificado(this.simplificado()));
+    this.colunasPdf.set({ ...COLUNAS_PDF_EMPREITA_TODAS });
+    this.pdfOpcoesAberto.set(true);
+  }
+
+  protected fecharPdfOpcoes(): void {
+    if (this.gerandoPdf()) return;
+    this.pdfOpcoesAberto.set(false);
+  }
+
+  protected alternarOpcaoPdf(chave: keyof OpcoesPdfEmpreita): void {
+    this.opcoesPdf.update((o) => ({ ...o, [chave]: !o[chave] }));
+  }
+
+  protected alternarColunaPdf(chave: keyof ColunasPdfEmpreita): void {
+    this.colunasPdf.update((c) => ({ ...c, [chave]: !c[chave] }));
+  }
+
+  /**
+   * Gera e baixa o PDF da Empreita (23/08/2026) — ver EmpreitaPdfController/
+   * empreita-imprimir.ts. Mesmo padrão de `Mapa.baixarPdf()`.
+   */
+  protected gerarPdf(): void {
+    this.erroPdf.set(null);
     this.gerandoPdf.set(true);
 
-    this.api.baixarEmpreitaPdf(this.empreitaId(), this.simplificado()).subscribe({
+    const opcoes = this.opcoesPdf();
+    const ligadas = CHAVES_OPCOES_PDF_EMPREITA.filter((chave) => opcoes[chave]);
+
+    const colunas = this.colunasPdf();
+    const colunasLigadas = this.colunasPdfDisponiveis().filter((chave) => colunas[chave]);
+
+    this.api.baixarEmpreitaPdf(this.empreitaId(), ligadas, colunasLigadas).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -259,10 +321,12 @@ export class Empreita implements OnInit {
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);
+        this.pdfOpcoesAberto.set(false);
       },
       error: () => {
         this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
         this.gerandoPdf.set(false);
+        this.pdfOpcoesAberto.set(false);
       },
     });
   }

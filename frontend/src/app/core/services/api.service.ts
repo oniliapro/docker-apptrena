@@ -439,16 +439,19 @@ export class ApiService {
    * GET /empreitas/{id}/relatorio/pdf — mesmo mecanismo acima, aplicado à
    * Empreita (23/08/2026, ver EmpreitaPdfController).
    *
-   * `simplificado` (01/09/2026, pedido do Lucas): esconde Empreiteiro/
-   * Reserva no relatório, mostrando só o Total — repassado como query
-   * param até `EmpreitaImprimir` (mesmo mecanismo de `token`/`apiUrl`,
-   * sem persistir nada).
+   * `opcoes` (25/09/2026, pedido do Lucas — antes era só `simplificado`,
+   * de 01/09/2026): as chaves LIGADAS no popup "O que mostrar no PDF"
+   * (`empreiteiro`, `reserva`, `total`, `saldos` — ver
+   * `empreita-pdf-opcoes.ts`), repassadas como query param até
+   * `EmpreitaImprimir` (mesmo mecanismo de `token`/`apiUrl`, sem persistir
+   * nada). Lista vazia é válida: nada dessas informações aparece. `colunas`
+   * (25/09/2026): as colunas da tabela de serviços que ficam visíveis.
    */
-  baixarEmpreitaPdf(empreitaId: string, simplificado = false): Observable<Blob> {
+  baixarEmpreitaPdf(empreitaId: string, opcoes: string[], colunas: string[]): Observable<Blob> {
     return this.http.get(`${this.base}/empreitas/${empreitaId}/relatorio/pdf`, {
       responseType: 'blob',
       context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
-      params: simplificado ? { simplificado: '1' } : {},
+      params: { opcoes: opcoes.join(','), colunas: colunas.join(',') },
     });
   }
 

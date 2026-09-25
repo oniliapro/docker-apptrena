@@ -64,6 +64,18 @@ export class EmpreitaRelatorioPagamentos {
   /** Itens ATUAIS da EAP (03/09/2026) — só pra rotular a etapa de cada serviço na popup de retrato. */
   readonly itensEap = input<ItemEap[]>([]);
 
+  /**
+   * O que mostrar (25/09/2026, pedido do Lucas — popup "O que mostrar" do PDF
+   * da Empreita, ver `empreita-pdf-opcoes.ts`). Tudo ligado por padrão: a
+   * tela normal não muda; só `empreita-imprimir` desliga o que o usuário
+   * desmarcou. "Total" cobre também as linhas "Contrato" e "Saldo empreita".
+   * Sem "Total", pagamentos sem valor nas parcelas marcadas (empreiteiro e/ou
+   * reserva) ficam de fora da tabela.
+   */
+  readonly mostrarEmpreiteiro = input(true);
+  readonly mostrarReserva = input(true);
+  readonly mostrarTotal = input(true);
+
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
   protected readonly tiposCusto = TIPOS_CUSTO;
@@ -110,6 +122,15 @@ export class EmpreitaRelatorioPagamentos {
         pctMedicaoAtual,
       };
     });
+  });
+
+  /** Linhas que aparecem na tabela: com "Total" (ou sem nenhuma opção) todas; senão, só as com valor nas parcelas marcadas. */
+  protected readonly linhasExibidas = computed<LinhaRelatorioPagamento[]>(() => {
+    const todas = this.linhas();
+    if (this.mostrarTotal() || (!this.mostrarEmpreiteiro() && !this.mostrarReserva())) return todas;
+    return todas.filter(
+      (l) => (this.mostrarEmpreiteiro() && Math.abs(l.empreiteiro) > 0.005) || (this.mostrarReserva() && Math.abs(l.reserva) > 0.005),
+    );
   });
 
   /**

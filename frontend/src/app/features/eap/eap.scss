@@ -632,8 +632,12 @@ li:last-child .item-obra-copiar { border-bottom: none; }
   flex-direction: column;
   gap: 8px;
 
-  label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; }
+  label { display: flex; align-items: center; justify-content: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer; }
+  input[type='checkbox'] { width: auto; height: auto; flex: none; }
 }
+
+// Popup estreito (o cartão padrão desta tela tem 920px) — usado pelo vínculo de FVS.
+.modal-cartao.estreito { width: min(460px, 94vw); }
 
 .vazio { padding: 30px 16px; }
 

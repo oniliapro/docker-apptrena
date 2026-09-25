@@ -491,7 +491,9 @@ export class EmpreitaStore {
         id: gerarId(),
         desc: '',
         eapId: '',
-        tipo: 'material',
+        // Padrão do serviço novo é Mão de obra (pedido do Lucas, 25/09/2026)
+        // — a empreita é, na prática, contratação de mão de obra.
+        tipo: 'maoDeObra',
         qtdeContratada: null,
         contratoEmp: null,
         contratoReserva: null,

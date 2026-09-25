@@ -96,7 +96,7 @@
         </button>
       }
       <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
-              title="Gera e baixa o PDF da empreita">
+              title="Escolhe o que mostrar (empreiteiro, reserva, total) e gera o PDF da empreita">
         {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
       </button>
       <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
@@ -541,6 +541,63 @@
           [pagamentos]="store.pagamentosDaEmpreita()"
           [contratoTotalEmpreita]="store.totais().valorTotal"
           [itensEap]="store.itensEap()" />
+      </div>
+    </div>
+  }
+
+  <!-- ============ PDF: o que mostrar (25/09/2026) ============ -->
+  @if (pdfOpcoesAberto()) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="fecharPdfOpcoes()"></div>
+
+      <div class="modal-cartao modal-estreito">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">PDF da empreita — o que mostrar</span>
+          <button type="button" (click)="fecharPdfOpcoes()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <p class="atenuado pequeno">
+            A escolha decide quais valores entram em cada coluna — contrato, já pago,
+            pagamento, saldo após pagamento e pagamentos registrados. Vale só para o PDF; não muda a tela.
+          </p>
+
+          <div class="titulo-opcoes-pdf">Valores</div>
+
+          <div class="opcoes-pdf">
+            @for (chave of chavesOpcoesPdf; track chave) {
+              <label class="opcao-pdf">
+                <span class="checagem-inline">
+                  <input type="checkbox" [checked]="opcoesPdf()[chave]" (change)="alternarOpcaoPdf(chave)" />
+                  {{ rotulosOpcoesPdf[chave] }}
+                </span>
+                <span class="atenuado pequeno">{{ dicasOpcoesPdf[chave] }}</span>
+              </label>
+            }
+          </div>
+
+          @if (!algumaOpcaoPdf()) {
+            <p class="aviso-erro">Marque ao menos uma opção.</p>
+          }
+
+          <div class="titulo-opcoes-pdf">Colunas visíveis</div>
+          <div class="colunas-pdf">
+            @for (chave of colunasPdfDisponiveis(); track chave) {
+              <label class="checagem-inline">
+                <input type="checkbox" [checked]="colunasPdf()[chave]" (change)="alternarColunaPdf(chave)" />
+                {{ rotuloColunaPdf(chave) }}
+              </label>
+            }
+          </div>
+          <p class="atenuado pequeno">"#" e "Serviço" sempre aparecem.</p>
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" [disabled]="gerandoPdf()" (click)="fecharPdfOpcoes()">Cancelar</button>
+          <button class="primario" type="button" [disabled]="gerandoPdf() || !algumaOpcaoPdf()" (click)="gerarPdf()">
+            {{ gerandoPdf() ? 'Gerando PDF…' : 'Gerar PDF' }}
+          </button>
+        </div>
       </div>
     </div>
   }

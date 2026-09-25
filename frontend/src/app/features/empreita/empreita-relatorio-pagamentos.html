@@ -2,7 +2,7 @@
   <div class="painel-titulo">Pagamentos registrados</div>
 </div>
 
-@if (linhas().length) {
+@if (linhasExibidas().length) {
   <table class="tabela-relatorio-pagamentos">
     <colgroup>
       <col class="col-num" />
@@ -24,7 +24,7 @@
       </tr>
     </thead>
     <tbody>
-      @for (linha of linhas(); track linha.id) {
+      @for (linha of linhasExibidas(); track linha.id) {
         <tr [class.linha-clicavel]="linha.snapshot" (click)="abrirDetalhe(linha)"
             [title]="linha.snapshot ? 'Ver o retrato completo da empreita neste pagamento' : ''">
           <td class="centro">
@@ -53,30 +53,40 @@
             }
           </td>
           <td class="celula-valor-pago">
-            <div class="linha-empilhada">
-              <span class="rotulo-empilhado">Contrato</span>
-              <span class="valor-empilhado">{{ formatarMoeda(linha.contratoTotalNoMomento) }}</span>
-            </div>
-            <div class="linha-empilhada">
-              <span class="rotulo-empilhado">Empreiteiro</span>
-              <span class="valor-empilhado">{{ formatarMoeda(linha.empreiteiro) }}</span>
-            </div>
-            <div class="linha-empilhada">
-              <span class="rotulo-empilhado">Reserva</span>
-              <span class="valor-empilhado">{{ formatarMoeda(linha.reserva) }}</span>
-            </div>
-            <div class="linha-empilhada">
-              <span class="rotulo-empilhado">Saldo empreita</span>
-              <span class="valor-empilhado"
-                    [class.saldo-positivo]="linha.saldoEmpreita >= 0"
-                    [class.saldo-negativo]="linha.saldoEmpreita < 0">
-                {{ formatarMoeda(linha.saldoEmpreita) }}
-              </span>
-            </div>
-            <div class="linha-empilhada destaque">
-              <span class="rotulo-empilhado">Total</span>
-              <span class="valor-empilhado">{{ formatarMoeda(linha.total) }}</span>
-            </div>
+            @if (mostrarTotal()) {
+              <div class="linha-empilhada">
+                <span class="rotulo-empilhado">Contrato</span>
+                <span class="valor-empilhado">{{ formatarMoeda(linha.contratoTotalNoMomento) }}</span>
+              </div>
+            }
+            @if (mostrarEmpreiteiro()) {
+              <div class="linha-empilhada">
+                <span class="rotulo-empilhado">Empreiteiro</span>
+                <span class="valor-empilhado">{{ formatarMoeda(linha.empreiteiro) }}</span>
+              </div>
+            }
+            @if (mostrarReserva()) {
+              <div class="linha-empilhada">
+                <span class="rotulo-empilhado">Reserva</span>
+                <span class="valor-empilhado">{{ formatarMoeda(linha.reserva) }}</span>
+              </div>
+            }
+            @if (mostrarTotal()) {
+              <div class="linha-empilhada">
+                <span class="rotulo-empilhado">Saldo empreita</span>
+                <span class="valor-empilhado"
+                      [class.saldo-positivo]="linha.saldoEmpreita >= 0"
+                      [class.saldo-negativo]="linha.saldoEmpreita < 0">
+                  {{ formatarMoeda(linha.saldoEmpreita) }}
+                </span>
+              </div>
+            }
+            @if (mostrarTotal()) {
+              <div class="linha-empilhada destaque">
+                <span class="rotulo-empilhado">Total</span>
+                <span class="valor-empilhado">{{ formatarMoeda(linha.total) }}</span>
+              </div>
+            }
           </td>
         </tr>
       }
@@ -85,30 +95,40 @@
       <tr>
         <th colspan="4" class="rotulo-rodape">TOTAIS</th>
         <th class="celula-valor-pago">
-          <div class="linha-empilhada">
-            <span class="rotulo-empilhado">Empreiteiro</span>
-            <span class="valor-empilhado">{{ formatarMoeda(totalEmpreiteiro()) }}</span>
-          </div>
-          <div class="linha-empilhada">
-            <span class="rotulo-empilhado">Reserva</span>
-            <span class="valor-empilhado">{{ formatarMoeda(totalReserva()) }}</span>
-          </div>
-          <div class="linha-empilhada">
-            <span class="rotulo-empilhado">Saldo empreita</span>
-            <span class="valor-empilhado"
-                  [class.saldo-positivo]="saldoEmpreitaFinal() >= 0"
-                  [class.saldo-negativo]="saldoEmpreitaFinal() < 0">
-              {{ formatarMoeda(saldoEmpreitaFinal()) }}
-            </span>
-          </div>
-          <div class="linha-empilhada destaque">
-            <span class="rotulo-empilhado">Total</span>
-            <span class="valor-empilhado">{{ formatarMoeda(totalPago()) }}</span>
-          </div>
+          @if (mostrarEmpreiteiro()) {
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Empreiteiro</span>
+              <span class="valor-empilhado">{{ formatarMoeda(totalEmpreiteiro()) }}</span>
+            </div>
+          }
+          @if (mostrarReserva()) {
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Reserva</span>
+              <span class="valor-empilhado">{{ formatarMoeda(totalReserva()) }}</span>
+            </div>
+          }
+          @if (mostrarTotal()) {
+            <div class="linha-empilhada">
+              <span class="rotulo-empilhado">Saldo empreita</span>
+              <span class="valor-empilhado"
+                    [class.saldo-positivo]="saldoEmpreitaFinal() >= 0"
+                    [class.saldo-negativo]="saldoEmpreitaFinal() < 0">
+                {{ formatarMoeda(saldoEmpreitaFinal()) }}
+              </span>
+            </div>
+          }
+          @if (mostrarTotal()) {
+            <div class="linha-empilhada destaque">
+              <span class="rotulo-empilhado">Total</span>
+              <span class="valor-empilhado">{{ formatarMoeda(totalPago()) }}</span>
+            </div>
+          }
         </th>
       </tr>
     </tfoot>
   </table>
+} @else if (linhas().length) {
+  <p class="atenuado pequeno">Nenhum pagamento com valor nas opções marcadas.</p>
 } @else {
   <p class="atenuado pequeno">Nenhum pagamento lançado desta empreita ainda.</p>
 }
