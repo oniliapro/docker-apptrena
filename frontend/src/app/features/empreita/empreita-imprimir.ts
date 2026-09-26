@@ -189,24 +189,18 @@ export class EmpreitaImprimir implements OnInit {
     return this.moedaOuVazio(this.linha(indice).jaPago.reserva);
   }
 
-  protected numDivergencia(indice: number): number {
-    return this.linha(indice).jaPago.divergencia;
-  }
-
-  protected valorJaPagoDivergencia(indice: number): string {
-    return this.moedaOuVazio(this.numDivergencia(indice));
-  }
-
   protected valorJaPagoTotal(indice: number): string {
     return this.moedaOuVazio(this.linha(indice).jaPago.total);
   }
 
-  protected valorMedido(indice: number): string {
-    return this.moedaOuVazio(this.linha(indice).medido);
+  /** Só "Total" marcado (sem Empreiteiro) = mesma regra da tela simplificada: Medido sobre o total do contrato. */
+  protected medidoUsaTotalDoContrato(): boolean {
+    return this.opcoes().total && !this.opcoes().empreiteiro;
   }
 
-  protected numMedido(indice: number): number {
-    return this.linha(indice).medido;
+  protected valorMedido(indice: number): string {
+    const linha = this.linha(indice);
+    return this.moedaOuVazio(this.medidoUsaTotalDoContrato() ? linha.medidoContrato : linha.medido);
   }
 
   protected valorPagamentoDraftExibido(indice: number, campo: 'pagamentoEmpDraft' | 'pagamentoReservaDraft'): string {
@@ -215,6 +209,24 @@ export class EmpreitaImprimir implements OnInit {
 
   protected valorPagamentoDraftTotal(indice: number): string {
     return this.moedaOuVazio(this.linha(indice).pagamentoDraftTotal);
+  }
+
+  protected numDisponivel(indice: number): number {
+    const linha = this.linha(indice);
+    return this.medidoUsaTotalDoContrato() ? linha.disponivelContrato : linha.disponivelEmp;
+  }
+
+  protected totalDisponivel(): number {
+    const totais = this.store.totaisEstendidos();
+    return this.medidoUsaTotalDoContrato() ? totais.disponivelContratoTotal : totais.disponivelEmpTotal;
+  }
+
+  protected numSaldoMedicao(indice: number): number {
+    return this.linha(indice).saldoMedicao;
+  }
+
+  protected totalSaldoMedicao(): number {
+    return this.store.totaisEstendidos().saldoMedicaoTotal;
   }
 
   protected valorSaldoAposPagamentoEtapa(indice: number): number {

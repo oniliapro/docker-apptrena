@@ -12,6 +12,7 @@ import { ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { ItemPagamentoCalculado, Pagamento } from '../pagamentos/pagamentos.models';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -58,13 +59,15 @@ const CHAVES_TIPO = new Set(TIPOS_CUSTO.map((t) => t.chave));
  */
 @Component({
   selector: 'app-cronograma-desembolso',
-  imports: [RedimensionarColunas],
-  providers: [EapStore, PagamentosStore],
+  imports: [RedimensionarColunas, FormulaCampo],
+  providers: [EapStore, PagamentosStore, FormulasContexto],
   templateUrl: './cronograma-desembolso.html',
   styleUrl: './cronograma-desembolso.scss',
 })
 export class CronogramaDesembolso implements OnInit {
   protected readonly eap = inject(EapStore);
+  /** Fórmulas guardadas dos campos de valor (ver `formulas-guardadas.ts`). */
+  private readonly formulas = inject(FormulasContexto);
   protected readonly pagamentosStore = inject(PagamentosStore);
   private readonly api = inject(ApiService);
   protected readonly formatarMoeda = formatarMoeda;
@@ -97,6 +100,7 @@ export class CronogramaDesembolso implements OnInit {
 
   ngOnInit(): void {
     this.eap.carregar(this.obraId());
+    this.formulas.definir('cronograma.' + this.obraId());
     this.pagamentosStore.carregar(this.obraId());
     this.carregarObra();
     this.carregarPlanejamentos();

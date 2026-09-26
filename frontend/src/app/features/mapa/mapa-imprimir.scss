@@ -144,15 +144,17 @@
   // reticências de `td.etapa`/`td.tipo` abaixo, pro caso de um valor
   // ainda mais comprido no futuro.
   .col-unid { width: 52px; }
-  .col-desc { width: 15%; }
+  .col-desc { width: 19%; }
   // Tipo alargada / Etapa encolhida (23/08/2026, pedido do Lucas —
   // "tipo tá saindo com o texto quebrado... aumente um pouco a largura
   // dessa coluna pra caber as palavras 'equipamento' e 'administração'"):
   // 6% não cabia "ADMINISTRAÇÃO" (a maior das opções de Tipo) numa linha
   // só; a Etapa já é cortada com reticências (ver `td.etapa` abaixo), tem
   // folga pra ceder um pouco sem prejuízo.
-  .col-tipo { width: 9%; }
-  .col-etapa { width: 9%; }
+  .col-tipo { width: 8%; }
+  // 26/09/2026: a etapa ("0.2 - REMOÇÃO DE ÁRVORES", em geral o texto mais longo da linha)
+  // saía cortada com reticências numa coluna de 9% — alargada e liberada pra quebrar em até 3 linhas.
+  .col-etapa { width: 17%; }
   // Colunas de fornecedor não têm `width` — dividem entre si o que
   // sobra, em partes iguais, por causa do `table-layout: fixed` acima.
 
@@ -165,10 +167,10 @@
   // extenso no "Rateio por etapa da obra", perto dali), em vez de deixar
   // o texto quebrar.
   td.etapa {
-    font-size: 9.5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 9px;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   // Mesmo tratamento pra "Tipo" (observação 1, 23/08/2026) — mesmo com a

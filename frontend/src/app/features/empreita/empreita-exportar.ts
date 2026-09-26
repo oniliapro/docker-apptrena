@@ -42,7 +42,6 @@ export interface LinhaExportEmpreita {
   reservar: number;
   jaPagoEmpreiteiro: number;
   jaPagoReserva: number;
-  jaPagoDivergencia: number;
   medido: number;
 }
 
@@ -69,10 +68,9 @@ export async function exportarEmpreitaXlsx(
     { header: '% Avanço', key: 'avanco', width: 12 },
     { header: 'A pagar (R$)', key: 'pagar', width: 14 },
     { header: 'A reservar (R$)', key: 'reservar', width: 14 },
-    { header: 'Já pago — Empreiteiro (R$)', key: 'jaPagoEmpreiteiro', width: 20 },
-    { header: 'Já pago — Reserva (R$)', key: 'jaPagoReserva', width: 18 },
-    { header: 'Divergência (R$)', key: 'jaPagoDivergencia', width: 16 },
-    { header: 'Medido (R$)', key: 'medido', width: 14 },
+    { header: 'Anterior — Empreiteiro (R$)', key: 'jaPagoEmpreiteiro', width: 20 },
+    { header: 'Anterior — Reserva (R$)', key: 'jaPagoReserva', width: 18 },
+    { header: 'Medição (R$)', key: 'medido', width: 14 },
   ];
 
   planilha.getRow(1).eachCell((celula) => {
@@ -98,7 +96,6 @@ export async function exportarEmpreitaXlsx(
       reservar: linha.reservar || '',
       jaPagoEmpreiteiro: linha.jaPagoEmpreiteiro || '',
       jaPagoReserva: linha.jaPagoReserva || '',
-      jaPagoDivergencia: linha.jaPagoDivergencia || '',
       medido: linha.medido || '',
     });
 
@@ -122,7 +119,6 @@ export async function exportarEmpreitaXlsx(
     reservar: totais.reservarPgto || '',
     jaPagoEmpreiteiro: totais.jaPagoEmpreiteiro || '',
     jaPagoReserva: totais.jaPagoReserva || '',
-    jaPagoDivergencia: totais.jaPagoDivergencia || '',
     medido: totais.medidoTotal || '',
   });
   linhaTotal.eachCell((celula) => {

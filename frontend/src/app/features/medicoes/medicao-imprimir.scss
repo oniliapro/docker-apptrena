@@ -57,13 +57,16 @@ table {
   border-collapse: collapse;
 }
 
-.col-descricao { width: 15%; min-width: 0; }
+// 26/09/2026: descrição (etapa da EAP) em 15% quebrava em até 8 linhas e chegava a invadir a coluna do lado.
+.col-descricao { width: 23%; min-width: 0; }
 // `.col-tipo`/`.col-tipo-total`/`.col-resultado` sem width própria — o
 // que sobra depois da Descrição se divide entre elas por causa do
 // `table-layout: fixed` acima (Resultado um pouco mais larga por ter a
 // barra, ajustada pelo `flex-grow` implícito do fixed não existir —
 // então uma largura mínima maior aqui mesmo).
-.col-resultado { width: 15%; }
+.col-resultado { width: 13%; }
+
+.celula-descricao .recuo { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 
 .celula-descricao, .celula-medicao, .celula-resultado, .celula-total-categorias {
   min-width: 0;

@@ -546,9 +546,62 @@ export class EmpreitaStore {
     this.salvar();
   }
 
-  /** Só "Atual" — "Acumulado" é preenchido pelo sistema em `avancarPeriodo()`, nunca pelo usuário. */
+  /**
+   * "Realizar medição" (26/09/2026, pedido do Lucas): a medição atual de cada serviço nasce IGUAL à
+   * acumulada — só se o usuário ainda não digitou nada —, pra evitar regressos de medição sem querer.
+   */
+  preencherMedicaoAtualComAcumulada(): void {
+    this.itens.update((lista) =>
+      lista.map((item) =>
+        item.medicaoAtual === null || item.medicaoAtual === undefined
+          ? { ...item, medicaoAtual: Number(item.medicaoAcum) || 0 }
+          : item,
+      ),
+    );
+    this.salvar();
+  }
+
+  /** Relê os pagamentos desta empreita (usado depois de editar/apagar medições no popup de Pagamentos registrados). */
+  recarregarPagamentos(): void {
+    this.carregarPagamentos(this.obraIdAtual, this.empreitaId);
+  }
+
+  /**
+   * Editar/apagar uma medição antiga desloca o acumulado ATUAL de cada serviço (26/09/2026): soma o
+   * deslocamento em `medicaoAcum` e, quando há uma medição em andamento, também em `medicaoAtual`
+   * (o avanço em andamento é preservado). O pré-preenchimento do pagamento em andamento é refeito.
+   */
+  aplicarDeslocamentoDeMedicao(deslocamentos: Map<string, number>): void {
+    if (!deslocamentos.size) return;
+    const limitar = (v: number) => Math.min(100, Math.max(0, Math.round(v * 1e6) / 1e6));
+    this.itens.update((lista) =>
+      lista.map((item) => {
+        const delta = deslocamentos.get(item.id);
+        if (!delta) return item;
+        return {
+          ...item,
+          medicaoAcum: limitar((Number(item.medicaoAcum) || 0) + delta),
+          medicaoAtual:
+            item.medicaoAtual === null || item.medicaoAtual === undefined ? null : limitar(Number(item.medicaoAtual) + delta),
+          pagamentoEmp: null,
+          pagamentoReserva: null,
+        };
+      }),
+    );
+    this.salvar();
+  }
+
+  /**
+   * Só "Atual" — "Acumulado" é preenchido pelo sistema em `avancarPeriodo()`, nunca pelo usuário.
+   * Mudar a medição atual refaz o pré-preenchimento do Pagamento (empreiteiro e reserva): os valores
+   * digitados à mão para este serviço são descartados (26/09/2026, pedido do Lucas).
+   */
   atualizarMedicao(id: string, campo: 'medicaoAtual', valor: number | null): void {
-    this.itens.update((lista) => lista.map((item) => (item.id === id ? { ...item, [campo]: valor } : item)));
+    this.itens.update((lista) =>
+      lista.map((item) =>
+        item.id === id ? { ...item, [campo]: valor, pagamentoEmp: null, pagamentoReserva: null } : item,
+      ),
+    );
     this.salvar();
   }
 
@@ -732,7 +785,7 @@ export class EmpreitaStore {
           modoValor: 'valor',
           parcela: 'empreiteiro',
           empreitaItemId: item.id,
-          valorReferencia: Number(linha.pagar) || 0,
+          valorReferencia: Number(linha.pagamentoEmpDraft) || 0,
         });
         valorTotal += emp;
       }
@@ -746,7 +799,7 @@ export class EmpreitaStore {
           modoValor: 'valor',
           parcela: 'reserva',
           empreitaItemId: item.id,
-          valorReferencia: Number(linha.reservar) || 0,
+          valorReferencia: Number(linha.pagamentoReservaDraft) || 0,
         });
         valorTotal += reserva;
       }

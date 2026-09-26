@@ -1,0 +1,252 @@
+<div class="agenda">
+  <!-- ============ Barra: novo, navegação, filtros e visões ============ -->
+  <header class="agenda-barra">
+    <div class="agenda-nav">
+      <button type="button" class="primario" (click)="novoAgora()">+ Novo compromisso</button>
+      <button type="button" (click)="irParaHoje()">Hoje</button>
+      <button type="button" class="seta" (click)="mover(-1)" title="Anterior" aria-label="Anterior">‹</button>
+      <button type="button" class="seta" (click)="mover(1)" title="Próximo" aria-label="Próximo">›</button>
+      <h2 class="agenda-titulo">{{ titulo() }}</h2>
+    </div>
+
+    <div class="agenda-filtros">
+      @if (!naObra()) {
+        <select [value]="filtroObra()" (change)="mudarFiltroObra($event)" title="Filtrar por obra">
+          <option value="" [selected]="!filtroObra()">Todas as obras</option>
+          @for (obra of obras(); track obra.id) {
+            <option [value]="obra.id" [selected]="obra.id === filtroObra()">{{ obra.obra_nome || obra.map_number || '(obra sem nome)' }}</option>
+          }
+        </select>
+      }
+      <label class="checagem-inline" title="Só os compromissos que você criou ou em que foi marcado">
+        <input type="checkbox" [checked]="somenteMeus()" (change)="alternarMeus($event)" />
+        Só os meus
+      </label>
+
+      <div class="seletor-visao" role="group" aria-label="Visão">
+        <button type="button" [class.ativo]="visao() === 'mes'" (click)="mudarVisao('mes')">Mês</button>
+        <button type="button" [class.ativo]="visao() === 'semana'" (click)="mudarVisao('semana')">Semana</button>
+        <button type="button" [class.ativo]="visao() === 'dia'" (click)="mudarVisao('dia')">Dia</button>
+      </div>
+    </div>
+  </header>
+
+  @if (erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <!-- ============ Visão MÊS ============ -->
+  @if (visao() === 'mes') {
+    <div class="mes" [class.carregando]="carregando()">
+      <div class="mes-cabecalho">
+        @for (nome of nomesDias; track nome) {
+          <div>{{ nome }}</div>
+        }
+      </div>
+      @for (semana of semanas(); track semana[0]) {
+        <div class="mes-semana">
+          @for (dia of semana; track dia) {
+            <div class="mes-dia" [class.fora]="!doMes(dia)" [class.hoje]="dia === hoje"
+                 (click)="novoNoDia(dia)" title="Clique para marcar um compromisso neste dia">
+              <button type="button" class="mes-numero" (click)="abrirDia(dia); $event.stopPropagation()"
+                      title="Abrir o dia">{{ numeroDoDia(dia) }}</button>
+              @for (e of chipsDoMes(dia); track e.id) {
+                <button type="button" class="chip" [class.dia-inteiro]="e.diaInteiro"
+                        [style.--cor-evento]="cor(e)" [title]="dicaDoEvento(e)"
+                        (click)="abrirEvento(e, $event)">
+                  @if (!e.diaInteiro) {
+                    <span class="chip-hora">{{ hora(e.inicio) }}</span>
+                  }
+                  <span class="chip-titulo">{{ e.titulo }}</span>
+                </button>
+              }
+              @if (excedenteDoMes(dia) > 0) {
+                <button type="button" class="mais" (click)="abrirDia(dia); $event.stopPropagation()">
+                  +{{ excedenteDoMes(dia) }} mais
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- ============ Visões SEMANA e DIA: grade de horas ============ -->
+    <div class="grade" [class.carregando]="carregando()" [class.um-dia]="visao() === 'dia'">
+      <div class="grade-cabecalho">
+        <div class="grade-canto"></div>
+        @for (dia of dias(); track dia) {
+          <button type="button" class="grade-dia-titulo" [class.hoje]="dia === hoje"
+                  (click)="abrirDia(dia)" title="Abrir o dia">{{ rotuloDoDia(dia) }}</button>
+        }
+      </div>
+
+      @if (temDiaInteiro()) {
+        <div class="grade-diainteiro">
+          <div class="grade-canto">dia todo</div>
+          @for (dia of dias(); track dia) {
+            <div class="grade-coluna-diainteiro">
+              @for (e of eventosDiaInteiro(dia); track e.id) {
+                <button type="button" class="chip dia-inteiro" [style.--cor-evento]="cor(e)"
+                        [title]="dicaDoEvento(e)" (click)="abrirEvento(e, $event)">
+                  <span class="chip-titulo">{{ e.titulo }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <div class="grade-corpo" #corpo>
+        <div class="grade-horas">
+          @for (h of horas; track h) {
+            <div class="grade-hora" [style.height.px]="pxPorHora"><span>{{ h }}:00</span></div>
+          }
+        </div>
+        @for (dia of dias(); track dia) {
+          <div class="grade-coluna" [class.hoje]="dia === hoje" [style.height.px]="alturaDoDia"
+               (click)="novoNaGrade(dia, $event)" title="Clique para marcar um compromisso neste horário">
+            @if (dia === hoje) {
+              <div class="agora" [style.top.px]="linhaDoAgora()"></div>
+            }
+            @for (fatia of fatias(dia); track fatia.evento.id) {
+              <button type="button" class="bloco" [style]="estiloDaFatia(fatia)" [title]="dicaDoEvento(fatia.evento)"
+                      (click)="abrirEvento(fatia.evento, $event)">
+                <span class="bloco-titulo">{{ fatia.evento.titulo }}</span>
+                <span class="bloco-hora">{{ quando(fatia.evento) }}</span>
+                @if (fatia.evento.obraNome) {
+                  <span class="bloco-obra">{{ fatia.evento.obraNome }}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ============ Popup do compromisso ============ -->
+  @if (rascunho(); as r) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="fecharPopup()"></div>
+
+      <div class="modal-cartao">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">{{ !r.id ? 'Novo compromisso' : r.podeEditar ? 'Editar compromisso' : 'Compromisso' }}</span>
+          <button type="button" (click)="fecharPopup()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <label class="campo">
+            <span>Título</span>
+            <input type="text" maxlength="200" placeholder="Ex.: Visita técnica, reunião com o cliente…"
+                   [value]="r.titulo" [disabled]="!r.podeEditar" (input)="editarCampo('titulo', $event)" />
+          </label>
+
+          <label class="checagem-inline">
+            <input type="checkbox" [checked]="r.diaInteiro" [disabled]="!r.podeEditar" (change)="alternarDiaInteiro($event)" />
+            Dia inteiro
+          </label>
+
+          <div class="linha-datas">
+            <label class="campo">
+              <span>Início</span>
+              <input type="date" [value]="r.dataInicio" [disabled]="!r.podeEditar" (change)="editarCampo('dataInicio', $event)" />
+            </label>
+            @if (!r.diaInteiro) {
+              <label class="campo campo-hora">
+                <span>Hora</span>
+                <input type="time" [value]="r.horaInicio" [disabled]="!r.podeEditar" (change)="editarCampo('horaInicio', $event)" />
+              </label>
+            }
+            <label class="campo">
+              <span>Fim</span>
+              <input type="date" [value]="r.dataFim" [min]="r.dataInicio" [disabled]="!r.podeEditar" (change)="editarCampo('dataFim', $event)" />
+            </label>
+            @if (!r.diaInteiro) {
+              <label class="campo campo-hora">
+                <span>Hora</span>
+                <input type="time" [value]="r.horaFim" [disabled]="!r.podeEditar" (change)="editarCampo('horaFim', $event)" />
+              </label>
+            }
+          </div>
+
+          @if (!naObra()) {
+            <label class="campo">
+              <span>Obra</span>
+              <select [value]="r.obraId" [disabled]="!r.podeEditar" (change)="escolherObra($event)">
+                <option value="" [selected]="!r.obraId">Geral (sem obra)</option>
+                @for (obra of obras(); track obra.id) {
+                  <option [value]="obra.id" [selected]="obra.id === r.obraId">{{ obra.obra_nome || obra.map_number || '(obra sem nome)' }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          <label class="campo">
+            <span>Local</span>
+            <input type="text" maxlength="200" placeholder="Endereço, sala, link da reunião…"
+                   [value]="r.local" [disabled]="!r.podeEditar" (input)="editarCampo('local', $event)" />
+          </label>
+
+          <label class="campo">
+            <span>Descrição</span>
+            <textarea rows="3" [value]="r.descricao" [disabled]="!r.podeEditar" (input)="editarCampo('descricao', $event)"></textarea>
+          </label>
+
+          <div class="campo">
+            <span>Participantes ({{ r.participantes.length }})</span>
+            @if (r.podeEditar) {
+              @if (usuarios().length > 6) {
+                <input type="text" class="busca-participante" placeholder="Buscar usuário…"
+                       [value]="buscaParticipante()" (input)="mudarBusca($event)" />
+              }
+              <div class="lista-participantes">
+                @for (u of usuariosFiltrados(); track u.id) {
+                  <label class="participante">
+                    <input type="checkbox" [checked]="participa(u.id)" (change)="alternarParticipante(u.id)" />
+                    {{ u.nome }}
+                  </label>
+                } @empty {
+                  <span class="atenuado">Nenhum usuário encontrado.</span>
+                }
+              </div>
+            } @else {
+              <div class="lista-participantes somente-leitura">
+                @for (u of usuarios(); track u.id) {
+                  @if (participa(u.id)) {
+                    <span class="participante-etiqueta">{{ u.nome }}</span>
+                  }
+                } @empty {
+                  <span class="atenuado">Ninguém marcado.</span>
+                }
+              </div>
+            }
+          </div>
+
+          @if (r.criadoPorNome) {
+            <p class="atenuado pequeno">Criado por {{ r.criadoPorNome }}.
+              @if (!r.podeEditar) { Só quem criou (ou o administrador) altera este compromisso. }
+            </p>
+          }
+
+          @if (erroPopup(); as mensagem) {
+            <div class="aviso-erro">{{ mensagem }}</div>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          @if (r.id && r.podeEditar) {
+            <button type="button" class="perigo esquerda" (click)="excluirPopup()">Excluir</button>
+          }
+          <button type="button" (click)="fecharPopup()">{{ r.podeEditar ? 'Cancelar' : 'Fechar' }}</button>
+          @if (r.podeEditar) {
+            <button type="button" class="primario" [disabled]="salvando()" (click)="salvarPopup()">
+              {{ salvando() ? 'Salvando…' : 'Salvar' }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

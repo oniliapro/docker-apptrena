@@ -200,6 +200,7 @@
                     </button>
                     <input type="text" class="valor" [disabled]="store.aprovada()"
                            [value]="valorCelula(item, tipo.chave)"
+                           [appFormulaCampo]="'i.' + item.id + '.' + tipo.chave"
                            (change)="editarCelula(item, tipo.chave, $event)" />
                   </div>
 

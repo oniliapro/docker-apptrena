@@ -43,7 +43,7 @@
         <span>Unidade do período</span>
         <select [value]="unidadePeriodo()" (change)="mudarUnidadePeriodo($event)">
           @for (u of unidadesPeriodo; track u.chave) {
-            <option [value]="u.chave">{{ u.rotulo }}</option>
+            <option [value]="u.chave" [selected]="u.chave === unidadePeriodo()">{{ u.rotulo }}</option>
           }
         </select>
       </label>
@@ -229,6 +229,7 @@
                 </button>
                 <input type="text" class="valor" [disabled]="salvandoPlanejamento()"
                        [value]="valorPlanejadoExibido(aberto.item, tipo.chave)"
+                       [appFormulaCampo]="'pl.' + aberto.item.id + '.' + aberto.periodo.chave + '.' + tipo.chave + '.' + unidadePlanejamento(tipo.chave)"
                        (change)="salvarPlanejamentoPorTipo(aberto.item, tipo.chave, $event)" />
               </div>
             }

@@ -82,11 +82,14 @@
   th { padding: 3px 4px; font-size: 9px; }
   td { padding: 2px 4px; font-size: 9.5px; }
 
+  // 26/09/2026: a descrição (etapa da EAP) é o texto mais longo da folha e quebrava em 4-5
+  // linhas com 16%; o código do item e a unidade ("DIÁRIA") também quebravam. Larguras
+  // revistas: mais espaço pra descrição, código e unidade sempre numa linha só.
   .col-nivel { width: 26px; }
-  .col-eap { width: 40px; }
-  .col-descricao { width: 16%; min-width: 0; }
-  .col-qtde { width: 32px; }
-  .col-unid { width: 32px; }
+  .col-eap { width: 50px; }
+  .col-descricao { width: 21%; min-width: 0; }
+  .col-qtde { width: 36px; }
+  .col-unid { width: 46px; }
   // `.col-tipo` sem width própria — as colunas de categoria/total
   // dividem entre si o que sobra, em partes iguais, por causa do fixed
   // acima.
@@ -113,6 +116,17 @@
   flex-wrap: wrap;
 }
 
+// 26/09/2026: rótulo (REAL./ORÇ.) e valor ficam na MESMA linha — o rótulo pequeno e o valor
+// em 9px cabem na coluna; com o rótulo quebrando pra linha de cima cada linha da tabela ficava
+// com o dobro da altura (o PDF da EAP ganhava ~30% de páginas).
+.tabela-eap .celula-orc-real .linha-real, .tabela-eap .celula-orc-real .linha-orc {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.tabela-eap .celula-orc-real .rotulo-real, .tabela-eap .celula-orc-real .rotulo-orc { font-size: 6.5px; }
+.tabela-eap .celula-orc-real .valor-orc, .tabela-eap .celula-orc-real .valor-orc b { font-size: 9px; white-space: nowrap; }
+
 .valor-real, .valor-orc, .valor-custo {
   white-space: nowrap;
 }
@@ -120,6 +134,9 @@
 .linha-unit, .linha-total { grid-template-columns: 30px 1fr; }
 
 th, td { overflow-wrap: break-word; }
+
+// Código do item (1.10.2) e unidade nunca quebram.
+.tabela-eap td.indice, .tabela-eap td.centro { white-space: nowrap; }
 
 thead { display: table-header-group; }
 tr { page-break-inside: avoid; }

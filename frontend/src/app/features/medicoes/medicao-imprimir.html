@@ -16,75 +16,72 @@
     </span>
   </h1>
 
-  <!-- ============ Dashboard ============ -->
-  <div class="painel dashboard-medicao">
-    @for (tipo of tipos; track tipo.chave) {
-      <div class="grupo-dashboard">
-        <span class="grupo-dashboard-titulo">{{ tipo.rotulo }}</span>
-        <div class="linha-dashboard">
-          <div class="stat-tile">
-            <span class="stat-rotulo">Orçado</span>
-            <span class="stat-valor">{{ formatarMoeda(store.totalOrcadoPorTipo(tipo.chave)) }}</span>
-          </div>
-          <div class="stat-tile">
-            <span class="stat-rotulo">Acumulado</span>
-            <span class="stat-valor">{{ formatarMoeda(store.totalAcumuladoPorTipoRS(tipo.chave)) }}</span>
-            <span class="stat-percentual">{{ formatarPercentual(store.pctAcumuladoPorTipo(tipo.chave)) }}</span>
-          </div>
-          <div class="stat-tile">
-            <span class="stat-rotulo">Nova medição</span>
-            <span class="stat-valor">{{ formatarMoeda(store.totalNovaPorTipoRS(tipo.chave)) }}</span>
-            <span class="stat-percentual">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
-          </div>
-          <div class="stat-tile">
-            <span class="stat-rotulo">Avanço</span>
-            <span class="stat-valor stat-avanco">{{ formatarMoeda(store.totalAvancoPorTipoRS(tipo.chave)) }}</span>
-            <span class="stat-percentual stat-avanco">{{ formatarPercentual(store.pctAvancoPorTipo(tipo.chave)) }}</span>
-          </div>
-          <div class="stat-tile stat-tile-barra">
-            <span class="stat-rotulo">Progresso</span>
-            <div class="barra barra-dupla">
-              <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctNovaPorTipo(tipo.chave))"></div>
-              <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctAcumuladoPorTipo(tipo.chave))"></div>
-              <span class="percentual">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
+  <!-- ============ Dashboard — tabela compacta, a mesma da tela (26/09/2026: o PDF ainda tinha o desenho antigo em cards, sem estilo) ============ -->
+  <div class="painel sem-preenchimento dashboard-medicao">
+    <table class="tabela-dashboard-medicao">
+      <thead>
+        <tr>
+          <th class="col-categoria">Categoria</th>
+          <th>Orçado</th>
+          <th>Acumulado</th>
+          <th>Nova medição</th>
+          <th>Avanço</th>
+          <th class="col-progresso">Progresso</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tipo of tipos; track tipo.chave) {
+          <tr>
+            <td class="col-categoria">{{ tipo.rotulo }}</td>
+            <td class="valor-dash">{{ formatarMoeda(store.totalOrcadoPorTipo(tipo.chave)) }}</td>
+            <td class="valor-dash">
+              {{ formatarMoeda(store.totalAcumuladoPorTipoRS(tipo.chave)) }}
+              <span class="pct-dash">{{ formatarPercentual(store.pctAcumuladoPorTipo(tipo.chave)) }}</span>
+            </td>
+            <td class="valor-dash">
+              {{ formatarMoeda(store.totalNovaPorTipoRS(tipo.chave)) }}
+              <span class="pct-dash">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
+            </td>
+            <td class="valor-dash stat-avanco">
+              {{ formatarMoeda(store.totalAvancoPorTipoRS(tipo.chave)) }}
+              <span class="pct-dash stat-avanco">{{ formatarPercentual(store.pctAvancoPorTipo(tipo.chave)) }}</span>
+            </td>
+            <td class="col-progresso">
+              <div class="barra barra-dupla barra-compacta">
+                <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctNovaPorTipo(tipo.chave))"></div>
+                <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctAcumuladoPorTipo(tipo.chave))"></div>
+                <span class="percentual">{{ formatarPercentual(store.pctNovaPorTipo(tipo.chave)) }}</span>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr class="linha-geral">
+          <td class="col-categoria">Geral</td>
+          <td class="valor-dash">{{ formatarMoeda(store.totalOrcadoGeral()) }}</td>
+          <td class="valor-dash">
+            {{ formatarMoeda(store.totalAcumuladoGeralRS()) }}
+            <span class="pct-dash">{{ formatarPercentual(store.pctTotalAcumuladoGeral()) }}</span>
+          </td>
+          <td class="valor-dash">
+            {{ formatarMoeda(store.totalNovaGeralRS()) }}
+            <span class="pct-dash">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
+          </td>
+          <td class="valor-dash stat-avanco">
+            {{ formatarMoeda(store.totalAvancoGeralRS()) }}
+            <span class="pct-dash stat-avanco">{{ formatarPercentual(store.pctAvancoGeral()) }}</span>
+          </td>
+          <td class="col-progresso">
+            <div class="barra barra-dupla barra-compacta">
+              <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctTotalGeral())"></div>
+              <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctTotalAcumuladoGeral())"></div>
+              <span class="percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
             </div>
-          </div>
-        </div>
-      </div>
-    }
-
-    <div class="grupo-dashboard">
-      <span class="grupo-dashboard-titulo">Geral</span>
-      <div class="linha-dashboard">
-        <div class="stat-tile">
-          <span class="stat-rotulo">Orçado</span>
-          <span class="stat-valor">{{ formatarMoeda(store.totalOrcadoGeral()) }}</span>
-        </div>
-        <div class="stat-tile">
-          <span class="stat-rotulo">Acumulado</span>
-          <span class="stat-valor">{{ formatarMoeda(store.totalAcumuladoGeralRS()) }}</span>
-          <span class="stat-percentual">{{ formatarPercentual(store.pctTotalAcumuladoGeral()) }}</span>
-        </div>
-        <div class="stat-tile">
-          <span class="stat-rotulo">Nova medição</span>
-          <span class="stat-valor">{{ formatarMoeda(store.totalNovaGeralRS()) }}</span>
-          <span class="stat-percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
-        </div>
-        <div class="stat-tile">
-          <span class="stat-rotulo">Avanço</span>
-          <span class="stat-valor stat-avanco">{{ formatarMoeda(store.totalAvancoGeralRS()) }}</span>
-          <span class="stat-percentual stat-avanco">{{ formatarPercentual(store.pctAvancoGeral()) }}</span>
-        </div>
-        <div class="stat-tile stat-tile-barra">
-          <span class="stat-rotulo">Progresso geral</span>
-          <div class="barra barra-dupla">
-            <div class="preenchimento-total" [style.width.%]="larguraBarra(store.pctTotalGeral())"></div>
-            <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(store.pctTotalAcumuladoGeral())"></div>
-            <span class="percentual">{{ formatarPercentual(store.pctTotalGeral()) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
 
   <!-- ============ Tabela — sempre com as 5 categorias e todos os grupos expandidos ============ -->

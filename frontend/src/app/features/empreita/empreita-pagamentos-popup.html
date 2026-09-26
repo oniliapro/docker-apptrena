@@ -1,0 +1,62 @@
+<div class="modal">
+  <div class="modal-fundo" (fecharModal)="fechar.emit()"></div>
+
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">Pagamentos registrados — {{ titulo() }}</span>
+      <div class="cabecalho-acoes">
+        <label class="checagem-inline" title="Mostra só o Total nas medições e no valor pago">
+          <input type="checkbox" [checked]="simplificado()" (change)="alternarSimplificado($event)" />
+          Simplificar
+        </label>
+        <button type="button" (click)="abrirEmpreita.emit(false)" title="Abrir a empreita completa (editor)">Abrir empreita completa</button>
+        <button type="button" (click)="fechar.emit()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+    </div>
+
+    <div class="modal-corpo">
+      <p class="atenuado pequeno">
+        Clique numa linha para ver a empreita completa como estava naquela medição — de lá dá para
+        editar ou apagar a medição.
+      </p>
+      <app-empreita-relatorio-pagamentos
+        [pagamentos]="store.pagamentosDaEmpreita()"
+        [contratoTotalEmpreita]="store.totais().valorTotal"
+        [mostrarEmpreiteiro]="!simplificado()"
+        [mostrarReserva]="!simplificado()"
+        [mostrarTotal]="true"
+        [interativo]="true"
+        (abrirMedicao)="abrirMedicao($event)"
+        (editarPagamento)="editarPagamento($event)"
+        (confirmarPagamento)="confirmarPagamento($event)"
+        (tornarPendente)="tornarPendente($event)"
+        (realizarMedicao)="abrirEmpreita.emit(true)" />
+    </div>
+
+    <div class="modal-rodape">
+      @if (salvando()) { <span class="atenuado">Gravando…</span> }
+      <button type="button" (click)="fechar.emit()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+@if (indiceAberto() >= 0) {
+  <app-empreita-medicao-detalhe
+    [ordenados]="ordenados()"
+    [indice]="indiceAberto()"
+    [itensEap]="store.itensEap()"
+    [itensAtuais]="store.itens()"
+    [saldoDispPorServico]="saldoDispPorServico()"
+    (fechar)="fecharMedicao()"
+    (salvar)="salvarMedicao($event)"
+    (apagar)="apagarMedicao($event)" />
+}
+
+@if (pagamentoEmEdicao(); as pagamento) {
+  <app-editar-pagamento-modal
+    [pagamento]="pagamento"
+    [obraId]="obraId()"
+    (salvar)="salvarPagamento($event)"
+    (excluir)="excluirPagamentoDoEditor($event)"
+    (fechar)="fecharEditor()" />
+}

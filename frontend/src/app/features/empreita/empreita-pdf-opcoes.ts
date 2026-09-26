@@ -88,8 +88,8 @@ export interface ColunasPdfEmpreita {
 export const COLUNAS_PDF_EMPREITA_TODAS: ColunasPdfEmpreita = {
   tipo: true,
   etapa: true,
+  medicao: true, // Quantidades/Medição vêm ANTES do Contrato (25/09/2026, pedido do Lucas)
   contrato: true,
-  medicao: true,
   jaPago: true,
   pagamento: true,
   saldoApos: true,
@@ -104,9 +104,9 @@ export function rotuloColunaPdfEmpreita(chave: keyof ColunasPdfEmpreita, confirm
     case 'etapa': return 'Etapa (EAP)';
     case 'contrato': return 'Contrato';
     case 'medicao': return confirmada ? 'Medição de contrato' : 'Quantidades';
-    case 'jaPago': return 'Já pago';
+    case 'jaPago': return 'Anterior';
     case 'pagamento': return 'Pagamento';
-    case 'saldoApos': return 'Saldo após pagamento';
+    case 'saldoApos': return 'Saldo remanescente';
   }
 }
 

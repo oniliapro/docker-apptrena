@@ -72,10 +72,11 @@
   th { padding: 3px 5px; font-size: 9px; line-height: 1.2; white-space: normal; }
   td { padding: 3px 5px; font-size: 9px; }
 
-  .col-num { width: 18px; }
+  // 26/09/2026: etapa (texto longo da EAP) alargada; Nº e Tipo enxutos.
+  .col-num { width: 22px; }
   .col-desc { width: 11%; min-width: 0; }
-  .col-tipo { width: 8%; min-width: 0; }
-  .col-eap { width: 11%; min-width: 0; }
+  .col-tipo { width: 7%; min-width: 0; }
+  .col-eap { width: 13%; min-width: 0; }
   // `.col-grupo`/`.celula-grupo` sem width própria — dividem entre si o
   // que sobra (5 colunas, ~14% cada), em partes iguais, por causa do
   // fixed acima.
@@ -83,7 +84,12 @@
 }
 
 .rotulo-subcampo { font-size: 7.5px; }
-.valor-subcampo { white-space: normal; word-break: break-word; font-size: 9px; }
+
+// Rodapé TOTAIS: fonte do valor menor e sem quebra ("R$" / "7.500,00" em duas linhas).
+.subcampo-rodape { font-size: 8px; gap: 4px; }
+.subcampo-rodape b { font-size: 9px; white-space: nowrap; }
+// Valor em dinheiro nunca parte ("R$" numa linha, número na outra) — 26/09/2026.
+.valor-subcampo { white-space: nowrap; font-size: 9px; }
 
 th, td { overflow-wrap: break-word; }
 
@@ -110,7 +116,8 @@ tr { page-break-inside: avoid; }
   margin-top: 14px;
 }
 
-.grade-inferior > .painel:first-child { flex: 0 0 260px; }
+// 26/09/2026: sem o painel "Medição deste período" (removido), o "Contrato x orçado" passa a ocupar a largura toda.
+.grade-inferior > .painel:first-child { flex: 1 1 100%; min-width: 0; }
 .grade-inferior > .painel:nth-child(2) { flex: 1 1 auto; min-width: 0; }
 .painel-relatorio-pagamentos { flex: 1 1 100%; }
 

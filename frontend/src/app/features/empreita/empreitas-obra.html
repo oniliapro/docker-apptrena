@@ -56,11 +56,34 @@
     <span class="rotulo-totais">
       {{ selecao.temSelecao() ? 'Selecionadas (' + totaisBarra().quantidade + ')' : 'Todas (' + totaisBarra().quantidade + ')' }}
     </span>
-    <span class="item-total">Total <b>{{ formatarMoeda(totaisBarra().total) }}</b></span>
-    <span class="item-total">Pago <b>{{ formatarMoeda(totaisBarra().pago) }}</b></span>
-    <span class="item-total">Saldo
-      <b [class.saldo-positivo]="totaisBarra().saldo >= 0" [class.saldo-negativo]="totaisBarra().saldo < 0">{{ formatarMoeda(totaisBarra().saldo) }}</b>
-    </span>
+    <!-- Com "Detalhar": Total/Pago/Saldo empilhados em 3 linhas (título, Empreiteiro, Reserva). Sem "Detalhar": valor geral (empreiteiro + reserva). -->
+    @if (detalhar()) {
+      <div class="grupo-total">
+        <span class="grupo-titulo">Total</span>
+        <span class="linha-total">Empreiteiro <b>{{ formatarMoeda(totaisBarra().totalEmp) }}</b></span>
+        <span class="linha-total">Reserva <b>{{ formatarMoeda(totaisBarra().totalReserva) }}</b></span>
+      </div>
+      <div class="grupo-total">
+        <span class="grupo-titulo">Pago</span>
+        <span class="linha-total">Empreiteiro <b>{{ formatarMoeda(totaisBarra().pagoEmp) }}</b></span>
+        <span class="linha-total">Reserva <b>{{ formatarMoeda(totaisBarra().pagoReserva) }}</b></span>
+      </div>
+      <div class="grupo-total">
+        <span class="grupo-titulo">Saldo</span>
+        <span class="linha-total">Empreiteiro
+          <b [class.saldo-positivo]="totaisBarra().saldoEmp >= 0" [class.saldo-negativo]="totaisBarra().saldoEmp < 0">{{ formatarMoeda(totaisBarra().saldoEmp) }}</b>
+        </span>
+        <span class="linha-total">Reserva
+          <b [class.saldo-positivo]="totaisBarra().saldoReserva >= 0" [class.saldo-negativo]="totaisBarra().saldoReserva < 0">{{ formatarMoeda(totaisBarra().saldoReserva) }}</b>
+        </span>
+      </div>
+    } @else {
+      <span class="item-total">Total <b>{{ formatarMoeda(totaisBarra().total) }}</b></span>
+      <span class="item-total">Pago <b>{{ formatarMoeda(totaisBarra().pago) }}</b></span>
+      <span class="item-total">Saldo
+        <b [class.saldo-positivo]="totaisBarra().saldo >= 0" [class.saldo-negativo]="totaisBarra().saldo < 0">{{ formatarMoeda(totaisBarra().saldo) }}</b>
+      </span>
+    }
   </div>
 </div>
 
@@ -84,7 +107,8 @@
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('total')">Total{{ setaOrdenacao(ordenacao(), 'total') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('totalPago')">Pago{{ setaOrdenacao(ordenacao(), 'totalPago') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('saldo')" title="Contrato menos o que já foi pago/solicitado (pendente conta como comprometido)">Saldo{{ setaOrdenacao(ordenacao(), 'saldo') }}</th>
-            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('medicao')" title="Físico: medição acumulada/avanço do período. Financeiro: quanto do contrato já foi pago/solicitado. Ordena pela medição física (empreitas sem medição vão pro fim).">% Medição{{ setaOrdenacao(ordenacao(), 'medicao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('medicao')" title="Medição acumulada/avanço do período. Com Detalhar, separada em Empreiteiro e Reserva. Empreitas sem medição vão pro fim.">Medição física{{ setaOrdenacao(ordenacao(), 'medicao') }}</th>
+            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('medicaoFinanceira')" title="Quanto do contrato já foi pago/solicitado. Com Detalhar, separada em Empreiteiro e Reserva.">Medição financeira{{ setaOrdenacao(ordenacao(), 'medicaoFinanceira') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorUltimaSolicitacao')">Valor da última solicitação{{ setaOrdenacao(ordenacao(), 'valorUltimaSolicitacao') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Data da última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
             <th class="centro">Ações</th>
@@ -92,7 +116,8 @@
         </thead>
         <tbody>
           @for (empreita of listaOrdenada(); track empreita.id) {
-            <tr class="linha-clicavel" (click)="abrir(empreita)">
+            <tr class="linha-clicavel" [class.medicao-aberta]="medicaoEmAberto(empreita)" (click)="abrirRegistrados(empreita)"
+                [title]="medicaoEmAberto(empreita) ? 'Medição em aberto — clique para ver os pagamentos registrados' : 'Ver os pagamentos registrados desta empreita'">
               <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(empreita)" (change)="selecao.alternar(empreita)" />
               </td>
@@ -138,18 +163,78 @@
                   </b>
                 }
               </td>
+              <!-- Medição física: uma barra (geral) ou duas (Empreiteiro/Reserva) com "Detalhar" -->
               <td class="celula-medicao">
-                @if (temMedicaoFisica(empreita)) {
+                @if (detalhar()) {
+                  @let fisEmp = fisicoParcela(empreita, 'emp');
+                  @let fisRes = fisicoParcela(empreita, 'reserva');
+                  @if (fisEmp || fisRes) {
+                    @if (fisEmp) {
+                      <div class="linha-barra">
+                        <span class="rotulo-barra">Empreiteiro</span>
+                        <div class="barra barra-dupla barra-compacta">
+                          <div class="preenchimento-total" [style.width.%]="larguraBarra(fisEmp.atual)"></div>
+                          <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(fisEmp.acumulado)"></div>
+                          <span class="percentual">{{ formatarPercentualBarra(fisEmp.atual) }}</span>
+                        </div>
+                      </div>
+                    }
+                    @if (fisRes) {
+                      <div class="linha-barra">
+                        <span class="rotulo-barra">Reserva</span>
+                        <div class="barra barra-dupla barra-compacta">
+                          <div class="preenchimento-total" [style.width.%]="larguraBarra(fisRes.atual)"></div>
+                          <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(fisRes.acumulado)"></div>
+                          <span class="percentual">{{ formatarPercentualBarra(fisRes.atual) }}</span>
+                        </div>
+                      </div>
+                    }
+                  } @else {
+                    <span class="atenuado">—</span>
+                  }
+                } @else if (temMedicaoFisica(empreita)) {
                   <div class="linha-barra">
-                    <span class="rotulo-barra">Físico</span>
                     <div class="barra barra-dupla barra-compacta">
                       <div class="preenchimento-total" [style.width.%]="larguraBarra(pctFisicoAtual(empreita))"></div>
                       <div class="preenchimento-acumulado" [style.width.%]="larguraBarra(pctFisicoAcumulado(empreita))"></div>
                       <span class="percentual">{{ formatarPercentualBarra(pctFisicoAtual(empreita)) }}</span>
                     </div>
                   </div>
+                } @else {
+                  <span class="atenuado">—</span>
+                }
+              </td>
+              <!-- Medição financeira: idem -->
+              <td class="celula-medicao">
+                @if (detalhar()) {
+                  @let finEmp = financeiroParcela(empreita, 'emp');
+                  @let finRes = financeiroParcela(empreita, 'reserva');
+                  @if (finEmp || finRes) {
+                    @if (finEmp) {
+                      <div class="linha-barra">
+                        <span class="rotulo-barra">Empreiteiro</span>
+                        <div class="barra barra-dupla barra-compacta barra-financeira">
+                          <div class="preenchimento-financeiro-total" [style.width.%]="larguraBarra(finEmp.total)"></div>
+                          <div class="preenchimento-financeiro-pago" [style.width.%]="larguraBarra(finEmp.pago)"></div>
+                          <span class="percentual">{{ formatarPercentualBarra(finEmp.total) }}</span>
+                        </div>
+                      </div>
+                    }
+                    @if (finRes) {
+                      <div class="linha-barra">
+                        <span class="rotulo-barra">Reserva</span>
+                        <div class="barra barra-dupla barra-compacta barra-financeira">
+                          <div class="preenchimento-financeiro-total" [style.width.%]="larguraBarra(finRes.total)"></div>
+                          <div class="preenchimento-financeiro-pago" [style.width.%]="larguraBarra(finRes.pago)"></div>
+                          <span class="percentual">{{ formatarPercentualBarra(finRes.total) }}</span>
+                        </div>
+                      </div>
+                    }
+                  } @else {
+                    <span class="atenuado">—</span>
+                  }
+                } @else if (total(empreita) > 0) {
                   <div class="linha-barra">
-                    <span class="rotulo-barra">Financeiro</span>
                     <div class="barra barra-dupla barra-compacta barra-financeira">
                       <div class="preenchimento-financeiro-total" [style.width.%]="larguraBarra(pctFinanceiroTotal(empreita))"></div>
                       <div class="preenchimento-financeiro-pago" [style.width.%]="larguraBarra(pctFinanceiroPago(empreita))"></div>
@@ -163,7 +248,7 @@
               <td class="valor">
                 @if (detalhar()) {
                   <div class="valor-detalhado">
-                    <div>Empreita: {{ formatarMoeda(ultimaSolicitacaoDetalhada(empreita).emp) }}</div>
+                    <div>Empreiteiro: {{ formatarMoeda(ultimaSolicitacaoDetalhada(empreita).emp) }}</div>
                     <div>Reserva: {{ formatarMoeda(ultimaSolicitacaoDetalhada(empreita).reserva) }}</div>
                   </div>
                 } @else {
@@ -237,77 +322,17 @@
   </div>
 }
 
-<!-- ============ Popup — pagamentos desta empreita (26/08/2026, pedido do Lucas) ============ -->
+<!-- ============ Popup — Pagamentos registrados da empreita (26/09/2026) ============
+     Clicar na empreita da lista abre este popup (a tabela saiu da página da empreita completa);
+     a empreita completa (editor) abre pelo botão dentro dele ou por "Abrir" na barra de seleção. -->
 @if (pagamentosModalEmpreita(); as empreita) {
-  <div class="modal">
-    <div class="modal-fundo" (fecharModal)="fecharPagamentos()"></div>
-
-    <div class="modal-cartao">
-      <div class="modal-cabecalho">
-        <span class="modal-titulo">Pagamentos — {{ descricao(empreita) }}</span>
-        <button type="button" (click)="fecharPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
-      </div>
-
-      <div class="modal-corpo">
-        @if (pagamentosModalLista().length) {
-          <table class="tabela-pagamentos-modal">
-            <thead>
-              <tr>
-                <th>Nº</th>
-                <th>Solicitação</th>
-                <th>Pagamento</th>
-                <th class="valor">Valor</th>
-                <th class="centro">Status</th>
-                <th class="centro">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (pagamento of pagamentosModalLista(); track pagamento.id) {
-                <tr class="linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
-                  <td>{{ pagamento.numeroPagamento || '—' }}</td>
-                  <td>{{ formatarData(pagamento.dataSolicitacao) || '—' }}</td>
-                  <td>
-                    @if (pagamento.dataPagamento) {
-                      {{ formatarData(pagamento.dataPagamento) }}
-                    } @else {
-                      <span class="atenuado">Em aberto</span>
-                    }
-                  </td>
-                  <td class="valor">
-                    @if (detalhar()) {
-                      <div class="valor-detalhado">
-                        <div>Empreita: {{ formatarMoeda(detalharPagamento(pagamento).emp) }}</div>
-                        <div>Reserva: {{ formatarMoeda(detalharPagamento(pagamento).reserva) }}</div>
-                      </div>
-                    } @else {
-                      {{ formatarMoeda(pagamento.valorTotal) }}
-                    }
-                  </td>
-                  <td class="centro">
-                    <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
-                      {{ pagamento.status === 'confirmado' ? 'Confirmado' : 'Pendente' }}
-                    </span>
-                  </td>
-                  <td class="centro acoes-linha" (click)="$event.stopPropagation()">
-                    @if (pagamento.status === 'pendente') {
-                      <button type="button" title="Confirmar pagamento" (click)="confirmarPagamento(pagamento)">✔</button>
-                    }
-                    <button type="button" title="Excluir" (click)="excluirPagamento(pagamento)">✖</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        } @else {
-          <p class="atenuado">Nenhum pagamento lançado desta empreita ainda.</p>
-        }
-      </div>
-
-      <div class="modal-rodape">
-        <button type="button" (click)="fecharPagamentos()">Fechar</button>
-      </div>
-    </div>
-  </div>
+  <app-empreita-pagamentos-popup
+    [empreitaId]="empreita.id"
+    [obraId]="obraId()"
+    [titulo]="descricao(empreita)"
+    (fechar)="fecharPagamentos()"
+    (abrirEmpreita)="abrirEditor(empreita, $event)"
+    (alterado)="recarregarLista()" />
 }
 
 <!-- ============ PDF de resumo para o profissional (19/09/2026) ============ -->
@@ -369,5 +394,6 @@
     [pagamento]="pagamento"
     [obraId]="obraId()"
     (salvar)="salvarPagamento($event)"
+    (excluir)="excluirPagamentoDoEditor($event)"
     (fechar)="fecharPagamento()" />
 }

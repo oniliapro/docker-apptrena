@@ -1506,8 +1506,8 @@ export class MapaStore {
     }
 
     // Etapa(s) de cada linha do pagamento (19/09/2026, correção de bug):
-    //  - Se "Etapa do frete" foi escolhida no cabeçalho, o frete inteiro vai
-    //    pra ela, numa linha só.
+    //  - Se "Etapa do frete" foi escolhida no cabeçalho (e "Lançar frete como
+    //    item" está ligado), o frete inteiro vai pra ela, numa linha só.
     //  - Senão, é dividido entre as etapas na MESMA proporção dos itens
     //    comprados nas lojas (`ratearFreteiro`).
     // `ratearFreteiro` devolve o RÓTULO da etapa (`item.etapa`, o texto que o
@@ -1517,7 +1517,10 @@ export class MapaStore {
     // com etapa o servidor recusava a linha (id inexistente) e o pagamento
     // do freteiro simplesmente não era criado.
     const categoriaFrete = cabecalho.freteCategoriaTipo || '';
-    const etapaFixaId = cabecalho.freteEtapaId || '';
+    // 26/09/2026: a etapa fixa só vale com "Lançar frete como item" LIGADO — com a
+    // opção desligada o frete particular volta a ser dividido entre as etapas dos
+    // itens, mesmo que uma etapa tenha ficado escolhida de antes.
+    const etapaFixaId = cabecalho.lancarFreteComoItem ? cabecalho.freteEtapaId || '' : '';
     const rotuloDaEtapaFixa =
       this.etapasDisponiveis().find((e) => e.id === etapaFixaId)?.rotulo || 'Etapa do frete';
 

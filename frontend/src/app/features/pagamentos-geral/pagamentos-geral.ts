@@ -29,6 +29,8 @@ import {
   paraPayloadApi,
 } from '../pagamentos/pagamentos-calc';
 import { Pagamento as PagamentoParaCriar } from '../pagamentos/pagamentos.models';
+import { montarMensagemResumoCustos } from '../pagamentos/pagamentos-mensagem';
+import { Beneficiados, chaveDoNome } from '../cadastros/beneficiados';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -67,6 +69,7 @@ type ColunaPagamentoGeral =
 })
 export class PagamentosGeral implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly beneficiados = inject(Beneficiados);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   protected readonly fornecedoresCadastro = inject(FornecedoresCadastro);
@@ -266,17 +269,25 @@ export class PagamentosGeral implements OnInit {
       status: 'confirmado',
     };
 
+    // Só se realiza pagamento para fornecedor/profissional cadastrado (26/09/2026): recusado, o formulário continua aberto.
     this.salvando.set(true);
-    this.api.criarPagamento(paraPayloadApi(novo, obraId)).subscribe({
-      next: () => {
+    this.beneficiados.resolver([novo.fornecedor]).subscribe((recusados) => {
+      if (recusados.length) {
         this.salvando.set(false);
-        this.fecharFormulario();
-        this.router.navigate(['/obras', obraId, 'pagamentos']);
-      },
-      error: () => {
-        this.salvando.set(false);
-        window.alert('Não foi possível criar o pagamento.');
-      },
+        window.alert(Beneficiados.mensagemRecusa(recusados));
+        return;
+      }
+      this.api.criarPagamento(paraPayloadApi(novo, obraId)).subscribe({
+        next: () => {
+          this.salvando.set(false);
+          this.fecharFormulario();
+          this.router.navigate(['/obras', obraId, 'pagamentos']);
+        },
+        error: () => {
+          this.salvando.set(false);
+          window.alert('Não foi possível criar o pagamento.');
+        },
+      });
     });
   }
 
@@ -286,6 +297,11 @@ export class PagamentosGeral implements OnInit {
 
   protected numero(p: Pagamento): string {
     return String(p['numeroPagamento'] ?? '—') || '—';
+  }
+
+  /** Nome do beneficiado como está gravado (sem o "—" de exibição). */
+  private fornecedorBruto(p: Pagamento): string {
+    return String(p['fornecedor'] ?? '').trim();
   }
 
   protected fornecedor(p: Pagamento): string {
@@ -416,6 +432,10 @@ export class PagamentosGeral implements OnInit {
     this.acoesPagamento.abrirComEap(this.normalizado(pagamento));
   }
 
+  protected excluirPagamentoDoEditor(pagamento: PagamentoParaCriar): void {
+    this.acoesPagamento.excluirDoEditor(pagamento);
+  }
+
   protected fecharEditor(): void {
     this.acoesPagamento.fechar();
   }
@@ -473,18 +493,27 @@ export class PagamentosGeral implements OnInit {
       const texto = pendentes.length === 1 ? '1 pagamento pendente' : `${pendentes.length} pagamentos pendentes`;
       if (!window.confirm(`Confirmar ${texto}? Passam a contar no Realizado da EAP.`)) return;
 
-      const agora = new Date().toISOString();
-      processarEmLote(pendentes, (x) =>
-        this.api.atualizarPagamento(
-          String(x['id']),
-          paraPayloadApi({ ...this.normalizado(x), status: 'confirmado', dataPagamento: agora }, this.obraIdDe(x)),
-        ),
-      ).subscribe(({ sucessos, falhas }) => {
-        for (const { resultado } of sucessos) {
-          this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(resultado as Record<string, unknown>) });
+      this.beneficiados.resolver(pendentes.map((x) => this.fornecedorBruto(x))).subscribe((recusados) => {
+        const barrados = new Set(recusados.map(chaveDoNome));
+        const aptos = pendentes.filter((x) => !barrados.has(chaveDoNome(this.fornecedorBruto(x))));
+        if (recusados.length) {
+          window.alert(Beneficiados.mensagemRecusa(recusados, pendentes.length - aptos.length));
         }
-        this.selecao.limpar();
-        avisarFalhasDeExclusao(falhas, 'pagamentos', (x) => this.rotuloDe(x), 'confirmar');
+        if (!aptos.length) return;
+
+        const agora = new Date().toISOString();
+        processarEmLote(aptos, (x) =>
+          this.api.atualizarPagamento(
+            String(x['id']),
+            paraPayloadApi({ ...this.normalizado(x), status: 'confirmado', dataPagamento: agora }, this.obraIdDe(x)),
+          ),
+        ).subscribe(({ sucessos, falhas }) => {
+          for (const { resultado } of sucessos) {
+            this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(resultado as Record<string, unknown>) });
+          }
+          this.selecao.limpar();
+          avisarFalhasDeExclusao(falhas, 'pagamentos', (x) => this.rotuloDe(x), 'confirmar');
+        });
       });
       return;
     }
@@ -506,17 +535,8 @@ export class PagamentosGeral implements OnInit {
     const selecionados = this.selecao.selecionados(this.listaOrdenada());
     if (!selecionados.length) return;
 
-    const linhas = selecionados.map(
-      (p) =>
-        `• Obra ${this.obraNumber(p)} — Nº ${this.numero(p)} — ${this.fornecedor(p)} — ${this.formatarMoeda(this.valorTotal(p))} — ${this.pendente(p) ? 'Pendente' : 'Confirmado'}`,
-    );
-    const totalGeral = selecionados.reduce((soma, p) => soma + this.valorTotal(p), 0);
-    const mensagem = [
-      `*Pagamentos (${selecionados.length})*`,
-      ...linhas,
-      '',
-      `Total: ${this.formatarMoeda(totalGeral)}`,
-    ].join('\n');
+    // Formato "RESUMO DE CUSTOS" (25/09/2026, pedido do Lucas) — ver `pagamentos-mensagem.ts`.
+    const mensagem = montarMensagemResumoCustos(selecionados.map((p) => this.normalizado(p)));
 
     const ok = await copiarParaAreaDeTransferencia(mensagem);
     if (!ok) {

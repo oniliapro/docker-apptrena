@@ -1,8 +1,10 @@
-import { Component, OnInit, computed, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 
 import { formatarMoeda } from '../../../core/utils/formato';
 import { AnexosLancamento } from '../../../shared/anexos-lancamento/anexos-lancamento';
 import { NavegacaoTabela } from '../../../shared/navegacao-tabela/navegacao-tabela';
+import { mensagemExclusaoRecebimento } from '../acoes-recebimento';
+import { FormulaCampo, FormulasContexto } from '../../../shared/numero/formulas-guardadas';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 import {
   calcularSomaItens,
@@ -37,11 +39,15 @@ export interface EventoSalvarRecebimento {
  */
 @Component({
   selector: 'app-editar-recebimento-modal',
-  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento],
+  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento, FormulaCampo],
+  providers: [FormulasContexto],
   templateUrl: './editar-recebimento-modal.html',
   styleUrl: './editar-recebimento-modal.scss',
 })
 export class EditarRecebimentoModal implements OnInit {
+  /** Fórmulas guardadas dos campos de valor (ver formulas-guardadas.ts). */
+  private readonly formulas = inject(FormulasContexto);
+
   readonly recebimento = input.required<Recebimento>();
   /** Itens da EAP da obra do recebimento (rótulos do seletor de etapa). */
   readonly snapshotEap = input<ItemEapSnapshotRecebimento[]>([]);
@@ -54,6 +60,8 @@ export class EditarRecebimentoModal implements OnInit {
 
   readonly salvar = output<EventoSalvarRecebimento>();
   readonly fechar = output<void>();
+  /** "Excluir" (26/09/2026): confirmado na própria caixa do modal; quem hospeda apaga o recebimento e fecha. Só aparece editando. */
+  readonly excluir = output<Recebimento>();
 
   protected readonly tipos = TIPOS_CUSTO_RECEBIMENTO;
   protected readonly formatarMoeda = formatarMoeda;
@@ -74,7 +82,14 @@ export class EditarRecebimentoModal implements OnInit {
 
   protected readonly diferencaAberta = computed(() => Math.abs(this.diferenca()) > 0.01);
 
+  protected excluirModal(): void {
+    const recebimento = this.recebimento();
+    if (!window.confirm(mensagemExclusaoRecebimento(recebimento))) return;
+    this.excluir.emit(recebimento);
+  }
+
   ngOnInit(): void {
+    this.formulas.definir('recebimento.' + this.recebimento().id);
     this.rascunho.set(normalizarRecebimento(JSON.parse(JSON.stringify(this.recebimento()))));
   }
 

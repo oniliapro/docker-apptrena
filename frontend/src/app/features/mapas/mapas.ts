@@ -99,6 +99,10 @@ export class Mapas implements OnInit {
     this.acoesPagamento.abrir(pagamento);
   }
 
+  protected excluirPagamentoDoEditor(pagamento: Pagamento): void {
+    this.acoesPagamento.excluirDoEditor(pagamento);
+  }
+
   protected fecharPagamento(): void {
     this.acoesPagamento.fechar();
   }

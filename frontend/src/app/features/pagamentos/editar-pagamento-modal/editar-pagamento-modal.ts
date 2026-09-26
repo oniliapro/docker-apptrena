@@ -14,6 +14,8 @@ import { ApiService } from '../../../core/services/api.service';
 import { RespostaLeituraNota } from '../../../core/models/api.models';
 import { formatarMoeda } from '../../../core/utils/formato';
 import { NavegacaoTabela } from '../../../shared/navegacao-tabela/navegacao-tabela';
+import { mensagemExclusaoPagamento } from '../../../shared/pagamentos-vinculados-popup/acoes-pagamento';
+import { FormulaCampo, FormulasContexto } from '../../../shared/numero/formulas-guardadas';
 import { RedimensionarColunas } from '../../../shared/redimensionar-colunas/redimensionar-colunas';
 import {
   calcularSomaItens,
@@ -67,12 +69,15 @@ export interface EventoSalvarPagamento {
  */
 @Component({
   selector: 'app-editar-pagamento-modal',
-  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento, Autocomplete],
+  imports: [NavegacaoTabela, RedimensionarColunas, AnexosLancamento, Autocomplete, FormulaCampo],
+  providers: [FormulasContexto],
   templateUrl: './editar-pagamento-modal.html',
   styleUrl: './editar-pagamento-modal.scss',
 })
 export class EditarPagamentoModal implements OnInit {
   private readonly api = inject(ApiService);
+  /** Fórmulas guardadas dos campos de valor (ver formulas-guardadas.ts). */
+  private readonly formulas = inject(FormulasContexto);
   protected readonly fornecedores = inject(FornecedoresCadastro);
 
   readonly pagamento = input.required<Pagamento>();
@@ -84,6 +89,8 @@ export class EditarPagamentoModal implements OnInit {
 
   readonly salvar = output<EventoSalvarPagamento>();
   readonly fechar = output<void>();
+  /** "Excluir" (26/09/2026): confirmado na própria caixa do modal; quem hospeda apaga o pagamento e fecha. Só aparece editando (não em "novo"). */
+  readonly excluir = output<Pagamento>();
 
   /** Só existe (renderizado) quando `!modoNovo()` — ver `anexos-lancamento.html`/o `@if` deste componente. */
   private readonly anexosLista = viewChild(AnexosLancamento);
@@ -129,6 +136,7 @@ export class EditarPagamentoModal implements OnInit {
   private anexoNotaPendente: AnexoNotaPendente | null = null;
 
   ngOnInit(): void {
+    this.formulas.definir('pagamento.' + this.pagamento().id);
     this.fornecedores.carregar();
     this.api.listarTags().subscribe({
       next: (lista) => this.tags.set(lista),
@@ -320,6 +328,12 @@ export class EditarPagamentoModal implements OnInit {
 
   protected valorResolvido(item: ItemPagamento): number {
     return calcularValorItem(item, this.rascunho().valorTotal);
+  }
+
+  protected excluirModal(): void {
+    const pagamento = this.pagamento();
+    if (!window.confirm(mensagemExclusaoPagamento(pagamento))) return;
+    this.excluir.emit(pagamento);
   }
 
   protected fecharModal(): void {

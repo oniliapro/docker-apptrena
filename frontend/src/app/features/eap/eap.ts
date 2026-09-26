@@ -1040,6 +1040,11 @@ export class Eap implements OnInit {
     this.pagamentoEmEdicao.set(JSON.parse(JSON.stringify(linha.pagamento)) as Pagamento);
   }
 
+  protected excluirPagamentoDoEditor(pagamento: Pagamento): void {
+    this.pagamentosStore.remover(pagamento.id);
+    this.fecharEditorDePagamento();
+  }
+
   protected fecharEditorDePagamento(): void {
     this.pagamentoEmEdicao.set(null);
   }

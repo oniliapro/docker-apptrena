@@ -15,6 +15,8 @@ import { EditarPagamentoModal, EventoSalvarPagamento } from './editar-pagamento-
 import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
 import { ItemEapSnapshot, ItemPagamentoCalculado, Pagamento } from './pagamentos.models';
 import { PagamentosStore } from './pagamentos.store';
+import { montarMensagemResumoCustos } from './pagamentos-mensagem';
+import { Beneficiados, chaveDoNome } from '../cadastros/beneficiados';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -57,6 +59,7 @@ type ColunaPagamento =
 export class Pagamentos implements OnInit {
   protected readonly store = inject(PagamentosStore);
   private readonly api = inject(ApiService);
+  private readonly beneficiados = inject(Beneficiados);
 
   /**
    * Id da obra — vem do param `:id` da rota pai (/obras/:id), herdado
@@ -69,7 +72,8 @@ export class Pagamentos implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly rotuloTipo = rotuloTipo;
 
-  protected readonly mostrarEtapas = signal(true);
+  /** "Mostrar etapas" nasce DESLIGADO (25/09/2026, pedido do Lucas). */
+  protected readonly mostrarEtapas = signal(false);
 
   /** Rascunho do modal. Null = modal fechado. */
   protected readonly rascunho = signal<Pagamento | null>(null);
@@ -249,6 +253,11 @@ export class Pagamentos implements OnInit {
     this.rascunho.set(normalizarPagamento(JSON.parse(JSON.stringify(pagamento))));
   }
 
+  protected excluirDoModal(pagamento: Pagamento): void {
+    this.store.remover(pagamento.id);
+    this.fecharModal();
+  }
+
   protected fecharModal(): void {
     this.rascunho.set(null);
     this.idEditando.set(null);
@@ -270,8 +279,23 @@ export class Pagamentos implements OnInit {
    */
   protected salvarModal(evento: EventoSalvarPagamento): void {
     const final: Pagamento = { ...evento.pagamento, obraNumber: this.store.cabecalho().obraNumber };
-    const anexoNotaPendente = evento.anexoNotaPendente;
 
+    // Só se realiza pagamento para fornecedor/profissional cadastrado (26/09/2026):
+    // recusado o cadastro, o pagamento NÃO é salvo como confirmado e o modal continua aberto.
+    if (final.status !== 'confirmado') {
+      this.persistirModal(final, evento.anexoNotaPendente);
+      return;
+    }
+    this.beneficiados.resolver([final.fornecedor]).subscribe((recusados) => {
+      if (recusados.length) {
+        window.alert(Beneficiados.mensagemRecusa(recusados));
+        return;
+      }
+      this.persistirModal(final, evento.anexoNotaPendente);
+    });
+  }
+
+  private persistirModal(final: Pagamento, anexoNotaPendente: EventoSalvarPagamento['anexoNotaPendente']): void {
     this.store.inserirOuAtualizar(final, this.idEditando(), (salvo) => {
       if (!anexoNotaPendente) return;
       this.api.anexarArquivoPagamento(salvo.id, anexoNotaPendente.tagId, anexoNotaPendente.arquivo).subscribe({
@@ -331,10 +355,18 @@ export class Pagamentos implements OnInit {
 
   /** Botão ✔ da linha (21/09/2026): confirma este pagamento pendente (data/hora do clique como data de pagamento; dá para corrigir na edição). */
   protected confirmarUm(pagamento: Pagamento): void {
-    this.store.inserirOuAtualizar(
-      { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
-      pagamento.id,
-    );
+    this.beneficiados.resolver([pagamento.fornecedor]).subscribe((recusados) => {
+      if (recusados.length) {
+        // Beneficiado sem cadastro: não confirma e volta para a edição do pagamento.
+        window.alert(Beneficiados.mensagemRecusa(recusados));
+        this.editar(pagamento);
+        return;
+      }
+      this.store.inserirOuAtualizar(
+        { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() },
+        pagamento.id,
+      );
+    });
   }
 
   /** Botão ✖ da linha (21/09/2026): exclui só este pagamento, com a confirmação de sempre. */
@@ -353,9 +385,17 @@ export class Pagamentos implements OnInit {
       const texto = pendentes.length === 1 ? '1 pagamento pendente' : `${pendentes.length} pagamentos pendentes`;
       if (!window.confirm(`Confirmar ${texto}? Passam a contar no Realizado da EAP.`)) return;
 
-      this.store.confirmarVarios(pendentes).subscribe(({ falhas }) => {
-        this.selecao.limpar();
-        avisarFalhasDeExclusao(falhas, 'pagamentos', (p) => this.rotuloDe(p), 'confirmar');
+      this.beneficiados.resolver(pendentes.map((p) => p.fornecedor)).subscribe((recusados) => {
+        const barrados = new Set(recusados.map(chaveDoNome));
+        const aptos = pendentes.filter((p) => !barrados.has(chaveDoNome(p.fornecedor)));
+        if (recusados.length) {
+          window.alert(Beneficiados.mensagemRecusa(recusados, pendentes.length - aptos.length));
+        }
+        if (!aptos.length) return;
+        this.store.confirmarVarios(aptos).subscribe(({ falhas }) => {
+          this.selecao.limpar();
+          avisarFalhasDeExclusao(falhas, 'pagamentos', (p) => this.rotuloDe(p), 'confirmar');
+        });
       });
       return;
     }
@@ -374,17 +414,8 @@ export class Pagamentos implements OnInit {
     const selecionados = this.selecao.selecionados(this.listaExibida());
     if (!selecionados.length) return;
 
-    const linhas = selecionados.map(
-      (pagamento) =>
-        `• Nº ${pagamento.numeroPagamento || '—'} — ${pagamento.fornecedor || '—'} — ${this.formatarMoeda(pagamento.valorTotal)} — ${pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado'}`,
-    );
-    const totalGeral = selecionados.reduce((soma, pagamento) => soma + pagamento.valorTotal, 0);
-    const mensagem = [
-      `*Pagamentos (${selecionados.length})*`,
-      ...linhas,
-      '',
-      `Total: ${this.formatarMoeda(totalGeral)}`,
-    ].join('\n');
+    // Formato "RESUMO DE CUSTOS" (25/09/2026, pedido do Lucas) — ver `pagamentos-mensagem.ts`.
+    const mensagem = montarMensagemResumoCustos(selecionados);
 
     const ok = await copiarParaAreaDeTransferencia(mensagem);
     if (!ok) {

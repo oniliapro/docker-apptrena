@@ -16,6 +16,7 @@ const MODULOS = [
   { chave: 'empreitas', rotulo: 'Empreitas' },
   { chave: 'pagamentos', rotulo: 'Pagamentos' },
   { chave: 'diarias', rotulo: 'Diárias' },
+  { chave: 'agenda', rotulo: 'Agenda' },
   { chave: 'diario_obra', rotulo: 'Diário de obra' },
   { chave: 'relatorios', rotulo: 'Relatórios' },
   { chave: 'arquivos', rotulo: 'Arquivos' },
@@ -184,6 +185,29 @@ export class ControlePermissoes implements OnInit {
         podeReabrir: false,
       }
     );
+  }
+
+  /** "Todos" (25/09/2026, pedido do Lucas): marcado quando as cinco permissões da linha estão ligadas. */
+  protected todosMarcados(chave: string): boolean {
+    const l = this.linhaDoModulo(chave);
+    return l.podeUsar && l.podeCriar && l.podeEditar && l.podeExcluir && l.podeReabrir;
+  }
+
+  /** Liga as cinco permissões da linha; se já estavam todas ligadas, desliga todas. */
+  protected alternarTodos(chave: string): void {
+    const ligar = !this.todosMarcados(chave);
+    this.matriz.update((lista) => {
+      const existe = lista.some((m) => m.modulo === chave);
+      const atualizada: PermissaoModulo = {
+        ...this.linhaDoModulo(chave),
+        podeUsar: ligar,
+        podeCriar: ligar,
+        podeEditar: ligar,
+        podeExcluir: ligar,
+        podeReabrir: ligar,
+      };
+      return existe ? lista.map((m) => (m.modulo === chave ? atualizada : m)) : [...lista, atualizada];
+    });
   }
 
   protected alternarFlag(

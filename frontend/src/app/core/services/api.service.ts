@@ -9,6 +9,7 @@ import {
   DadosMaterialEquipamento,
   MaterialEquipamento,
 } from '../../features/cadastros/materiais-equipamentos/materiais-equipamentos.models';
+import { EventoAgenda, ParticipanteAgenda, PayloadEventoAgenda } from '../../features/agenda/agenda.models';
 import { PayloadDiaria } from '../../features/diarias/diarias-normalize';
 import { environment } from '../../../environments/environment';
 import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
@@ -497,6 +498,29 @@ export class ApiService {
   /** DELETE /obras/{id}/cronograma/planejamentos — zera todo o planejamento da obra (24/08/2026). */
   zerarPlanejamentosCronograma(obraId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/obras/${obraId}/cronograma/planejamentos`);
+  }
+
+  // ---------------- Agenda (26/09/2026) ----------------
+  listarAgenda(inicio: string, fim: string, obraId?: string): Observable<EventoAgenda[]> {
+    let params = new HttpParams().set('inicio', inicio).set('fim', fim);
+    if (obraId) params = params.set('obra_id', obraId);
+    return this.http.get<EventoAgenda[]>(`${this.base}/agenda`, { params });
+  }
+
+  usuariosDaAgenda(): Observable<ParticipanteAgenda[]> {
+    return this.http.get<ParticipanteAgenda[]>(`${this.base}/agenda/usuarios`);
+  }
+
+  criarEventoAgenda(dados: PayloadEventoAgenda): Observable<EventoAgenda> {
+    return this.http.post<EventoAgenda>(`${this.base}/agenda`, dados);
+  }
+
+  atualizarEventoAgenda(id: string, dados: PayloadEventoAgenda): Observable<EventoAgenda> {
+    return this.http.put<EventoAgenda>(`${this.base}/agenda/${id}`, dados);
+  }
+
+  excluirEventoAgenda(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/agenda/${id}`);
   }
 
   // ---------------- Storage genérico (ponte com o formato antigo) ----------------

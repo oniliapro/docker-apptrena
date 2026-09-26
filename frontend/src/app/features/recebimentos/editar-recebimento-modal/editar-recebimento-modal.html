@@ -39,6 +39,7 @@
             <span>Valor total</span>
             <input type="text" class="valor" placeholder="R$ 0,00"
                    [value]="r.valorTotal ? formatarMoeda(r.valorTotal) : ''"
+                   appFormulaCampo="total"
                    (change)="atualizarValorTotal($event)" />
           </label>
         </div>
@@ -97,6 +98,7 @@
                     <input type="text" class="valor"
                            [value]="valorItemEditado(item)"
                            [placeholder]="item.modoValor === 'percentual' ? '0,00 %' : 'R$ 0,00'"
+                           [appFormulaCampo]="'item.' + item.id"
                            (change)="atualizarItem(item.id, 'valor', $event)" />
                     @if (item.modoValor === 'percentual') {
                       <span class="atenuado pequeno">= {{ formatarMoeda(valorResolvido(item)) }}</span>
@@ -144,6 +146,9 @@
       </div>
 
       <div class="modal-rodape">
+        @if (!modoNovo()) {
+          <button class="perigo esquerda" type="button" (click)="excluirModal()" title="Excluir este recebimento">Excluir</button>
+        }
         <button type="button" (click)="fechar.emit()">Cancelar</button>
         <button class="primario" type="button" (click)="confirmarSalvar()">Salvar recebimento</button>
       </div>

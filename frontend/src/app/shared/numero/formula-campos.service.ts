@@ -8,7 +8,8 @@ import { avaliarFormula } from './formula';
  * campo de valor do sistema (`<input type="text" class="valor">`), digitar
  * `=` e uma conta — ex.: `=1200*3+50`, `=soma(10;20)*2`, `=200*10%` — vira o
  * resultado ao sair do campo. Só o RESULTADO é guardado (a fórmula em si só
- * é guardada na EAP, com `data-formula-propria`, fase F5).
+ * é guardada na EAP, com `data-formula-propria` — F5 — e nos campos com
+ * `appFormulaCampo`, ver `formulas-guardadas.ts`).
  *
  * Como funciona sem mexer em cada tela: um único listener de `change` no
  * documento, na fase de CAPTURA (roda antes do `(change)` que cada tela já
@@ -47,7 +48,8 @@ export class FormulaCamposService {
 
   private aoFocar(evento: Event): void {
     const campo = this.campoDeValor(evento);
-    if (campo && !this.comErro.has(campo)) this.textoAoFocar.set(campo, campo.value);
+    // Campo com fórmula guardada (`appFormulaCampo`) já mostra a conta: o texto de repouso é o número, guardado em `data-texto-repouso`.
+    if (campo && !this.comErro.has(campo)) this.textoAoFocar.set(campo, campo.dataset['textoRepouso'] ?? campo.value);
   }
 
   private aoDigitar(evento: Event): void {
@@ -80,6 +82,8 @@ export class FormulaCamposService {
 
     campo.setCustomValidity('');
     this.comErro.delete(campo);
+    // Quem guarda a fórmula (`appFormulaCampo`) lê a conta daqui, no `change` que vem logo depois.
+    campo.dataset['formulaDigitada'] = texto;
     campo.value = FormulaCamposService.formatarResultado(resultado.valor);
   }
 

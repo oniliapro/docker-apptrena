@@ -243,3 +243,63 @@ tfoot th {
 
   td { padding: 6px 8px; border-top: 1px solid var(--cor-fundo-alt); }
 }
+
+// ---- Colunas novas (26/09/2026): Beneficiado, datas/medições empilhadas, ações ----
+.col-num { width: 92px; }
+.col-beneficiado { width: 150px; }
+.col-data { width: 136px; }
+.col-pct { width: 132px; }
+.col-acoes { width: 128px; }
+
+.beneficiado { text-align: left; overflow-wrap: anywhere; }
+
+.celula-datas .linha-empilhada, .celula-pct .linha-empilhada {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rotulo-empilhado { font-size: 9px; text-transform: uppercase; color: var(--cor-texto-suave); }
+
+.celula-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  button { width: 100%; padding: 2px 4px; font-size: 11px; white-space: nowrap; }
+}
+
+.linha-clicavel { cursor: pointer; }
+
+// Barras de medição (26/09/2026): azul = acumulado até o pagamento anterior; amarelo = avanço até a
+// situação atual deste pagamento (o número no meio é o "atual"). Mesmo desenho da lista de empreitas.
+.celula-pct .linha-empilhada { align-items: center; }
+.celula-pct .barra { flex: 1 1 auto; margin-left: 6px; }
+.preenchimento-avanco {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--cor-destaque);
+  z-index: 1;
+}
+.linha-clicavel:hover td { background: color-mix(in srgb, var(--cor-primaria) 5%, #fff); }
+
+// Barras mais largas (26/09/2026): o número no meio precisa caber.
+.col-pct { width: 190px; }
+
+// Alinhamento (26/09/2026): as linhas das medições ficam na MESMA altura das do "Valor pago"
+// (Contrato / Empreiteiro / Reserva / Saldo / Total) — os espaçadores ocupam Contrato e Saldo.
+.celula-pct .linha-empilhada, .celula-valor-pago .linha-empilhada, .celula-datas .linha-empilhada {
+  min-height: 24px;
+  box-sizing: border-box;
+}
+
+// Financeira: o acumulado (pago até o pagamento anterior) em verde; o avanço segue amarelo.
+.barra-financeira .preenchimento-acumulado { background: var(--cor-sucesso); }
+
+// Nº, Beneficiado, Datas e Ações centralizados na vertical da célula.
+.tabela-relatorio-pagamentos td:not(.celula-pct):not(.celula-valor-pago) { vertical-align: middle; }
+.celula-acoes { justify-content: center; }
+.celula-pct .rotulo-empilhado { flex: 0 0 62px; }
+.celula-pct .barra { min-width: 110px; }

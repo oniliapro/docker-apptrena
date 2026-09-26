@@ -777,7 +777,8 @@
       [snapshotEap]="snapshotEapPagamentos()"
       [obraId]="pagamento.obraId || obraId()"
       (salvar)="salvarPagamentoDoPopup($event)"
-      (fechar)="fecharEditorDePagamento()" />
+      (excluir)="excluirPagamentoDoEditor($event)"
+    (fechar)="fecharEditorDePagamento()" />
   }
 
   <!-- ============ Modal: importar Excel ============ -->

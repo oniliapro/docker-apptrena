@@ -301,6 +301,10 @@ button:disabled {
 }
 
 .indice { font-family: var(--fonte-mono); color: var(--cor-texto-suave); }
+
+// Coluna "Nº" do item (26/09/2026) — ao lado da caixa de seleção.
+.col-numero { width: 36px; }
+.numero-item { font-family: var(--fonte-mono); color: var(--cor-texto-suave); font-size: 12px; }
 .zebra td { background: var(--cor-zebra); }
 .vazio { padding: 34px 16px; }
 

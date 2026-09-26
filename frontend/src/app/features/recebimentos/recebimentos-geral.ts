@@ -394,6 +394,10 @@ export class RecebimentosGeral implements OnInit {
     this.acoesRecebimento.abrir(this.normalizado(recebimento));
   }
 
+  protected excluirRecebimentoDoEditor(recebimento: RecebimentoParaCriar): void {
+    this.acoesRecebimento.excluirDoEditor(recebimento);
+  }
+
   protected fecharEditor(): void {
     this.acoesRecebimento.fechar();
   }

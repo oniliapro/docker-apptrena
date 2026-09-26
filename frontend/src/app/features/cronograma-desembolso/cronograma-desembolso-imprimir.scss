@@ -55,10 +55,12 @@
   // o PDF sempre gera na unidade "mês" independente do que estiver
   // selecionado na tela (não há como saber, o PDF é uma página nova sem
   // o estado da tela normal).
-  .col-eap { width: 18%; }
-  .col-valor { width: 6%; }
-  .col-periodo { width: 5%; }
-  .col-total-valor { width: 7%; }
+  // 26/09/2026: Orçado e Totais eram estreitos demais e o valor partia no meio dos
+  // dígitos ("R$ 32.446," / "25"); alargados, e o valor dessas 3 colunas não quebra mais.
+  .col-eap { width: 16%; }
+  .col-valor { width: 8%; }
+  .col-periodo { width: 4.9%; }
+  .col-total-valor { width: 8%; }
 }
 
 th, td { overflow-wrap: break-word; white-space: normal; }
@@ -73,6 +75,13 @@ th, td { overflow-wrap: break-word; white-space: normal; }
 // realizado"/"Total planejado"). "R$ 12.350,00" tem espaço entre "R$" e
 // o número — a quebra cai ali, nunca no meio dos dígitos.
 .tabela-cronograma th.valor, .tabela-cronograma td.valor { white-space: normal; }
+.tabela-cronograma td.valor-orc, .tabela-cronograma td.total-realizado, .tabela-cronograma td.total-planejado {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-size: 9px;
+  padding-left: 2px;
+  padding-right: 4px;
+}
 
 // Célula empilhada Real./Plan. — fonte reduzida pra caber com muitas
 // colunas de período numa folha A4 (24/08/2026, achado gerando o PDF de
@@ -82,7 +91,7 @@ th, td { overflow-wrap: break-word; white-space: normal; }
 // vazamento: rótulo pode quebrar linha, só o VALOR fica travado numa
 // linha só (rótulo é secundário, valor partido no meio fica ilegível).
 .celula-periodo {
-  padding: 3px 4px !important;
+  padding: 3px 2px !important;
 }
 
 .linha-realizado, .linha-planejado {
@@ -99,9 +108,11 @@ th, td { overflow-wrap: break-word; white-space: normal; }
 // número — deixando quebrar ali, o pior caso é "R$" numa linha e o
 // número inteiro (nunca partido no meio) na linha de baixo, o que é
 // sempre mais legível que sobrepor texto.
+// 26/09/2026: 7px e sem quebra — o valor do mês cabe inteiro numa linha (antes o "R$" ficava
+// numa linha e o número em outra).
 .valor-realizado, .valor-planejado, .link-realizado {
-  font-size: 8px;
-  white-space: normal;
+  font-size: 7px;
+  white-space: nowrap;
 }
 
 th.total-realizado, th.total-planejado,

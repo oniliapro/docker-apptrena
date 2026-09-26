@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AgendaController;
 use App\Http\Controllers\Api\AnexoController;
 use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
@@ -198,6 +199,20 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permissaoModulo:diarias,usar');
     Route::put('diarias/categorias', [DiariaController::class, 'salvarCategorias'])
         ->middleware('permissaoModulo:diarias,editar');
+
+    // Agenda (26/09/2026) — compromissos com horário, gerais ou de uma obra, com participantes.
+    // Sem `permissaoObra` na rota: a Agenda geral junta todas as obras, então o filtro/conferência
+    // por obra roda dentro do controller (mesmo motivo do Diário de obra abaixo).
+    Route::get('agenda', [AgendaController::class, 'index'])
+        ->middleware('permissaoModulo:agenda,usar');
+    Route::get('agenda/usuarios', [AgendaController::class, 'usuarios'])
+        ->middleware('permissaoModulo:agenda,usar');
+    Route::post('agenda', [AgendaController::class, 'store'])
+        ->middleware('permissaoModulo:agenda,criar');
+    Route::put('agenda/{evento}', [AgendaController::class, 'update'])
+        ->middleware('permissaoModulo:agenda,editar');
+    Route::delete('agenda/{evento}', [AgendaController::class, 'destroy'])
+        ->middleware('permissaoModulo:agenda,excluir');
 
     // Diário de obra — `GET /diario` sem obra_id lista de TODAS as obras
     // (resumo do dashboard), então não leva `permissaoObra` na rota — o

@@ -118,6 +118,7 @@
               <thead>
                 <tr>
                   <th>Módulo</th>
+                  <th class="centro">Todos</th>
                   <th class="centro">Usar</th>
                   <th class="centro">Criar</th>
                   <th class="centro">Editar</th>
@@ -129,6 +130,11 @@
                 @for (m of modulos; track m.chave) {
                   <tr>
                     <td>{{ m.rotulo }}</td>
+                    <td class="centro">
+                      <input type="checkbox" [checked]="todosMarcados(m.chave)"
+                             title="Marca ou desmarca Usar, Criar, Editar, Excluir e Reabrir de uma vez"
+                             (change)="alternarTodos(m.chave)" />
+                    </td>
                     <td class="centro">
                       <input type="checkbox" [checked]="linhaDoModulo(m.chave).podeUsar"
                              (change)="alternarFlag(m.chave, 'podeUsar')" />

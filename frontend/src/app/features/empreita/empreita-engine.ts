@@ -535,24 +535,45 @@ export function calcularLinhaEmpreitaEstendida(
 
   const jaPago = jaPagoPorItem.get(item.id) ?? JA_PAGO_VAZIO;
 
-  // "Medido" (25/08/2026) — quanto falta pagar com base no TOTAL medido
-  // até agora (atual%), não só no avanço deste período — diferente de
-  // `pagar` (contratoEmp × avanço%), que só reflete o incremento.
-  const medido = (linha.atual / 100) * (Number(item.contratoEmp) || 0) - jaPago.empreiteiro;
+  // "Medido" (26/09/2026, pedido do Lucas) — o ACUMULADO do serviço (períodos
+  // já fechados) vezes o valor contratado: `medido` sobre o valor do
+  // empreiteiro (tela não simplificada) e `medidoContrato` sobre o total do
+  // contrato (simplificada). Fica na coluna "Já pago", pra comparar com o que
+  // já foi pago; substituiu o antigo "quanto falta pagar" e a Divergência.
+  const medido = (linha.acumulado / 100) * (Number(item.contratoEmp) || 0);
+  const medidoContrato = (linha.acumulado / 100) * linha.valorTotal;
+
+  // "Disponível" da coluna Pagamento (26/09/2026, pedido do Lucas): o que o empreiteiro já
+  // tem direito a receber pela medição — (acumulado + avanço) × valor do empreiteiro − já pago
+  // ao empreiteiro. Negativo = recebeu adiantado. `disponivelContrato` é a versão da tela
+  // simplificada (sobre o total do contrato e o total já pago).
+  const medidoAteAgora = (linha.acumulado + linha.avanco) / 100;
+  const disponivelEmp = medidoAteAgora * (Number(item.contratoEmp) || 0) - jaPago.empreiteiro;
+  const disponivelContrato = medidoAteAgora * linha.valorTotal - jaPago.total;
+  // Pré-preenchimento do Pagamento (26/09/2026, pedido do Lucas): empreiteiro = disponível (emp.);
+  // reserva = (acumulado + avanço) × reserva contratada − reserva já paga. Nunca negativo
+  // (adiantamento não vira "pagamento negativo"). O usuário ainda pode digitar por cima.
+  const pagamentoEmpPadrao = Math.max(0, disponivelEmp);
+  const pagamentoReservaPadrao = Math.max(
+    0,
+    medidoAteAgora * (Number(item.contratoReserva) || 0) - jaPago.reserva,
+  );
 
   // null/undefined = sem sobrescrita, herda o calculado pela engine.
   const overrideEmp = item.pagamentoEmp;
   const overrideReserva = item.pagamentoReserva;
   const pagamentoEmpDraft =
-    overrideEmp === null || overrideEmp === undefined ? linha.pagar : Number(overrideEmp) || 0;
+    overrideEmp === null || overrideEmp === undefined ? pagamentoEmpPadrao : Number(overrideEmp) || 0;
   const pagamentoReservaDraft =
-    overrideReserva === null || overrideReserva === undefined ? linha.reservar : Number(overrideReserva) || 0;
+    overrideReserva === null || overrideReserva === undefined ? pagamentoReservaPadrao : Number(overrideReserva) || 0;
   const pagamentoDraftTotal = pagamentoEmpDraft + pagamentoReservaDraft;
 
   const saldoAposPagamentoEtapa = saldoDisp - linha.contrato;
   const saldoAposPagamentoEmp = (Number(item.contratoEmp) || 0) - jaPago.empreiteiro - pagamentoEmpDraft;
   const saldoAposPagamentoReserva = (Number(item.contratoReserva) || 0) - jaPago.reserva - pagamentoReservaDraft;
   const saldoAposPagamentoTotal = saldoAposPagamentoEmp + saldoAposPagamentoReserva;
+  // "Medição" do Saldo remanescente (26/09/2026): o que falta medir — (100% − medição atual) × total do contrato.
+  const saldoMedicao = (1 - medidoAteAgora) * linha.valorTotal;
 
   return {
     ...linha,
@@ -560,6 +581,10 @@ export function calcularLinhaEmpreitaEstendida(
     qtdeDisp,
     jaPago,
     medido,
+    medidoContrato,
+    disponivelEmp,
+    disponivelContrato,
+    saldoMedicao,
     pagamentoEmpDraft,
     pagamentoReservaDraft,
     pagamentoDraftTotal,
@@ -589,6 +614,10 @@ export function calcularTotaisEmpreitaEstendida(
         jaPagoDivergencia: totais.jaPagoDivergencia + linha.jaPago.divergencia,
         jaPagoTotal: totais.jaPagoTotal + linha.jaPago.total,
         medidoTotal: totais.medidoTotal + linha.medido,
+        medidoContratoTotal: totais.medidoContratoTotal + linha.medidoContrato,
+        disponivelEmpTotal: totais.disponivelEmpTotal + linha.disponivelEmp,
+        disponivelContratoTotal: totais.disponivelContratoTotal + linha.disponivelContrato,
+        saldoMedicaoTotal: totais.saldoMedicaoTotal + linha.saldoMedicao,
         pagamentoDraftEmp: totais.pagamentoDraftEmp + linha.pagamentoEmpDraft,
         pagamentoDraftReserva: totais.pagamentoDraftReserva + linha.pagamentoReservaDraft,
         pagamentoDraftTotal: totais.pagamentoDraftTotal + linha.pagamentoDraftTotal,
@@ -604,6 +633,10 @@ export function calcularTotaisEmpreitaEstendida(
       jaPagoDivergencia: 0,
       jaPagoTotal: 0,
       medidoTotal: 0,
+      medidoContratoTotal: 0,
+      disponivelEmpTotal: 0,
+      disponivelContratoTotal: 0,
+      saldoMedicaoTotal: 0,
       pagamentoDraftEmp: 0,
       pagamentoDraftReserva: 0,
       pagamentoDraftTotal: 0,

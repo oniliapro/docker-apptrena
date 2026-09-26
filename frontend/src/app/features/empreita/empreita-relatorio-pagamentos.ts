@@ -1,13 +1,33 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
-import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
-import { ItemSnapshotMedicao, MedicaoSnapshotEmpreita, Pagamento, StatusPagamento } from '../pagamentos/pagamentos.models';
+import { MedicaoSnapshotEmpreita, Pagamento, StatusPagamento } from '../pagamentos/pagamentos.models';
+import { ordenarPagamentosDaEmpreita } from './empreita-historico';
+
+/**
+ * Uma barra de medição: `acum` = o que já estava medido/pago ANTES deste pagamento (barra azul) e
+ * `atual` = a situação neste pagamento (o que passa do acumulado é o avanço, em amarelo, e o número
+ * exibido é o `atual`).
+ */
+interface BarraMedicao {
+  acum: number;
+  atual: number;
+}
+
+/** Barras empilhadas de uma medição: por parcela do contrato e no total. `null` = sem dado. */
+interface PercentuaisEmpilhados {
+  emp: BarraMedicao | null;
+  reserva: BarraMedicao | null;
+  total: BarraMedicao | null;
+}
 
 interface LinhaRelatorioPagamento {
   id: string;
+  pagamento: Pagamento;
   numeroPagamento: string;
+  /** Quem recebeu ESTE pagamento — pode ser outra pessoa que não o profissional da empreita (muda ao longo da obra). */
+  beneficiado: string;
   dataSolicitacao: string;
   dataPagamento: string;
   status: StatusPagamento;
@@ -19,36 +39,27 @@ interface LinhaRelatorioPagamento {
   snapshot: MedicaoSnapshotEmpreita | null;
   /** Valor do CONTRATO no momento deste pagamento — do snapshot quando existe, senão cai pro atual. */
   contratoTotalNoMomento: number;
-  /** "Medição %" — acumulado/atual ponderados por `contratoEmp`, `null` sem snapshot (mesma regra do "Físico" da lista de Empreitas). */
-  pctMedicaoAcumulado: number | null;
-  pctMedicaoAtual: number | null;
+  /** Medição física (%): a medição atual de cada serviço, ponderada pelo contrato da parcela. */
+  fisica: PercentuaisEmpilhados;
+  /** Medição financeira (%): quanto do contrato da parcela já foi pago até este pagamento, inclusive. */
+  financeira: PercentuaisEmpilhados;
 }
 
 /**
- * "Pagamentos registrados" — relatório fixo no canto inferior direito da
- * tela de Empreita, pedido do Lucas em 24-25/08/2026. Componente novo,
- * standalone e SEM store própria (só `input()`s) de propósito: precisa
- * renderizar idêntico na tela normal (`empreita.html`) e na versão de
- * impressão (`empreita-imprimir.html`), sem duplicar a lógica de cálculo
- * nos dois lugares.
+ * "Pagamentos registrados" — a tabela das medições/pagamentos de uma empreita. Componente
+ * standalone e SEM store própria (só `input()`s) de propósito: renderiza idêntico na lista de
+ * empreitas da obra (onde agora mora, 26/09/2026) e no PDF (`empreita-imprimir.html`).
  *
- * `pagamentos` agora recebe TODOS os pagamentos desta empreita, pendentes
- * inclusive (25/08/2026, pedido do Lucas: "ao lançar um pagamento... o
- * mesmo já deve aparecer nos pagamentos registrados, exibindo que a data
- * de pagamento ainda está em aberto") — antes só mostrava confirmados, e
- * um pagamento recém-gerado (sempre nasce pendente) só aparecia aqui
- * depois de alguém confirmá-lo manualmente na aba Pagamentos. A data de
- * pagamento em branco mostra "Em aberto" em vez de "—".
+ * Colunas (26/09/2026, pedido do Lucas): Nº · Beneficiado (o pagamento pode ir para outra pessoa
+ * que não o profissional da empreita) · Datas empilhadas (solicitação/pagamento) · Medição física ·
+ * Medição financeira · Valor pago · Ações (editar/confirmar/tornar pendente, só na tela).
  *
- * "Saldo empreita" (confirmado com o Lucas, 24/08/2026) é o saldo da
- * empreita ESPECÍFICA, não da obra toda: `Contrato Total desta empreita
- * − soma paga (Empreiteiro+Reserva) até este pagamento, inclusive` — soma
- * pendentes e confirmados igual, porque um pagamento pendente já
- * representa dinheiro comprometido, mesmo antes de confirmado. Uma linha
- * vinda de um pagamento gerado pelo código antigo (antes de `parcela`
- * existir) aparece com Empreiteiro/Reserva zerados — não dá pra saber
- * retroativamente qual lado do contrato aquele valor era (ver nota de
- * migração no plano) —, mas a data continua visível.
+ * "Simplificar" = `mostrarEmpreiteiro`/`mostrarReserva` desligados e `mostrarTotal` ligado: as
+ * medições e o valor pago mostram só o Total. Sem "Total" marcado, pagamentos sem valor nas
+ * parcelas marcadas ficam de fora (opções do PDF, ver `empreita-pdf-opcoes.ts`).
+ *
+ * "Saldo empreita" é o saldo da empreita ESPECÍFICA: `Contrato Total − soma paga (Empreiteiro +
+ * Reserva) até este pagamento, inclusive` — pendentes contam, porque já são dinheiro comprometido.
  */
 @Component({
   selector: 'app-empreita-relatorio-pagamentos',
@@ -59,37 +70,33 @@ export class EmpreitaRelatorioPagamentos {
   readonly pagamentos = input<Pagamento[]>([]);
   readonly contratoTotalEmpreita = input<number>(0);
 
-  // O botão "Realizar medição" mudou pro cabeçalho da empreita (19/09/2026) — ver `empreita.html`.
-
-  /** Itens ATUAIS da EAP (03/09/2026) — só pra rotular a etapa de cada serviço na popup de retrato. */
-  readonly itensEap = input<ItemEap[]>([]);
-
-  /**
-   * O que mostrar (25/09/2026, pedido do Lucas — popup "O que mostrar" do PDF
-   * da Empreita, ver `empreita-pdf-opcoes.ts`). Tudo ligado por padrão: a
-   * tela normal não muda; só `empreita-imprimir` desliga o que o usuário
-   * desmarcou. "Total" cobre também as linhas "Contrato" e "Saldo empreita".
-   * Sem "Total", pagamentos sem valor nas parcelas marcadas (empreiteiro e/ou
-   * reserva) ficam de fora da tabela.
-   */
   readonly mostrarEmpreiteiro = input(true);
   readonly mostrarReserva = input(true);
   readonly mostrarTotal = input(true);
 
+  /** Coluna de ações (editar/confirmar/tornar pendente) e linha clicável — só na tela, nunca no PDF. */
+  readonly interativo = input(false);
+
+  /** Clique na linha: abre a "empreita completa" daquela medição. */
+  readonly abrirMedicao = output<Pagamento>();
+  readonly editarPagamento = output<Pagamento>();
+  readonly confirmarPagamento = output<Pagamento>();
+  readonly tornarPendente = output<Pagamento>();
+  /** "Realizar medição": leva à empreita completa já com a medição aberta (ver `Empreita.realizarMedicaoAoAbrir`). */
+  readonly realizarMedicao = output<void>();
+
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
-  protected readonly tiposCusto = TIPOS_CUSTO;
 
   protected readonly linhas = computed<LinhaRelatorioPagamento[]>(() => {
     const contratoTotal = this.contratoTotalEmpreita();
-    const ordenados = [...this.pagamentos()].sort((a, b) => {
-      const dataA = a.dataPagamento || a.dataSolicitacao || '';
-      const dataB = b.dataPagamento || b.dataSolicitacao || '';
-      return dataA.localeCompare(dataB);
-    });
+    const ordenados = ordenarPagamentosDaEmpreita(this.pagamentos());
 
-    let acumuladoPago = 0;
+    let acumuladoEmp = 0;
+    let acumuladoReserva = 0;
     return ordenados.map((pagamento) => {
+      const empAntes = acumuladoEmp;
+      const reservaAntes = acumuladoReserva;
       let empreiteiro = 0;
       let reserva = 0;
       for (const item of expandirItensPagamento(pagamento)) {
@@ -97,29 +104,43 @@ export class EmpreitaRelatorioPagamentos {
         else if (item.parcela === 'empreiteiro') empreiteiro += item.valorCalculado;
       }
       const total = empreiteiro + reserva;
-      acumuladoPago += total;
+      acumuladoEmp += empreiteiro;
+      acumuladoReserva += reserva;
 
       const snapshot = pagamento.medicaoSnapshot ?? null;
-      const { acumulado: pctMedicaoAcumulado, atual: pctMedicaoAtual } = this.medicaoPonderada(snapshot);
+      const contratoEmp = snapshot ? snapshot.itens.reduce((s, i) => s + (i.contratoEmp || 0), 0) : 0;
+      const contratoReserva = snapshot ? snapshot.itens.reduce((s, i) => s + (i.contratoReserva || 0), 0) : 0;
 
       return {
         id: pagamento.id,
+        pagamento,
         numeroPagamento: pagamento.numeroPagamento,
+        beneficiado: pagamento.fornecedor,
         dataSolicitacao: pagamento.dataSolicitacao,
         dataPagamento: pagamento.dataPagamento,
         status: pagamento.status,
         empreiteiro,
         reserva,
         total,
-        saldoEmpreita: contratoTotal - acumuladoPago,
+        saldoEmpreita: contratoTotal - (acumuladoEmp + acumuladoReserva),
         snapshot,
-        // "Contrato" no momento deste pagamento (03/09/2026, pedido do
-        // Lucas: "uma empreita pode crescer ou diminuir ao longo do
-        // tempo") — do snapshot quando existe; pagamentos gerados antes
-        // desta feature caem pro total ATUAL, única referência possível.
         contratoTotalNoMomento: snapshot ? snapshot.contratoTotalEmpreita : contratoTotal,
-        pctMedicaoAcumulado,
-        pctMedicaoAtual,
+        fisica: this.medicaoFisica(snapshot),
+        // Financeira: azul = pago ANTES deste pagamento; o pedaço amarelo = o que este pagamento acrescenta.
+        financeira: {
+          emp: contratoEmp > 0 ? { acum: (empAntes / contratoEmp) * 100, atual: (acumuladoEmp / contratoEmp) * 100 } : null,
+          reserva:
+            contratoReserva > 0
+              ? { acum: (reservaAntes / contratoReserva) * 100, atual: (acumuladoReserva / contratoReserva) * 100 }
+              : null,
+          total:
+            contratoEmp + contratoReserva > 0
+              ? {
+                  acum: ((empAntes + reservaAntes) / (contratoEmp + contratoReserva)) * 100,
+                  atual: ((acumuladoEmp + acumuladoReserva) / (contratoEmp + contratoReserva)) * 100,
+                }
+              : null,
+        },
       };
     });
   });
@@ -134,66 +155,42 @@ export class EmpreitaRelatorioPagamentos {
   });
 
   /**
-   * "Medição %" — acumulado/atual ponderados por `contratoEmp`, mesma
-   * fórmula de "Físico" na lista de Empreitas (`empreitas-obra.ts`).
-   * `null` quando não há snapshot (pagamento antigo) ou nenhum item do
-   * snapshot tem contrato lançado.
+   * Medição física por parcela: média da medição atual de cada serviço ponderada pelo contrato da
+   * parcela (empreiteiro pelo valor do empreiteiro, reserva pela reserva, total pela soma) — mesma
+   * ideia da coluna "Medição física" da lista de empreitas.
    */
-  private medicaoPonderada(
-    snapshot: MedicaoSnapshotEmpreita | null,
-  ): { acumulado: number | null; atual: number | null } {
-    if (!snapshot) return { acumulado: null, atual: null };
+  private medicaoFisica(snapshot: MedicaoSnapshotEmpreita | null): PercentuaisEmpilhados {
+    if (!snapshot) return { emp: null, reserva: null, total: null };
 
-    let somaPonderadaAcum = 0;
-    let somaPonderadaAtual = 0;
-    let somaContrato = 0;
+    let atualEmp = 0, acumEmp = 0, pesoEmp = 0;
+    let atualReserva = 0, acumReserva = 0, pesoReserva = 0;
+    let atualTotal = 0, acumTotal = 0, pesoTotal = 0;
     for (const item of snapshot.itens) {
-      const contrato = item.contratoEmp || 0;
-      if (contrato <= 0) continue;
-      somaPonderadaAcum += item.medicaoAcum * contrato;
-      somaPonderadaAtual += item.medicaoAtual * contrato;
-      somaContrato += contrato;
+      const emp = item.contratoEmp || 0;
+      const reserva = item.contratoReserva || 0;
+      atualEmp += item.medicaoAtual * emp;
+      acumEmp += item.medicaoAcum * emp;
+      pesoEmp += emp;
+      atualReserva += item.medicaoAtual * reserva;
+      acumReserva += item.medicaoAcum * reserva;
+      pesoReserva += reserva;
+      atualTotal += item.medicaoAtual * (emp + reserva);
+      acumTotal += item.medicaoAcum * (emp + reserva);
+      pesoTotal += emp + reserva;
     }
-
-    return somaContrato > 0
-      ? { acumulado: somaPonderadaAcum / somaContrato, atual: somaPonderadaAtual / somaContrato }
-      : { acumulado: null, atual: null };
+    return {
+      emp: pesoEmp > 0 ? { acum: acumEmp / pesoEmp, atual: atualEmp / pesoEmp } : null,
+      reserva: pesoReserva > 0 ? { acum: acumReserva / pesoReserva, atual: atualReserva / pesoReserva } : null,
+      total: pesoTotal > 0 ? { acum: acumTotal / pesoTotal, atual: atualTotal / pesoTotal } : null,
+    };
   }
 
-  protected larguraBarra(pct: number): number {
-    return Math.min(100, Math.max(0, pct));
+  protected percentual(valor: number): string {
+    return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
   }
 
-  protected formatarPercentualBarra(pct: number): string {
-    return `${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
-  }
-
-  // ------------------------------------------------------------------
-  // Popup — "retrato" da empreita no momento do pagamento (03/09/2026)
-  // ------------------------------------------------------------------
-  protected readonly linhaDetalhada = signal<LinhaRelatorioPagamento | null>(null);
-
-  protected abrirDetalhe(linha: LinhaRelatorioPagamento): void {
-    if (!linha.snapshot) return;
-    this.linhaDetalhada.set(linha);
-  }
-
-  protected fecharDetalhe(): void {
-    this.linhaDetalhada.set(null);
-  }
-
-  protected rotuloTipo(chave: ChaveTipo | string): string {
-    return this.tiposCusto.find((t) => t.chave === chave)?.rotulo ?? String(chave);
-  }
-
-  protected rotuloEtapaSnapshot(item: ItemSnapshotMedicao): string {
-    if (!item.eapId) return '—';
-    const itemEap = this.itensEap().find((i) => i.id === item.eapId);
-    if (!itemEap) return '—';
-    const eap = String(itemEap.eap ?? '').trim();
-    const desc = String(itemEap.desc ?? '').trim();
-    if (eap && desc) return `${eap} - ${desc}`;
-    return eap || desc || '—';
+  protected larguraBarra(valor: number): number {
+    return Math.min(100, Math.max(0, valor));
   }
 
   protected readonly totalEmpreiteiro = computed(() => this.linhas().reduce((s, l) => s + l.empreiteiro, 0));
@@ -205,4 +202,8 @@ export class EmpreitaRelatorioPagamentos {
     const linhas = this.linhas();
     return linhas.length ? linhas[linhas.length - 1].saldoEmpreita : this.contratoTotalEmpreita();
   });
+
+  protected aoClicarLinha(linha: LinhaRelatorioPagamento): void {
+    if (this.interativo() && linha.snapshot) this.abrirMedicao.emit(linha.pagamento);
+  }
 }

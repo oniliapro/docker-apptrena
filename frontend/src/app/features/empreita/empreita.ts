@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, effect, inject, input, signal, untracked } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
@@ -6,6 +6,7 @@ import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-l
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
@@ -34,7 +35,6 @@ import {
   opcoesDoSimplificado,
   rotuloColunaPdfEmpreita,
 } from './empreita-pdf-opcoes';
-import { EmpreitaRelatorioPagamentos } from './empreita-relatorio-pagamentos';
 import { EmpreitaStore } from './empreita.store';
 import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao } from './empreita.models';
 
@@ -63,13 +63,15 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, EmpreitaRelatorioPagamentos, BarraSelecao],
-  providers: [EmpreitaStore],
+  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, BarraSelecao, FormulaCampo],
+  providers: [EmpreitaStore, FormulasContexto],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',
 })
 export class Empreita implements OnInit {
   protected readonly store = inject(EmpreitaStore);
+  /** Fórmulas guardadas dos campos de valor (ver `formulas-guardadas.ts`). */
+  private readonly formulas = inject(FormulasContexto);
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
   protected readonly formatarMoeda = formatarMoeda;
@@ -167,10 +169,27 @@ export class Empreita implements OnInit {
   protected realizarMedicao(): void {
     this.store.iniciarPagamento();
     this.store.definirMedicaoHabilitada(false);
+    // Medição atual já nasce igual à acumulada (evita regresso sem querer).
+    this.store.preencherMedicaoAtualComAcumulada();
   }
+
+  /**
+   * `?realizarMedicao=1` na URL (botão "Realizar medição" da tabela Pagamentos registrados, 26/09/2026):
+   * assim que a empreita carrega, já abre a medição — "Realizar medição" trava e "Realizar pagamento" libera.
+   */
+  readonly realizarMedicaoAoAbrir = input('', { alias: 'realizarMedicao' });
+  private jaRealizouAoAbrir = false;
+  private readonly realizarMedicaoAoCarregar = effect(() => {
+    if (this.jaRealizouAoAbrir || !this.realizarMedicaoAoAbrir() || this.store.carregando()) return;
+    this.jaRealizouAoAbrir = true;
+    untracked(() => {
+      if (this.store.travada() && this.podeRealizarMedicao()) this.realizarMedicao();
+    });
+  });
 
   ngOnInit(): void {
     this.store.carregar(this.empreitaId(), this.obraId());
+    this.formulas.definir('empreita.' + this.empreitaId());
     this.carregarEmpreiteiros();
   }
 
@@ -422,7 +441,6 @@ export class Empreita implements OnInit {
           reservar: linha.reservar,
           jaPagoEmpreiteiro: linha.jaPago.empreiteiro,
           jaPagoReserva: linha.jaPago.reserva,
-          jaPagoDivergencia: linha.jaPago.divergencia,
           medido: linha.medido,
         };
       });
@@ -614,7 +632,16 @@ export class Empreita implements OnInit {
       pct = qtdeParaPct(numero, qtdeTotal);
     }
 
-    this.store.atualizarMedicao(item.id, campo, limitarPercentual(pct));
+    const limitado = limitarPercentual(pct);
+    this.store.atualizarMedicao(item.id, campo, limitado);
+
+    // Aviso de regresso (26/09/2026): medição atual menor que a acumulada.
+    const acumulado = this.linha(indice).acumulado;
+    if (limitado < acumulado - 0.0001) {
+      window.alert(
+        `Atenção: a medição atual (${limitado.toLocaleString('pt-BR')}%) ficou MENOR que a acumulada (${acumulado.toLocaleString('pt-BR')}%) em "${item.desc || 'Serviço'}". Uma medição não pode regredir — corrija o valor antes de realizar o pagamento.`,
+      );
+    }
   }
 
   // ---- Quantidade contratada (referência do toggle Qtde) ----
@@ -640,26 +667,37 @@ export class Empreita implements OnInit {
     return this.moedaSempre(this.linha(indice).jaPago.reserva);
   }
 
-  protected valorJaPagoDivergencia(indice: number): string {
-    return this.moedaSempre(this.linha(indice).jaPago.divergencia);
-  }
-
-  protected numDivergencia(indice: number): number {
-    return this.linha(indice).jaPago.divergencia;
-  }
-
   protected valorJaPagoTotal(indice: number): string {
     return this.moedaSempre(this.linha(indice).jaPago.total);
   }
 
-  // ---- Pagamento (rascunho do período, editável) ----
+  /** "Medido" (coluna Já pago): acumulado × valor do empreiteiro; com a tela simplificada, × total do contrato. */
   protected valorMedido(indice: number): string {
-    return this.moedaSempre(this.linha(indice).medido);
+    const linha = this.linha(indice);
+    return this.moedaSempre(this.simplificado() ? linha.medidoContrato : linha.medido);
   }
 
-  protected numMedido(indice: number): number {
-    return this.linha(indice).medido;
+  // ---- Pagamento (rascunho do período, editável) ----
+  /** "Disponível (emp.)": (acumulado + avanço) × empreiteiro − já pago ao empreiteiro; simplificada: sobre o total do contrato. */
+  protected numDisponivel(indice: number): number {
+    const linha = this.linha(indice);
+    return this.simplificado() ? linha.disponivelContrato : linha.disponivelEmp;
   }
+
+  protected totalDisponivel(): number {
+    const totais = this.store.totaisEstendidos();
+    return this.simplificado() ? totais.disponivelContratoTotal : totais.disponivelEmpTotal;
+  }
+
+  /** "Medição" do Saldo remanescente: o que falta medir, (100% − medição atual) × total do contrato. */
+  protected numSaldoMedicao(indice: number): number {
+    return this.linha(indice).saldoMedicao;
+  }
+
+  protected totalSaldoMedicao(): number {
+    return this.store.totaisEstendidos().saldoMedicaoTotal;
+  }
+
 
   protected valorPagamentoDraftExibido(indice: number, campo: 'pagamentoEmpDraft' | 'pagamentoReservaDraft'): string {
     return this.moedaSempre(this.linha(indice)[campo]);

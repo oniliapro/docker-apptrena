@@ -209,13 +209,20 @@ export interface LinhaEmpreitaEstendida extends LinhaEmpreita {
   jaPago: JaPagoLinha;
 
   /**
-   * "Medido" (25/08/2026, pedido do Lucas) — quanto o empreiteiro já tem
-   * a receber com base no total medido até agora (não só o avanço deste
-   * período), descontado o que já foi pago — `atual% × contratoEmp −
-   * jaPago.empreiteiro`, sem considerar reserva. Pode ficar negativo se
-   * ele recebeu mais do que o medido total garante (adiantamento).
+   * "Medido" (26/09/2026, pedido do Lucas) — acumulado% × valor do
+   * empreiteiro (tela não simplificada). Fica na coluna "Já pago".
    */
   medido: number;
+
+  /** Medido sobre o TOTAL do contrato (empreiteiro + reserva), usado com a tela simplificada. */
+  medidoContrato: number;
+
+  /** "Disponível (emp.)" da coluna Pagamento: (acumulado + avanço) × contrato do empreiteiro − já pago ao empreiteiro. */
+  disponivelEmp: number;
+  /** Idem sobre o total do contrato e o total já pago (tela simplificada). */
+  disponivelContrato: number;
+  /** "Medição" do Saldo remanescente: (100% − medição atual) × total do contrato. */
+  saldoMedicao: number;
 
   /** Valor efetivo do rascunho de Pagamento — override do usuário, ou o calculado (pagar/reservar) se não houver. */
   pagamentoEmpDraft: number;
@@ -240,7 +247,13 @@ export interface TotaisEmpreitaEstendida extends TotaisEmpreita {
   jaPagoReserva: number;
   jaPagoDivergencia: number;
   jaPagoTotal: number;
+  /** Medido sobre o valor do empreiteiro (tela não simplificada). */
   medidoTotal: number;
+  /** Medido sobre o total do contrato (tela simplificada). */
+  medidoContratoTotal: number;
+  disponivelEmpTotal: number;
+  disponivelContratoTotal: number;
+  saldoMedicaoTotal: number;
   pagamentoDraftEmp: number;
   pagamentoDraftReserva: number;
   pagamentoDraftTotal: number;

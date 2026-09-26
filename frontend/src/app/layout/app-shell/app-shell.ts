@@ -192,6 +192,14 @@ export class AppShell {
       moduloChave: 'diario_obra',
     },
     {
+      // Agenda geral (26/09/2026) — compromissos de todas as obras, compartilhados com a empresa.
+      id: 'agenda',
+      rota: '/agenda',
+      icone: 'calendario',
+      texto: 'Agenda',
+      moduloChave: 'agenda',
+    },
+    {
       id: 'relatorios',
       rota: '/relatorios',
       icone: 'grafico',

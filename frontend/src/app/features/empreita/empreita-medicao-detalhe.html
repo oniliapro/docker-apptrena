@@ -1,0 +1,169 @@
+@if (pagamento(); as pg) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fechar.emit()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">
+          Empreita completa — medição do pagamento {{ pg.numeroPagamento || '—' }}
+          @if (pg.status === 'pendente') { <span class="marca-pendente">pendente</span> }
+        </span>
+        <button type="button" (click)="fechar.emit()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="atenuado pequeno">
+          Como a empreita estava no momento deste pagamento — os campos mostram o que foi preenchido
+          naquela medição (o contrato pode ter mudado desde então).
+          @if (editando()) {
+            <b>Editando: ao salvar, o pagamento vinculado é atualizado e as medições seguintes são
+            recalculadas, mantendo o avanço e os valores pagos de cada uma.</b>
+          }
+        </p>
+
+        <div class="legenda-situacao" aria-label="Legenda das cores dos serviços">
+          <span class="chave-situacao situacao-concluido"></span> Concluído (100% medido)
+          <span class="chave-situacao situacao-andamento"></span> Medição em andamento
+          <span class="chave-situacao situacao-pagamento"></span> Com pagamento nesta medição
+        </div>
+
+        <div class="envoltoria">
+          <table class="tabela-detalhe">
+            <thead>
+              <tr>
+                <th class="col-servico">Serviço</th>
+                <th>Medição de contrato</th>
+                <th>Contrato</th>
+                <th>Anterior</th>
+                <th>Pagamento</th>
+                <th>Saldo remanescente</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of itens(); track item.id; let i = $index) {
+                @let l = linhas()[i];
+                <tr [class.situacao-pagamento]="situacao(l) === 'pagamento'"
+                    [class.situacao-concluido]="situacao(l) === 'concluido'"
+                    [class.situacao-andamento]="situacao(l) === 'andamento'">
+                  <td class="col-servico">
+                    <b>{{ item.desc || '(sem descrição)' }}</b>
+                    <span class="atenuado">{{ rotuloTipo(item.tipo) }}</span>
+                    <span class="atenuado">{{ rotuloEtapa(item) }}</span>
+                  </td>
+                  <td>
+                    <div class="sub"><span>Qtde. contrat.</span><b>{{ qtdeContratada(item) }}</b></div>
+                    <div class="sub"><span>Acumulado</span><b>{{ percentual(l.acumulado) }}</b></div>
+                    <div class="sub">
+                      <span>Atual</span>
+                      @if (editando()) {
+                        <input type="text" class="valor" [value]="valorRascunho(item.id, 'atual')" (change)="editarAtual(i, $event)" />
+                      } @else {
+                        <b>{{ percentual(l.atual) }}</b>
+                      }
+                    </div>
+                    <div class="sub"><span>Avanço</span><b>{{ percentual(l.avanco) }}</b></div>
+                  </td>
+                  <td>
+                    <div class="sub">
+                      <span>Saldo disp.</span>
+                      @let saldo = saldoDisp(item);
+                      @if (saldo !== null) {
+                        <b [class.saldo-positivo]="saldo >= 0" [class.saldo-negativo]="saldo < 0">{{ formatarMoeda(saldo) }}</b>
+                      } @else {
+                        <b>—</b>
+                      }
+                    </div>
+                    <div class="sub"><span>Empreiteiro</span><b>{{ formatarMoeda(l.valorEmp) }}</b></div>
+                    <div class="sub"><span>Reserva</span><b>{{ formatarMoeda(l.valorReserva) }}</b></div>
+                    <div class="sub destaque"><span>Total</span><b>{{ formatarMoeda(l.valorTotal) }}</b></div>
+                  </td>
+                  <td>
+                    <div class="sub"><span>Medição (acum.)</span><b>{{ formatarMoeda(l.medido) }}</b></div>
+                    <div class="sub"><span>Pago (emp.)</span><b>{{ formatarMoeda(l.jaPago.empreiteiro) }}</b></div>
+                    <div class="sub"><span>Pago (reserva)</span><b>{{ formatarMoeda(l.jaPago.reserva) }}</b></div>
+                    <div class="sub destaque"><span>Pago (total)</span><b>{{ formatarMoeda(l.jaPago.total) }}</b></div>
+                  </td>
+                  <td>
+                    <div class="sub">
+                      <span>Disponível (emp.)</span>
+                      <b [class.saldo-positivo]="l.disponivelEmp >= 0" [class.saldo-negativo]="l.disponivelEmp < 0">{{ formatarMoeda(l.disponivelEmp) }}</b>
+                    </div>
+                    <div class="sub">
+                      <span>A pagar (emp.)</span>
+                      @if (editando()) {
+                        <input type="text" class="valor" [class.pagar-negativo]="l.saldoAposPagamentoEmp < 0"
+                               [value]="valorRascunho(item.id, 'emp')" (change)="editarValor(item.id, 'emp', $event)" />
+                      } @else {
+                        <b [class.saldo-negativo]="l.saldoAposPagamentoEmp < 0">{{ formatarMoeda(l.pagamentoEmpDraft) }}</b>
+                      }
+                    </div>
+                    <div class="sub">
+                      <span>A pagar (reserva)</span>
+                      @if (editando()) {
+                        <input type="text" class="valor" [class.pagar-negativo]="l.saldoAposPagamentoReserva < 0"
+                               [value]="valorRascunho(item.id, 'reserva')" (change)="editarValor(item.id, 'reserva', $event)" />
+                      } @else {
+                        <b [class.saldo-negativo]="l.saldoAposPagamentoReserva < 0">{{ formatarMoeda(l.pagamentoReservaDraft) }}</b>
+                      }
+                    </div>
+                    <div class="sub destaque">
+                      <span>A pagar (total)</span>
+                      <b [class.saldo-negativo]="l.saldoAposPagamentoTotal < 0">{{ formatarMoeda(l.pagamentoDraftTotal) }}</b>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="sub"><span>Saldo (medição)</span><b>{{ formatarMoeda(l.saldoMedicao) }}</b></div>
+                    <div class="sub"><span>Saldo (emp.)</span><b [class.saldo-positivo]="l.saldoAposPagamentoEmp >= 0" [class.saldo-negativo]="l.saldoAposPagamentoEmp < 0">{{ formatarMoeda(l.saldoAposPagamentoEmp) }}</b></div>
+                    <div class="sub"><span>Saldo (reserva)</span><b [class.saldo-positivo]="l.saldoAposPagamentoReserva >= 0" [class.saldo-negativo]="l.saldoAposPagamentoReserva < 0">{{ formatarMoeda(l.saldoAposPagamentoReserva) }}</b></div>
+                    <div class="sub destaque"><span>Saldo (total)</span><b [class.saldo-positivo]="l.saldoAposPagamentoTotal >= 0" [class.saldo-negativo]="l.saldoAposPagamentoTotal < 0">{{ formatarMoeda(l.saldoAposPagamentoTotal) }}</b></div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              @let t = totais();
+              <tr>
+                <th class="col-servico">TOTAIS</th>
+                <th></th>
+                <th>
+                  <div class="sub"><span>Empreiteiro</span><b>{{ formatarMoeda(t.contratoEmp) }}</b></div>
+                  <div class="sub"><span>Reserva</span><b>{{ formatarMoeda(t.contratoReserva) }}</b></div>
+                  <div class="sub destaque"><span>Total</span><b>{{ formatarMoeda(t.contratoTotal) }}</b></div>
+                </th>
+                <th>
+                  <div class="sub"><span>Medição (acum.)</span><b>{{ formatarMoeda(t.medido) }}</b></div>
+                  <div class="sub"><span>Pago (emp.)</span><b>{{ formatarMoeda(t.pagoEmp) }}</b></div>
+                  <div class="sub"><span>Pago (reserva)</span><b>{{ formatarMoeda(t.pagoReserva) }}</b></div>
+                  <div class="sub destaque"><span>Pago (total)</span><b>{{ formatarMoeda(t.pagoTotal) }}</b></div>
+                </th>
+                <th>
+                  <div class="sub"><span>Disponível (emp.)</span><b [class.saldo-negativo]="t.disponivel < 0">{{ formatarMoeda(t.disponivel) }}</b></div>
+                  <div class="sub"><span>A pagar (emp.)</span><b>{{ formatarMoeda(t.pagarEmp) }}</b></div>
+                  <div class="sub"><span>A pagar (reserva)</span><b>{{ formatarMoeda(t.pagarReserva) }}</b></div>
+                  <div class="sub destaque"><span>A pagar (total)</span><b>{{ formatarMoeda(t.pagarTotal) }}</b></div>
+                </th>
+                <th>
+                  <div class="sub"><span>Saldo (medição)</span><b>{{ formatarMoeda(t.saldoMedicao) }}</b></div>
+                  <div class="sub"><span>Saldo (emp.)</span><b [class.saldo-negativo]="t.saldoEmp < 0">{{ formatarMoeda(t.saldoEmp) }}</b></div>
+                  <div class="sub"><span>Saldo (reserva)</span><b [class.saldo-negativo]="t.saldoReserva < 0">{{ formatarMoeda(t.saldoReserva) }}</b></div>
+                  <div class="sub destaque"><span>Saldo (total)</span><b [class.saldo-negativo]="t.saldoTotal < 0">{{ formatarMoeda(t.saldoTotal) }}</b></div>
+                </th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-rodape">
+        @if (editando()) {
+          <button type="button" (click)="cancelarEdicao()">Cancelar edição</button>
+          <button type="button" class="primario" (click)="salvarEdicao()">Salvar alterações</button>
+        } @else {
+          <button type="button" class="perigo esquerda" (click)="pedirApagar()">Apagar medição</button>
+          <button type="button" (click)="fechar.emit()">Fechar</button>
+          <button type="button" class="primario" (click)="iniciarEdicao()">Editar medição</button>
+        }
+      </div>
+    </div>
+  </div>
+}

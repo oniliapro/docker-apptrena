@@ -78,6 +78,10 @@ export class PagamentosVinculadosPopup implements OnInit {
     this.acoes.abrir(pagamento);
   }
 
+  protected excluirPagamentoDoEditor(pagamento: Pagamento): void {
+    this.acoes.excluirDoEditor(pagamento);
+  }
+
   protected fecharPagamento(): void {
     this.acoes.fechar();
   }

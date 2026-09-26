@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { Router } from '@angular/router';
 
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { formatarPercentual, parsearBR } from '../pagamentos/pagamentos-calc';
@@ -22,14 +23,16 @@ import { MedicaoStore } from './medicao.store';
  */
 @Component({
   selector: 'app-medicao',
-  imports: [DatePipe, RedimensionarColunas],
-  providers: [EapStore, MedicaoStore],
+  imports: [DatePipe, RedimensionarColunas, FormulaCampo],
+  providers: [EapStore, MedicaoStore, FormulasContexto],
   templateUrl: './medicao.html',
   styleUrl: './medicao.scss',
 })
 export class Medicao implements OnInit {
   protected readonly eap = inject(EapStore);
   protected readonly store = inject(MedicaoStore);
+  /** Fórmulas guardadas dos campos de valor (ver `formulas-guardadas.ts`). */
+  private readonly formulas = inject(FormulasContexto);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
@@ -47,6 +50,7 @@ export class Medicao implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.obraId(), this.medicaoId());
+    this.formulas.definir('medicao.' + this.medicaoId());
   }
 
   /** Mesmo padrão de `Mapa.baixarPdf()`/`Eap.baixarPdf()`. */

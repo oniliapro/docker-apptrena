@@ -9,6 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { formatarPercentual, parsearBR } from '../pagamentos/pagamentos-calc';
@@ -41,13 +42,15 @@ import { MapaStore } from './mapa.store';
  */
 @Component({
   selector: 'app-mapa',
-  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao],
-  providers: [MapaStore],
+  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, FormulaCampo],
+  providers: [MapaStore, FormulasContexto],
   templateUrl: './mapa.html',
   styleUrl: './mapa.scss',
 })
 export class Mapa implements OnInit {
   protected readonly store = inject(MapaStore);
+  /** Fórmulas guardadas dos campos de valor (ver `formulas-guardadas.ts`). */
+  private readonly formulas = inject(FormulasContexto);
   private readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
@@ -149,7 +152,7 @@ export class Mapa implements OnInit {
   }
 
   /** Colunas fixas antes das colunas de fornecedor. */
-  private readonly COLUNAS_FIXAS = 6;
+  private readonly COLUNAS_FIXAS = 7;
 
   protected readonly totalColunas = computed(
     () => this.COLUNAS_FIXAS + this.store.fornecedores().length * 2 + 1,
@@ -157,6 +160,7 @@ export class Mapa implements OnInit {
 
   ngOnInit(): void {
     this.store.carregar(this.mapaId(), this.obraId());
+    this.formulas.definir('mapa.' + this.mapaId());
   }
 
   /**
@@ -631,7 +635,8 @@ export class Mapa implements OnInit {
     const valor = Number(item.unit?.[indice]) || 0;
     if (!valor) return '';
     if (this.celulaPrecoFocada() === this.chavePreco(item, indice)) {
-      return this.formatarPrecoEdicao(valor);
+      // Com fórmula guardada, o campo em foco mostra a conta (o `appFormulaCampo` põe o mesmo texto).
+      return this.formulas.obter('i.' + item.id + '.p' + indice) ?? this.formatarPrecoEdicao(valor);
     }
     return formatarMoeda(valor);
   }

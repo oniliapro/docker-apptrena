@@ -83,6 +83,17 @@ export class AcoesRecebimento {
     });
   }
 
+  /** Exclusão pedida de DENTRO do editor (o modal já confirmou): apaga, atualiza a lista e fecha o editor. */
+  excluirDoEditor(recebimento: Recebimento): void {
+    this.api.excluirRecebimento(recebimento.id).subscribe({
+      next: () => {
+        this.aoAlterar({ tipo: 'excluido', id: recebimento.id });
+        this.fechar();
+      },
+      error: () => window.alert('Não foi possível excluir o recebimento.'),
+    });
+  }
+
   excluir(recebimento: Recebimento): void {
     if (!window.confirm(mensagemExclusaoRecebimento(recebimento))) return;
 

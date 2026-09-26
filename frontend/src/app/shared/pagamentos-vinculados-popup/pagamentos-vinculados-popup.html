@@ -54,5 +54,6 @@
     [pagamento]="pagamento"
     [obraId]="pagamento.obraId ?? ''"
     (salvar)="salvarPagamento($event)"
+    (excluir)="excluirPagamentoDoEditor($event)"
     (fechar)="fecharPagamento()" />
 }

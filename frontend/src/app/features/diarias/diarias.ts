@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda, hojeIso } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
+import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { normalizarPagamento, parsearBR } from '../pagamentos/pagamentos-calc';
 import { erroDasEtapas, valorDiaria, valorTotalDiaria } from './diarias-engine';
@@ -29,13 +30,15 @@ interface LinhaEtapa {
  */
 @Component({
   selector: 'app-diarias',
-  imports: [Autocomplete, BarraSelecao],
-  providers: [DiariasStore],
+  imports: [Autocomplete, BarraSelecao, FormulaCampo],
+  providers: [DiariasStore, FormulasContexto],
   templateUrl: './diarias.html',
   styleUrl: './diarias.scss',
 })
 export class Diarias implements OnInit {
   protected readonly store = inject(DiariasStore);
+  /** Fórmulas guardadas dos campos de valor da diária em edição (ver `formulas-guardadas.ts`). */
+  private readonly formulas = inject(FormulasContexto);
   private readonly api = inject(ApiService);
 
   readonly obraId = input.required<string>({ alias: 'id' });
@@ -63,6 +66,11 @@ export class Diarias implements OnInit {
     { chave: 'fechar', rotulo: 'Fechar em pagamento' },
     { chave: 'excluir', rotulo: 'Excluir', perigo: true },
   ];
+
+  private readonly definirContextoDeFormulas = effect(() => {
+    const id = this.editandoId();
+    this.formulas.definir(id ? 'diaria.' + id : null);
+  });
 
   ngOnInit(): void {
     this.store.carregar(this.obraId());
@@ -154,6 +162,16 @@ export class Diarias implements OnInit {
         : [{ eapItemId: '', percentual: '' }],
     );
     this.formularioAberto.set(true);
+  }
+
+  /** "Excluir" dentro do popup de edição (26/09/2026) — sempre pede confirmação antes. */
+  protected excluirDoPopup(): void {
+    const id = this.editandoId();
+    const diaria = this.store.diarias().find((d) => d.id === id);
+    if (!id || !diaria) return;
+    if (!window.confirm(`Excluir a diária de ${diaria.profissionalNome} em ${diaria.data}?`)) return;
+    this.store.remover(id);
+    this.fechar();
   }
 
   protected fechar(): void {

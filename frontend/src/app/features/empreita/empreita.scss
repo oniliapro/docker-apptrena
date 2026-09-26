@@ -571,3 +571,6 @@ tfoot th {
   .checagem-inline { font-size: 13px; font-weight: 600; }
   .pequeno { margin-left: 22px; }
 }
+
+// "A pagar" vermelho quando o saldo correspondente fica negativo (26/09/2026, pedido do Lucas).
+input.valor.pagar-negativo { color: var(--cor-perigo); font-weight: 700; }

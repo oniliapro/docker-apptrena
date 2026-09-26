@@ -1,6 +1,7 @@
-import { signal } from '@angular/core';
+import { inject, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
+import { Beneficiados } from '../../features/cadastros/beneficiados';
 import { extrairItensEapResumo, ItemEapResumo } from '../eap-snapshot';
 import { EventoSalvarPagamento } from '../../features/pagamentos/editar-pagamento-modal/editar-pagamento-modal';
 import { normalizarPagamento, paraPayloadApi } from '../../features/pagamentos/pagamentos-calc';
@@ -46,6 +47,8 @@ export class AcoesPagamento {
     private readonly obraIdPadrao: (pagamento: Pagamento) => string = () => '',
   ) {}
 
+  private readonly beneficiados = inject(Beneficiados);
+
   private obraDe(pagamento: Pagamento): string {
     return pagamento.obraId || this.obraIdPadrao(pagamento);
   }
@@ -79,6 +82,21 @@ export class AcoesPagamento {
 
   salvar(evento: EventoSalvarPagamento): void {
     const pagamento = evento.pagamento;
+    // Só se realiza pagamento para fornecedor/profissional cadastrado (26/09/2026): recusado, o editor continua aberto.
+    if (pagamento.status !== 'confirmado') {
+      this.persistir(pagamento);
+      return;
+    }
+    this.beneficiados.resolver([pagamento.fornecedor]).subscribe((recusados) => {
+      if (recusados.length) {
+        window.alert(Beneficiados.mensagemRecusa(recusados));
+        return;
+      }
+      this.persistir(pagamento);
+    });
+  }
+
+  private persistir(pagamento: Pagamento): void {
     this.api.atualizarPagamento(pagamento.id, paraPayloadApi(pagamento, this.obraDe(pagamento))).subscribe({
       next: (salvo) => {
         this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(salvo as Record<string, unknown>) });
@@ -90,11 +108,30 @@ export class AcoesPagamento {
 
   confirmar(pagamento: Pagamento): void {
     if (pagamento.status !== 'pendente') return;
-    const confirmado: Pagamento = { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() };
-    this.api.atualizarPagamento(pagamento.id, paraPayloadApi(confirmado, this.obraDe(pagamento))).subscribe({
-      next: (salvo) =>
-        this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(salvo as Record<string, unknown>) }),
-      error: () => window.alert('Não foi possível confirmar o pagamento.'),
+    this.beneficiados.resolver([pagamento.fornecedor]).subscribe((recusados) => {
+      if (recusados.length) {
+        // Beneficiado sem cadastro: não confirma e volta para a edição do pagamento.
+        window.alert(Beneficiados.mensagemRecusa(recusados));
+        this.abrirComEap(pagamento);
+        return;
+      }
+      const confirmado: Pagamento = { ...pagamento, status: 'confirmado', dataPagamento: new Date().toISOString() };
+      this.api.atualizarPagamento(pagamento.id, paraPayloadApi(confirmado, this.obraDe(pagamento))).subscribe({
+        next: (salvo) =>
+          this.aoAlterar({ tipo: 'atualizado', pagamento: normalizarPagamento(salvo as Record<string, unknown>) }),
+        error: () => window.alert('Não foi possível confirmar o pagamento.'),
+      });
+    });
+  }
+
+  /** Exclusão pedida de DENTRO do editor (o modal já confirmou): apaga, atualiza a lista e fecha o editor. */
+  excluirDoEditor(pagamento: Pagamento): void {
+    this.api.excluirPagamento(pagamento.id).subscribe({
+      next: () => {
+        this.aoAlterar({ tipo: 'excluido', id: pagamento.id });
+        this.fechar();
+      },
+      error: () => window.alert('Não foi possível excluir o pagamento.'),
     });
   }
 

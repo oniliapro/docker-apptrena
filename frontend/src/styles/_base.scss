@@ -311,3 +311,6 @@ table.rodape-fixo tfoot th {
     border: none !important;
   }
 }
+
+// Campo de valor com fórmula guardada (`appFormulaCampo`, 26/09/2026): faixa azul à esquerda, igual à EAP.
+input.campo-formula { box-shadow: inset 3px 0 0 var(--cor-aco); }

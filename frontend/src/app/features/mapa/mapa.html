@@ -58,6 +58,7 @@
           <input type="text" class="valor" placeholder="R$ 0,00"
                  [disabled]="store.travada() || !freteParticularHabilitado()"
                  [value]="store.cabecalho().freteParticular ? formatarMoeda(store.cabecalho().freteParticular) : ''"
+                 appFormulaCampo="cab.freteParticular"
                  (change)="editarFreteParticular($event)" />
           <label class="checagem-inline pequeno">
             <input type="checkbox" [checked]="freteParticularHabilitado()" [disabled]="store.travada()"
@@ -92,13 +93,15 @@
       Lançar frete como item
     </label>
     @if (store.cabecalho().lancarFreteComoItem || freteParticularHabilitado()) {
-      <select class="select-etapa-frete" [value]="store.cabecalho().freteEtapaId" [disabled]="store.travada()"
-              (change)="editarFreteEtapa($event)" title="Etapa do frete no pagamento (opcional). Vale para o frete como item e para o frete particular; em branco, o frete particular é dividido entre as etapas na mesma proporção dos itens comprados.">
-        <option value="">Etapa do frete (opcional)</option>
-        @for (etapa of store.etapasDisponiveis(); track etapa.id) {
-          <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().freteEtapaId">{{ etapa.rotulo }}</option>
-        }
-      </select>
+      @if (store.cabecalho().lancarFreteComoItem) {
+        <select class="select-etapa-frete" [value]="store.cabecalho().freteEtapaId" [disabled]="store.travada()"
+                (change)="editarFreteEtapa($event)" title="Etapa do frete no pagamento (opcional), vale para o frete lançado como item e para o frete particular; em branco, o frete particular é dividido entre as etapas na mesma proporção dos itens comprados. Com ‘Lançar frete como item’ desligado, o frete particular é sempre dividido.">
+          <option value="">Etapa do frete (opcional)</option>
+          @for (etapa of store.etapasDisponiveis(); track etapa.id) {
+            <option [value]="etapa.id" [selected]="etapa.id === store.cabecalho().freteEtapaId">{{ etapa.rotulo }}</option>
+          }
+        </select>
+      }
 
       <label class="campo-categoria-frete" title="Categoria de custo da linha de frete no pagamento gerado">
         <span class="rotulo-repetido">CATEGORIA FRETE</span>
@@ -218,7 +221,7 @@
              rótulo de cada coluna mora na linha 2, do lado de "Preço"/"Comprar"
              (mesma altura de caixa que eles, pedido do Lucas 17/08/2026). -->
         <tr>
-          <th colspan="6" class="assinatura-documento">
+          <th colspan="7" class="assinatura-documento">
             <div class="bloco-assinatura">
               <div class="marca-empresa" [title]="nomeEmpresa()">
                 <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
@@ -276,6 +279,7 @@
             <input type="checkbox" class="caixa-indice" [disabled]="store.travada()" [checked]="selecao.todosSelecionados(store.itens())"
                    (change)="selecao.alternarTodos(store.itens())" title="Selecionar todas as linhas (ações em lote)" />
           </th>
+          <th class="col-numero" title="Número do item — acompanha a posição da linha">Nº</th>
           <th class="col-desc">Descrição</th>
           <th class="col-tipo">Tipo</th>
           <th class="col-qtde">Qtde</th>
@@ -299,6 +303,8 @@
                 <input type="checkbox" [disabled]="store.travada()" [checked]="selecao.estaSelecionado(item)" (change)="selecao.alternar(item)" title="Selecionar a linha (ações em lote)" />
               </label>
             </td>
+            <!-- 26/09/2026: numeração FIXA por posição — mover o item pra cima/baixo não leva o número junto. -->
+            <td class="centro numero-item" data-largura-inicial="36">{{ i + 1 }}</td>
             <td>
               <textarea class="descricao" trenaAutoAltura rows="1" [disabled]="store.travada()"
                         [value]="item.desc"
@@ -306,15 +312,16 @@
             </td>
             <td data-largura-inicial="128">
               <select [value]="item.tipo" [disabled]="store.travada()" (change)="editarTipo(item, $event)">
-                <option value="">—</option>
+                <option value="" [selected]="!item.tipo">—</option>
                 @for (tipo of store.tiposCusto; track tipo.chave) {
-                  <option [value]="tipo.chave">{{ tipo.rotulo }}</option>
+                  <option [value]="tipo.chave" [selected]="tipo.chave === item.tipo">{{ tipo.rotulo }}</option>
                 }
               </select>
             </td>
             <td data-largura-inicial="56">
               <input type="text" class="valor" placeholder="0,00" [disabled]="store.travada()"
-                     [value]="numeroOuVazio(item.qtde)" (change)="editarQuantidade(item, $event)" />
+                     [value]="numeroOuVazio(item.qtde)" [appFormulaCampo]="'i.' + item.id + '.qtde'"
+                     (change)="editarQuantidade(item, $event)" />
             </td>
             <td data-largura-inicial="52">
               <input type="text" class="centro" [value]="item.unid" [disabled]="store.travada()"
@@ -335,6 +342,7 @@
                          [value]="precoUnitario(item, $index)"
                          (focus)="aoFocarPreco(item, $index)"
                          (blur)="aoDesfocarPreco()"
+                         [appFormulaCampo]="'i.' + item.id + '.p' + $index"
                          (change)="editarPreco(item, $index, $event)" />
                 </div>
                 <div class="linha-total">
@@ -388,7 +396,7 @@
                dos dois mostra embaixo o valor final já com o BDI aplicado,
                que é o que de fato entra na nota. -->
           <tr class="linha-rodape-editavel">
-            <th [attr.colspan]="6" class="rotulo-rodape">MODIFICADORES GLOBAIS DE COMPRA</th>
+            <th [attr.colspan]="7" class="rotulo-rodape">MODIFICADORES GLOBAIS DE COMPRA</th>
             @for (fornecedor of store.fornecedores(); track $index) {
               <th [attr.colspan]="store.cabecalho().modoManual ? 2 : 1">
                 <div class="pilha-rodape">
@@ -397,6 +405,7 @@
                       <span class="rotulo-repetido">Frete</span>
                       <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
                              [value]="valorMoedaOuVazio(fornecedor.frete)"
+                             [appFormulaCampo]="'f' + $index + '.frete'"
                              (change)="editarNumeroFornecedor($index, 'frete', $event)" />
                     </div>
                     @if (fornecedor.frete > 0) {
@@ -408,6 +417,7 @@
                       <span class="rotulo-repetido">Desconto</span>
                       <input type="text" class="valor" placeholder="R$ 0,00" [disabled]="store.travada()"
                              [value]="valorMoedaOuVazio(fornecedor.desconto)"
+                             [appFormulaCampo]="'f' + $index + '.desconto'"
                              (change)="editarNumeroFornecedor($index, 'desconto', $event)" />
                     </div>
                     @if (fornecedor.desconto > 0) {
@@ -418,7 +428,8 @@
                     <span class="rotulo-repetido">MARKUP (%)</span>
                     <input type="text" class="valor" placeholder="0%" [disabled]="store.travada()"
                            [value]="valorPercentualOuVazio(fornecedor.imposto)"
-                           (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
+                           [appFormulaCampo]="'f' + $index + '.imposto'"
+                             (change)="editarNumeroFornecedor($index, 'imposto', $event)" />
                   </div>
                 </div>
               </th>
@@ -428,7 +439,7 @@
 
           <!-- Itens mais baratos / Nota / Compra integral, empilhados numa célula só -->
           <tr>
-            <th [attr.colspan]="6" class="rotulo-rodape">ANÁLISE DE COMPRA INDIVIDUAL</th>
+            <th [attr.colspan]="7" class="rotulo-rodape">ANÁLISE DE COMPRA INDIVIDUAL</th>
             @for (fornecedor of store.fornecedores(); track $index) {
               <th [attr.colspan]="store.cabecalho().modoManual ? 2 : 1" class="valor">
                 <div class="pilha-rodape">
@@ -571,10 +582,12 @@
                               @if (resumo.unidadeFreteDe(celula.fornecedor, linha.etapa) === 'pct') {
                                 <input type="text" class="valor" [value]="celula.fretePct ? formatarPercentual(celula.fretePct) : ''"
                                        [disabled]="store.travada()"
+                                       [appFormulaCampo]="'r.' + celula.fornecedor + '.' + linha.etapa + '.fretePct'"
                                        (change)="editarFretePct(celula.fornecedor, linha.etapa, $event)" />
                               } @else {
                                 <input type="text" class="valor" [value]="celula.freteValor ? formatarMoeda(celula.freteValor) : ''"
                                        [disabled]="store.travada()"
+                                       [appFormulaCampo]="'r.' + celula.fornecedor + '.' + linha.etapa + '.freteValor'"
                                        (change)="editarFreteValor(celula.fornecedor, linha.etapa, store.notas().bySupplier[celula.fornecedor]?.frete || 0, $event)" />
                               }
                               <button type="button" class="trava" [disabled]="store.travada()"
@@ -597,10 +610,12 @@
                               @if (resumo.unidadeDescontoDe(celula.fornecedor, linha.etapa) === 'pct') {
                                 <input type="text" class="valor" [value]="celula.descPct ? formatarPercentual(celula.descPct) : ''"
                                        [disabled]="store.travada()"
+                                       [appFormulaCampo]="'r.' + celula.fornecedor + '.' + linha.etapa + '.descPct'"
                                        (change)="editarDescPct(celula.fornecedor, linha.etapa, $event)" />
                               } @else {
                                 <input type="text" class="valor" [value]="celula.descValor ? formatarMoeda(celula.descValor) : ''"
                                        [disabled]="store.travada()"
+                                       [appFormulaCampo]="'r.' + celula.fornecedor + '.' + linha.etapa + '.descValor'"
                                        (change)="editarDescValor(celula.fornecedor, linha.etapa, store.notas().bySupplier[celula.fornecedor]?.desconto || 0, $event)" />
                               }
                             } @else {

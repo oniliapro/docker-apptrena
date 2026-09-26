@@ -76,7 +76,8 @@ export class Recebimentos implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly rotuloTipo = rotuloTipo;
 
-  protected readonly mostrarEtapas = signal(true);
+  /** "Mostrar etapas" nasce DESLIGADO (25/09/2026, pedido do Lucas). */
+  protected readonly mostrarEtapas = signal(false);
 
   /** Rascunho do modal. Null = modal fechado. */
   protected readonly rascunho = signal<Recebimento | null>(null);
@@ -246,6 +247,11 @@ export class Recebimentos implements OnInit {
   protected editar(recebimento: Recebimento): void {
     this.idEditando.set(recebimento.id);
     this.rascunho.set(recebimento);
+  }
+
+  protected excluirDoModal(recebimento: Recebimento): void {
+    this.store.remover(recebimento.id);
+    this.fecharModal();
   }
 
   protected fecharModal(): void {

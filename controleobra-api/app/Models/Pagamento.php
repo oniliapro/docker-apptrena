@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasUuidPrimaryKey;
 use App\Models\Concerns\PertenceAEmpresa;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -36,6 +37,24 @@ class Pagamento extends Model
         // itens/...), sem tradução — é lido inteiro, nunca campo a campo.
         'medicao_snapshot' => 'array',
     ];
+
+    /**
+     * Data escolhida no calendário (`YYYY-MM-DD`, sem hora) → grava às 12:00 do
+     * fuso de Brasília (15:00 UTC), no MESMO dia. Antes virava 00:00 UTC, que
+     * no navegador (Brasília) aparecia como o dia ANTERIOR às 21h — bug
+     * reportado pelo Lucas em 25/09/2026. Valor que já traz hora (a confirmação
+     * por botão grava o instante real) passa sem mudar.
+     */
+    public function setDataPagamentoAttribute($valor): void
+    {
+        if (is_string($valor) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($valor))) {
+            $valor = Carbon::createFromFormat('Y-m-d H:i:s', trim($valor).' 12:00:00', 'America/Sao_Paulo')->utc();
+        }
+
+        $this->attributes['data_pagamento'] = $valor === null || $valor === ''
+            ? null
+            : Carbon::parse($valor)->utc()->format('Y-m-d H:i:s');
+    }
 
     public function obra(): BelongsTo
     {

@@ -132,30 +132,35 @@
           <label class="campo">
             <span>Valor da diária</span>
             <input type="text" class="valor" [value]="fValorDiariaBase()" inputmode="decimal" placeholder="R$ 0,00"
+                   appFormulaCampo="valorDiariaBase"
                    (change)="fValorDiariaBase.set(texto($event))" />
           </label>
 
           <label class="campo">
             <span>Vale transporte</span>
             <input type="text" class="valor" [value]="fValeTransporte()" inputmode="decimal" placeholder="R$ 0,00"
+                   appFormulaCampo="valeTransporte"
                    (change)="fValeTransporte.set(texto($event))" />
           </label>
 
           <label class="campo">
             <span>Vale alimentação</span>
             <input type="text" class="valor" [value]="fValeAlimentacao()" inputmode="decimal" placeholder="R$ 0,00"
+                   appFormulaCampo="valeAlimentacao"
                    (change)="fValeAlimentacao.set(texto($event))" />
           </label>
 
           <label class="campo">
             <span>Combustível</span>
             <input type="text" class="valor" [value]="fCombustivel()" inputmode="decimal" placeholder="R$ 0,00"
+                   appFormulaCampo="combustivel"
                    (change)="fCombustivel.set(texto($event))" />
           </label>
 
           <label class="campo">
             <span>Valor extra</span>
             <input type="text" class="valor" [value]="fValorExtra()" inputmode="decimal" placeholder="R$ 0,00"
+                   appFormulaCampo="valorExtra"
                    (change)="fValorExtra.set(texto($event))" />
           </label>
 
@@ -207,6 +212,9 @@
       </div>
 
       <div class="modal-rodape">
+        @if (editandoId()) {
+          <button class="perigo esquerda" type="button" (click)="excluirDoPopup()" title="Excluir esta diária">Excluir</button>
+        }
         <button type="button" (click)="fechar()">Cancelar</button>
         <button class="primario" type="button" [disabled]="store.salvando()" (click)="salvar()">
           {{ store.salvando() ? 'Salvando…' : editandoId() ? 'Salvar alterações' : 'Lançar diária' }}

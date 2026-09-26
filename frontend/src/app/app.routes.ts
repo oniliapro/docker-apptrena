@@ -111,6 +111,14 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/diarias/diarias').then((m) => m.Diarias),
   },
   {
+    // Agenda da obra (26/09/2026) — compromissos com horário só desta obra; a Agenda geral
+    // (menu lateral) junta os de todas as obras.
+    path: 'agenda',
+    data: { titulo: 'Agenda da obra' },
+    canActivate: [permissaoModuloGuard('agenda')],
+    loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+  },
+  {
     // Lista de RDOs desta obra (F8, 22/09/2026) — o calendário É a lista
     // (`rdo-lista.ts`); "Novo RDO" e clicar num relatório levam pro editor
     // (`rdo.ts`), embaixo. Substituiu o placeholder "Diários desta obra".
@@ -343,6 +351,14 @@ export const routes: Routes = [
       // TELA saiu do ar, e quem tinha o link direto agora cai em "página não
       // encontrada". Os registros existentes viram RDO com
       // `php artisan diario:migrar-para-rdo`, ver `MigrarDiarioParaRdo`.
+      {
+        // Agenda geral (26/09/2026): compromissos de todas as obras, compartilhados com todos os
+        // usuários da empresa — estilo Google Agenda.
+        path: 'agenda',
+        data: { titulo: 'Agenda' },
+        canActivate: [permissaoModuloGuard('agenda')],
+        loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+      },
       {
         // Lista geral de RDOs, todas as obras (F8, 22/09/2026: virou lista +
         // calendário, mesma forma que as outras listas gerais — o editor de

@@ -1,5 +1,11 @@
 :host { display: block; }
 
+// Texto sempre alinhado à esquerda (25/09/2026, pedido do Lucas): o campo mora
+// dentro de células de tabela com `text-align: center`, que o <input>/<textarea>
+// e a lista herdavam — o texto digitado/escolhido aparecia centralizado.
+input,
+textarea { text-align: left; }
+
 // Versão de várias linhas (`quebraLinha`): mesma aparência do <input> da tabela,
 // mas o texto quebra e a altura acompanha (ver `AutoAlturaTextarea`).
 textarea {
@@ -35,6 +41,7 @@ textarea:disabled { background: var(--cor-fundo-alt); color: var(--cor-texto-sua
   border-radius: var(--raio-sm);
   box-shadow: var(--sombra-md);
   font-size: 12px;
+  text-align: left;
 
   li {
     padding: 5px 8px;

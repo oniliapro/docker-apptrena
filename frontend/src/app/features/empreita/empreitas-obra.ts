@@ -34,6 +34,7 @@ import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import { calcularJaPagoPorLinha, calcularLinhaEmpreitaEstendida, calcularOrcadoDaEap } from './empreita-engine';
 import { normalizarItemEmpreita } from './empreita.store';
+import { EmpreitaPagamentosPopup } from './empreita-pagamentos-popup';
 import {
   CabecalhoEapSnapshot,
   ItemEmpreita,
@@ -91,6 +92,7 @@ type ColunaEmpreitaObra =
   | 'totalPago'
   | 'saldo'
   | 'medicao'
+  | 'medicaoFinanceira'
   | 'valorUltimaSolicitacao'
   | 'ultimaSolicitacao';
 
@@ -106,7 +108,7 @@ type ColunaEmpreitaObra =
  */
 @Component({
   selector: 'app-empreitas-obra',
-  imports: [ReactiveFormsModule, RedimensionarColunas, BarraFixa, BarraSelecao, EditarPagamentoModal],
+  imports: [ReactiveFormsModule, RedimensionarColunas, BarraFixa, BarraSelecao, EditarPagamentoModal, EmpreitaPagamentosPopup],
   templateUrl: './empreitas-obra.html',
   styleUrl: './empreitas-obra.scss',
 })
@@ -139,6 +141,10 @@ export class EmpreitasObra implements OnInit {
 
   protected abrirPagamento(pagamento: Pagamento): void {
     this.acoesPagamento.abrir(pagamento);
+  }
+
+  protected excluirPagamentoDoEditor(pagamento: Pagamento): void {
+    this.acoesPagamento.excluirDoEditor(pagamento);
   }
 
   protected fecharPagamento(): void {
@@ -215,6 +221,35 @@ export class EmpreitasObra implements OnInit {
           ? { acumulado: somaPonderadaAcum / somaContrato, atual: somaPonderadaAtual / somaContrato }
           : null,
       );
+    }
+    return mapa;
+  });
+
+  /**
+   * "Medição física" DETALHADA (25/09/2026, pedido do Lucas) — a mesma
+   * medição, ponderada separadamente pelo contrato do EMPREITEIRO e pelo da
+   * RESERVA de cada item. `null` numa parcela = nenhum item com contrato
+   * dela. O valor geral (sem detalhar) continua sendo `pctFisicoPorEmpreita`.
+   */
+  private readonly pctFisicoDetalhadoPorEmpreita = computed(() => {
+    type Par = { acumulado: number; atual: number } | null;
+    const mapa = new Map<string, { emp: Par; reserva: Par }>();
+    for (const r of this.resumoContrato()) {
+      const soma = (campo: 'contratoEmp' | 'contratoReserva'): Par => {
+        let acum = 0;
+        let atualSoma = 0;
+        let peso = 0;
+        for (const item of r.itens) {
+          const contrato = item[campo] || 0;
+          if (contrato <= 0) continue;
+          const acumulado = item.medicaoAcum ?? 0;
+          acum += acumulado * contrato;
+          atualSoma += (item.medicaoAtual ?? acumulado) * contrato;
+          peso += contrato;
+        }
+        return peso > 0 ? { acumulado: acum / peso, atual: atualSoma / peso } : null;
+      };
+      mapa.set(r.id, { emp: soma('contratoEmp'), reserva: soma('contratoReserva') });
     }
     return mapa;
   });
@@ -378,6 +413,8 @@ export class EmpreitasObra implements OnInit {
         case 'saldo': return this.saldo(e);
         // Sem medição física lançada → null: vai pro fim nas duas direções.
         case 'medicao': return this.temMedicaoFisica(e) ? this.pctFisicoAtual(e) : null;
+        // Sem contrato nenhum → null: vai pro fim nas duas direções.
+        case 'medicaoFinanceira': return this.total(e) > 0 ? this.pctFinanceiroTotal(e) : null;
         case 'valorUltimaSolicitacao': return this.dataUltimaSolicitacao(e) ? this.valorUltimaSolicitacao(e) : null;
         case 'ultimaSolicitacao': return this.dataUltimaSolicitacao(e);
       }
@@ -489,12 +526,25 @@ export class EmpreitasObra implements OnInit {
     let total = 0;
     let pago = 0;
     let saldo = 0;
+    // Mesma soma, separada em Empreiteiro/Reserva — pro modo "Detalhar" (25/09/2026).
+    let totalEmp = 0;
+    let totalReserva = 0;
+    let pagoEmp = 0;
+    let pagoReserva = 0;
+    let saldoEmp = 0;
+    let saldoReserva = 0;
     for (const empreita of base) {
       total += this.total(empreita);
       pago += this.totalPago(empreita);
       saldo += this.saldo(empreita);
+      totalEmp += this.totalEmp(empreita);
+      totalReserva += this.totalReserva(empreita);
+      pagoEmp += this.pagoEmp(empreita);
+      pagoReserva += this.pagoReserva(empreita);
+      saldoEmp += this.saldoEmp(empreita);
+      saldoReserva += this.saldoReserva(empreita);
     }
-    return { quantidade: base.length, total, pago, saldo };
+    return { quantidade: base.length, total, pago, saldo, totalEmp, totalReserva, pagoEmp, pagoReserva, saldoEmp, saldoReserva };
   });
 
   ngOnInit(): void {
@@ -609,6 +659,24 @@ export class EmpreitasObra implements OnInit {
     return ((this.totalPago(empreita) + pendente) / total) * 100;
   }
 
+  /** Medição física de uma parcela (Empreiteiro ou Reserva) — `null` sem contrato dela. Usada só no modo "Detalhar". */
+  protected fisicoParcela(empreita: Empreita, parcela: 'emp' | 'reserva'): { acumulado: number; atual: number } | null {
+    return this.pctFisicoDetalhadoPorEmpreita().get(empreita.id)?.[parcela] ?? null;
+  }
+
+  /**
+   * Medição financeira de uma parcela: `pago` = confirmado, `total` = pago +
+   * pendente (mesma leitura da barra geral), sobre o contrato DA PARCELA.
+   * `null` sem contrato dela. Usada só no modo "Detalhar".
+   */
+  protected financeiroParcela(empreita: Empreita, parcela: 'emp' | 'reserva'): { pago: number; total: number } | null {
+    const contrato = parcela === 'emp' ? this.totalEmp(empreita) : this.totalReserva(empreita);
+    if (contrato <= 0) return null;
+    const pago = parcela === 'emp' ? this.pagoEmp(empreita) : this.pagoReserva(empreita);
+    const pendente = this.pendenteDetalhadoPorEmpreita().get(empreita.id)?.[parcela === 'emp' ? 'emp' : 'reserva'] ?? 0;
+    return { pago: (pago / contrato) * 100, total: ((pago + pendente) / contrato) * 100 };
+  }
+
   /** `Math.min(100, Math.max(0, pct))` — mesmo clamp de `medicao.ts::larguraBarra`. */
   protected larguraBarra(pct: number): number {
     return Math.min(100, Math.max(0, pct));
@@ -687,8 +755,38 @@ export class EmpreitasObra implements OnInit {
     return { emp, reserva };
   }
 
+  /** Abre a empreita completa (editor). */
   protected abrir(empreita: Empreita): void {
     void this.router.navigate(['/obras', this.obraId(), 'empreitas', empreita.id]);
+  }
+
+  /** `realizarMedicao`: abre a empreita já com a medição aberta (query `?realizarMedicao=1`). */
+  protected abrirEditor(empreita: Empreita, realizarMedicao = false): void {
+    if (!realizarMedicao) {
+      this.abrir(empreita);
+      return;
+    }
+    void this.router.navigate(['/obras', this.obraId(), 'empreitas', empreita.id], { queryParams: { realizarMedicao: 1 } });
+  }
+
+  /**
+   * Medição em aberto (26/09/2026, pedido do Lucas): "Realizar medição" já foi clicado (o par de botões
+   * virou "Realizar pagamento") e o pagamento daquele ciclo ainda não foi realizado.
+   */
+  protected medicaoEmAberto(empreita: Empreita): boolean {
+    const iniciado = empreita['pagamento_iniciado'];
+    const habilitada = empreita['medicao_habilitada'];
+    return (iniciado === true || iniciado === 1) && (habilitada === false || habilitada === 0);
+  }
+
+  /** Clique na empreita da lista (26/09/2026): mostra os Pagamentos registrados dela — o editor abre por "Abrir". */
+  protected abrirRegistrados(empreita: Empreita): void {
+    this.pagamentosModalEmpreita.set(empreita);
+  }
+
+  /** Editar/apagar medições no popup muda pagamentos e medições: a lista (Pago, Saldo, medições) precisa se atualizar. */
+  protected recarregarLista(): void {
+    this.carregar();
   }
 
   /** 26/08/2026, pedido do Lucas: clicar no valor "Pago" mostra a lista de pagamentos desta empreita. */

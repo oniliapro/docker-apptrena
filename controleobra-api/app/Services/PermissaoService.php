@@ -37,7 +37,7 @@ class PermissaoService
      */
     public const MODULOS = [
         'obras', 'eap', 'cronograma', 'desembolso', 'medicoes',
-        'mapas', 'empreitas', 'pagamentos', 'recebimentos', 'diarias', 'diario_obra', 'relatorios', 'arquivos',
+        'mapas', 'empreitas', 'pagamentos', 'recebimentos', 'diarias', 'agenda', 'diario_obra', 'relatorios', 'arquivos',
     ];
 
     /** Único módulo que ignora `pode_usar` — a EAP é sempre visível a quem tem acesso à obra. */

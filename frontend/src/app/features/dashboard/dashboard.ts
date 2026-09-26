@@ -196,6 +196,10 @@ export class Dashboard implements OnInit {
     this.acoesPagamento.abrirComEap(pagamento);
   }
 
+  protected excluirPagamentoDoEditor(pagamento: Pagamento): void {
+    this.acoesPagamento.excluirDoEditor(pagamento);
+  }
+
   protected fecharPagamento(): void {
     this.acoesPagamento.fechar();
   }
@@ -206,6 +210,10 @@ export class Dashboard implements OnInit {
 
   protected abrirRecebimento(recebimento: Recebimento): void {
     this.acoesRecebimento.abrir(recebimento);
+  }
+
+  protected excluirRecebimentoDoEditor(recebimento: Recebimento): void {
+    this.acoesRecebimento.excluirDoEditor(recebimento);
   }
 
   protected fecharRecebimento(): void {

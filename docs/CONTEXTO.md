@@ -1477,3 +1477,163 @@ AppTrena/
   vazia) acompanham (`colunasFixas`/`totalColunas` em `EmpreitaImprimir`). Vale só
   pro PDF e volta a começar com todas ligadas a cada abertura do popup. Regra em
   `empreita-pdf-opcoes.ts`. Ainda não publicado.
+- 25/09/2026 — **Lote de ajustes finos** (pedidos do Lucas, mesmo dia; 1 migration
+  de dados nova, `2026_09_26_000000_ajusta_hora_data_pagamento_para_meio_dia`).
+  (1) **Lista de empreitas**: "Medição física" e "Medição financeira" viraram duas
+  colunas próprias; com "Detalhar" marcado cada uma mostra as barras Empreiteiro e
+  Reserva separadas (`fisicoParcela`/`financeiroParcela`), sem Detalhar mostra uma
+  barra geral. A barra de totais das marcadas (Total/Pago/Saldo) também se divide em
+  Empreita/Reserva com Detalhar. (2) **Controle de permissões**: coluna "Todos" em
+  cada linha liga/desliga as 5 permissões do módulo. (3) **Data do pagamento**: bug
+  — a data escolhida no calendário gravava 00:00 UTC e aparecia como o dia anterior
+  às 21h. Agora `Pagamento::setDataPagamentoAttribute` grava `YYYY-MM-DD` como
+  12:00 de Brasília (15:00 UTC); a migration soma 15h nos registros antigos que
+  estavam em 00:00:00. (4) Texto dos campos com busca (autocomplete) alinhado à
+  esquerda. (5) "Mostrar etapas" começa desligado em Pagamentos e Recebimentos.
+  (6) **Mensagem "Copiar mensagem" dos pagamentos** no formato RESUMO DE CUSTOS
+  (`pagamentos-mensagem.ts`): total por categoria (material, mão de obra,
+  equipamento, outros, administração), total pago e lista `PG-xxxx - (data) -
+  fornecedor: valor`; item sem categoria e a diferença até o total caem em Outros.
+  (7) Na tabela da Empreita (tela e PDF) o bloco Contrato veio DEPOIS de
+  Quantidades/Medição. **Pendência registrada pelo Lucas**: "guardar fórmula" só
+  funciona na EAP por enquanto — estender às outras tabelas (Mapa, Empreita,
+  Pagamento, Recebimento, Medição...) só depois do teste e validação. Ainda não
+  publicado.
+- 26/09/2026 — **Guardar fórmula estendido às outras tabelas** (Lucas testou e
+  validou na EAP e pediu a extensão; sem migration, sem mudança no servidor).
+  Em Mapa (frete particular, quantidade, preço unitário, frete/desconto/imposto
+  por fornecedor e rateio por etapa), Empreita (quantidade contratada, medição
+  atual, contrato do empreiteiro/reserva, pagamento a lançar), Medição,
+  Cronograma de desembolso (planejado por categoria), popups de edição de
+  Pagamento e Recebimento (valor total e valor de cada item) e Diárias (só ao
+  EDITAR uma diária existente), digitar `=conta` continua gravando só o
+  resultado no dado, mas agora o texto da conta também fica guardado: a célula em
+  repouso mostra o número com a faixa azul (classe `campo-formula`, em
+  `_base.scss`), ao receber foco mostra a fórmula, e número comum desfaz. Só vale
+  a conta em si — referências a outros campos (`"1.4-qtd"`) seguem exclusivas da
+  EAP. Peças: `shared/numero/formulas-guardadas.ts` (`FormulasContexto`, um por
+  tela via `providers`, e a diretiva `appFormulaCampo="<chave>"` em cada
+  `<input class="valor">`); as fórmulas de um registro ficam num JSON
+  `{chave: fórmula}` na ponte `/api/storage` com a chave
+  `controleObra.formulas.<tela>.<id>` (isolada por empresa). Salva 500 ms depois
+  da última mudança relendo o servidor antes (aplica só o que a tela mudou).
+  Proteção contra fórmula velha: ao focar, a conta só aparece se ainda der o
+  número do campo; se o número mudou por outro caminho (outra tela, recálculo,
+  troca de unidade %/R$), a fórmula é descartada. `FormulaCamposService` passou a
+  deixar a conta digitada em `data-formula-digitada` e a respeitar
+  `data-texto-repouso` ao restaurar. Limitações: em registros ainda sem id
+  (nova diária) a fórmula não é guardada — o cálculo funciona, só o texto não
+  fica; os formulários "Novo pagamento/recebimento" das listas gerais e os
+  cadastros (diária do profissional, valor do material) também não guardam.
+  Fórmulas de registros excluídos ficam órfãs na ponte (só texto, sem efeito).
+  Ainda não publicado.
+- 26/09/2026 — **Segundo lote de ajustes finos** (pedidos do Lucas; 1 migration nova:
+  `2026_09_26_010000_create_agenda_eventos`). (1) **Empreita, coluna "Já pago"**: ordem
+  Medido / Empreiteiro / Reserva / Total; a Divergência saiu da tela, do PDF e do Excel
+  (o dado continua no cálculo). "Medido" = ACUMULADO% do serviço × valor do empreiteiro
+  (tela não simplificada) ou × total do contrato (simplificada); no PDF, só "Total"
+  marcado (sem Empreiteiro) segue a regra da simplificada. Saiu da coluna "Pagamento"
+  (que agora começa em Empreiteiro). Pagamento e Saldo após pagamento já somavam
+  empreiteiro + reserva no "Total" — não mudaram. (2) **Frete particular**: a "Etapa do
+  frete" só vale com "Lançar frete como item" LIGADO; desligado, o frete particular é
+  dividido entre as etapas dos itens mesmo que uma etapa tenha ficado escolhida antes
+  (o seletor de etapa também só aparece com a opção ligada). (3) **Beneficiado do
+  pagamento** (`features/cadastros/beneficiados.ts`): confirmar um pagamento (salvar
+  como confirmado no popup/formulário, ✔ da linha ou "Confirmar pendentes") confere o
+  nome nos cadastros de Fornecedores e Profissionais (ignora acento/maiúscula); se não
+  estiver, pergunta se quer cadastrar, depois "F ou P" (fornecedor/profissional) e
+  cadastra só com o nome; recusando, NÃO confirma, avisa e volta à edição (no ✔ da linha
+  abre o editor; em lote, confirma só os aptos e avisa dos barrados). Pagamentos
+  PENDENTES gerados por Mapa/Empreita/Diárias não são barrados até serem confirmados.
+  (4) **Bug do "Tipo" nos itens do Mapa**: o dado nunca se perdia, mas o select abria em
+  branco ao reabrir o mapa (faltava `[selected]` nas opções, mesmo defeito do seletor de
+  período do Cronograma de desembolso, também corrigido). (5) **Varredura de layout dos
+  PDFs**: EAP (descrição 16%→21%, código/unidade sem quebra, "REAL./ORÇ." e valor na mesma
+  linha — o PDF ficou ~20% mais curto), Mapa (etapa deixou de ser cortada com reticências),
+  Medição (o resumo do topo ainda usava o desenho antigo em cards, sem estilo — trocado
+  pela tabela compacta da tela; descrição alargada), Cronograma de desembolso (Orçado e
+  Totais sem quebrar dígitos, valores dos meses numa linha só), Empreita (etapa alargada,
+  valores e rodapé sem quebrar "R$"). RDO, Relatório e Resumo do profissional conferidos.
+  (6) **Agenda** (estilo Google Agenda): página geral `/agenda` (todas as obras + sem
+  obra, com filtro por obra) e aba "Agenda" da obra (`/obras/:id/agenda`); visões Mês,
+  Semana (grade de horas, sobreposição lado a lado, faixa "dia todo") e Dia; clicar no dia
+  ou horário cria; popup com título, dia inteiro, início/fim com hora, obra, local,
+  descrição e participantes (usuários ativos da empresa); "Só os meus". Todos os usuários
+  da empresa veem tudo (exceto compromissos de obras vetadas a eles); só o criador e o
+  admin alteram/excluem. Novo módulo de permissão `agenda` (usar/criar/editar/excluir):
+  administradores têm sempre; usuários secundários precisam receber a permissão em
+  Configurações > Controle de permissões. Tabelas `agenda_eventos` e
+  `agenda_evento_participantes`; horário de parede sem fuso; `AgendaController`. Ainda
+  sem aviso/e-mail para os participantes marcados e sem repetição de compromissos.
+  `VERIFICAR.bat`: Empreita não compila (`entrada-empreita.ts` importa
+  `obterTiposIncluidos`, que não existe no engine — já era assim antes deste lote) e o
+  Mapa aponta 1 caso divergente (idem). Ainda não publicado.
+- 26/09/2026 — **Empreita: colunas renomeadas e empilhamento novo** (pedido do Lucas; sem
+  migration, tela + PDF + Excel). "Já pago" → **Anterior**, "Pagamento" → **Pagamento**,
+  "Saldo após pagamento" → **Saldo remanescente**. Anterior e Saldo remanescente empilham
+  Medição / Empreiteiro / Reserva / Total; só o Pagamento empilha Disponível (emp.) /
+  Empreiteiro / Reserva / Total. Disponível (emp.) = (medição acumulada + avanço) × valor do
+  empreiteiro − já pago ao empreiteiro (azul se ≥ 0, vermelho se negativo; com "Simplificar"
+  vira "Disponível", sobre o total do contrato e o total já pago). Medição do Saldo
+  remanescente = Disponível − pagamento do período (a linha "Etapa" do saldo saiu da tela; o
+  dado continua no cálculo). "Simplificar" continua escondendo Empreiteiro/Reserva. Rodapé
+  TOTAIS acompanha. Ainda não publicado.
+- 26/09/2026 — **Empreita: pré-preenchimento do Pagamento e Saldo remanescente** (pedido do Lucas). O
+  rascunho do Pagamento agora nasce como: empreiteiro = Disponível (emp.) = (acumulado + avanço) ×
+  contrato do empreiteiro − já pago ao empreiteiro; reserva = (acumulado + avanço) × contrato da reserva −
+  reserva já paga (nunca negativo; o usuário ainda digita por cima). Alterar a medição atual de um
+  serviço DESCARTA o que foi digitado à mão no pagamento dele e refaz o pré-preenchimento. Saldo
+  remanescente: Medição = (100% − medição atual) × total do contrato; Empreiteiro/Reserva/Total =
+  contrato − (anterior + pagamento). O painel "Medição deste período" (a pagar / reserva) ainda usa a
+  conta antiga (contrato × avanço). Ainda não publicado.
+- 26/09/2026 — **Empreita: rótulos dos itens empilhados, vermelho no "a pagar" e barra de totais da lista**
+  (pedido do Lucas). Anterior: Medição (acum.) / Pago (emp.) / Pago (reserva) / Pago (total). Pagamento:
+  Disponível (emp.) / A pagar (emp.) / A pagar (reserva) / A pagar (total). Saldo remanescente: Saldo
+  (medição) / Saldo (emp.) / Saldo (reserva) / Saldo (total) — na tela, no rodapé TOTAIS e no PDF. Quando o
+  saldo de emp., reserva ou total fica negativo, o "A pagar" correspondente também fica vermelho (o campo
+  editável ganha a classe pagar-negativo). Lista de empreitas: a barra Total/Pago/Saldo agora é SEMPRE
+  empilhada em 3 linhas (título, Empreiteiro, Reserva), independente do "Detalhar". Ainda não publicado.
+- 26/09/2026 — **Empreitas: Pagamentos registrados na lista, histórico de medições editável, Mapa numerado**
+  (pedidos do Lucas; sem migration). (1) Some o painel "Medição deste período" (tela e PDF) e os
+  "Pagamentos registrados" saem da página da empreita completa (continuam no PDF). (2) Clicar na
+  empreita da LISTA abre o popup "Pagamentos registrados" (`empreita-pagamentos-popup`); o editor da
+  empreita abre pelo botão "Abrir empreita completa" do popup ou por "Abrir" na barra de seleção.
+  (3) Tabela: Nº · Beneficiado (fornecedor do pagamento — pode não ser o profissional da empreita) ·
+  Datas empilhadas · Medição física · Medição financeira (Empreiteiro/Reserva/Total; a física é a medição
+  atual ponderada pelo contrato da parcela, a financeira é o pago acumulado / contrato da parcela) ·
+  Valor pago · Ações (Editar = abre o popup do pagamento vinculado; Confirmar; Tornar pendente). "Simplificar"
+  (ligado por padrão) atua na tabela toda: só Total. (4) Clicar numa linha abre a "empreita completa" daquela
+  medição (`empreita-medicao-detalhe`), reconstruída do retrato (`medicaoSnapshot`) + itens do pagamento;
+  "Editar medição" (medição atual e a pagar emp./reserva, com o mesmo pré-preenchimento) e "Apagar medição"
+  exigem confirmação, atualizam/excluem o pagamento vinculado e recalculam as medições seguintes MANTENDO
+  avanço, folga entre períodos e valores pagos de cada uma (, testado); o acumulado
+  atual dos serviços se desloca junto e o pré-preenchimento em andamento é refeito. Pagamentos gerados antes
+  do retrato existir (sem snapshot) aparecem na tabela mas não abrem a empreita completa. Ordem das medições =
+  número do pagamento. "Anterior" no retrato conta todos os pagamentos anteriores, pendentes inclusive.
+  (5) Mapa: coluna "Nº" ao lado da caixa de seleção = posição da linha (mover o item muda o número).
+  Ainda não publicado.
+- 26/09/2026 — **Empreitas: ajustes do popup de Pagamentos registrados e do Realizar medição** (pedidos do
+  Lucas). (1) Lista: a barra de totais (Total/Pago/Saldo das selecionadas) só é empilhada em
+  Empreiteiro/Reserva com "Detalhar" marcado; sem ele mostra o valor geral (empreiteiro + reserva); o valor da
+  última solicitação já seguia o "Detalhar" (rótulo agora "Empreiteiro"). (2) Pagamentos registrados: medição
+  física e financeira viraram BARRAS como na lista — azul = acumulado até o pagamento anterior, amarelo =
+  avanço até a situação daquele pagamento, número = o atual do pagamento (por parcela e total; financeira usa
+  o pago acumulado sobre o contrato da parcela). (3) Botão "Realizar medição" no popup: abre a empreita
+  completa com a medição já aberta (query realizarMedicao=1: Realizar medição trava, Realizar pagamento libera).
+  (4) Todo "Realizar medição" agora preenche a medição atual = acumulada (só onde estava vazia) e, ao confirmar o
+  input, um alerta avisa quando a atual fica MENOR que a acumulada (o valor é mantido para o usuário corrigir).
+  Ainda não publicado.
+- 26/09/2026 — **Lote: lista amarela, botão Excluir nos popups, alinhamento e cores** (pedidos do Lucas). (1) Lista de
+  empreitas da obra: linha AMARELA (mesmo amarelo de "Medição em andamento") para empreita com medição em aberto =
+  pagamento_iniciado e medicao_habilitada = false (Realizar medição clicado, pagamento ainda não realizado). (2) Botão
+  "Excluir" (à esquerda do rodapé, só editando; sempre com caixa de confirmação antes) nos popups de edição de Pagamento
+  e Recebimento (em todas as telas que os usam: pagamentos/recebimentos da obra e geral, dashboard, EAP, mapas,
+  empreitas, popup de pagamentos vinculados, Pagamentos registrados) e no popup de Diárias. Quem hospeda apaga e
+  atualiza a lista (AcoesPagamento/AcoesRecebimento.excluirDoEditor). Mapa e Empreita são páginas (não popups de
+  edição) — sem botão novo. (3) Pagamentos registrados: barra financeira acumulada agora VERDE (a amarela segue sendo o
+  avanço); linhas das medições alinhadas com as do Valor pago (Empreiteiro com Empreiteiro, Reserva com Reserva, Total
+  com Total — espaçadores nas linhas Contrato e Saldo empreita); Nº, Beneficiado, Datas e Ações centralizados na
+  vertical. (4) Popup da empreita completa de uma medição: ganhou "Qtde. contrat." (coluna Medição de contrato) e
+  "Saldo disp." (coluna Contrato) nas mesmas posições da aba, e as cores das linhas (verde 100%, amarelo em andamento,
+  azul com pagamento, vermelho nos saldos/a pagar negativos) com as mesmas regras (classificarSituacaoMedicao). A
+  quantidade contratada e o saldo disp. vêm do estado ATUAL da empreita (o retrato não os guarda). Ainda não publicado.

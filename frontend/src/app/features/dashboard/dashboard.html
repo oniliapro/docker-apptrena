@@ -351,6 +351,7 @@
     [snapshotEap]="snapshotEapPagamento()"
     [obraId]="p.obraId || ''"
     (salvar)="salvarPagamento($event)"
+    (excluir)="excluirPagamentoDoEditor($event)"
     (fechar)="fecharPagamento()" />
 }
 
@@ -360,6 +361,7 @@
     [snapshotEap]="snapshotEapRecebimento()"
     [numeroSugerido]="r.numeroRecebimento"
     (salvar)="salvarRecebimento($event)"
+    (excluir)="excluirRecebimentoDoEditor($event)"
     (fechar)="fecharRecebimento()" />
 }
 

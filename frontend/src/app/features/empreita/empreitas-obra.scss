@@ -50,6 +50,35 @@ table { table-layout: auto; }
 
 .item-total b { margin-left: 4px; }
 
+// Total/Pago/Saldo empilhados (26/09/2026): título, Empreiteiro e Reserva, sempre 3 linhas.
+.grupo-total {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 170px;
+
+  .grupo-titulo {
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+  }
+
+  .linha-total { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+}
+
+.barra-totais { align-items: flex-start; }
+.barra-totais > .item-total { align-self: center; }
+
+// "Detalhar" (25/09/2026): Total/Pago/Saldo da barra separados em Empreita/Reserva.
+.par-detalhe {
+  margin-left: 8px;
+  font-size: 11.5px;
+  color: var(--cor-texto-suave);
+}
+
 .barra-ferramentas { margin-bottom: 0; flex-wrap: wrap; }
 
 .linha-clicavel {
@@ -57,6 +86,10 @@ table { table-layout: auto; }
 
   &:hover { background: var(--cor-fundo-alt); }
 }
+
+// Empreita com medição em aberto (26/09/2026): mesmo amarelo de "Medição em andamento" da tela da empreita.
+.linha-clicavel.medicao-aberta td { background: #fbf3d0; }
+.linha-clicavel.medicao-aberta:hover td { background: #f6e9b0; }
 
 // ---- Modal de formulário ----
 .modal { position: fixed; inset: 0; z-index: 200; }
@@ -276,7 +309,7 @@ table { table-layout: auto; }
 
 .rotulo-barra {
   flex: 0 0 auto;
-  width: 62px;
+  width: 68px;
   font-family: var(--fonte-mono);
   font-size: 9px;
   text-transform: uppercase;
