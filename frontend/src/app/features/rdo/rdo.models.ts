@@ -9,15 +9,38 @@ import { FvsPreenchimento } from '../fvs/fvs.models';
  * fora do próprio escopo.
  */
 
-/** Condição do tempo em cada turno, como o RDO impresso registra. */
-export type ClimaTurno = 'claro' | 'nublado' | 'chuva' | 'temporal' | 'impraticavel';
+/**
+ * Condição do tempo em cada turno, como o RDO impresso registra.
+ * 26/09/2026, pedido do Lucas: "impraticável" saiu daqui — virou uma
+ * condição de TRABALHO à parte (ver `CondicaoTrabalho`), não um clima.
+ */
+export type ClimaTurno = 'claro' | 'nublado' | 'chuva' | 'temporal';
 
-export const CLIMAS: ReadonlyArray<{ valor: ClimaTurno; rotulo: string }> = [
-  { valor: 'claro', rotulo: 'Claro' },
-  { valor: 'nublado', rotulo: 'Nublado' },
-  { valor: 'chuva', rotulo: 'Chuva' },
-  { valor: 'temporal', rotulo: 'Temporal' },
+export const CLIMAS: ReadonlyArray<{ valor: ClimaTurno; rotulo: string; simbolo: string }> = [
+  { valor: 'claro', rotulo: 'Claro', simbolo: '☀️' },
+  { valor: 'nublado', rotulo: 'Nublado', simbolo: '⛅' },
+  { valor: 'chuva', rotulo: 'Chuva', simbolo: '🌧️' },
+  { valor: 'temporal', rotulo: 'Temporal', simbolo: '⛈️' },
+];
+
+/** Condição de trabalho do turno (26/09/2026) — separada do clima; um turno "praticável" com chuva ainda é um turno de trabalho normal. */
+export type CondicaoTrabalho = 'praticavel' | 'impraticavel';
+
+export const CONDICOES_TRABALHO: ReadonlyArray<{ valor: CondicaoTrabalho; rotulo: string }> = [
+  { valor: 'praticavel', rotulo: 'Praticável' },
   { valor: 'impraticavel', rotulo: 'Impraticável' },
+];
+
+/** Um turno do dia, com o nome dos FormControls do clima/condição — usado pela tabela de clima invertida (linhas = turnos). */
+export const TURNOS_CLIMA: ReadonlyArray<{
+  chave: string;
+  rotulo: string;
+  controlClima: 'clima_manha' | 'clima_tarde' | 'clima_noite';
+  controlCondicao: 'condicao_manha' | 'condicao_tarde' | 'condicao_noite';
+}> = [
+  { chave: 'manha', rotulo: 'Manhã', controlClima: 'clima_manha', controlCondicao: 'condicao_manha' },
+  { chave: 'tarde', rotulo: 'Tarde', controlClima: 'clima_tarde', controlCondicao: 'condicao_tarde' },
+  { chave: 'noite', rotulo: 'Noite', controlClima: 'clima_noite', controlCondicao: 'condicao_noite' },
 ];
 
 export const TIPOS_OCORRENCIA: ReadonlyArray<{ valor: string; rotulo: string }> = [
@@ -41,6 +64,8 @@ export interface RdoTarefa {
   id: string;
   ordem: number;
   descricao: string;
+  /** 26/09/2026: observação própria da tarefa, distinta da "Descrição do serviço". */
+  observacoes: string | null;
 }
 
 /** 'video' = mp4/mov/webm (F8, 22/09/2026) — mesma tabela e mesma galeria das fotos. */
@@ -71,15 +96,27 @@ export interface RdoMaoDeObra {
   quantidade: number;
 }
 
+/** Equipamentos próprios (do canteiro) x alugados (26/09/2026, pedido do Lucas). */
+export type CategoriaEquipamento = 'proprio' | 'alugado';
+
 export interface RdoEquipamento {
   id: string;
+  categoria: CategoriaEquipamento;
   equipamento_id: string | null;
+  /** Preenchido só em "alugado" vinculado a um contrato ativo. */
+  contrato_equipamento_item_id: string | null;
+  /** Snapshot em texto (mesmo padrão de `profissional_nome` da mão de obra) — vem do contrato quando vinculado, vazio quando não há contrato. */
+  contrato_referencia: string | null;
+  /** 26/09/2026: alugado vinculado nasce sozinho a partir do contrato ativo — o usuário só marca se está na obra hoje. */
+  presente: boolean;
   descricao: string;
   quantidade: number;
 }
 
 export interface RdoOcorrencia {
   id: string;
+  /** 26/09/2026: ocorrência passou a nascer dentro de uma tarefa — nulo só em registro salvo antes disso. */
+  tarefa_id: string | null;
   ordem: number;
   tipo: string;
   descricao: string;
@@ -90,6 +127,8 @@ export interface RdoOcorrencia {
 
 export interface RdoPendencia {
   id: string;
+  /** 26/09/2026: uma tarefa pode gerar mais de uma pendência — nulo só em registro salvo antes disso. */
+  tarefa_id: string | null;
   descricao: string;
   responsavel: string | null;
   prazo: string | null;
@@ -128,6 +167,9 @@ export interface RdoRegistro {
   clima_manha: ClimaTurno | null;
   clima_tarde: ClimaTurno | null;
   clima_noite: ClimaTurno | null;
+  condicao_manha: CondicaoTrabalho | null;
+  condicao_tarde: CondicaoTrabalho | null;
+  condicao_noite: CondicaoTrabalho | null;
   impacto_cronograma: string | null;
   observacoes: string | null;
   status: 'rascunho' | 'finalizado';
@@ -177,6 +219,13 @@ export interface RdoPreparo {
   }>;
   equipamentos_catalogo: Array<{ id: string; nome: string }>;
   funcoes_usadas: Array<{ categoria: CategoriaMaoDeObra; funcao: string }>;
+  /** Contratos de equipamento ainda não encerrados, com os itens ainda com o cliente — alimenta "Equipamentos alugados". */
+  contratos_equipamentos_ativos: Array<{
+    id: string;
+    numero: number;
+    nome_contrato: string;
+    itens: Array<{ id: string; descricao: string; quantidade: number }>;
+  }>;
 }
 
 export interface RdoContratanteLink {

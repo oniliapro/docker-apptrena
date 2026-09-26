@@ -1,0 +1,173 @@
+// Mesmo bloco base de popup usado em todo o app (CadastroObraModal,
+// EditarPagamentoModal etc.) — não usar `transform` no `.modal-cartao`
+// (mesmo motivo documentado nesses componentes).
+:host { display: block; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: relative;
+  width: min(720px, 94vw);
+  max-height: 90vh;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &.largo { width: min(920px, 96vw); }
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo { font-weight: 700; flex: 0 0 auto; }
+
+.acoes-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.fechar {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  flex: 0 0 auto;
+
+  &:hover { color: var(--cor-perigo); }
+}
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+
+  h3 { font-size: 12.5px; margin: 16px 0 6px; }
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 0 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.aviso-erro, .aviso-ok {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  font-size: 11.5px;
+}
+.aviso-erro { background: var(--cor-perigo-bg); color: var(--cor-perigo); }
+.aviso-ok { background: var(--cor-sucesso-bg); color: var(--cor-sucesso); }
+
+// ---- Etiqueta de status (ativo/vencido/encerrado) — mesmo padrão de `.etiqueta-status` global ----
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: var(--fonte-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &.status-ativo { background: #e4eee3; color: #2f6b2f; }
+  &.status-vencido { background: var(--cor-perigo-bg); color: var(--cor-perigo); }
+  &.status-encerrado { background: var(--cor-fundo-alt); color: var(--cor-texto-suave); }
+}
+
+// ---- Campos ----
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.campo-largo { grid-column: 1 / -1; }
+
+label {
+  display: block;
+
+  span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 4px;
+  }
+}
+
+.grade-somente-leitura {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 10px 0;
+  margin-bottom: 6px;
+  border-top: 1px dashed var(--cor-borda);
+  border-bottom: 1px dashed var(--cor-borda);
+
+  > div { display: flex; flex-direction: column; gap: 2px; }
+  span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cor-texto-suave); }
+  strong { font-size: 12.5px; }
+}
+
+// ---- Tabela de itens (dentro do popup) ----
+.tabela-itens-editaveis {
+  width: 100%;
+  margin-bottom: 6px;
+
+  app-autocomplete { display: block; }
+
+  input[type="number"], input[type="text"] { height: 22px; }
+}
+
+.tabela-itens-devolvidos { opacity: 0.75; }
+
+.campo-qtde { width: 60px; }
+.campo-valor { width: 90px; }
+
+tr.devolvendo td { background: var(--cor-perigo-bg); }
+
+.botao-adicionar {
+  background: none;
+  border: 1px dashed var(--cor-borda-forte);
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.bloco-renovacao {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--cor-borda);
+}

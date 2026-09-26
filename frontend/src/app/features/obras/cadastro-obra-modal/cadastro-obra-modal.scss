@@ -95,6 +95,19 @@
   border-top: 1px solid var(--cor-borda);
 }
 
+.subtitulo-secao {
+  margin: 18px 0 2px;
+  font-size: 0.95rem;
+  border-top: 1px solid var(--cor-borda);
+  padding-top: 14px;
+}
+
+.dica {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave, #666);
+}
+
 // ---- Campos (extraído de `obras.scss`) ----
 .grade {
   display: grid;

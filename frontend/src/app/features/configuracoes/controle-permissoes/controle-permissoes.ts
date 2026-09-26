@@ -18,6 +18,7 @@ const MODULOS = [
   { chave: 'diarias', rotulo: 'Diárias' },
   { chave: 'agenda', rotulo: 'Agenda' },
   { chave: 'diario_obra', rotulo: 'Diário de obra' },
+  { chave: 'contratos_equipamentos', rotulo: 'Contratos de equipamentos' },
   { chave: 'relatorios', rotulo: 'Relatórios' },
   { chave: 'arquivos', rotulo: 'Arquivos' },
 ] as const;

@@ -21,7 +21,7 @@ class RdoPendencia extends Model
 
     protected $table = 'rdo_pendencias';
 
-    protected $fillable = ['id','rdo_id','descricao','responsavel','prazo','status','ordem'];
+    protected $fillable = ['id','rdo_id','tarefa_id','descricao','responsavel','prazo','status','ordem'];
 
     protected $casts = ['prazo'=>'date','ordem'=>'integer'];
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AnexoController;
 use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CronogramaPdfController;
+use App\Http\Controllers\Api\ContratoEquipamentoController;
 use App\Http\Controllers\Api\CronogramaPlanejamentoController;
 use App\Http\Controllers\Api\DiariaController;
 use App\Http\Controllers\Api\DiarioObraController;
@@ -199,6 +200,23 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permissaoModulo:diarias,usar');
     Route::put('diarias/categorias', [DiariaController::class, 'salvarCategorias'])
         ->middleware('permissaoModulo:diarias,editar');
+
+    // Controle de contrato de equipamentos (26/09/2026) — mesmo mecanismo de
+    // Diárias: rota de obra pra listar/criar; editar/renovar/excluir levam o
+    // id "solto" (o obra_id do model já resolve o PermissaoObra), mesmo
+    // padrão do RDO (`{rdo}`, não `{id}`).
+    Route::get('obras/{obra}/contratos-equipamentos', [ContratoEquipamentoController::class, 'index'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,usar', 'permissaoObra:ver']);
+    Route::post('obras/{obra}/contratos-equipamentos', [ContratoEquipamentoController::class, 'store'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,criar', 'permissaoObra:lancar']);
+    Route::get('contratos-equipamentos/{contratoEquipamento}', [ContratoEquipamentoController::class, 'show'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,usar', 'permissaoObra:ver']);
+    Route::put('contratos-equipamentos/{contratoEquipamento}', [ContratoEquipamentoController::class, 'update'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,editar', 'permissaoObra:lancar']);
+    Route::post('contratos-equipamentos/{contratoEquipamento}/renovar', [ContratoEquipamentoController::class, 'renovar'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,editar', 'permissaoObra:lancar']);
+    Route::delete('contratos-equipamentos/{contratoEquipamento}', [ContratoEquipamentoController::class, 'destroy'])
+        ->middleware(['permissaoModulo:contratos_equipamentos,excluir', 'permissaoObra:lancar']);
 
     // Agenda (26/09/2026) — compromissos com horário, gerais ou de uma obra, com participantes.
     // Sem `permissaoObra` na rota: a Agenda geral junta todas as obras, então o filtro/conferência

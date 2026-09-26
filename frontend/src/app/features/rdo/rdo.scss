@@ -154,6 +154,15 @@
 .largo,
 .campo-largo { grid-column: 1 / -1; }
 
+.grade-cabecalho-leitura > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+
+  span { font-size: 0.75rem; color: var(--cor-texto-suave, #666); }
+  strong { font-size: 0.9rem; font-weight: 600; }
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -174,12 +183,17 @@ select,
 textarea {
   font: inherit;
   font-size: 0.85rem;
+  line-height: 1.35;
   color: var(--cor-texto);
   background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: 3px;
-  padding: 0.4rem 0.5rem;
+  /* 26/09/2026: padding vertical maior (o texto de alguns campos — sobretudo
+     select e number — estava saindo cortado em cima/embaixo) e padding-direito
+     maior no select, pra sobrar espaço da seta nativa sem tapar o texto. */
+  padding: 0.5rem 0.6rem;
   width: 100%;
+  box-sizing: border-box;
 
   &:focus-visible {
     outline: 2px solid var(--cor-aco);
@@ -192,10 +206,13 @@ textarea {
   }
 }
 
+select { padding-right: 1.8rem; }
+
 textarea { resize: vertical; }
 
 .campo-qtde {
-  max-width: 72px;
+  max-width: 84px;
+  padding-right: 0.4rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -206,7 +223,8 @@ textarea { resize: vertical; }
   gap: 0.35rem;
   white-space: nowrap;
 
-  input { width: auto; }
+  /* Sem isso a caixa herdava o padding do input de texto (varredura de 26/09/2026) — ficava com uma área clicável bem maior que o quadrado visível. */
+  input { width: auto; height: auto; padding: 0; border-radius: 2px; }
 }
 
 .clima {
@@ -224,10 +242,44 @@ textarea { resize: vertical; }
   }
 }
 
-.clima-grade {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+/* Clima em tabela (26/09/2026): linha = condição, coluna = turno — um rádio
+   por célula, só uma condição marcada por turno (coluna). */
+.tabela-clima {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th,
+  td {
+    padding: 0.35rem 0.4rem;
+    text-align: center;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+
+  th[scope='row'] {
+    text-align: left;
+    font-weight: 400;
+    color: var(--cor-texto);
+  }
+
+  thead th {
+    color: var(--cor-texto-suave);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom-width: 2px;
+  }
+
+  tbody tr:last-child td,
+  tbody tr:last-child th { border-bottom: none; }
+
+  input[type='radio'] {
+    width: auto;
+    height: auto;
+    margin: 0;
+  }
+
+  select { font-size: 0.78rem; padding: 0.3rem 1.4rem 0.3rem 0.4rem; }
 }
 
 /* ---------- Linhas repetíveis ---------- */
@@ -261,6 +313,38 @@ textarea { resize: vertical; }
   app-autocomplete { display: block; margin-bottom: 0.5rem; }
 }
 
+/* Equipamentos alugados (26/09/2026): linha manual tem 3 campos de texto + quantidade — quebra em 2 linhas nas colunas estreitas. */
+.linha-equip-alugado {
+  flex-wrap: wrap;
+
+  input[type="text"] { flex: 1 1 100px; min-width: 0; }
+
+  .valor-contrato {
+    flex: 1 1 140px;
+    font-size: 0.78rem;
+    color: var(--cor-texto-suave, #666);
+  }
+
+  .checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+
+    input { width: auto; }
+  }
+}
+
+/* Pendências/ocorrências/observações GERAIS do dia (26/09/2026), na seção "Fotos e vídeos do dia". */
+.bloco-geral {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px dashed var(--cor-borda);
+
+  h3 { margin: 0 0 0.4rem; font-size: 0.85rem; }
+}
+
 /* Linha de mão de obra com profissional vinculado (F9): só mostra o rótulo, sem inputs (função/quantidade vêm do cadastro). */
 .profissional-linha {
   flex: 1;
@@ -268,17 +352,17 @@ textarea { resize: vertical; }
 }
 
 .botao-manual {
-  width: 100%;
+  flex: 1 1 auto;
   margin-top: 0.3rem;
   font-size: 0.72rem;
 }
 
-/* Etapa com autocomplete de EAP ao lado do nome (F9) — quebra em duas linhas no celular. */
-.linha-etapa {
-  flex-wrap: wrap;
+/* Os dois botões da mão de obra (adicionar selecionado / lançamento manual), lado a lado. */
+.linha-botoes-mao {
+  display: flex;
+  gap: 0.4rem;
 
-  input[type='text']:not(.campo-qtde) { flex: 1 1 160px; }
-  app-autocomplete { flex: 1 1 200px; }
+  .botao-manual:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 /* ---------- Botões ---------- */
@@ -369,6 +453,53 @@ button {
   border-radius: 3px;
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  /* Alinha com a 1ª linha do bloco ao lado, não com o bloco inteiro. */
+  margin-top: 0.15rem;
+}
+
+/* Descrição do serviço (26/09/2026: substitui "Nome da etapa" e "O que foi
+   executado nesta frente" — as duas viraram um campo só) + concluída/EAP
+   logo abaixo, na mesma tarefa (era a seção "Etapas", separada). */
+.tarefa-corpo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tarefa-vinculo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+
+  app-autocomplete { flex: 1 1 220px; }
+}
+
+.tarefa-observacoes-campo {
+  margin-top: 0.3rem;
+
+  textarea { width: 100%; }
+}
+
+/* Pendências e ocorrências da tarefa (26/09/2026: substituem as seções
+   "Pendências" e "Ocorrências", separadas — cada tarefa pode gerar quantas
+   quiser, não só uma). */
+.tarefa-pendencia,
+.tarefa-ocorrencia {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--cor-borda);
+}
+
+.pendencia-campos,
+.ocorrencia-campos {
+  margin: 0.4rem 0 0.4rem 1.8rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-superficie);
 }
 
 .tarefa-fotos {
@@ -589,10 +720,12 @@ video.miniatura-imagem {
 
   .grade-dupla,
   .grade-tripla,
-  .clima-grade,
   .colunas-mao {
     grid-template-columns: 1fr;
   }
+
+  /* A tabela de clima cabe em 4 colunas estreitas mesmo no celular — só encolhe a fonte. */
+  .tabela-clima { font-size: 0.72rem; }
 
   /* Uma seção por vez: o corpo só aparece na que está aberta. */
   .secao .secao-corpo { display: none; }

@@ -28,12 +28,16 @@ class RdoRegistro extends Model
     public const STATUS_RASCUNHO = 'rascunho';
     public const STATUS_FINALIZADO = 'finalizado';
 
-    /** Valores aceitos em clima_manha/tarde/noite. */
-    public const CLIMAS = ['claro', 'nublado', 'chuva', 'temporal', 'impraticavel'];
+    /** Valores aceitos em clima_manha/tarde/noite. "Impraticável" saiu daqui — ver CONDICOES_TRABALHO. */
+    public const CLIMAS = ['claro', 'nublado', 'chuva', 'temporal'];
+
+    /** 26/09/2026: condição de trabalho é um campo À PARTE do clima, por turno (praticável/impraticável). */
+    public const CONDICOES_TRABALHO = ['praticavel', 'impraticavel'];
 
     protected $fillable = [
         'id', 'empresa_id', 'obra_id', 'numero', 'data',
-        'clima_manha', 'clima_tarde', 'clima_noite', 'impacto_cronograma',
+        'clima_manha', 'clima_tarde', 'clima_noite',
+        'condicao_manha', 'condicao_tarde', 'condicao_noite', 'impacto_cronograma',
         'observacoes', 'status', 'autor_user_id',
         'assinado_em', 'assinado_por_user_id', 'assinante_nome', 'assinante_crea',
         // Preenchido só nos RDOs vindos do Diário antigo, ver `MigrarDiarioParaRdo` (F8).

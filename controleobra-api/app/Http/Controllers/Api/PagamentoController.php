@@ -79,7 +79,10 @@ class PagamentoController extends Controller
             'fornecedor' => 'nullable|string|max:120',
             'descricao' => 'nullable|string',
             'valor_total' => 'required|numeric',
-            'origem_tipo' => 'nullable|in:mapa,empreita,diaria,manual,outro',
+            // 'contrato_equipamento' (26/09/2026): editar/confirmar pelo popup de
+            // pagamentos vinculados do Contrato de equipamento reenvia este campo
+            // (`paraPayloadApi`) — sem ele aqui, salvar dava 422.
+            'origem_tipo' => 'nullable|in:mapa,empreita,diaria,contrato_equipamento,manual,outro',
             'origem_ref_id' => 'nullable|string',
             'mapa_id' => 'nullable|string|exists:mapas,id',
             'empreita_id' => 'nullable|string|exists:empreitas,id',

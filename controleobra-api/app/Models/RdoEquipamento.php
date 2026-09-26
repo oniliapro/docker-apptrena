@@ -21,12 +21,21 @@ class RdoEquipamento extends Model
 
     protected $table = 'rdo_equipamentos';
 
-    protected $fillable = ['id','rdo_id','equipamento_id','descricao','quantidade','ordem'];
+    protected $fillable = [
+        'id', 'rdo_id', 'categoria', 'equipamento_id', 'contrato_equipamento_item_id',
+        'contrato_referencia', 'presente', 'descricao', 'quantidade', 'ordem',
+    ];
 
-    protected $casts = ['quantidade'=>'integer','ordem'=>'integer'];
+    protected $casts = ['quantidade'=>'integer','ordem'=>'integer','presente'=>'boolean'];
 
     public function rdo(): BelongsTo
     {
         return $this->belongsTo(RdoRegistro::class, 'rdo_id');
+    }
+
+    /** Só pra rastreio (qual item do contrato gerou esta linha) — fornecedor/contrato exibidos são o snapshot em texto, ver a migration. */
+    public function contratoEquipamentoItem(): BelongsTo
+    {
+        return $this->belongsTo(ContratoEquipamentoItem::class, 'contrato_equipamento_item_id');
     }
 }

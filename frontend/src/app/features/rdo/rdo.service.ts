@@ -105,17 +105,11 @@ export class RdoService {
     return this.http.get(`${this.base}/rdo/${id}/pdf`, { responseType: 'blob' });
   }
 
+  /** Somente leitura desde 26/09/2026 — o cabeçalho vem da obra, não é mais editável no RDO. */
   obterCabecalho(obraId: string): Observable<RdoObraDados> {
     const params = new HttpParams().set('obra_id', obraId);
 
     return this.http.get<RdoObraDados>(`${this.base}/rdo/obra-dados`, { params });
-  }
-
-  salvarCabecalho(obraId: string, dados: RdoObraDados): Observable<RdoObraDados> {
-    return this.http.post<RdoObraDados>(`${this.base}/rdo/obra-dados`, {
-      ...dados,
-      obra_id: obraId,
-    });
   }
 
   listarLinks(obraId: string): Observable<RdoContratanteLink[]> {

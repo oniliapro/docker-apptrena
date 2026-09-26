@@ -42,25 +42,26 @@
   <p class="alerta alerta-ok" role="status">{{ aviso() }}</p>
 }
 
-<!-- Cabeçalho técnico: contrato, responsável técnico, CREA, ART. Campos que o
-     documento exige e que o cadastro de obra não tem. Preenchidos uma vez por
-     obra, não a cada dia. -->
+<!-- Cabeçalho técnico: contrato, responsável técnico, CREA, ART. Vem do
+     cadastro da obra (26/09/2026) — não é mais editável aqui; quem precisar
+     corrigir ou completar algum campo edita a obra. -->
 @if (mostrarCabecalho()) {
-  <section class="painel" [formGroup]="cabecalho">
+  <section class="painel">
     <h2>Cabeçalho da obra</h2>
-    <p class="dica">Preenchido uma vez por obra — sai impresso no topo de todo RDO.</p>
+    <p class="dica">
+      Vem do cadastro da obra e sai impresso no topo de todo RDO. Para corrigir ou completar um
+      campo, edite a obra (Código, "Editar obra").
+    </p>
 
-    <div class="grade-cabecalho">
-      <label><span>Nº do contrato</span><input type="text" formControlName="numero_contrato"></label>
-      <label><span>Responsável técnico</span><input type="text" formControlName="responsavel_tecnico"></label>
-      <label><span>CREA</span><input type="text" formControlName="crea"></label>
-      <label><span>Nº da ART</span><input type="text" formControlName="art"></label>
-      <label><span>Início da obra</span><input type="date" formControlName="data_inicio"></label>
-      <label><span>Prazo</span><input type="text" formControlName="prazo" placeholder="12 meses"></label>
-      <label class="largo"><span>Contratante</span><input type="text" formControlName="contratante_nome"></label>
+    <div class="grade-cabecalho grade-cabecalho-leitura">
+      <div><span>Nº do contrato</span><strong>{{ preparo()?.cabecalho?.numero_contrato || '—' }}</strong></div>
+      <div><span>Responsável técnico</span><strong>{{ preparo()?.cabecalho?.responsavel_tecnico || '—' }}</strong></div>
+      <div><span>CREA</span><strong>{{ preparo()?.cabecalho?.crea || '—' }}</strong></div>
+      <div><span>Nº da ART</span><strong>{{ preparo()?.cabecalho?.art || '—' }}</strong></div>
+      <div><span>Início da obra</span><strong>{{ formatarData(preparo()?.cabecalho?.data_inicio) }}</strong></div>
+      <div><span>Prazo</span><strong>{{ preparo()?.cabecalho?.prazo || '—' }}</strong></div>
+      <div class="largo"><span>Contratante</span><strong>{{ preparo()?.cabecalho?.contratante_nome || '—' }}</strong></div>
     </div>
-
-    <button type="button" class="botao-primario" (click)="salvarCabecalho()">Salvar cabeçalho</button>
   </section>
 }
 
@@ -91,61 +92,42 @@
           </label>
         </div>
 
-        <!-- Clima por turno, como o documento registra — não um campo só. -->
+        <!-- Clima por turno, em tabela (26/09/2026, invertida a pedido do Lucas): linhas =
+             turnos, colunas = climas (com símbolo) — cada turno aceita só uma opção marcada
+             (rádio por linha). "Impraticável" saiu do clima e virou uma coluna própria,
+             "Condições de trabalho", com um menu suspenso por turno. -->
         <fieldset class="clima">
           <legend>Condições climáticas</legend>
-          <div class="clima-grade">
-            <label>
-              <span>Manhã</span>
-              <select formControlName="clima_manha">
-                @for (c of climas; track c.valor) { <option [value]="c.valor">{{ c.rotulo }}</option> }
-              </select>
-            </label>
-            <label>
-              <span>Tarde</span>
-              <select formControlName="clima_tarde">
-                @for (c of climas; track c.valor) { <option [value]="c.valor">{{ c.rotulo }}</option> }
-              </select>
-            </label>
-            <label>
-              <span>Noite</span>
-              <select formControlName="clima_noite">
-                @for (c of climas; track c.valor) { <option [value]="c.valor">{{ c.rotulo }}</option> }
-              </select>
-            </label>
-          </div>
+          <table class="tabela-clima">
+            <thead>
+              <tr>
+                <th></th>
+                @for (c of climas; track c.valor) { <th>{{ c.simbolo }} {{ c.rotulo }}</th> }
+                <th>Condições de trabalho</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of turnosClima; track t.chave) {
+                <tr>
+                  <th scope="row">{{ t.rotulo }}</th>
+                  @for (c of climas; track c.valor) {
+                    <td class="centro">
+                      <input type="radio" [formControlName]="t.controlClima" [value]="c.valor"
+                             [attr.aria-label]="c.rotulo + ' — ' + t.rotulo">
+                    </td>
+                  }
+                  <td>
+                    <select [formControlName]="t.controlCondicao">
+                      @for (cond of condicoesTrabalho; track cond.valor) {
+                        <option [value]="cond.valor">{{ cond.rotulo }}</option>
+                      }
+                    </select>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
         </fieldset>
-
-        <label class="campo-largo">
-          <span>Impacto no cronograma</span>
-          <textarea formControlName="impacto_cronograma" rows="2" placeholder="Ex.: chuva impediu concretagem, atraso de 1 dia"></textarea>
-        </label>
-      </div>
-    </section>
-
-    <!-- Etapas -->
-    <section class="painel secao" [class.aberta]="secaoAberta() === 'etapas'">
-      <button type="button" class="secao-cabecalho" (click)="alternarSecao('etapas')">
-        <h2>Etapas</h2>
-        <span class="secao-resumo">{{ arr('etapas').length }} etapa(s)</span>
-      </button>
-
-      <div class="secao-corpo" formArrayName="etapas">
-        <p class="dica">Ligar a um item da EAP é opcional — só ajuda a rastrear em qual etapa do orçamento o dia aconteceu.</p>
-        @for (etapa of arr('etapas').controls; track etapa; let i = $index) {
-          <div class="linha linha-etapa" [formGroupName]="i">
-            <label class="checkbox">
-              <input type="checkbox" formControlName="concluida">
-            </label>
-            <input type="text" formControlName="nome" placeholder="Nome da etapa">
-            <app-autocomplete modo="restrito" placeholder="Vincular à EAP (opcional)…"
-                               [opcoes]="opcoesEtapaEap()"
-                               [valor]="etapa.get('eap_item_id')?.value ?? ''"
-                               (confirmou)="escolherEtapaEap(i, $event)"></app-autocomplete>
-            <button type="button" class="botao-remover" (click)="remover('etapas', i)" aria-label="Remover">×</button>
-          </div>
-        }
-        <button type="button" class="botao-adicionar" (click)="adicionarEtapa()">+ Etapa</button>
       </div>
     </section>
 
@@ -163,15 +145,14 @@
           <div class="coluna-mao">
             <h3>Mão de obra interna</h3>
 
-            <app-autocomplete modo="restrito" placeholder="Buscar profissional interno…"
-                               [opcoes]="opcoesProfissional('interno')"
-                               [(valor)]="buscaProfissionalInterno"
-                               (confirmou)="adicionarProfissionalPresente($event)"></app-autocomplete>
-
             @for (linha of maoDeObraDe('interno'); track linha.grupo) {
               <div class="linha" [formGroupName]="linha.indice">
-                @if (linha.grupo.get('profissional_id')?.value) {
-                  <span class="profissional-linha">{{ linha.grupo.get('profissional_nome')?.value }} — {{ linha.grupo.get('funcao')?.value }}</span>
+                @if (linha.grupo.get('origem')?.value === 'cadastro') {
+                  <select [value]="linha.grupo.get('profissional_id')?.value ?? ''"
+                          (change)="escolherProfissionalNaLinha(linha.indice, $any($event.target).value)">
+                    <option value="" disabled>Selecione o profissional…</option>
+                    @for (p of opcoesProfissional('interno'); track p.id) { <option [value]="p.id">{{ p.rotulo }}</option> }
+                  </select>
                 } @else {
                   <input type="text" formControlName="funcao" placeholder="Função / cargo" list="rdo-funcoes-interno">
                   <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
@@ -181,9 +162,14 @@
               </div>
             }
 
-            <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('interno')">
-              + Lançamento manual (sem cadastro)
-            </button>
+            <div class="linha-botoes-mao">
+              <button type="button" class="botao-secundario botao-manual" (click)="adicionarLinhaCadastro('interno')">
+                + Adicionar profissional
+              </button>
+              <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('interno')">
+                + Lançamento manual (sem cadastro)
+              </button>
+            </div>
             <datalist id="rdo-funcoes-interno">
               @for (f of preparo()?.funcoes_usadas ?? []; track f.funcao) {
                 @if (f.categoria === 'interno') { <option [value]="f.funcao"></option> }
@@ -194,15 +180,14 @@
           <div class="coluna-mao">
             <h3>Mão de obra externa</h3>
 
-            <app-autocomplete modo="restrito" placeholder="Buscar profissional externo…"
-                               [opcoes]="opcoesProfissional('externo')"
-                               [(valor)]="buscaProfissionalExterno"
-                               (confirmou)="adicionarProfissionalPresente($event)"></app-autocomplete>
-
             @for (linha of maoDeObraDe('externo'); track linha.grupo) {
               <div class="linha" [formGroupName]="linha.indice">
-                @if (linha.grupo.get('profissional_id')?.value) {
-                  <span class="profissional-linha">{{ linha.grupo.get('profissional_nome')?.value }} — {{ linha.grupo.get('funcao')?.value }}</span>
+                @if (linha.grupo.get('origem')?.value === 'cadastro') {
+                  <select [value]="linha.grupo.get('profissional_id')?.value ?? ''"
+                          (change)="escolherProfissionalNaLinha(linha.indice, $any($event.target).value)">
+                    <option value="" disabled>Selecione o profissional…</option>
+                    @for (p of opcoesProfissional('externo'); track p.id) { <option [value]="p.id">{{ p.rotulo }}</option> }
+                  </select>
                 } @else {
                   <input type="text" formControlName="funcao" placeholder="Função / cargo" list="rdo-funcoes-externo">
                   <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
@@ -212,9 +197,14 @@
               </div>
             }
 
-            <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('externo')">
-              + Lançamento manual (sem cadastro)
-            </button>
+            <div class="linha-botoes-mao">
+              <button type="button" class="botao-secundario botao-manual" (click)="adicionarLinhaCadastro('externo')">
+                + Adicionar profissional
+              </button>
+              <button type="button" class="botao-secundario botao-manual" (click)="adicionarMaoDeObraManual('externo')">
+                + Lançamento manual (sem cadastro)
+              </button>
+            </div>
             <datalist id="rdo-funcoes-externo">
               @for (f of preparo()?.funcoes_usadas ?? []; track f.funcao) {
                 @if (f.categoria === 'externo') { <option [value]="f.funcao"></option> }
@@ -225,7 +215,7 @@
       </div>
     </section>
 
-    <!-- Equipamentos -->
+    <!-- Equipamentos: próprios x alugados (26/09/2026) -->
     <section class="painel secao" [class.aberta]="secaoAberta() === 'equipamentos'">
       <button type="button" class="secao-cabecalho" (click)="alternarSecao('equipamentos')">
         <h2>Equipamentos</h2>
@@ -233,18 +223,55 @@
       </button>
 
       <div class="secao-corpo" formArrayName="equipamentos">
-        @for (eq of arr('equipamentos').controls; track eq; let i = $index) {
-          <div class="linha" [formGroupName]="i">
-            <input type="text" formControlName="descricao" placeholder="Equipamento" list="rdo-equipamentos-catalogo">
-            <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
-            <button type="button" class="botao-remover" (click)="remover('equipamentos', i)" aria-label="Remover">×</button>
-          </div>
-        }
-        <button type="button" class="botao-adicionar" (click)="adicionarEquipamento()">+ Equipamento</button>
+        <div class="colunas-mao">
+          <div class="coluna-mao coluna-equip-proprio">
+            <h3>Equipamentos próprios</h3>
 
-        <datalist id="rdo-equipamentos-catalogo">
-          @for (e of preparo()?.equipamentos_catalogo ?? []; track e.id) { <option [value]="e.nome"></option> }
-        </datalist>
+            @for (linha of equipamentosDe('proprio'); track linha.grupo) {
+              <div class="linha" [formGroupName]="linha.indice">
+                <input type="text" formControlName="descricao" placeholder="Equipamento" list="rdo-equipamentos-catalogo">
+                <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
+                <button type="button" class="botao-remover" (click)="remover('equipamentos', linha.indice)" aria-label="Remover">×</button>
+              </div>
+            }
+            <button type="button" class="botao-adicionar" (click)="adicionarEquipamento('proprio')">+ Equipamento próprio</button>
+
+            <datalist id="rdo-equipamentos-catalogo">
+              @for (e of preparo()?.equipamentos_catalogo ?? []; track e.id) { <option [value]="e.nome"></option> }
+            </datalist>
+          </div>
+
+          <div class="coluna-mao coluna-equip-alugado">
+            <h3>Equipamentos alugados</h3>
+            <p class="dica">
+              Um item de um contrato ativo já entra sozinho aqui — só marque se está na obra hoje.
+              Só dá pra adicionar manualmente um equipamento SEM contrato.
+            </p>
+
+            @for (linha of equipamentosDe('alugado'); track linha.grupo) {
+              <div class="linha linha-equip-alugado" [formGroupName]="linha.indice">
+                <span class="valor-contrato">{{ linha.grupo.get('contrato_referencia')?.value || '—' }}</span>
+                @if (linha.grupo.get('contrato_equipamento_item_id')?.value) {
+                  <span class="profissional-linha">{{ linha.grupo.get('descricao')?.value }}</span>
+                } @else {
+                  <input type="text" formControlName="descricao" placeholder="Equipamento">
+                }
+                <input type="number" formControlName="quantidade" min="0" class="campo-qtde" aria-label="Quantidade">
+                <label class="checkbox">
+                  <input type="checkbox" formControlName="presente">
+                  <span>Na obra</span>
+                </label>
+                <button type="button" class="botao-remover" (click)="remover('equipamentos', linha.indice)" aria-label="Remover">×</button>
+              </div>
+            }
+
+            <div class="linha-botoes-mao">
+              <button type="button" class="botao-secundario botao-manual" (click)="adicionarEquipamentoAlugadoManual()">
+                + Equipamento alugado (sem contrato)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -256,13 +283,79 @@
       </button>
 
       <div class="secao-corpo" formArrayName="tarefas">
+        <p class="dica">
+          Ligar a um item da EAP é opcional — só ajuda a rastrear em qual etapa do orçamento o dia
+          aconteceu. Marcar "Concluída" fecha a etapa. Uma tarefa pode gerar quantas pendências e
+          ocorrências forem necessárias — use os botões "+ Pendência" e "+ Ocorrência" abaixo dela.
+        </p>
         @for (tarefa of arr('tarefas').controls; track tarefa; let i = $index) {
           <article class="tarefa" [formGroupName]="i">
             <div class="tarefa-linha">
               <span class="tarefa-numero">{{ i + 1 }}</span>
-              <textarea formControlName="descricao" rows="2"
-                        placeholder="O que foi executado nesta frente"></textarea>
+              <div class="tarefa-corpo">
+                <textarea formControlName="descricao" rows="2"
+                          placeholder="Descrição do serviço"></textarea>
+                <div class="tarefa-vinculo">
+                  <label class="checkbox">
+                    <input type="checkbox" formControlName="concluida">
+                    <span>Concluída</span>
+                  </label>
+                  <app-autocomplete modo="restrito" placeholder="Vincular à EAP (opcional)…"
+                                     [opcoes]="opcoesEtapaEap()"
+                                     [valor]="tarefa.get('eap_item_id')?.value ?? ''"
+                                     (confirmou)="escolherEtapaEap(i, $event)"></app-autocomplete>
+                </div>
+                <label class="campo-largo tarefa-observacoes-campo">
+                  <span>Observações</span>
+                  <textarea formControlName="observacoes" rows="2" placeholder="Nota sobre esta tarefa (opcional)"></textarea>
+                </label>
+              </div>
               <button type="button" class="botao-remover" (click)="removerTarefa(i)" aria-label="Remover tarefa">×</button>
+            </div>
+
+            <div class="tarefa-pendencia" formArrayName="pendencias">
+              @for (pend of pendenciasDaTarefa(i).controls; track pend; let j = $index) {
+                <div class="pendencia-campos" [formGroupName]="j">
+                  <label class="campo-largo">
+                    <span>Descrição da pendência</span>
+                    <textarea formControlName="descricao" rows="2" placeholder="O que ficou pendente"></textarea>
+                  </label>
+                  <div class="grade-tripla">
+                    <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+                    <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
+                    <label>
+                      <span>Status</span>
+                      <select formControlName="status">
+                        <option value="aberta">Aberta</option>
+                        <option value="concluida">Concluída</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button type="button" class="botao-remover" (click)="removerPendenciaDaTarefa(i, j)">Remover pendência</button>
+                </div>
+              }
+              <button type="button" class="botao-adicionar" (click)="adicionarPendenciaNaTarefa(i)">+ Pendência</button>
+            </div>
+
+            <div class="tarefa-ocorrencia" formArrayName="ocorrencias">
+              @for (oc of ocorrenciasDaTarefa(i).controls; track oc; let j = $index) {
+                <div class="ocorrencia-campos" [formGroupName]="j">
+                  <div class="grade-dupla">
+                    <label>
+                      <span>Tipo de ocorrência</span>
+                      <select formControlName="tipo">
+                        @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
+                      </select>
+                    </label>
+                    <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+                  </div>
+                  <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
+                  <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
+                  <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
+                  <button type="button" class="botao-remover" (click)="removerOcorrenciaDaTarefa(i, j)">Remover ocorrência</button>
+                </div>
+              }
+              <button type="button" class="botao-adicionar" (click)="adicionarOcorrenciaNaTarefa(i)">+ Ocorrência</button>
             </div>
 
             <div class="tarefa-fotos">
@@ -356,7 +449,10 @@
       </button>
 
       <div class="secao-corpo">
-        <p class="dica">Fotos e vídeos gerais do canteiro, sem vínculo com uma tarefa específica.</p>
+        <p class="dica">
+          Fotos e vídeos gerais do canteiro, sem vínculo com uma tarefa específica. Pendências,
+          ocorrências e observações que não pertencem a nenhuma tarefa específica também ficam aqui.
+        </p>
 
         <label class="botao-foto">
           <input type="file" accept="image/*" capture="environment" multiple hidden
@@ -416,129 +512,62 @@
             </figure>
           }
         </div>
-      </div>
-    </section>
 
-    <!-- Ocorrências -->
-    <section class="painel secao" [class.aberta]="secaoAberta() === 'ocorrencias'">
-      <button type="button" class="secao-cabecalho" (click)="alternarSecao('ocorrencias')">
-        <h2>Ocorrências</h2>
-        <span class="secao-resumo">{{ arr('ocorrencias').length }} ocorrência(s)</span>
-      </button>
-
-      <div class="secao-corpo" formArrayName="ocorrencias">
-        @for (oc of arr('ocorrencias').controls; track oc; let i = $index) {
-          <article class="bloco" [formGroupName]="i">
-            <div class="grade-dupla">
-              <label>
-                <span>Tipo</span>
-                <select formControlName="tipo">
-                  @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
-                </select>
+        <!-- Pendências/ocorrências/observações GERAIS do dia (26/09/2026) — sem
+             vínculo com nenhuma tarefa, mesma ideia das mídias acima. -->
+        <div class="bloco-geral" formArrayName="pendencias_gerais">
+          <h3>Pendências gerais do dia</h3>
+          @for (pend of pendenciasGerais().controls; track pend; let i = $index) {
+            <div class="pendencia-campos" [formGroupName]="i">
+              <label class="campo-largo">
+                <span>Descrição da pendência</span>
+                <textarea formControlName="descricao" rows="2"></textarea>
               </label>
-              <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+              <div class="grade-tripla">
+                <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+                <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
+                <label>
+                  <span>Status</span>
+                  <select formControlName="status">
+                    <option value="aberta">Aberta</option>
+                    <option value="concluida">Concluída</option>
+                  </select>
+                </label>
+              </div>
+              <button type="button" class="botao-remover" (click)="removerPendenciaGeral(i)">Remover pendência</button>
             </div>
-            <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
-            <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
-            <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
-            <button type="button" class="botao-remover" (click)="remover('ocorrencias', i)">Remover ocorrência</button>
-          </article>
-        }
-        <button type="button" class="botao-adicionar" (click)="adicionarOcorrencia()">+ Ocorrência</button>
-      </div>
-    </section>
+          }
+          <button type="button" class="botao-adicionar" (click)="adicionarPendenciaGeral()">+ Pendência geral</button>
+        </div>
 
-    <!-- Pendências -->
-    <section class="painel secao" [class.aberta]="secaoAberta() === 'pendencias'">
-      <button type="button" class="secao-cabecalho" (click)="alternarSecao('pendencias')">
-        <h2>Pendências</h2>
-        <span class="secao-resumo">{{ arr('pendencias').length }} pendência(s)</span>
-      </button>
-
-      <div class="secao-corpo" formArrayName="pendencias">
-        @for (pe of arr('pendencias').controls; track pe; let i = $index) {
-          <article class="bloco" [formGroupName]="i">
-            <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
-            <div class="grade-tripla">
-              <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
-              <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
-              <label>
-                <span>Status</span>
-                <select formControlName="status">
-                  <option value="aberta">Aberta</option>
-                  <option value="concluida">Concluída</option>
-                </select>
-              </label>
+        <div class="bloco-geral" formArrayName="ocorrencias_gerais">
+          <h3>Ocorrências gerais do dia</h3>
+          @for (oc of ocorrenciasGerais().controls; track oc; let i = $index) {
+            <div class="ocorrencia-campos" [formGroupName]="i">
+              <div class="grade-dupla">
+                <label>
+                  <span>Tipo de ocorrência</span>
+                  <select formControlName="tipo">
+                    @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
+                  </select>
+                </label>
+                <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
+              </div>
+              <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
+              <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
+              <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
+              <button type="button" class="botao-remover" (click)="removerOcorrenciaGeral(i)">Remover ocorrência</button>
             </div>
-            <button type="button" class="botao-remover" (click)="remover('pendencias', i)">Remover pendência</button>
-          </article>
-        }
-        <button type="button" class="botao-adicionar" (click)="adicionarPendencia()">+ Pendência</button>
-      </div>
-    </section>
+          }
+          <button type="button" class="botao-adicionar" (click)="adicionarOcorrenciaGeral()">+ Ocorrência geral</button>
+        </div>
 
-    <!-- Responsáveis presentes -->
-    <section class="painel secao" [class.aberta]="secaoAberta() === 'responsaveis'">
-      <button type="button" class="secao-cabecalho" (click)="alternarSecao('responsaveis')">
-        <h2>Responsáveis presentes</h2>
-        <span class="secao-resumo">{{ arr('responsaveis').length }} pessoa(s)</span>
-      </button>
-
-      <div class="secao-corpo" formArrayName="responsaveis">
-        @for (re of arr('responsaveis').controls; track re; let i = $index) {
-          <article class="bloco" [formGroupName]="i">
-            <div class="grade-dupla">
-              <label><span>Nome</span><input type="text" formControlName="nome"></label>
-              <label><span>Empresa</span><input type="text" formControlName="empresa"></label>
-              <label><span>Função</span><input type="text" formControlName="funcao"></label>
-              <label><span>Contrato de referência</span><input type="text" formControlName="contrato_referencia"></label>
-            </div>
-            <button type="button" class="botao-remover" (click)="remover('responsaveis', i)">Remover</button>
-          </article>
-        }
-        <button type="button" class="botao-adicionar" (click)="adicionarResponsavel()">+ Responsável</button>
-      </div>
-    </section>
-
-    <!-- Comentário interno -->
-    <section class="painel secao" [class.aberta]="secaoAberta() === 'comentarios'">
-      <button type="button" class="secao-cabecalho" (click)="alternarSecao('comentarios')">
-        <h2>Observações internas</h2>
-        <span class="secao-resumo">{{ arr('comentarios').length }} nota(s)</span>
-      </button>
-
-      <div class="secao-corpo" formArrayName="comentarios">
-        <p class="dica">Por padrão o contratante não vê estas notas — marque a caixa para liberar.</p>
-
-        @for (co of arr('comentarios').controls; track co; let i = $index) {
-          <article class="bloco" [formGroupName]="i">
-            <div class="linha">
-              <textarea formControlName="texto" rows="2" placeholder="Ex.: combinado verbal com o profissional"></textarea>
-              <button type="button" class="botao-remover" (click)="remover('comentarios', i)" aria-label="Remover">×</button>
-            </div>
-            <label class="checkbox">
-              <input type="checkbox" formControlName="visivel_contratante">
-              <span>Visível para o contratante</span>
-            </label>
-          </article>
-        }
-
-        <button type="button" class="botao-adicionar" (click)="adicionarComentario()">+ Observação</button>
-      </div>
-
-      <!-- `.secao-corpo` próprio (não dentro do formArrayName="comentarios" de
-           cima) de propósito: este campo é do formulário principal
-           (`this.formulario.observacoes`), não um item da lista de
-           comentários — bug de aninhamento corrigido em 22/09/2026 (F8),
-           estava jogando "Cannot find control with path: 'comentarios ->
-           observacoes'" no console a cada render desta seção. Continua um
-           `.secao-corpo` (e não um elemento solto) pra manter o
-           esconde/mostra do acordeão no celular. -->
-      <div class="secao-corpo">
-        <label class="campo-largo">
-          <span>Observações gerais do dia</span>
-          <textarea formControlName="observacoes" rows="2"></textarea>
-        </label>
+        <div class="bloco-geral">
+          <label class="campo-largo">
+            <span>Observações gerais do dia</span>
+            <textarea formControlName="observacoes" rows="2"></textarea>
+          </label>
+        </div>
       </div>
     </section>
 

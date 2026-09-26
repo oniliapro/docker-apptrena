@@ -12,17 +12,45 @@ import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreite
 import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
 import { FvsService } from '../fvs/fvs.service';
 import {
+  CategoriaEquipamento,
   CLIMAS,
+  CONDICOES_TRABALHO,
   FotoSelecionada,
   RdoFoto,
-  RdoObraDados,
   RdoPreparo,
   RdoRegistro,
   TAMANHO_MAXIMO_VIDEO,
   TIPOS_OCORRENCIA,
+  TURNOS_CLIMA,
   VideoSelecionado,
 } from './rdo.models';
 import { RdoService } from './rdo.service';
+
+/** Valor bruto de uma pendência/ocorrência dentro de uma linha de tarefa — ver `desmembrarTarefas`. */
+interface PendenciaBruta {
+  descricao: string;
+  responsavel: string;
+  prazo: string;
+  status: string;
+}
+interface OcorrenciaBruta {
+  tipo: string;
+  descricao: string;
+  responsavel: string;
+  motivo: string;
+  danos_materiais: string;
+}
+
+/** Valor bruto (`getRawValue()`) de uma linha de "Tarefas realizadas" — ver `desmembrarTarefas`. */
+interface LinhaTarefaBruta {
+  id: string;
+  descricao: string;
+  eap_item_id: string | null;
+  concluida: boolean;
+  observacoes: string;
+  pendencias: PendenciaBruta[];
+  ocorrencias: OcorrenciaBruta[];
+}
 
 /**
  * Relatório Diário de Obra (RDO) — módulo reconstruído em 17/09/2026.
@@ -69,6 +97,8 @@ export class Rdo implements OnInit {
   readonly rdoId = input.required<string>();
 
   protected readonly climas = CLIMAS;
+  protected readonly condicoesTrabalho = CONDICOES_TRABALHO;
+  protected readonly turnosClima = TURNOS_CLIMA;
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA;
 
   // F9 (24/09/2026): mão de obra por profissional do cadastro (Empreiteiros/
@@ -143,26 +173,18 @@ export class Rdo implements OnInit {
     clima_manha: ['claro'],
     clima_tarde: ['claro'],
     clima_noite: ['claro'],
-    impacto_cronograma: [''],
+    // "Impraticável" saiu do clima e virou uma condição de trabalho à parte, por turno (26/09/2026).
+    condicao_manha: ['praticavel'],
+    condicao_tarde: ['praticavel'],
+    condicao_noite: ['praticavel'],
     observacoes: [''],
-    etapas: this.fb.array([]),
     mao_de_obra: this.fb.array([]),
     equipamentos: this.fb.array([]),
     tarefas: this.fb.array([]),
-    ocorrencias: this.fb.array([]),
-    pendencias: this.fb.array([]),
-    responsaveis: this.fb.array([]),
-    comentarios: this.fb.array([]),
-  });
-
-  protected readonly cabecalho: FormGroup = this.fb.group({
-    numero_contrato: [''],
-    responsavel_tecnico: [''],
-    crea: [''],
-    art: [''],
-    data_inicio: [''],
-    prazo: [''],
-    contratante_nome: [''],
+    // Pendências/ocorrências GERAIS do dia (26/09/2026) — sem tarefa, moram na
+    // seção "Fotos e vídeos do dia" junto das mídias sem vínculo com tarefa.
+    pendencias_gerais: this.fb.array([]),
+    ocorrencias_gerais: this.fb.array([]),
   });
 
   /**
@@ -306,7 +328,6 @@ export class Rdo implements OnInit {
     this.rdoApi.preparar(this.obraId()).subscribe({
       next: (preparo) => {
         this.preparo.set(preparo);
-        this.aplicarCabecalho(preparo.cabecalho);
         if (this.ehNovo()) {
           this.novoRegistro();
           this.carregando.set(false);
@@ -343,7 +364,9 @@ export class Rdo implements OnInit {
       clima_manha: 'claro',
       clima_tarde: 'claro',
       clima_noite: 'claro',
-      impacto_cronograma: '',
+      condicao_manha: 'praticavel',
+      condicao_tarde: 'praticavel',
+      condicao_noite: 'praticavel',
       observacoes: '',
     });
 
@@ -351,9 +374,22 @@ export class Rdo implements OnInit {
     this.formularioFvs.clear();
 
     const preparo = this.preparo();
-    preparo?.etapas_sugeridas.forEach((e) => this.adicionarEtapa(null, e.nome, false));
+    // "Etapas não concluídas do RDO anterior" (26/09/2026: cada etapa virou uma
+    // linha de "Tarefas realizadas", com o nome sugerido como descrição inicial).
+    preparo?.etapas_sugeridas.forEach((e) =>
+      this.adicionarTarefa(e.nome, undefined, e.eap_item_id, e.concluida),
+    );
     preparo?.mao_de_obra_sugerida.forEach((m) =>
       this.adicionarMaoDeObra(m.categoria, m.profissional_id, m.profissional_nome, m.funcao, m.quantidade),
+    );
+    // Equipamentos alugados (26/09/2026): nascem sozinhos a partir dos itens
+    // ainda ativos de contratos não encerrados — só falta marcar se cada um
+    // está presente na obra hoje. Só dá pra ADICIONAR manualmente equipamento
+    // SEM contrato (botão "+ Equipamento alugado (sem contrato)").
+    preparo?.contratos_equipamentos_ativos.forEach((c) =>
+      c.itens.forEach((item) =>
+        this.adicionarEquipamento('alugado', item.descricao, item.quantidade, item.id, `Nº ${c.numero} — ${c.nome_contrato}`, true),
+      ),
     );
 
     if (this.arr('tarefas').length === 0) {
@@ -373,27 +409,69 @@ export class Rdo implements OnInit {
       clima_manha: registro.clima_manha ?? 'claro',
       clima_tarde: registro.clima_tarde ?? 'claro',
       clima_noite: registro.clima_noite ?? 'claro',
-      impacto_cronograma: registro.impacto_cronograma ?? '',
+      condicao_manha: registro.condicao_manha ?? 'praticavel',
+      condicao_tarde: registro.condicao_tarde ?? 'praticavel',
+      condicao_noite: registro.condicao_noite ?? 'praticavel',
       observacoes: registro.observacoes ?? '',
     });
 
-    registro.etapas?.forEach((e) => this.adicionarEtapa(e.eap_item_id, e.nome, e.concluida));
+    this.mesclarTarefasComEtapasEPendencias(registro);
     registro.mao_de_obra?.forEach((m) =>
       this.adicionarMaoDeObra(m.categoria, m.profissional_id, m.profissional_nome, m.funcao, m.quantidade),
     );
-    registro.equipamentos?.forEach((e) => this.adicionarEquipamento(e.descricao, e.quantidade));
-    registro.tarefas?.forEach((t) => this.adicionarTarefa(t.descricao, t.id));
-    registro.ocorrencias?.forEach((o) => this.adicionarOcorrencia(o));
-    registro.pendencias?.forEach((p) => this.adicionarPendencia(p));
-    registro.responsaveis_presentes?.forEach((r) => this.adicionarResponsavel(r));
-    this.montarFormularioFvs(registro.fvs_preenchimentos ?? []);
-    registro.comentarios_internos?.forEach((c) =>
-      this.adicionarComentario(c.texto, c.visivel_contratante),
+    registro.equipamentos?.forEach((e) =>
+      this.adicionarEquipamento(e.categoria, e.descricao, e.quantidade, e.contrato_equipamento_item_id, e.contrato_referencia, e.presente),
     );
+    this.montarFormularioFvs(registro.fvs_preenchimentos ?? []);
 
     if (this.arr('tarefas').length === 0) {
       this.adicionarTarefa();
     }
+  }
+
+  /**
+   * Reconstrói "Tarefas realizadas" juntando Tarefa+Etapa (mesma posição —
+   * são gravadas juntas desde 26/09/2026) com as Pendências/Ocorrências
+   * daquela tarefa (por `tarefa_id`, vínculo exato). Pendências/Ocorrências
+   * SEM tarefa (`tarefa_id` nulo) são GERAIS do dia (26/09/2026, pedido do
+   * Lucas) — não pertencem a nenhuma tarefa, vão para os arrays
+   * `pendencias_gerais`/`ocorrencias_gerais`, mostrados na seção "Fotos e
+   * vídeos do dia".
+   */
+  private mesclarTarefasComEtapasEPendencias(registro: RdoRegistro): void {
+    const tarefas = registro.tarefas ?? [];
+    const etapas = registro.etapas ?? [];
+
+    const agruparPorTarefa = <T extends { tarefa_id: string | null }>(itens: T[]): Map<string, T[]> => {
+      const mapa = new Map<string, T[]>();
+      itens.forEach((item) => {
+        if (item.tarefa_id) mapa.set(item.tarefa_id, [...(mapa.get(item.tarefa_id) ?? []), item]);
+      });
+      return mapa;
+    };
+
+    const pendenciasPorTarefa = agruparPorTarefa(registro.pendencias ?? []);
+    const ocorrenciasPorTarefa = agruparPorTarefa(registro.ocorrencias ?? []);
+
+    const total = Math.max(tarefas.length, etapas.length);
+    for (let i = 0; i < total; i++) {
+      const tarefa = tarefas[i];
+      const etapa = etapas[i];
+      if (!tarefa && !etapa) continue;
+
+      this.adicionarTarefa(
+        tarefa?.descricao ?? etapa?.nome ?? '',
+        tarefa?.id,
+        etapa?.eap_item_id ?? null,
+        etapa?.concluida ?? false,
+        tarefa?.observacoes ?? null,
+        tarefa ? (pendenciasPorTarefa.get(tarefa.id) ?? []) : [],
+        tarefa ? (ocorrenciasPorTarefa.get(tarefa.id) ?? []) : [],
+      );
+    }
+
+    (registro.pendencias ?? []).filter((p) => !p.tarefa_id).forEach((p) => this.pendenciasGerais().push(this.grupoPendencia(p)));
+    (registro.ocorrencias ?? []).filter((o) => !o.tarefa_id).forEach((o) => this.ocorrenciasGerais().push(this.grupoOcorrencia(o)));
   }
 
   protected voltarParaLista(): void {
@@ -435,36 +513,48 @@ export class Rdo implements OnInit {
    * módulo ganhar: nunca usar `track $index` aqui.
    */
   private limparArrays(): void {
-    ['etapas', 'mao_de_obra', 'equipamentos', 'tarefas', 'ocorrencias', 'pendencias', 'responsaveis', 'comentarios']
+    ['mao_de_obra', 'equipamentos', 'tarefas', 'pendencias_gerais', 'ocorrencias_gerais']
       .forEach((nome) => this.arr(nome).clear());
   }
 
-  protected adicionarEtapa(eapItemId: string | null = null, nome = '', concluida = false): void {
-    this.arr('etapas').push(
-      this.fb.group({
-        eap_item_id: [eapItemId],
-        nome: [nome, Validators.required],
-        concluida: [concluida],
-      }),
-    );
-  }
-
-  /** Etapa nova a partir da EAP: id fica no formulário, nome vem como rótulo (ainda editável depois). */
+  /**
+   * Vincula a tarefa `indice` a um item da EAP (26/09/2026: era da Etapa,
+   * agora mora dentro da tarefa) — só preenche a Descrição do serviço
+   * sozinho se ela ainda estiver vazia, pra não apagar o que a pessoa já
+   * tinha escrito.
+   */
   protected escolherEtapaEap(indice: number, opcao: OpcaoAutocomplete | null): void {
-    const grupo = this.grupo('etapas', indice);
-    grupo.patchValue({ eap_item_id: opcao?.id ?? null, nome: opcao?.rotulo ?? grupo.get('nome')?.value });
+    const grupo = this.grupo('tarefas', indice);
+    const descricaoAtual = String(grupo.get('descricao')?.value ?? '').trim();
+    grupo.patchValue({
+      eap_item_id: opcao?.id ?? null,
+      descricao: descricaoAtual || opcao?.rotulo || descricaoAtual,
+    });
   }
 
+  /**
+   * `origem` distingue a UI da linha: "cadastro" mostra um `<select>` que
+   * busca no cadastro de Profissionais; "manual" mostra função/quantidade
+   * digitadas à mão. Default: deduzido de `profissionalId` (uma linha que já
+   * vem com profissional vinculado é sempre "cadastro").
+   *
+   * 26/09/2026, pedido do Lucas: antes havia um campo de busca ÚNICO acima da
+   * lista, que escolhia o profissional e depois era limpo pelo botão
+   * "Adicionar" — "tire esse [campo] que ficava sendo resetado". Agora o
+   * botão cria a linha (com o `<select>` já dentro dela) direto.
+   */
   protected adicionarMaoDeObra(
     categoria: 'interno' | 'externo',
     profissionalId: string | null = null,
     profissionalNome: string | null = null,
     funcao = '',
     quantidade = 1,
+    origem: 'cadastro' | 'manual' = profissionalId ? 'cadastro' : 'manual',
   ): void {
     this.arr('mao_de_obra').push(
       this.fb.group({
         categoria: [categoria],
+        origem: [origem],
         profissional_id: [profissionalId],
         profissional_nome: [profissionalNome],
         funcao: [funcao, Validators.required],
@@ -473,97 +563,170 @@ export class Rdo implements OnInit {
     );
   }
 
-  /** Campo de busca de profissional por coluna (`[(valor)]` do autocomplete) — some depois de escolher. */
-  protected readonly buscaProfissionalInterno = signal('');
-  protected readonly buscaProfissionalExterno = signal('');
-
-  /**
-   * Adiciona uma linha de mão de obra a partir de um profissional escolhido
-   * no autocomplete (F9) — categoria/função vêm do próprio cadastro, cada
-   * escolha é uma pessoa (`quantidade` sempre 1). Limpa o campo de busca
-   * depois, pra poder buscar o próximo sem apagar na mão.
-   */
-  protected adicionarProfissionalPresente(opcao: OpcaoAutocomplete | null): void {
-    if (!opcao) return;
-    const profissional = this.profissionais().find((p) => p.id === opcao.id);
-    if (!profissional) return;
-
-    this.adicionarMaoDeObra(
-      profissional.vinculo,
-      profissional.id,
-      profissional.nome,
-      profissional.especialidade || 'Sem função definida',
-    );
-    this.buscaProfissionalInterno.set('');
-    this.buscaProfissionalExterno.set('');
+  /** "+ Adicionar profissional": cria a linha já com o `<select>` do cadastro, ainda sem ninguém escolhido. */
+  protected adicionarLinhaCadastro(categoria: 'interno' | 'externo'): void {
+    this.adicionarMaoDeObra(categoria, null, null, '', 1, 'cadastro');
   }
 
   /** Linha manual (sem profissional do cadastro) — função/quantidade digitadas, como era antes da F9. */
   protected adicionarMaoDeObraManual(categoria: 'interno' | 'externo'): void {
-    this.adicionarMaoDeObra(categoria, null, null, '', 1);
+    this.adicionarMaoDeObra(categoria, null, null, '', 1, 'manual');
   }
 
-  protected adicionarEquipamento(descricao = '', quantidade = 0): void {
+  /** Escolha feita no `<select>` da própria linha — preenche nome/função a partir do cadastro. */
+  protected escolherProfissionalNaLinha(indice: number, profissionalId: string): void {
+    const profissional = this.profissionais().find((p) => p.id === profissionalId);
+    if (!profissional) return;
+
+    this.grupo('mao_de_obra', indice).patchValue({
+      profissional_id: profissional.id,
+      profissional_nome: profissional.nome,
+      funcao: profissional.especialidade || 'Sem função definida',
+    });
+  }
+
+  /**
+   * 26/09/2026, pedido do Lucas: "Equipamentos" virou duas colunas — próprios
+   * (nome + quantidade) e alugados (contrato, nome, quantidade + "está na
+   * obra?"). Um alugado vinculado a um contrato NASCE sozinho (ver
+   * `novoRegistro`/`aplicarRegistro`) — o usuário só pode ADICIONAR manualmente
+   * equipamento SEM contrato; nesse caso "contrato" fica vazio.
+   */
+  protected adicionarEquipamento(
+    categoria: CategoriaEquipamento = 'proprio',
+    descricao = '',
+    quantidade = 0,
+    contratoEquipamentoItemId: string | null = null,
+    contratoReferencia: string | null = null,
+    presente = true,
+  ): void {
     this.arr('equipamentos').push(
       this.fb.group({
+        categoria: [categoria],
+        contrato_equipamento_item_id: [contratoEquipamentoItemId],
+        contrato_referencia: [contratoReferencia],
+        presente: [presente],
         descricao: [descricao, Validators.required],
         quantidade: [quantidade, [Validators.required, Validators.min(0)]],
       }),
     );
   }
 
+  /** Equipamentos de uma categoria (próprio/alugado), com o índice real no FormArray — mesma ideia de `maoDeObraDe`. */
+  protected equipamentosDe(categoria: CategoriaEquipamento): Array<{ indice: number; grupo: FormGroup }> {
+    return this.arr('equipamentos').controls
+      .map((controle, indice) => ({ indice, grupo: controle as FormGroup }))
+      .filter((linha) => linha.grupo.get('categoria')?.value === categoria);
+  }
+
+  /** "+ Equipamento alugado (sem contrato)" — único jeito de ADICIONAR um alugado manualmente; contrato fica vazio. */
+  protected adicionarEquipamentoAlugadoManual(): void {
+    this.adicionarEquipamento('alugado');
+  }
+
   /**
    * O id é gerado aqui no cliente (o backend aceita e reaproveita, ver o trait
    * HasUuidPrimaryKey) porque a foto precisa referenciar a tarefa ANTES de o
    * RDO ser salvo — é assim que `fotos_meta[i][tarefa_id]` sabe onde pendurar.
+   *
+   * 26/09/2026, pedido do Lucas: cada "Tarefa realizada" passou a carregar
+   * também o que antes eram a Etapa (vínculo com a EAP + concluída) e listas
+   * de Pendências e Ocorrências geradas por ela ("uma tarefa pode gerar mais
+   * de uma pendência... o campo de ocorrências vai ficar dentro das
+   * tarefas") — as quatro seções separadas viraram uma só.
    */
-  protected adicionarTarefa(descricao = '', id?: string): void {
+  protected adicionarTarefa(
+    descricao = '',
+    id?: string,
+    eapItemId: string | null = null,
+    concluida = false,
+    observacoes: string | null = null,
+    pendencias: Array<Partial<{ descricao: string | null; responsavel: string | null; prazo: string | null; status: string | null }>> = [],
+    ocorrencias: Array<Partial<{ tipo: string | null; descricao: string | null; responsavel: string | null; motivo: string | null; danos_materiais: string | null }>> = [],
+  ): void {
     this.arr('tarefas').push(
       this.fb.group({
         id: [id ?? crypto.randomUUID()],
         descricao: [descricao, Validators.required],
+        eap_item_id: [eapItemId],
+        concluida: [concluida],
+        observacoes: [observacoes ?? ''],
+        pendencias: this.fb.array(pendencias.map((p) => this.grupoPendencia(p))),
+        ocorrencias: this.fb.array(ocorrencias.map((o) => this.grupoOcorrencia(o))),
       }),
     );
   }
 
-  protected adicionarOcorrencia(valores?: Partial<{ tipo: string; descricao: string; responsavel: string | null; motivo: string | null; danos_materiais: string | null }>): void {
-    this.arr('ocorrencias').push(
-      this.fb.group({
-        tipo: [valores?.tipo ?? 'outra'],
-        descricao: [valores?.descricao ?? '', Validators.required],
-        responsavel: [valores?.responsavel ?? ''],
-        motivo: [valores?.motivo ?? ''],
-        danos_materiais: [valores?.danos_materiais ?? ''],
-      }),
-    );
+  private grupoPendencia(
+    p?: Partial<{ descricao: string | null; responsavel: string | null; prazo: string | null; status: string | null }>,
+  ): FormGroup {
+    return this.fb.group({
+      descricao: [p?.descricao ?? '', Validators.required],
+      responsavel: [p?.responsavel ?? ''],
+      prazo: [p?.prazo?.substring(0, 10) ?? ''],
+      status: [p?.status ?? 'aberta'],
+    });
   }
 
-  protected adicionarPendencia(valores?: Partial<{ descricao: string; responsavel: string | null; prazo: string | null; status: string }>): void {
-    this.arr('pendencias').push(
-      this.fb.group({
-        descricao: [valores?.descricao ?? '', Validators.required],
-        responsavel: [valores?.responsavel ?? ''],
-        prazo: [valores?.prazo?.substring(0, 10) ?? ''],
-        status: [valores?.status ?? 'aberta'],
-      }),
-    );
+  private grupoOcorrencia(
+    o?: Partial<{ tipo: string | null; descricao: string | null; responsavel: string | null; motivo: string | null; danos_materiais: string | null }>,
+  ): FormGroup {
+    return this.fb.group({
+      tipo: [o?.tipo ?? 'outra'],
+      descricao: [o?.descricao ?? '', Validators.required],
+      responsavel: [o?.responsavel ?? ''],
+      motivo: [o?.motivo ?? ''],
+      danos_materiais: [o?.danos_materiais ?? ''],
+    });
   }
 
-  protected adicionarResponsavel(valores?: Partial<{ nome: string; empresa: string | null; funcao: string | null; contrato_referencia: string | null }>): void {
-    this.arr('responsaveis').push(
-      this.fb.group({
-        nome: [valores?.nome ?? '', Validators.required],
-        empresa: [valores?.empresa ?? ''],
-        funcao: [valores?.funcao ?? ''],
-        contrato_referencia: [valores?.contrato_referencia ?? ''],
-      }),
-    );
+  protected pendenciasDaTarefa(i: number): FormArray {
+    return this.grupo('tarefas', i).get('pendencias') as FormArray;
   }
 
-  protected adicionarComentario(texto = '', visivel = false): void {
-    this.arr('comentarios').push(
-      this.fb.group({ texto: [texto, Validators.required], visivel_contratante: [visivel] }),
-    );
+  protected adicionarPendenciaNaTarefa(i: number): void {
+    this.pendenciasDaTarefa(i).push(this.grupoPendencia());
+  }
+
+  protected removerPendenciaDaTarefa(i: number, j: number): void {
+    this.pendenciasDaTarefa(i).removeAt(j);
+  }
+
+  protected ocorrenciasDaTarefa(i: number): FormArray {
+    return this.grupo('tarefas', i).get('ocorrencias') as FormArray;
+  }
+
+  protected adicionarOcorrenciaNaTarefa(i: number): void {
+    this.ocorrenciasDaTarefa(i).push(this.grupoOcorrencia());
+  }
+
+  protected removerOcorrenciaDaTarefa(i: number, j: number): void {
+    this.ocorrenciasDaTarefa(i).removeAt(j);
+  }
+
+  /** Pendências/ocorrências GERAIS do dia (26/09/2026) — sem tarefa, mostradas em "Fotos e vídeos do dia". */
+  protected pendenciasGerais(): FormArray {
+    return this.arr('pendencias_gerais');
+  }
+
+  protected adicionarPendenciaGeral(): void {
+    this.pendenciasGerais().push(this.grupoPendencia());
+  }
+
+  protected removerPendenciaGeral(i: number): void {
+    this.pendenciasGerais().removeAt(i);
+  }
+
+  protected ocorrenciasGerais(): FormArray {
+    return this.arr('ocorrencias_gerais');
+  }
+
+  protected adicionarOcorrenciaGeral(): void {
+    this.ocorrenciasGerais().push(this.grupoOcorrencia());
+  }
+
+  protected removerOcorrenciaGeral(i: number): void {
+    this.ocorrenciasGerais().removeAt(i);
   }
 
   protected remover(nome: string, i: number): void {
@@ -755,6 +918,58 @@ export class Rdo implements OnInit {
   // Salvar / finalizar
   // ------------------------------------------------------------------
 
+  /**
+   * "Tarefas realizadas" (o formulário) vira TRÊS listas pro backend, que
+   * ainda guarda Tarefa/Etapa/Pendência como registros separados (26/09/2026
+   * — a junção em uma seção só foi só na tela, ver comentário de
+   * `adicionarTarefa`): a tarefa em si (id + descrição), a etapa (mesma
+   * descrição como "nome", + o vínculo com a EAP e o concluída — é o que
+   * mantém a Ficha de Verificação de Serviço funcionando) e, só pra quem
+   * marcou "Gerou pendência", a pendência (com a própria descrição, ou a da
+   * tarefa se a pessoa deixou em branco). Linha sem descrição é lixo de
+   * formulário (linha em branco deixada passar) e não vira nada.
+   */
+  private desmembrarTarefas(linhas: LinhaTarefaBruta[]): {
+    tarefas: Array<{ id: string; descricao: string; observacoes: string | null }>;
+    etapas: Array<{ eap_item_id: string | null; nome: string; concluida: boolean }>;
+    pendencias: Array<{ tarefa_id: string; descricao: string; responsavel: string | null; prazo: string | null; status: string }>;
+    ocorrencias: Array<{ tarefa_id: string; tipo: string; descricao: string; responsavel: string | null; motivo: string | null; danos_materiais: string | null }>;
+  } {
+    const validas = linhas.filter((t) => t.descricao?.trim());
+
+    return {
+      tarefas: validas.map((t) => ({ id: t.id, descricao: t.descricao, observacoes: t.observacoes?.trim() || null })),
+      etapas: validas.map((t) => ({
+        eap_item_id: t.eap_item_id || null,
+        nome: t.descricao,
+        concluida: !!t.concluida,
+      })),
+      pendencias: validas.flatMap((t) =>
+        (t.pendencias ?? [])
+          .filter((p) => p.descricao?.trim())
+          .map((p) => ({
+            tarefa_id: t.id,
+            descricao: p.descricao.trim(),
+            responsavel: p.responsavel || null,
+            prazo: p.prazo || null,
+            status: p.status || 'aberta',
+          })),
+      ),
+      ocorrencias: validas.flatMap((t) =>
+        (t.ocorrencias ?? [])
+          .filter((o) => o.descricao?.trim())
+          .map((o) => ({
+            tarefa_id: t.id,
+            tipo: o.tipo || 'outra',
+            descricao: o.descricao.trim(),
+            responsavel: o.responsavel || null,
+            motivo: o.motivo || null,
+            danos_materiais: o.danos_materiais || null,
+          })),
+      ),
+    };
+  }
+
   protected salvar(): void {
     if (this.formulario.invalid) {
       this.formulario.markAllAsTouched();
@@ -767,11 +982,28 @@ export class Rdo implements OnInit {
     this.erro.set(null);
 
     const bruto = this.formulario.getRawValue();
+    const desmembrado = this.desmembrarTarefas(bruto.tarefas as LinhaTarefaBruta[]);
+
+    // Pendências/ocorrências GERAIS do dia (26/09/2026) — sem tarefa_id, entram
+    // na mesma lista que o backend já espera, junto das que vieram de alguma tarefa.
+    const pendenciasGeraisPayload = (bruto.pendencias_gerais as PendenciaBruta[])
+      .filter((p) => p.descricao?.trim())
+      .map((p) => ({ descricao: p.descricao.trim(), responsavel: p.responsavel || null, prazo: p.prazo || null, status: p.status || 'aberta' }));
+    const ocorrenciasGeraisPayload = (bruto.ocorrencias_gerais as OcorrenciaBruta[])
+      .filter((o) => o.descricao?.trim())
+      .map((o) => ({
+        tipo: o.tipo || 'outra',
+        descricao: o.descricao.trim(),
+        responsavel: o.responsavel || null,
+        motivo: o.motivo || null,
+        danos_materiais: o.danos_materiais || null,
+      }));
+
     const payload: Record<string, unknown> = {
       ...bruto,
-      // Tarefa sem descrição é linha em branco que o usuário deixou passar —
-      // não vira registro.
-      tarefas: (bruto.tarefas as Array<{ descricao: string }>).filter((t) => t.descricao?.trim()),
+      ...desmembrado,
+      pendencias: [...desmembrado.pendencias, ...pendenciasGeraisPayload],
+      ocorrencias: [...desmembrado.ocorrencias, ...ocorrenciasGeraisPayload],
     };
 
     const fotos = this.fotosSelecionadas();
@@ -863,18 +1095,15 @@ export class Rdo implements OnInit {
     });
   }
 
-  protected salvarCabecalho(): void {
-    this.rdoApi.salvarCabecalho(this.obraId(), this.cabecalho.getRawValue() as RdoObraDados).subscribe({
-      next: () => {
-        this.aviso.set('Cabeçalho da obra salvo.');
-        this.mostrarCabecalho.set(false);
-      },
-      error: (e) => this.erro.set(this.mensagemDeErro(e)),
-    });
-  }
-
   protected alternarSecao(secao: string): void {
     this.secaoAberta.set(this.secaoAberta() === secao ? '' : secao);
+  }
+
+  /** `data_inicio` do cabeçalho vem como data/hora ISO (cast `date` da Obra) — só interessa o dia, em pt-BR. */
+  protected formatarData(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    const [ano, mes, dia] = iso.substring(0, 10).split('-');
+    return dia && mes && ano ? `${dia}/${mes}/${ano}` : '—';
   }
 
   protected rotuloClima(valor: string | null): string {
@@ -883,18 +1112,6 @@ export class Rdo implements OnInit {
 
   protected rotuloOcorrencia(valor: string): string {
     return TIPOS_OCORRENCIA.find((t) => t.valor === valor)?.rotulo ?? valor;
-  }
-
-  private aplicarCabecalho(dados: RdoObraDados | null): void {
-    this.cabecalho.reset({
-      numero_contrato: dados?.numero_contrato ?? '',
-      responsavel_tecnico: dados?.responsavel_tecnico ?? '',
-      crea: dados?.crea ?? '',
-      art: dados?.art ?? '',
-      data_inicio: dados?.data_inicio?.substring(0, 10) ?? '',
-      prazo: dados?.prazo ?? '',
-      contratante_nome: dados?.contratante_nome ?? '',
-    });
   }
 
   private mensagemDeErro(e: unknown): string {

@@ -4,20 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppStorageItem;
+use App\Models\ContratoEquipamentoItem;
 use App\Models\Diaria;
 use App\Models\EapItem;
 use App\Models\FvsPreenchimento;
 use App\Models\FvsPreenchimentoItem;
 use App\Models\FvsVinculo;
 use App\Models\Obra;
-use App\Models\RdoComentarioInterno;
 use App\Models\RdoContratanteLink;
 use App\Models\RdoEquipamento;
 use App\Models\RdoEquipamentoCatalogo;
 use App\Models\RdoEtapa;
 use App\Models\RdoFoto;
 use App\Models\RdoMaoDeObra;
-use App\Models\RdoObraDados;
 use App\Models\RdoOcorrencia;
 use App\Models\RdoPendencia;
 use App\Models\RdoRegistro;
@@ -118,7 +117,7 @@ class RdoController extends Controller
 
         return [
             'obra' => $obra->only(['id', 'obra_nome', 'local_obra', 'cliente']),
-            'cabecalho' => RdoObraDados::where('obra_id', $obra->id)->first(),
+            'cabecalho' => $this->cabecalhoDaObra($obra),
             'proximo_numero' => $this->proximoNumero($obra->id),
             'etapas_sugeridas' => $anterior
                 ? $anterior->etapas->where('concluida', false)->values()
@@ -134,6 +133,22 @@ class RdoController extends Controller
                 ])->values()
                 : [],
             'equipamentos_catalogo' => RdoEquipamentoCatalogo::orderBy('nome')->get(),
+            // Equipamentos alugados (26/09/2026) — só contratos ainda não encerrados, com os
+            // itens ainda com o cliente. Um RDO NOVO já nasce com uma linha por item ativo
+            // (o usuário só marca se está presente ou não); só dá pra ADICIONAR manualmente
+            // equipamento SEM contrato.
+            'contratos_equipamentos_ativos' => \App\Models\ContratoEquipamento::where('obra_id', $obra->id)
+                ->whereNull('encerrado_em')
+                ->with(['itens' => fn ($q) => $q->whereNull('devolvido_em')])
+                ->get()
+                ->filter(fn ($c) => $c->itens->isNotEmpty())
+                ->map(fn ($c) => [
+                    'id' => $c->id,
+                    'numero' => $c->numero,
+                    'nome_contrato' => $c->nome_contrato,
+                    'itens' => $c->itens->map(fn ($i) => ['id' => $i->id, 'descricao' => $i->descricao, 'quantidade' => $i->quantidade])->values(),
+                ])
+                ->values(),
             // Autocomplete de função pras linhas MANUAIS (sem profissional
             // vinculado): as funções que esta empresa já usou em RDOs
             // anteriores. O cadastro de Profissionais (F6, na ponte
@@ -166,6 +181,9 @@ class RdoController extends Controller
                 'clima_manha' => $data['clima_manha'] ?? null,
                 'clima_tarde' => $data['clima_tarde'] ?? null,
                 'clima_noite' => $data['clima_noite'] ?? null,
+                'condicao_manha' => $data['condicao_manha'] ?? 'praticavel',
+                'condicao_tarde' => $data['condicao_tarde'] ?? 'praticavel',
+                'condicao_noite' => $data['condicao_noite'] ?? 'praticavel',
                 'impacto_cronograma' => $data['impacto_cronograma'] ?? null,
                 'observacoes' => $data['observacoes'] ?? null,
                 'status' => RdoRegistro::STATUS_RASCUNHO,
@@ -200,6 +218,9 @@ class RdoController extends Controller
                 'clima_manha' => $data['clima_manha'] ?? null,
                 'clima_tarde' => $data['clima_tarde'] ?? null,
                 'clima_noite' => $data['clima_noite'] ?? null,
+                'condicao_manha' => $data['condicao_manha'] ?? 'praticavel',
+                'condicao_tarde' => $data['condicao_tarde'] ?? 'praticavel',
+                'condicao_noite' => $data['condicao_noite'] ?? 'praticavel',
                 'impacto_cronograma' => $data['impacto_cronograma'] ?? null,
                 'observacoes' => $data['observacoes'] ?? null,
             ]);
@@ -225,14 +246,12 @@ class RdoController extends Controller
             return response()->json(['mensagem' => 'Este RDO já está finalizado.'], 422);
         }
 
-        $cabecalho = RdoObraDados::where('obra_id', $rdo->obra_id)->first();
-
         $rdo->update([
             'status' => RdoRegistro::STATUS_FINALIZADO,
             'assinado_em' => now(),
             'assinado_por_user_id' => $usuario->id,
-            'assinante_nome' => $cabecalho?->responsavel_tecnico ?: $usuario->name,
-            'assinante_crea' => $cabecalho?->crea,
+            'assinante_nome' => $rdo->obra->responsavel_tecnico ?: $usuario->name,
+            'assinante_crea' => $rdo->obra->crea,
         ]);
 
         $this->gerarDiariasAutomaticas($rdo);
@@ -339,6 +358,30 @@ class RdoController extends Controller
         }
 
         return $obra;
+    }
+
+    /**
+     * Cabeçalho técnico do RDO, montado a partir da própria obra — não mais
+     * digitado dentro do RDO (26/09/2026, pedido do Lucas: "o cabeçalho do
+     * diário tem que ser preenchido automaticamente de acordo com os dados
+     * da obra e não pode ser editado"). `RdoObraDados`/`rdo_obra_dados`
+     * ficou sem uso a partir de agora — tabela não apagada, só parada, mesmo
+     * padrão já usado para o Diário antigo e "Responsáveis presentes".
+     * `numero_contrato`/`responsavel_tecnico`/`crea`/`art` são campos novos
+     * de `obras`; início/prazo/contratante reaproveitam `data_base`,
+     * `periodo` e `cliente`, que a obra já tinha.
+     */
+    private function cabecalhoDaObra(Obra $obra): array
+    {
+        return [
+            'numero_contrato' => $obra->numero_contrato,
+            'responsavel_tecnico' => $obra->responsavel_tecnico,
+            'crea' => $obra->crea,
+            'art' => $obra->art,
+            'data_inicio' => $obra->data_base,
+            'prazo' => $obra->periodo,
+            'contratante_nome' => $obra->cliente,
+        ];
     }
 
     /** Sequencial por obra — é o "Nº" impresso no documento. */
@@ -451,12 +494,18 @@ class RdoController extends Controller
             'clima_manha' => 'nullable|string|in:'.implode(',', RdoRegistro::CLIMAS),
             'clima_tarde' => 'nullable|string|in:'.implode(',', RdoRegistro::CLIMAS),
             'clima_noite' => 'nullable|string|in:'.implode(',', RdoRegistro::CLIMAS),
+            // "Impraticável" saiu do clima e virou uma condição de trabalho à parte, por turno (26/09/2026).
+            'condicao_manha' => 'nullable|string|in:'.implode(',', RdoRegistro::CONDICOES_TRABALHO),
+            'condicao_tarde' => 'nullable|string|in:'.implode(',', RdoRegistro::CONDICOES_TRABALHO),
+            'condicao_noite' => 'nullable|string|in:'.implode(',', RdoRegistro::CONDICOES_TRABALHO),
             'impacto_cronograma' => 'nullable|string',
             'observacoes' => 'nullable|string',
 
             'tarefas' => 'nullable|array|max:50',
             'tarefas.*.id' => 'nullable|string|max:36',
             'tarefas.*.descricao' => 'required|string',
+            // Observação própria da tarefa (26/09/2026) — nota distinta da "Descrição do serviço".
+            'tarefas.*.observacoes' => 'nullable|string',
 
             // profissional_id/profissional_nome (F9): linha "de verdade",
             // vinculada ao cadastro de Profissionais — só ela gera diária
@@ -469,38 +518,54 @@ class RdoController extends Controller
             'mao_de_obra.*.funcao' => 'required|string|max:120',
             'mao_de_obra.*.quantidade' => 'required|integer|min:0',
 
+            // categoria/contrato_equipamento_item_id (26/09/2026): "Equipamentos" virou
+            // duas colunas — próprios (igual sempre foi) e alugados (linkados a um
+            // contrato ativo do módulo de Contratos de equipamentos).
             'equipamentos' => 'nullable|array|max:100',
+            'equipamentos.*.categoria' => 'nullable|string|in:proprio,alugado',
             'equipamentos.*.equipamento_id' => 'nullable|string|max:36',
+            'equipamentos.*.contrato_equipamento_item_id' => 'nullable|string|max:36',
+            'equipamentos.*.contrato_referencia' => 'nullable|string|max:150',
+            'equipamentos.*.presente' => 'nullable|boolean',
             'equipamentos.*.descricao' => 'required|string|max:150',
             'equipamentos.*.quantidade' => 'required|integer|min:0',
 
-            'ocorrencias' => 'nullable|array|max:50',
+            // tarefa_id (26/09/2026): uma tarefa pode gerar várias ocorrências —
+            // deixaram de ser uma seção solta e passaram a nascer dentro dela.
+            'ocorrencias' => 'nullable|array|max:100',
+            'ocorrencias.*.tarefa_id' => 'nullable|string|max:36',
             'ocorrencias.*.tipo' => 'nullable|string|max:40',
             'ocorrencias.*.descricao' => 'required|string',
             'ocorrencias.*.responsavel' => 'nullable|string|max:150',
             'ocorrencias.*.motivo' => 'nullable|string',
             'ocorrencias.*.danos_materiais' => 'nullable|string',
 
-            'pendencias' => 'nullable|array|max:50',
+            // tarefa_id (26/09/2026): idem — uma tarefa pode gerar mais de uma pendência.
+            'pendencias' => 'nullable|array|max:100',
+            'pendencias.*.tarefa_id' => 'nullable|string|max:36',
             'pendencias.*.descricao' => 'required|string',
             'pendencias.*.responsavel' => 'nullable|string|max:150',
             'pendencias.*.prazo' => 'nullable|date',
             'pendencias.*.status' => 'nullable|string|in:aberta,concluida',
 
+            // "Nome da etapa" virou "Descrição do serviço" e mora dentro de cada tarefa
+            // (26/09/2026, pedido do Lucas) — sem max:150, mesmo motivo de `tarefas.*.descricao`.
             'etapas' => 'nullable|array|max:50',
             'etapas.*.eap_item_id' => 'nullable|string|max:36',
-            'etapas.*.nome' => 'required|string|max:150',
+            'etapas.*.nome' => 'required|string',
             'etapas.*.concluida' => 'nullable|boolean',
 
+            // "Responsáveis presentes" foi removido da tela (26/09/2026, pedido do Lucas) — a
+            // regra fica só pra não quebrar quem eventualmente ainda mandar o campo.
             'responsaveis' => 'nullable|array|max:50',
             'responsaveis.*.nome' => 'required|string|max:150',
             'responsaveis.*.empresa' => 'nullable|string|max:150',
             'responsaveis.*.funcao' => 'nullable|string|max:120',
             'responsaveis.*.contrato_referencia' => 'nullable|string|max:150',
 
-            'comentarios' => 'nullable|array|max:20',
-            'comentarios.*.texto' => 'required|string',
-            'comentarios.*.visivel_contratante' => 'nullable|boolean',
+            // "Observações internas" (comentários) foi removida da tela (26/09/2026, pedido do
+            // Lucas — virou observação por tarefa + observações gerais do dia). Tabela
+            // `rdo_comentarios_internos` não apagada, só parou de receber dados novos.
 
             // Fotos: arquivo + metadados posicionais (índice 0 = fotos[0]).
             'fotos' => 'nullable|array|max:20',
@@ -541,7 +606,8 @@ class RdoController extends Controller
             RdoPendencia::where('rdo_id', $rdo->id)->delete();
             RdoEtapa::where('rdo_id', $rdo->id)->delete();
             RdoResponsavelPresente::where('rdo_id', $rdo->id)->delete();
-            RdoComentarioInterno::where('rdo_id', $rdo->id)->delete();
+            // "Observações internas" (comentários) aposentada em 26/09/2026 — não apaga
+            // mais o que já existia, só parou de gravar (ver validarPayload/o fim deste método).
 
             $idsMantidos = collect($data['tarefas'] ?? [])->pluck('id')->filter()->all();
             RdoTarefa::where('rdo_id', $rdo->id)->whereNotIn('id', $idsMantidos)->delete();
@@ -550,7 +616,7 @@ class RdoController extends Controller
         foreach ($data['tarefas'] ?? [] as $ordem => $item) {
             RdoTarefa::updateOrCreate(
                 ['id' => $item['id'] ?? (string) \Illuminate\Support\Str::uuid()],
-                ['rdo_id' => $rdo->id, 'ordem' => $ordem + 1, 'descricao' => $item['descricao']]
+                ['rdo_id' => $rdo->id, 'ordem' => $ordem + 1, 'descricao' => $item['descricao'], 'observacoes' => $item['observacoes'] ?? null]
             );
         }
 
@@ -567,37 +633,68 @@ class RdoController extends Controller
         }
 
         foreach ($data['equipamentos'] ?? [] as $ordem => $item) {
+            $categoria = $item['categoria'] ?? 'proprio';
+
             // Mesmo cuidado do obra_id: o catálogo é por empresa e o id vem do
             // cliente, então confirmamos pelo model (que passa pelo scope).
+            // Só se aplica a "próprio" — "alugado" vincula a um item de
+            // contrato, não ao catálogo.
             $catalogoId = null;
-            if (!empty($item['equipamento_id'])) {
+            if ($categoria === 'proprio' && !empty($item['equipamento_id'])) {
                 $catalogoId = RdoEquipamentoCatalogo::find($item['equipamento_id'])?->id;
             }
 
-            // Equipamento digitado à mão entra no catálogo da empresa, para
-            // aparecer sugerido no próximo RDO. Sem isto o catálogo nunca era
-            // alimentado por ninguém (não existe tela de cadastro dele) e a
+            // Equipamento PRÓPRIO digitado à mão entra no catálogo da empresa,
+            // para aparecer sugerido no próximo RDO. Sem isto o catálogo nunca
+            // era alimentado por ninguém (não existe tela de cadastro dele) e a
             // sugestão vinha sempre vazia — verificado em 18/09/2026.
             // `firstOrCreate` pelo nome evita duplicar a cada lançamento; a
             // comparação usa o collation da coluna, que não diferencia caixa.
-            if (!$catalogoId && $usuario?->empresa_id) {
+            if ($categoria === 'proprio' && !$catalogoId && $usuario?->empresa_id) {
                 $catalogoId = RdoEquipamentoCatalogo::firstOrCreate(
                     ['empresa_id' => $usuario->empresa_id, 'nome' => trim($item['descricao'])],
                 )->id;
             }
 
+            // Item de contrato vem do cliente — confirma que é mesmo um item
+            // ATIVO (ainda não devolvido) de um contrato DESTA obra, senão
+            // daria pra "adivinhar" o item de outra obra/empresa só pelo UUID.
+            // Vinculado, fornecedor/contrato são um SNAPSHOT tirado do contrato
+            // agora (não o que o cliente mandou); manual, é o texto digitado.
+            $contratoItem = null;
+            if ($categoria === 'alugado' && !empty($item['contrato_equipamento_item_id'])) {
+                $contratoItem = ContratoEquipamentoItem::whereNull('devolvido_em')
+                    ->whereHas('contrato', fn ($q) => $q->where('obra_id', $rdo->obra_id))
+                    ->where('id', $item['contrato_equipamento_item_id'])
+                    ->with('contrato')
+                    ->first();
+            }
+
             RdoEquipamento::create([
                 'rdo_id' => $rdo->id,
+                'categoria' => $categoria,
                 'equipamento_id' => $catalogoId,
+                'contrato_equipamento_item_id' => $contratoItem?->id,
+                'contrato_referencia' => $contratoItem
+                    ? "Nº {$contratoItem->contrato->numero} — {$contratoItem->contrato->nome_contrato}"
+                    : ($item['contrato_referencia'] ?? null),
+                'presente' => (bool) ($item['presente'] ?? true),
                 'descricao' => $item['descricao'],
                 'quantidade' => $item['quantidade'],
                 'ordem' => $ordem,
             ]);
         }
 
+        // Tarefas já foram gravadas no laço acima (nesta mesma chamada), então dá
+        // pra confirmar aqui que o tarefa_id recebido é mesmo de uma tarefa DESTE
+        // RDO — mesmo cuidado do eap_item_id/equipamento: o id vem do cliente.
+        $idsDeTarefa = RdoTarefa::where('rdo_id', $rdo->id)->pluck('id')->all();
+        $tarefaValida = fn (?string $tarefaId) => $tarefaId && in_array($tarefaId, $idsDeTarefa, true) ? $tarefaId : null;
+
         foreach ($data['ocorrencias'] ?? [] as $ordem => $item) {
             RdoOcorrencia::create([
                 'rdo_id' => $rdo->id,
+                'tarefa_id' => $tarefaValida($item['tarefa_id'] ?? null),
                 'ordem' => $ordem + 1,
                 'tipo' => $item['tipo'] ?? 'outra',
                 'descricao' => $item['descricao'],
@@ -610,6 +707,7 @@ class RdoController extends Controller
         foreach ($data['pendencias'] ?? [] as $ordem => $item) {
             RdoPendencia::create([
                 'rdo_id' => $rdo->id,
+                'tarefa_id' => $tarefaValida($item['tarefa_id'] ?? null),
                 'descricao' => $item['descricao'],
                 'responsavel' => $item['responsavel'] ?? null,
                 'prazo' => $item['prazo'] ?? null,
@@ -654,14 +752,7 @@ class RdoController extends Controller
             ]);
         }
 
-        foreach ($data['comentarios'] ?? [] as $item) {
-            RdoComentarioInterno::create([
-                'rdo_id' => $rdo->id,
-                'autor_user_id' => $usuario?->id,
-                'texto' => $item['texto'],
-                'visivel_contratante' => (bool) ($item['visivel_contratante'] ?? false),
-            ]);
-        }
+        // "Observações internas" (comentários) aposentada em 26/09/2026 — ver nota no início deste método.
     }
 
     /**

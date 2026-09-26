@@ -59,10 +59,16 @@ export interface Obra {
   map_number?: string | null;
   obra_nome?: string | null;
   cliente?: string | null;
+  /** Nº do contrato — usado no cabeçalho técnico do RDO (26/09/2026). */
+  numero_contrato?: string | null;
   data_base?: string | null;
   /** Prazo da obra em meses (24/08/2026) — usado pelo Cronograma de Desembolso pra limitar até quando gerar períodos. */
   prazo_meses?: number | null;
   responsavel?: string | null;
+  /** Responsável técnico (com CREA/ART) — pode ser diferente do "Responsável" geral. Cabeçalho do RDO. */
+  responsavel_tecnico?: string | null;
+  crea?: string | null;
+  art?: string | null;
   local_obra?: string | null;
   periodo?: string | null;
   obs?: string | null;

@@ -21,7 +21,7 @@ class RdoTarefa extends Model
 
     protected $table = 'rdo_tarefas';
 
-    protected $fillable = ['id','rdo_id','ordem','descricao'];
+    protected $fillable = ['id','rdo_id','ordem','descricao','observacoes'];
 
     protected $casts = ['ordem'=>'integer'];
 

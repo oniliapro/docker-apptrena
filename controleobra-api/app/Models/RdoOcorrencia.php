@@ -21,7 +21,7 @@ class RdoOcorrencia extends Model
 
     protected $table = 'rdo_ocorrencias';
 
-    protected $fillable = ['id','rdo_id','ordem','tipo','descricao','responsavel','motivo','danos_materiais'];
+    protected $fillable = ['id','rdo_id','tarefa_id','ordem','tipo','descricao','responsavel','motivo','danos_materiais'];
 
     protected $casts = ['ordem'=>'integer'];
 

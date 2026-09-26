@@ -8,7 +8,12 @@
       "Bash(curl -s -o /dev/null -w \"API \\(8088/api/mapas\\): HTTP %{http_code}\\\\n\" -m 15 http://127.0.0.1:8088/api/mapas)",
       "Bash(MSYS_NO_PATHCONV=1 docker exec controleobra-phpfpm tail -n 30 storage/logs/laravel.log)",
       "Bash(MSYS_NO_PATHCONV=1 docker exec controleobra-phpfpm sh -c \"grep -c 'local.ERROR' storage/logs/laravel.log; tail -n 60 storage/logs/laravel.log | grep 'local.ERROR'\")",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(python -)",
+      "Bash(cd \"d:/PROJETOS/docker-apptrena/controleobra-api\" && sed -n 144,158p app/Http/Controllers/Api/MapaController.php; sed -n 196,206p ../frontend/src/app/features/mapa/mapa.store.ts)",
+      "Read(//d/PROJETOS/frontend/src/app/features/mapa/**)",
+      "Bash(grep -iE \"'[^']*empreiteiro[^']*'|\\\\\"[^\\\\\"]*empreiteiro[^\\\\\"]*\\\\\"|\\\\`[^\\\\`]*empreiteiro[^\\\\`]*\\\\`\")",
+      "Bash(grep -viE \"^\\\\S+:\\\\s*[0-9]+:\\\\s*\\(//|\\\\*|/\\\\*\\)\")"
     ]
   }
 }

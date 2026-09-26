@@ -1,0 +1,206 @@
+<div class="modal">
+  <div class="modal-fundo" (fecharModal)="fecharClick()"></div>
+
+  <div class="modal-cartao largo">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">
+        @if (modoNovo()) { Novo contrato de equipamento }
+        @else { Contrato nº {{ contrato()?.numero }} — {{ contrato()?.nome_contrato }} }
+      </span>
+
+      <div class="acoes-cabecalho">
+        @if (!modoNovo() && contrato(); as c) {
+          <span class="etiqueta-status" [class]="'status-' + c.status">{{ rotulosStatus[c.status] }}</span>
+          <button type="button" (click)="excluir()">Excluir</button>
+        }
+      </div>
+
+      <button type="button" class="fechar" (click)="fecharClick()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      @if (erro()) { <p class="aviso-erro">{{ erro() }}</p> }
+      @if (aviso()) { <p class="aviso-ok">{{ aviso() }}</p> }
+
+      @if (modoNovo()) {
+
+        <form [formGroup]="formulario" (ngSubmit)="salvarNovo()">
+          <div class="grade">
+            <label class="campo-largo"><span>Nome do contrato</span><input type="text" formControlName="nome_contrato"></label>
+            <label class="campo-largo"><span>Fornecedor</span><input type="text" formControlName="fornecedor"></label>
+            <label><span>Data de entrega (início do contrato)</span><input type="date" formControlName="data_entrega"></label>
+            <label><span>Período inicial</span><input type="number" min="1" formControlName="periodo_quantidade"></label>
+            <label>
+              <span>Unidade do período</span>
+              <select formControlName="periodo_unidade">
+                @for (u of periodoUnidades; track u.valor) { <option [value]="u.valor">{{ u.rotulo }}</option> }
+              </select>
+            </label>
+          </div>
+
+          <h3>Equipamentos do contrato</h3>
+          <table class="tabela-itens-editaveis">
+            <thead>
+              <tr>
+                <th>Equipamento</th>
+                <th>Etapa da EAP</th>
+                <th class="centro">Qtde.</th>
+                <th class="valor">Valor unitário</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody formArrayName="itens">
+              @for (item of itensArr().controls; track item; let i = $index) {
+                <tr [formGroupName]="i">
+                  <td><input type="text" formControlName="descricao" placeholder="Nome do equipamento"></td>
+                  <td>
+                    <app-autocomplete modo="restrito" placeholder="Opcional…"
+                                       [opcoes]="opcoesEtapaEap()"
+                                       [valor]="item.get('eap_item_id')?.value ?? ''"
+                                       (confirmou)="escolherEtapaEapDoItem(i, $event)"></app-autocomplete>
+                  </td>
+                  <td class="centro"><input type="number" min="1" formControlName="quantidade" class="campo-qtde"></td>
+                  <td class="valor"><input type="number" min="0" step="0.01" formControlName="valor_unitario" class="campo-valor"></td>
+                  <td class="centro"><button type="button" (click)="removerItem(i)" aria-label="Remover item">✖</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <button type="button" class="botao-adicionar" (click)="adicionarItem()">+ Equipamento</button>
+
+          <div class="modal-rodape">
+            <button type="button" (click)="fecharClick()">Cancelar</button>
+            <button class="primario" type="submit" [disabled]="salvando()">
+              {{ salvando() ? 'Salvando…' : 'Criar contrato' }}
+            </button>
+          </div>
+        </form>
+
+      } @else if (contrato(); as c) {
+
+        <form [formGroup]="formulario" (ngSubmit)="salvarEdicao()">
+          <div class="grade">
+            <label class="campo-largo"><span>Nome do contrato</span><input type="text" formControlName="nome_contrato"></label>
+            <label class="campo-largo"><span>Fornecedor</span><input type="text" formControlName="fornecedor"></label>
+          </div>
+          <button type="submit" [disabled]="salvando()">Salvar nome/fornecedor</button>
+        </form>
+
+        <div class="grade-somente-leitura">
+          <div><span>Data de entrega</span><strong>{{ formatarData(c.data_entrega) }}</strong></div>
+          <div><span>Período atual</span><strong>{{ c.periodo_quantidade }} — {{ periodoUnidades[c.periodo_unidade === 'dias_uteis' ? 1 : 0].rotulo }}</strong></div>
+          <div><span>Data de vencimento</span><strong>{{ formatarData(c.data_vencimento) }}</strong></div>
+          <div><span>Total pago</span><strong>{{ formatarMoeda(c.valor_atual) }}</strong></div>
+          <div><span>Renovações</span><strong>{{ c.renovacoes_qtd }}</strong></div>
+        </div>
+
+        <h3>Equipamentos atuais (com o cliente)</h3>
+        @if (!itensAtivosDoContrato().length) {
+          <p class="atenuado">Nenhum equipamento ativo — todos já foram devolvidos.</p>
+        } @else {
+          <table class="tabela-itens-editaveis">
+            <thead>
+              <tr><th>Equipamento</th><th>Etapa da EAP</th><th class="centro">Qtde.</th><th class="valor">Valor unitário</th><th class="valor">Total</th></tr>
+            </thead>
+            <tbody>
+              @for (item of itensAtivosDoContrato(); track item.id) {
+                <tr>
+                  <td>{{ item.descricao }}</td>
+                  <td>{{ rotuloEapDoItem(item.eap_item_id) }}</td>
+                  <td class="centro">{{ item.quantidade }}</td>
+                  <td class="valor">{{ formatarMoeda(item.valor_unitario) }}</td>
+                  <td class="valor">{{ formatarMoeda(item.quantidade * item.valor_unitario) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (itensDevolvidosDoContrato().length) {
+          <h3>Equipamentos já devolvidos</h3>
+          <table class="tabela-itens-editaveis tabela-itens-devolvidos">
+            <thead><tr><th>Equipamento</th><th class="centro">Qtde.</th><th>Devolvido em</th></tr></thead>
+            <tbody>
+              @for (item of itensDevolvidosDoContrato(); track item.id) {
+                <tr><td>{{ item.descricao }}</td><td class="centro">{{ item.quantidade }}</td><td>{{ formatarData(item.devolvido_em) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (c.status !== 'encerrado') {
+          <button type="button" class="primario" (click)="abrirRenovacao()">Renovar contrato</button>
+        }
+
+        @if (renovando()) {
+          <section class="bloco-renovacao" [formGroup]="formularioRenovacao">
+            <h3>Renovar contrato</h3>
+            <p class="atenuado">
+              O período novo começa a contar a partir do vencimento atual ({{ formatarData(c.data_vencimento) }}).
+              Marque "Devolver" nos itens que voltam pro fornecedor — os demais continuam, podendo ajustar
+              quantidade, valor e etapa da EAP.
+            </p>
+
+            <div class="grade">
+              <label><span>Novo período</span><input type="number" min="1" formControlName="periodo_quantidade"></label>
+              <label>
+                <span>Unidade</span>
+                <select formControlName="periodo_unidade">
+                  @for (u of periodoUnidades; track u.valor) { <option [value]="u.valor">{{ u.rotulo }}</option> }
+                </select>
+              </label>
+            </div>
+
+            <table class="tabela-itens-editaveis">
+              <thead>
+                <tr><th>Equipamento</th><th>Etapa da EAP</th><th class="centro">Qtde.</th><th class="valor">Valor unitário</th><th class="centro">Devolver</th></tr>
+              </thead>
+              <tbody formArrayName="itens">
+                @for (item of itensRenovacaoArr().controls; track item; let i = $index) {
+                  <tr [formGroupName]="i" [class.devolvendo]="item.get('devolver')?.value">
+                    <td>{{ item.get('descricao')?.value }}</td>
+                    <td>
+                      <app-autocomplete modo="restrito" placeholder="Opcional…"
+                                         [opcoes]="opcoesEtapaEap()"
+                                         [valor]="item.get('eap_item_id')?.value ?? ''"
+                                         (confirmou)="escolherEtapaEapDaRenovacao(i, $event)"></app-autocomplete>
+                    </td>
+                    <td class="centro"><input type="number" min="1" formControlName="quantidade" class="campo-qtde" [attr.disabled]="item.get('devolver')?.value ? true : null"></td>
+                    <td class="valor"><input type="number" min="0" step="0.01" formControlName="valor_unitario" class="campo-valor" [attr.disabled]="item.get('devolver')?.value ? true : null"></td>
+                    <td class="centro"><input type="checkbox" formControlName="devolver"></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <div class="modal-rodape">
+              <button type="button" (click)="fecharRenovacao()">Cancelar</button>
+              <button type="button" class="primario" [disabled]="salvando()" (click)="confirmarRenovacao()">
+                {{ salvando() ? 'Salvando…' : 'Confirmar renovação' }}
+              </button>
+            </div>
+          </section>
+        }
+
+        <h3>Histórico de renovações</h3>
+        @if (!c.renovacoes.length) {
+          <p class="atenuado">Nenhuma renovação ainda.</p>
+        } @else {
+          <table class="tabela-itens-editaveis">
+            <thead><tr><th>Data</th><th>Período</th><th>Novo vencimento</th><th class="valor">Valor</th></tr></thead>
+            <tbody>
+              @for (r of c.renovacoes; track r.id) {
+                <tr>
+                  <td>{{ formatarData(r.data_renovacao) }}</td>
+                  <td>{{ r.periodo_quantidade }} — {{ periodoUnidades[r.periodo_unidade === 'dias_uteis' ? 1 : 0].rotulo }}</td>
+                  <td>{{ formatarData(r.data_vencimento_nova) }}</td>
+                  <td class="valor">{{ formatarMoeda(r.valor_total) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+    </div>
+  </div>
+</div>

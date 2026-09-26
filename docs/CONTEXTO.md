@@ -1637,3 +1637,144 @@ AppTrena/
   "Saldo disp." (coluna Contrato) nas mesmas posições da aba, e as cores das linhas (verde 100%, amarelo em andamento,
   azul com pagamento, vermelho nos saldos/a pagar negativos) com as mesmas regras (classificarSituacaoMedicao). A
   quantidade contratada e o saldo disp. vêm do estado ATUAL da empreita (o retrato não os guarda). Ainda não publicado.
+- 26/09/2026 — **RDO: clima em tabela, Etapas/Pendências dentro de Tarefas, mão de obra em dois
+  passos** (pedidos do Lucas; 1 migration). (1) "Condições climáticas" virou uma tabela: linhas =
+  Claro/Nublado/Chuva/Temporal/Impraticável, colunas = Manhã/Tarde/Noite, um rádio por célula — só uma
+  condição marcada por turno (mesmos 3 campos de sempre, `clima_manha/tarde/noite`, só mudou a
+  exibição). (2) Removido "Impacto no cronograma" da tela (o campo do banco continua existindo,
+  nullable, só não é mais preenchido — as Ocorrências já cobrem isso). (3) **Maior mudança**: as seções
+  separadas "Etapas" e "Pendências" deixaram de existir — cada linha de "Tarefas realizadas" agora tem
+  também "Concluída" e "Vincular à EAP" (era da Etapa) e, opcional, "Gerou pendência" com descrição
+  própria (some, responsável, prazo, status — era da seção Pendências); "Nome da etapa" virou
+  "Descrição do serviço" e é a MESMA descrição da tarefa (o campo "O que foi executado nesta frente"
+  sumiu, a descrição faz as duas coisas). No servidor as três continuam sendo tabelas separadas
+  (`rdo_tarefas`/`rdo_etapas`/`rdo_pendencias`, sem vínculo entre si) — o front desmembra 1 linha da
+  tela em até 3 registros ao salvar (`Rdo.desmembrarTarefas`); a Ficha de Verificação de Serviço
+  continua funcionando do mesmo jeito (o vínculo com a EAP + o texto viram `rdo_etapas`, que é o que ela
+  observa). Migration `2026_09_26_020000_amplia_nome_da_etapa_do_rdo` alarga `rdo_etapas.nome` de
+  VARCHAR(150) pra TEXT — a descrição da tarefa é prosa livre e passou a entrar ali também. **RDOs
+  salvos ANTES desta mudança** são reconstruídos por POSIÇÃO ao editar (a etapa/pendência da mesma
+  posição da tarefa vira uma linha só) — funciona bem quando as três seções tinham a mesma contagem
+  (o normal), mas não é garantia para um RDO antigo com contagens bem diferentes; nenhum dado se perde
+  (etapa/pendência "sobrando" vira uma linha própria), só pode ficar reagrupado errado num caso raro.
+  (4) Removida a seção "Responsáveis presentes" (tabela `rdo_responsaveis_presentes` no banco não foi
+  apagada, só para de receber dados novos). (5) Mão de obra: escolher um profissional no campo de busca
+  NÃO adiciona mais direto — só preenche o campo; um botão novo "+ Adicionar profissional" ao lado de
+  "+ Lançamento manual (sem cadastro)" faz a adição de fato e limpa o campo depois. (6) Varredura visual:
+  padding maior em input/select/textarea (estava cortando texto em cima/embaixo), padding-direito no
+  select pra sobrar espaço da seta, checkbox/rádio sem herdar o padding do campo de texto (área de
+  clique ficava maior que o quadrado visível). Testado em desktop e no acordeão do celular (390px), sem
+  estouro horizontal em nenhuma seção. Ainda não publicado.
+- 26/09/2026 — **RDO: cabeçalho automático da obra, tarefa gera várias
+  pendências/ocorrências, equipamentos próprios x alugados; novo módulo "Contratos de
+  equipamentos"** (pedidos do Lucas; 5 migrations). (1) O cabeçalho técnico do RDO
+  (contrato, responsável técnico, CREA, ART, início, prazo, contratante) deixou de ser
+  digitado dentro do RDO — `obras` ganhou 4 campos novos (`numero_contrato`,
+  `responsavel_tecnico`, `crea`, `art`; início/prazo/contratante reaproveitam
+  `data_base`/`periodo`/`cliente`, que a obra já tinha), editáveis no popup "Editar
+  obra". O painel "Cabeçalho da obra" do RDO virou só leitura; a tabela `rdo_obra_dados`
+  e o `RdoObraDadosController` ficaram sem uso pra GRAVAR (GET continua existindo, agora
+  devolvendo os dados calculados da obra — é o que `rdo-imprimir.ts` ainda consome).
+  (2) Cada "Tarefa realizada" agora aceita QUANTAS pendências e ocorrências forem
+  necessárias (antes: no máx. 1 pendência por tarefa, e Ocorrências era uma seção solta,
+  sem vínculo nenhum com tarefa) — `rdo_pendencias`/`rdo_ocorrencias` ganharam
+  `tarefa_id` (nullable, mesmo padrão de `rdo_fotos.tarefa_id`). RDOs salvos ANTES
+  desta mudança (sem `tarefa_id`) continuam sendo reconciliados por POSIÇÃO ao editar,
+  mesma lógica/limitação já aceita pra Etapas. (3) "Equipamentos" virou duas colunas,
+  mesmo layout de mão de obra interna/externa: **Equipamentos próprios** (nome +
+  quantidade, como sempre foi) e **Equipamentos alugados** (nome, fornecedor, contrato,
+  quantidade) — `rdo_equipamentos` ganhou `categoria`, `contrato_equipamento_item_id`
+  e um SNAPSHOT em texto (`fornecedor`/`contrato_referencia`, mesmo padrão de
+  `profissional_nome` na mão de obra): escolher um item de um contrato ATIVO preenche os
+  dois sozinho (não digitado, não muda se o contrato for renovado depois); sem contrato
+  cadastrado ainda, dá pra lançar à mão. (4) **Novo módulo "Contratos de equipamentos"**
+  (aba nova na obra + página do contrato, permissão `contratos_equipamentos`): lista com
+  Nº/Nome/Fornecedor/Equipamentos atuais/Início/Vencimento/Renovações/Valor atual/Status.
+  Um contrato tem data de entrega (início do 1º período) e período (dias corridos OU
+  úteis, só desconta sáb/dom — sem calendário de feriados, o sistema não tem um em
+  lugar nenhum); o vencimento é calculado sozinho. Criar um contrato gera um Pagamento
+  (`origem_tipo = 'contrato_equipamento'`) com os itens do contrato e um lembrete na
+  Agenda no dia útil ANTERIOR ao vencimento. **Renovar** pode ser parcial (alguns itens
+  voltam pro fornecedor — `devolvido_em` —, outros continuam, podendo mudar
+  quantidade/valor) e por um período diferente do inicial, sempre contado a partir do
+  vencimento ANTERIOR (nunca da data de entrega); gera um Pagamento novo só com os itens
+  que continuam e troca o lembrete da Agenda pelo do vencimento novo. Devolver TODOS os
+  itens numa renovação encerra o contrato (`encerrado_em`, sem lembrete). Status
+  ativo/vencido/encerrado é sempre CALCULADO na leitura (nunca gravado): vencido = ainda
+  tem item com o cliente e o prazo passou; encerrado = todos os itens já voltaram.
+  Decisão minha, não confirmada com o Lucas: a frase dele sobre o status ficou cortada
+  no meio ("contratos que ainda tem equipamentos que n...") — assumi esse modelo de 3
+  estados por ser o mais completo e coerente com o resto do pedido; se não for isso,
+  avisar antes de mexer de novo aqui. Tudo testado de ponta a ponta (Puppeteer + chamadas
+  diretas à API): criação, renovação parcial com pagamento/vencimento/lembrete corretos,
+  renovação total encerrando o contrato, tentativa de renovar contrato já encerrado (422),
+  e o ciclo completo dos equipamentos alugados no RDO (vinculado e manual, salvando e
+  reabrindo). Zero erros de console. Ainda não publicado — falta avisar a Onilia sobre as
+  mudanças no RDO (autonomia combinada com ela) e perguntar ao Lucas sobre dump/commit/push.
+- 26/09/2026 (2º lote do dia) — **RDO: clima invertido com símbolos, mão de obra
+  sem campo de busca externo, equipamentos alugados nascendo do contrato, observação
+  por tarefa, pendências/ocorrências gerais do dia** (pedidos do Lucas; 1 migration).
+  (1) Tabela de clima invertida: linhas = turnos (Manhã/Tarde/Noite), colunas = climas
+  com símbolo (☀️ Claro, ⛅ Nublado, 🌧️ Chuva, ⛈️ Temporal). "Impraticável" saiu do
+  clima e virou uma coluna própria, "Condições de trabalho" (menu suspenso
+  praticável/impraticável, por turno) — `rdo_registros` ganhou
+  `condicao_manha/tarde/noite`. (2) Mão de obra interna/externa: o campo de busca
+  solto acima da lista (que ficava sendo limpo a cada "Adicionar") saiu — "+ Adicionar
+  profissional" agora cria a linha JÁ com um `<select>` do cadastro dentro dela
+  (`origem: 'cadastro'`, campo só de front, não vai pro banco); escolher no select
+  preenche nome/função. "+ Lançamento manual" continua igual. (3) Equipamentos
+  alugados: um RDO novo já nasce com uma linha por item ativo de cada contrato não
+  encerrado — o usuário só marca "Na obra" (`presente`, novo boolean em
+  `rdo_equipamentos`) sim/não; só dá pra ADICIONAR manualmente equipamento SEM
+  contrato. "Fornecedor" saiu da tabela (`rdo_equipamentos.fornecedor` removida);
+  ficaram três colunas na ordem pedida — Contrato (sempre só leitura; vazio quando não
+  há contrato), Equipamento (só leitura se vinculado, editável se manual) e
+  Quantidade. (4) Cada tarefa ganhou um campo "Observações" próprio
+  (`rdo_tarefas.observacoes`), diferente da "Descrição do serviço". (5) A seção
+  "Observações internas" (comentários, com "visível para o contratante") foi removida
+  da tela — tabela `rdo_comentarios_internos` não apagada, só parou de receber dados
+  novos. "Observações gerais do dia" (campo que já existia) mudou de lugar: saiu de
+  dentro da seção removida e foi para "Fotos e vídeos do dia", que também ganhou
+  Pendências e Ocorrências GERAIS (sem tarefa — `tarefa_id` nulo, o mesmo campo já
+  usado desde o lote anterior do dia para vincular a uma tarefa quando houver uma).
+  Testado de ponta a ponta via Puppeteer: clima+condição salvando e reabrindo,
+  mão de obra pelo select (com e sem profissional cadastrado), equipamento do
+  contrato nascendo sozinho + manual sem contrato, observação da tarefa, pendência/
+  ocorrência/observação gerais indo pro lugar certo (não presas a nenhuma tarefa) e
+  sobrevivendo à reabertura. Zero erros de console. Ainda não publicado.
+- 26/09/2026 (3º lote do dia) — **Contratos de equipamentos: visual igual ao
+  resto do sistema, edição em popup, coluna "Total pago" com popup de
+  pagamentos (igual ao Mapa), etapa da EAP por item, colunas empilhadas**
+  (pedidos do Lucas, depois de ele testar a primeira versão — "fica parecendo
+  que a tabela não faz parte do sistema"; 1 migration). (1) A lista da obra
+  parou de usar CSS próprio e passou a usar exatamente as mesmas classes
+  globais de Mapas/Pagamentos (`.painel`, tabela padrão, `trenaRedimensionarColunas`,
+  `.linha-clicavel`, `.etiqueta-status`) — visualmente igual às outras listas
+  agora. (2) Criar/editar/renovar o contrato saiu de uma página própria
+  (`/contratos-equipamentos/:id`, removida) e virou um popup
+  (`EditarContratoEquipamentoModal`, mesmo padrão do `CadastroObraModal`:
+  `contrato() === null` é criação). (3) A tabela de itens (na criação e dentro
+  do popup) ganhou cabeçalho de colunas de verdade (Equipamento/Etapa da
+  EAP/Qtde./Valor unitário) e cada item pode ser ligado a uma etapa da EAP
+  (`contrato_equipamento_itens.eap_item_id`, novo — o vínculo passa pro item
+  do Pagamento gerado, igual já acontece em Pagamentos/Mapa/Empreita) — o
+  campo pode ser alterado numa renovação (mandar `null` limpa o vínculo,
+  omitir o campo mantém o que já tinha). (4) A coluna "Valor atual" virou
+  **"Total pago"**: clicar nela abre o MESMO popup de pagamentos vinculados
+  que o Mapa já tem, com Confirmar/Editar/Excluir por linha (reaproveitado
+  `AcoesPagamento`/`EditarPagamentoModal` de `shared/pagamentos-vinculados-popup`,
+  nada novo escrito). Achado nesse reaproveitamento: `PagamentoController`
+  validava `origem_tipo` com uma lista fixa que não incluía
+  `contrato_equipamento` — editar ou confirmar um pagamento de contrato de
+  equipamento pelo popup dava 422; corrigido incluindo o valor na lista.
+  (5) "Equipamentos atuais" e as datas (Início/Vencimento, agora uma coluna só
+  chamada "Datas") ficam empilhados (uma linha por item/data), não mais
+  juntos separados por vírgula. Testado de ponta a ponta via Puppeteer e
+  chamadas diretas à API: criar com item ligado à EAP, vínculo sobrevivendo a
+  duas renovações (mantendo e depois limpando), "Total pago" abrindo o
+  contrato certo, e o PUT de edição de pagamento (mesmo payload que o popup
+  monta) devolvendo 200 em vez do 422 antigo. **Achado durante o teste, sem
+  relação com o código**: a obra de teste já tinha um contrato de verdade
+  ("0015058", fornecedor "AF LOCAÇÕES", criado às 20:51) — parece ser do
+  próprio Lucas testando a tela antes de mandar o feedback; não foi tocado.
+  Ainda não publicado.

@@ -28,6 +28,7 @@ const ABAS = [
   { caminho: 'diarias', rotulo: 'Diárias', moduloChave: 'diarias' },
   { caminho: 'agenda', rotulo: 'Agenda', moduloChave: 'agenda' },
   { caminho: 'rdo', rotulo: 'RDO', moduloChave: 'diario_obra' },
+  { caminho: 'contratos-equipamentos', rotulo: 'Contratos de equipamentos', moduloChave: 'contratos_equipamentos' },
   { caminho: 'relatorios', rotulo: 'Relatórios', moduloChave: 'relatorios' },
   { caminho: 'arquivos', rotulo: 'Arquivos Anexados', moduloChave: 'arquivos' },
 ] as const;

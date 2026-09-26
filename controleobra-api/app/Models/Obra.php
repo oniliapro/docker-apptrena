@@ -29,7 +29,8 @@ class Obra extends Model
     ];
 
     protected $fillable = [
-        'id', 'empresa_id', 'map_number', 'obra_nome', 'cliente', 'data_base', 'prazo_meses', 'responsavel',
+        'id', 'empresa_id', 'map_number', 'obra_nome', 'cliente', 'numero_contrato', 'data_base', 'prazo_meses',
+        'responsavel', 'responsavel_tecnico', 'crea', 'art',
         'local_obra', 'periodo', 'obs', 'bdi_scope', 'bdi_mode', 'bdi_percent',
         'bdi_value', 'is_confirmed', 'confirmed_at', 'status',
     ];
@@ -66,6 +67,11 @@ class Obra extends Model
     public function mapas(): HasMany
     {
         return $this->hasMany(Mapa::class);
+    }
+
+    public function contratosEquipamentos(): HasMany
+    {
+        return $this->hasMany(ContratoEquipamento::class);
     }
 
     public function empreitas(): HasMany

@@ -143,6 +143,19 @@ const abasDaObra: Routes = [
     loadComponent: () => import('./features/rdo/rdo').then((m) => m.Rdo),
   },
   {
+    // Controle de contrato de equipamentos (26/09/2026) — só a lista da obra;
+    // criar/editar/renovar um contrato acontece num popup (26/09/2026, pedido
+    // do Lucas: "coloque a edição do contrato por meio de popup" — era uma
+    // página própria antes), ver `EditarContratoEquipamentoModal`.
+    path: 'contratos-equipamentos',
+    data: { titulo: 'Contratos de equipamentos' },
+    canActivate: [permissaoModuloGuard('contratos_equipamentos')],
+    loadComponent: () =>
+      import('./features/contratos-equipamentos/contratos-equipamentos-obra').then(
+        (m) => m.ContratosEquipamentosObra,
+      ),
+  },
+  {
     path: 'relatorios',
     data: { titulo: 'Relatórios da obra' },
     canActivate: [permissaoModuloGuard('relatorios')],

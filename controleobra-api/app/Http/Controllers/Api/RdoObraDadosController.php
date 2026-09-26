@@ -4,16 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Obra;
-use App\Models\RdoObraDados;
 use Illuminate\Http\Request;
 
 /**
  * Cabeçalho técnico do RDO por obra (contrato, responsável técnico, CREA,
- * ART, início, prazo).
+ * ART, início, prazo, contratante).
  *
- * Vive em tabela própria do módulo, e não em `obras`, de propósito: `obras` é
- * compartilhada com EAP, Mapa, Empreita e Pagamentos, e este módulo não altera
- * nada fora do próprio escopo.
+ * Até 26/09/2026 vivia numa tabela própria do módulo (`rdo_obra_dados`,
+ * editável dentro do próprio RDO). Pedido do Lucas: "o cabeçalho do diário
+ * tem que ser preenchido automaticamente de acordo com os dados da obra e
+ * não pode ser editado" — agora só existe `show()` (somente leitura), e os
+ * dados vêm de `obras` (mesmo cálculo de `RdoController::cabecalhoDaObra`).
+ * A tabela/model `RdoObraDados` ficaram sem uso, não apagados.
  */
 class RdoObraDadosController extends Controller
 {
@@ -22,28 +24,15 @@ class RdoObraDadosController extends Controller
         $data = $request->validate(['obra_id' => 'required|string|exists:obras,id']);
         $obra = $this->obraDaEmpresaOuAborta($data['obra_id']);
 
-        return RdoObraDados::where('obra_id', $obra->id)->first() ?? new RdoObraDados();
-    }
-
-    public function salvar(Request $request)
-    {
-        $data = $request->validate([
-            'obra_id' => 'required|string|exists:obras,id',
-            'numero_contrato' => 'nullable|string|max:80',
-            'responsavel_tecnico' => 'nullable|string|max:150',
-            'crea' => 'nullable|string|max:60',
-            'art' => 'nullable|string|max:60',
-            'data_inicio' => 'nullable|date',
-            'prazo' => 'nullable|string|max:80',
-            'contratante_nome' => 'nullable|string|max:180',
-        ]);
-
-        $obra = $this->obraDaEmpresaOuAborta($data['obra_id']);
-
-        return RdoObraDados::updateOrCreate(
-            ['obra_id' => $obra->id],
-            array_merge($data, ['empresa_id' => $request->user()->empresa_id])
-        );
+        return [
+            'numero_contrato' => $obra->numero_contrato,
+            'responsavel_tecnico' => $obra->responsavel_tecnico,
+            'crea' => $obra->crea,
+            'art' => $obra->art,
+            'data_inicio' => $obra->data_base,
+            'prazo' => $obra->periodo,
+            'contratante_nome' => $obra->cliente,
+        ];
     }
 
     /** Ver nota no RdoController: `exists:` não respeita o scope multiempresa. */

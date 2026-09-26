@@ -1,0 +1,145 @@
+<div class="cabecalho">
+  <div>
+    <h1>Contratos de equipamentos</h1>
+    <div class="atenuado">Equipamentos alugados desta obra, com renovações e vencimentos</div>
+  </div>
+  <button class="botao-novo" type="button" (click)="abrirNovo()">+ Novo contrato</button>
+</div>
+
+<div class="painel">
+  @if (carregando()) {
+    <div class="atenuado">Carregando…</div>
+  } @else if (erro(); as mensagem) {
+    <div class="atenuado">{{ mensagem }}</div>
+  } @else {
+    <div class="envoltoria">
+      <table trenaRedimensionarColunas>
+        <thead>
+          <tr>
+            <th class="centro">Nº</th>
+            <th>Nome do contrato</th>
+            <th>Fornecedor</th>
+            <th>Equipamentos atuais</th>
+            <th class="centro">Datas</th>
+            <th class="centro">Renovações</th>
+            <th class="valor">Total pago</th>
+            <th class="centro">Status</th>
+            <th class="centro">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (contrato of contratos(); track contrato.id) {
+            <tr class="linha-clicavel" (click)="abrirEdicao(contrato)">
+              <td class="centro mono">{{ contrato.numero }}</td>
+              <td>{{ contrato.nome_contrato }}</td>
+              <td>{{ contrato.fornecedor }}</td>
+              <td>
+                <div class="lista-empilhada">
+                  @for (item of equipamentosAtuais(contrato); track item) { <div>{{ item }}</div> }
+                  @empty { <span class="atenuado">—</span> }
+                </div>
+              </td>
+              <td class="centro">
+                <div class="lista-empilhada">
+                  <div>Início: {{ formatarData(contrato.data_entrega) }}</div>
+                  <div>Vencimento: {{ formatarData(contrato.data_vencimento) }}</div>
+                </div>
+              </td>
+              <td class="centro">{{ contrato.renovacoes_qtd }}</td>
+              <td class="valor" (click)="$event.stopPropagation()">
+                @if (pagamentosDoContrato(contrato).length) {
+                  <button type="button" class="link-contagem" (click)="abrirPopupPagamentos(contrato, $event)">
+                    {{ formatarMoeda(totalPago(contrato)) }}
+                  </button>
+                } @else {
+                  <span class="atenuado">{{ formatarMoeda(0) }}</span>
+                }
+              </td>
+              <td class="centro">
+                <span class="etiqueta-status" [class]="'status-' + contrato.status">{{ rotulosStatus[contrato.status] }}</span>
+              </td>
+              <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                <button type="button" title="Excluir" (click)="excluirContrato(contrato)">✖</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="centro atenuado">Nenhum contrato de equipamento cadastrado nesta obra ainda.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ============ Popup de pagamentos vinculados (mesmo padrão do Mapa) ============ -->
+@if (popupContrato(); as contrato) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharPopupPagamentos()"></div>
+
+    <div class="modal-cartao estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Pagamentos gerados — {{ contrato.nome_contrato }}</span>
+        <button type="button" (click)="fecharPopupPagamentos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <table class="tabela-popup" trenaRedimensionarColunas>
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Fornecedor</th>
+              <th class="valor">Total</th>
+              <th class="centro">Status</th>
+              <th class="centro">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pagamento of pagamentosDoContrato(contrato); track pagamento.id) {
+              <tr class="linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
+                <td class="mono">{{ pagamento.numeroPagamento || '—' }}</td>
+                <td>{{ pagamento.fornecedor || '—' }}</td>
+                <td class="valor">{{ formatarMoeda(pagamento.valorTotal) }}</td>
+                <td class="centro">
+                  <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                    {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                  </span>
+                </td>
+                <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                  @if (pagamento.status === 'pendente') {
+                    <button type="button" title="Confirmar pagamento" (click)="confirmarPagamento(pagamento)">✔</button>
+                  }
+                  <button type="button" title="Excluir" (click)="excluirPagamento(pagamento)">✖</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <button type="button" class="link-medicoes" (click)="irParaPagamentos()">Ver todos os pagamentos da obra →</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ============ Popup — lançamento de UM pagamento ============ -->
+@if (pagamentoEmEdicao(); as pagamento) {
+  <app-editar-pagamento-modal
+    [pagamento]="pagamento"
+    [obraId]="obraId()"
+    (salvar)="salvarPagamento($event)"
+    (excluir)="excluirPagamentoDoEditor($event)"
+    (fechar)="fecharPagamento()" />
+}
+
+<!-- ============ Popup — criar/editar o contrato ============ -->
+@if (contratoEmEdicao() !== undefined) {
+  <app-editar-contrato-equipamento-modal
+    [contrato]="contratoEmEdicao() ?? null"
+    [obraId]="obraId()"
+    [itensEap]="itensEap()"
+    (salvo)="contratoSalvo($event)"
+    (excluido)="contratoExcluido($event)"
+    (fechar)="fecharEdicaoContrato()" />
+}

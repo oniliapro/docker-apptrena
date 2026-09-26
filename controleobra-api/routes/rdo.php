@@ -45,12 +45,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rdo/preparar', [RdoController::class, 'preparar'])
         ->middleware('permissaoModulo:diario_obra,usar');
 
-    // Cabeçalho técnico da obra (contrato, responsável técnico, CREA, ART).
-    // Declarado antes de `rdo/{rdo}` para não ser capturado pelo curinga.
+    // Cabeçalho técnico da obra (contrato, responsável técnico, CREA, ART):
+    // rota de GRAVAR removida em 26/09/2026 — o cabeçalho passou a vir direto
+    // da obra, somente leitura no RDO; quem precisar corrigir edita a obra.
+    // GET continua existindo (agora devolve os dados calculados da obra, não
+    // mais a tabela `rdo_obra_dados`) porque o PDF (`rdo-imprimir.ts`) lê por
+    // aqui também.
     Route::get('rdo/obra-dados', [RdoObraDadosController::class, 'show'])
         ->middleware('permissaoModulo:diario_obra,usar');
-    Route::post('rdo/obra-dados', [RdoObraDadosController::class, 'salvar'])
-        ->middleware('permissaoModulo:diario_obra,editar');
 
     // Link de acompanhamento do contratante
     Route::get('rdo/links', [RdoContratanteLinkController::class, 'index'])
