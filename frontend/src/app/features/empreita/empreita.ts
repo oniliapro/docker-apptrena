@@ -14,6 +14,7 @@ import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.model
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { parsearBR } from '../pagamentos/pagamentos-calc';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import {
   SituacaoMedicaoLinha,
   classificarSituacaoMedicao,
@@ -336,7 +337,11 @@ export class Empreita implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `empreita-${this.empreitaId()}.pdf`;
+        link.download = nomeArquivoPdf(
+          'Empreita',
+          [this.store.cabecalhoEap()?.mapNumber, this.store.cabecalho().empreiteiro],
+          this.empreitaId(),
+        );
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);

@@ -16,6 +16,7 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { AuthService } from '../../core/services/auth.service';
 import { PermissoesService } from '../../core/services/permissoes.service';
 import { Configuracoes } from '../../features/configuracoes/configuracoes';
+import { ObservadorEnvoltoriaFixa } from '../../shared/envoltoria-fixa/envoltoria-fixa';
 
 const CHAVE_UI_SHELL = 'trenaapp.ui.shell.v1';
 
@@ -64,6 +65,14 @@ export class AppShell {
   private readonly permissoes = inject(PermissoesService);
 
   protected readonly menuLancarAberto = signal(false);
+
+  /**
+   * Cabeçalho de tabela fixo (27/09/2026) — inicia UMA vez aqui, na raiz de
+   * toda tela autenticada, e sozinho ajusta o `max-height` de qualquer
+   * `.envoltoria-fixa` que aparecer em qualquer rota filha, sem cada tela
+   * precisar saber que isto existe. Ver `ObservadorEnvoltoriaFixa`.
+   */
+  private readonly observadorEnvoltoriaFixa = new ObservadorEnvoltoriaFixa();
 
   /** Build publicado só para revisão visual — mostra o aviso no topo. */
   protected readonly ehRevisao = environment.revisao;

@@ -15,6 +15,7 @@ import { CabecalhoObra, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import { calcularSomaItens, normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 
 /**
  * Relatórios — consolida o que já existe nos outros módulos.
@@ -196,7 +197,7 @@ export class Relatorios implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `relatorio-${this.obraId()}.pdf`;
+        link.download = nomeArquivoPdf('Relatorio', [this.cabecalhoEap().mapNumber, this.cabecalhoEap().obraNome], this.obraId());
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);

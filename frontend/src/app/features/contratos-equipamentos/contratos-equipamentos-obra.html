@@ -12,7 +12,7 @@
   } @else if (erro(); as mensagem) {
     <div class="atenuado">{{ mensagem }}</div>
   } @else {
-    <div class="envoltoria">
+    <div class="envoltoria-fixa">
       <table trenaRedimensionarColunas>
         <thead>
           <tr>
@@ -59,6 +59,10 @@
                 <span class="etiqueta-status" [class]="'status-' + contrato.status">{{ rotulosStatus[contrato.status] }}</span>
               </td>
               <td class="centro acoes-linha" (click)="$event.stopPropagation()">
+                @if (pagamentosDoContrato(contrato).length) {
+                  <button type="button" title="Copiar solicitação de pagamento"
+                          (click)="abrirSolicitacaoPagamento(contrato, $event)">📋</button>
+                }
                 <button type="button" title="Excluir" (click)="excluirContrato(contrato)">✖</button>
               </td>
             </tr>
@@ -142,4 +146,11 @@
     (salvo)="contratoSalvo($event)"
     (excluido)="contratoExcluido($event)"
     (fechar)="fecharEdicaoContrato()" />
+}
+
+<!-- ============ Popup — dados de pagamento (PIX) antes de copiar a solicitação ============ -->
+@if (contratoSolicitacaoPagamento(); as contrato) {
+  <app-dados-pagamento-modal [nomes]="[contrato.fornecedor]" titulo="Dados de pagamento — Contrato de equipamento"
+                              (confirmado)="confirmarSolicitacaoPagamento($event)"
+                              (fechar)="fecharSolicitacaoPagamento()" />
 }

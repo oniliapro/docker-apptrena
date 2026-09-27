@@ -175,6 +175,10 @@
             title="Cria um pagamento pendente por fornecedor vencedor, pra confirmar depois na aba Pagamentos">
       {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
     </button>
+    <button type="button" [disabled]="!nomesParaSolicitacao().length" (click)="abrirSolicitacaoPagamento()"
+            title="Copia uma mensagem de solicitação de pagamento pros fornecedores vencedores, pronta pra colar no WhatsApp">
+      📋 Solicitar pagamento
+    </button>
     <button type="button" [disabled]="store.duplicando()" (click)="duplicar()"
             title="Cria um mapa novo, em edição, com os mesmos fornecedores e itens">
       {{ store.duplicando() ? 'Duplicando…' : '⧉ Duplicar mapa' }}
@@ -183,6 +187,12 @@
 
   @if (store.resultadoGerarPagamento(); as mensagem) {
     <div class="aviso-info">{{ mensagem }}</div>
+  }
+
+  @if (mostrarSolicitacaoPagamento()) {
+    <app-dados-pagamento-modal [nomes]="nomesParaSolicitacao()" titulo="Dados de pagamento — Mapa"
+                                (confirmado)="confirmarSolicitacaoPagamento($event)"
+                                (fechar)="mostrarSolicitacaoPagamento.set(false)" />
   }
 
   @if (erroPdf(); as mensagemPdf) {
@@ -543,7 +553,7 @@
             percentual e o restante se redistribui entre os demais.
           </p>
 
-          <div class="envoltoria">
+          <div class="envoltoria-fixa">
             <table class="tabela-etapas" trenaRedimensionarColunas>
               <thead>
                 <tr>

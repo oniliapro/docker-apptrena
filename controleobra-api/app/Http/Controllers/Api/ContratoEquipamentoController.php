@@ -50,6 +50,12 @@ class ContratoEquipamentoController extends Controller
         $data = $request->validate([
             'nome_contrato' => 'required|string|max:150',
             'fornecedor' => 'required|string|max:150',
+            // Frete (27/09/2026) — só na criação (entrega inicial); mesma decisão que o Mapa
+            // já tem: "lançar como item" (com etapa própria) ou embutir, distribuindo
+            // proporcionalmente no valor dos itens.
+            'frete' => 'nullable|numeric|min:0',
+            'lancar_frete_como_item' => 'nullable|boolean',
+            'frete_etapa_id' => 'nullable|string|max:36',
             'data_entrega' => 'required|date',
             'periodo_quantidade' => 'required|integer|min:1',
             'periodo_unidade' => 'required|string|in:dias_corridos,dias_uteis',
@@ -63,14 +69,19 @@ class ContratoEquipamentoController extends Controller
         $usuario = $request->user();
         $dataEntrega = Carbon::parse($data['data_entrega'])->startOfDay();
         $vencimento = DiasUteis::somar($dataEntrega, (int) $data['periodo_quantidade'], $data['periodo_unidade']);
+        $freteComoItem = (bool) ($data['lancar_frete_como_item'] ?? false);
+        $freteEtapaId = $this->eapItemValido($obra->id, $data['frete_etapa_id'] ?? null);
 
-        $contrato = DB::transaction(function () use ($data, $obra, $usuario, $dataEntrega, $vencimento) {
+        $contrato = DB::transaction(function () use ($data, $obra, $usuario, $dataEntrega, $vencimento, $freteComoItem, $freteEtapaId) {
             $contrato = ContratoEquipamento::create([
                 'empresa_id' => $usuario->empresa_id,
                 'obra_id' => $obra->id,
                 'numero' => $this->proximoNumero($obra->id),
                 'nome_contrato' => $data['nome_contrato'],
                 'fornecedor' => $data['fornecedor'],
+                'frete' => $data['frete'] ?? 0,
+                'lancar_frete_como_item' => $freteComoItem,
+                'frete_etapa_id' => $freteEtapaId,
                 'data_entrega' => $dataEntrega,
                 'periodo_quantidade' => $data['periodo_quantidade'],
                 'periodo_unidade' => $data['periodo_unidade'],
@@ -93,6 +104,9 @@ class ContratoEquipamentoController extends Controller
                 $contrato,
                 $contrato->itens()->get(),
                 "Contrato de equipamento nº {$contrato->numero} — {$contrato->nome_contrato} ({$contrato->fornecedor})",
+                (float) ($data['frete'] ?? 0),
+                $freteComoItem,
+                $freteEtapaId,
             );
             $contrato->update(['pagamento_inicial_id' => $pagamento->id]);
 
@@ -238,11 +252,25 @@ class ContratoEquipamentoController extends Controller
 
     /**
      * @param  Collection<int, ContratoEquipamentoItem>  $itens
+     *
+     * Frete (27/09/2026, só passado na criação — ver `store()`): "lançar como
+     * item" vira uma linha própria no pagamento, com a etapa da EAP escolhida
+     * pra ele; embutido, é distribuído proporcionalmente no valor de cada
+     * item (mesma ideia do frete do Mapa) — nesse caso não tem etapa própria,
+     * cada item já carrega a sua.
      */
-    private function gerarPagamento(Obra $obra, ContratoEquipamento $contrato, Collection $itens, string $descricao): Pagamento
-    {
+    private function gerarPagamento(
+        Obra $obra,
+        ContratoEquipamento $contrato,
+        Collection $itens,
+        string $descricao,
+        float $frete = 0,
+        bool $freteComoItem = false,
+        ?string $freteEtapaId = null,
+    ): Pagamento {
         $tipoEquipamentoId = TipoCusto::where('chave', 'equipamento')->value('id');
-        $valorTotal = $itens->sum(fn (ContratoEquipamentoItem $i) => $i->quantidade * $i->valor_unitario);
+        $valorItens = $itens->sum(fn (ContratoEquipamentoItem $i) => $i->quantidade * $i->valor_unitario);
+        $valorTotal = $valorItens + $frete;
 
         $pagamento = Pagamento::create([
             'numero_pagamento' => $this->proximoNumeroPagamento($obra->id),
@@ -257,14 +285,29 @@ class ContratoEquipamentoController extends Controller
             'status' => 'pendente',
         ]);
 
+        // Fator de rateio do frete embutido — só se aplica quando não vira item próprio.
+        $fatorRateio = (!$freteComoItem && $frete > 0 && $valorItens > 0) ? ($valorItens + $frete) / $valorItens : 1;
+
         foreach ($itens->values() as $ordem => $item) {
+            $valorBase = $item->quantidade * $item->valor_unitario;
             PagamentoItem::create([
                 'pagamento_id' => $pagamento->id,
                 'ordem' => $ordem,
                 'descricao' => "{$item->descricao} (x{$item->quantidade})",
                 'tipo_custo_id' => $tipoEquipamentoId,
                 'eap_item_id' => $item->eap_item_id,
-                'valor' => $item->quantidade * $item->valor_unitario,
+                'valor' => round($valorBase * $fatorRateio, 2),
+            ]);
+        }
+
+        if ($freteComoItem && $frete > 0) {
+            PagamentoItem::create([
+                'pagamento_id' => $pagamento->id,
+                'ordem' => $itens->count(),
+                'descricao' => 'Frete',
+                'tipo_custo_id' => $tipoEquipamentoId,
+                'eap_item_id' => $freteEtapaId,
+                'valor' => $frete,
             ]);
         }
 
@@ -298,10 +341,18 @@ class ContratoEquipamentoController extends Controller
      * Cria o compromisso da Agenda que avisa que o equipamento está prestes
      * a vencer, no dia útil ANTERIOR ao vencimento (pedido explícito do
      * Lucas). Chamado sempre que o vencimento muda (criação ou renovação) —
-     * quem chamou já apaga o lembrete anterior antes, se havia um.
+     * apaga sozinho o lembrete anterior do MESMO contrato antes de criar o
+     * novo, senão cada renovação deixava um evento órfão pra trás (achado em
+     * 27/09/2026, revisando os dados de teste — o comentário aqui já dizia
+     * que isso devia acontecer, mas nenhum dos dois lugares que chamam este
+     * método fazia).
      */
     private function criarLembrete(ContratoEquipamento $contrato, $usuario): AgendaEvento
     {
+        if ($contrato->agenda_evento_id) {
+            AgendaEvento::where('id', $contrato->agenda_evento_id)->delete();
+        }
+
         $aviso = DiasUteis::diaUtilAnterior($contrato->data_vencimento);
 
         return AgendaEvento::create([

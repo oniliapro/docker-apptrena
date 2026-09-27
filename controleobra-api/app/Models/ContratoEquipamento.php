@@ -23,6 +23,7 @@ class ContratoEquipamento extends Model
 
     protected $fillable = [
         'id', 'empresa_id', 'obra_id', 'numero', 'nome_contrato', 'fornecedor',
+        'frete', 'lancar_frete_como_item', 'frete_etapa_id',
         'data_entrega', 'periodo_quantidade', 'periodo_unidade', 'data_vencimento',
         'encerrado_em', 'pagamento_inicial_id', 'agenda_evento_id',
     ];
@@ -30,6 +31,8 @@ class ContratoEquipamento extends Model
     protected $casts = [
         'numero' => 'integer',
         'periodo_quantidade' => 'integer',
+        'frete' => 'float',
+        'lancar_frete_como_item' => 'boolean',
         'data_entrega' => 'date',
         'data_vencimento' => 'date',
         'encerrado_em' => 'datetime',

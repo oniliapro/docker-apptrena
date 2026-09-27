@@ -4,6 +4,7 @@ import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } fr
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { ItemEapResumo } from '../../shared/eap-snapshot';
+import { FornecedoresCadastro } from '../cadastros/fornecedores/fornecedores.fonte';
 import {
   ContratoEquipamento,
   PERIODO_UNIDADES,
@@ -32,6 +33,7 @@ import { ContratosEquipamentosService } from './contratos-equipamentos.service';
 export class EditarContratoEquipamentoModal {
   private readonly api = inject(ContratosEquipamentosService);
   private readonly fb = inject(FormBuilder);
+  protected readonly fornecedores = inject(FornecedoresCadastro);
 
   readonly contrato = input<ContratoEquipamento | null>(null);
   readonly obraId = input.required<string>();
@@ -72,6 +74,11 @@ export class EditarContratoEquipamentoModal {
     data_entrega: ['', Validators.required],
     periodo_quantidade: [30, [Validators.required, Validators.min(1)]],
     periodo_unidade: ['dias_corridos' as PeriodoUnidade],
+    // Frete (27/09/2026) — só na criação, mesma decisão do Mapa: lançar como
+    // item (com etapa própria) ou embutir, distribuído no valor dos itens.
+    frete: [0, [Validators.min(0)]],
+    lancar_frete_como_item: [false],
+    frete_etapa_id: [null as string | null],
     itens: this.fb.array([]),
   });
 
@@ -82,6 +89,8 @@ export class EditarContratoEquipamentoModal {
   });
 
   constructor() {
+    this.fornecedores.carregar();
+
     effect(() => {
       const contrato = this.contrato();
       this.renovando.set(false);
@@ -98,6 +107,9 @@ export class EditarContratoEquipamentoModal {
           data_entrega: '',
           periodo_quantidade: 30,
           periodo_unidade: 'dias_corridos',
+          frete: 0,
+          lancar_frete_como_item: false,
+          frete_etapa_id: null,
         });
         this.adicionarItem();
       }
@@ -106,6 +118,11 @@ export class EditarContratoEquipamentoModal {
 
   protected fecharClick(): void {
     this.fechar.emit();
+  }
+
+  /** Fornecedor com busca no cadastro (27/09/2026) — aceita texto livre, só sugere quem já está cadastrado. */
+  protected atualizarFornecedor(texto: string): void {
+    this.formulario.get('fornecedor')?.setValue(texto);
   }
 
   // ------------------------------------------------------------------
@@ -149,6 +166,10 @@ export class EditarContratoEquipamentoModal {
     return item ? this.rotuloEap(item) : '—';
   }
 
+  protected escolherEtapaFrete(opcao: OpcaoAutocomplete | null): void {
+    this.formulario.get('frete_etapa_id')?.setValue(opcao?.id ?? null);
+  }
+
   // ------------------------------------------------------------------
   // Criar
   // ------------------------------------------------------------------
@@ -167,6 +188,9 @@ export class EditarContratoEquipamentoModal {
     this.api.criar(this.obraId(), {
       nome_contrato: v.nome_contrato,
       fornecedor: v.fornecedor,
+      frete: Number(v.frete) || 0,
+      lancar_frete_como_item: !!v.lancar_frete_como_item,
+      frete_etapa_id: v.frete_etapa_id,
       data_entrega: v.data_entrega,
       periodo_quantidade: Number(v.periodo_quantidade),
       periodo_unidade: v.periodo_unidade,

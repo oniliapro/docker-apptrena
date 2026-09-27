@@ -13,6 +13,7 @@ import { ItemPagamentoCalculado, Pagamento } from '../pagamentos/pagamentos.mode
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -162,7 +163,7 @@ export class CronogramaDesembolso implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `cronograma-desembolso-${this.obraId()}.pdf`;
+        link.download = nomeArquivoPdf('Cronograma', [this.obra()?.map_number, this.obra()?.obra_nome], this.obraId());
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);

@@ -70,6 +70,10 @@ input, select {
   background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: 3px;
+  /* 27/09/2026: sem `height: auto` aqui, o `height: 20px` global de
+     `input, select` (_base.scss, pensado pras tabelas densas do resto do
+     sistema) cortava o texto em cima/embaixo — mesmo bug do rdo.scss. */
+  height: auto;
   padding: 0.4rem 0.5rem;
 }
 

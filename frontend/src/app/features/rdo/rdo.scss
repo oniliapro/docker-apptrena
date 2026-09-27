@@ -190,7 +190,13 @@ textarea {
   border-radius: 3px;
   /* 26/09/2026: padding vertical maior (o texto de alguns campos — sobretudo
      select e number — estava saindo cortado em cima/embaixo) e padding-direito
-     maior no select, pra sobrar espaço da seta nativa sem tapar o texto. */
+     maior no select, pra sobrar espaço da seta nativa sem tapar o texto.
+     27/09/2026: a causa real do corte era outra — o `height: 20px` global
+     de `input, select` (_base.scss, pensado pras tabelas densas do resto do
+     sistema) continuava valendo aqui por cima do padding maior, porque este
+     bloco nunca declarava `height` próprio. `height: auto` deixa a altura
+     seguir o padding + line-height de novo, em vez do valor fixo de 20px. */
+  height: auto;
   padding: 0.5rem 0.6rem;
   width: 100%;
   box-sizing: border-box;

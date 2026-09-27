@@ -1,0 +1,38 @@
+<div class="modal">
+  <div class="modal-fundo" (fecharModal)="fecharClick()"></div>
+
+  <div class="modal-cartao">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">{{ titulo() }}</span>
+      <button type="button" class="fechar" (click)="fecharClick()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      @if (carregando()) {
+        <p class="atenuado">Carregando dados cadastrados…</p>
+      } @else if (!linhas().length) {
+        <p class="atenuado">Nenhum fornecedor pra preencher.</p>
+      } @else {
+        <p class="atenuado">
+          Confira ou digite o PIX de cada um antes de copiar a mensagem — quem já tem dado cadastrado vem sugerido.
+        </p>
+        @for (linha of linhas(); track linha.nome) {
+          <label class="campo-largo">
+            <span>{{ linha.nome }}</span>
+            <input type="text" [value]="valorDe(linha.nome)" [attr.list]="linha.datalistId"
+                   placeholder="Chave PIX (ou outros dados de pagamento)"
+                   (input)="atualizarValor(linha.nome, $any($event.target).value)">
+            <datalist [id]="linha.datalistId">
+              @for (opcao of linha.opcoes; track opcao.valor) { <option [value]="opcao.valor">{{ opcao.rotulo }}</option> }
+            </datalist>
+          </label>
+        }
+      }
+    </div>
+
+    <div class="modal-rodape">
+      <button type="button" (click)="fecharClick()">Cancelar</button>
+      <button type="button" class="primario" (click)="confirmarClick()">Copiar mensagem</button>
+    </div>
+  </div>
+</div>

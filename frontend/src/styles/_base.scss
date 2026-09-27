@@ -267,12 +267,35 @@ button {
   max-height: calc(100vh - var(--barra-fixa-fim, var(--barra-topo-altura)) - 12px);
 }
 
-table.cabecalho-fixo thead th {
+// 27/09/2026, pedido do Lucas ("fixar cabeçalhos de listas e tabelas"): antes
+// era preciso pedir com a classe `.cabecalho-fixo` em cada tabela (só
+// Empreitas usava); agora toda tabela com `trenaRedimensionarColunas` (ou
+// seja, praticamente toda lista/tabela de verdade do sistema) já vem com
+// cabeçalho fixo de graça, sem precisar lembrar de pedir.
+//
+// BUG CORRIGIDO no mesmo dia: a maioria das listas rola junto com a PÁGINA
+// inteira (dentro de `.envoltoria`, sem altura própria) — nesse caso o `th`
+// gruda no topo do VIEWPORT (`top: 0`), que fica embaixo da barra de topo
+// fixa (`.barra-topo`, 48px, z-index 60) e some, escondido atrás dela. Só
+// funciona `top: -1px` puro dentro de um contêiner que JÁ começa abaixo da
+// barra de topo por conta própria — `.envoltoria-fixa` (BarraFixa) ou um
+// popup (`.modal-corpo`, que rola dentro de si mesmo, sem relação com a
+// barra de topo da página). Por isso o padrão agora soma a altura da barra
+// de topo, e só os dois contêineres acima usam o valor puro.
+table.cabecalho-fixo thead th,
+table[trenaRedimensionarColunas] thead th {
   position: sticky;
-  // -1px: com border-collapse o th sticky deixa uma fresta de 1px onde as linhas aparecem.
-  top: -1px;
+  top: var(--barra-topo-altura);
   z-index: 5;
   box-shadow: inset 0 -1px 0 var(--cor-borda-forte);
+}
+
+.envoltoria-fixa table.cabecalho-fixo thead th,
+.envoltoria-fixa table[trenaRedimensionarColunas] thead th,
+.modal-corpo table.cabecalho-fixo thead th,
+.modal-corpo table[trenaRedimensionarColunas] thead th {
+  // -1px: com border-collapse o th sticky deixa uma fresta de 1px onde as linhas aparecem.
+  top: -1px;
 }
 
 table.rodape-fixo tfoot td,
@@ -309,6 +332,14 @@ table.rodape-fixo tfoot th {
   .painel {
     box-shadow: none !important;
     border: none !important;
+  }
+
+  // Cabeçalho fixo (27/09/2026) não faz sentido impresso — cada página do
+  // papel já repete o cabeçalho da tabela sozinha.
+  table.cabecalho-fixo thead th,
+  table[trenaRedimensionarColunas] thead th {
+    position: static !important;
+    box-shadow: none !important;
   }
 }
 

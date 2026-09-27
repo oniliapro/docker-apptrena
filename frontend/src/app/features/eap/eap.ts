@@ -30,6 +30,7 @@ import { calcularContextoRealizado } from './eap-realizado';
 import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import { EapStore } from './eap.store';
 import {
   ChaveTipo,
@@ -546,7 +547,7 @@ export class Eap implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `eap-${this.obraId()}.pdf`;
+        link.download = nomeArquivoPdf('EAP', [this.store.cabecalho().mapNumber, this.store.cabecalho().obraNome], this.obraId());
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);

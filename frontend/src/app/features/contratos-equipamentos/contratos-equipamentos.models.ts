@@ -44,6 +44,10 @@ export interface ContratoEquipamento {
   numero: number;
   nome_contrato: string;
   fornecedor: string;
+  /** Frete da entrega inicial (27/09/2026) — só existe na criação, não em renovações. */
+  frete: number;
+  lancar_frete_como_item: boolean;
+  frete_etapa_id: string | null;
   data_entrega: string;
   periodo_quantidade: number;
   periodo_unidade: PeriodoUnidade;
@@ -70,6 +74,9 @@ export interface ContratoEquipamentoItemPayload {
 export interface ContratoEquipamentoPayload {
   nome_contrato: string;
   fornecedor: string;
+  frete: number;
+  lancar_frete_como_item: boolean;
+  frete_etapa_id: string | null;
   data_entrega: string;
   periodo_quantidade: number;
   periodo_unidade: PeriodoUnidade;

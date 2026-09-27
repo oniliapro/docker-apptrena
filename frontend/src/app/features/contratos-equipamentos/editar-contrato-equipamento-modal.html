@@ -27,7 +27,7 @@
         <form [formGroup]="formulario" (ngSubmit)="salvarNovo()">
           <div class="grade">
             <label class="campo-largo"><span>Nome do contrato</span><input type="text" formControlName="nome_contrato"></label>
-            <label class="campo-largo"><span>Fornecedor</span><input type="text" formControlName="fornecedor"></label>
+            <label class="campo-largo"><span>Fornecedor</span><app-autocomplete modo="livre" [opcoes]="fornecedores.opcoes()" [valor]="formulario.get('fornecedor')?.value ?? ''" (valorChange)="atualizarFornecedor($event)"></app-autocomplete></label>
             <label><span>Data de entrega (início do contrato)</span><input type="date" formControlName="data_entrega"></label>
             <label><span>Período inicial</span><input type="number" min="1" formControlName="periodo_quantidade"></label>
             <label>
@@ -37,6 +37,28 @@
               </select>
             </label>
           </div>
+
+          <h3>Frete (entrega inicial)</h3>
+          <div class="grade">
+            <label><span>Valor do frete</span><input type="number" min="0" step="0.01" formControlName="frete"></label>
+            <label class="checkbox">
+              <input type="checkbox" formControlName="lancar_frete_como_item">
+              <span>Lançar frete como item próprio no pagamento</span>
+            </label>
+            @if (formulario.get('lancar_frete_como_item')?.value) {
+              <label>
+                <span>Etapa da EAP do frete</span>
+                <app-autocomplete modo="restrito" placeholder="Opcional…"
+                                   [opcoes]="opcoesEtapaEap()"
+                                   [valor]="formulario.get('frete_etapa_id')?.value ?? ''"
+                                   (confirmou)="escolherEtapaFrete($event)"></app-autocomplete>
+              </label>
+            }
+          </div>
+          <p class="atenuado">
+            Desligado, o frete é embutido — distribuído proporcionalmente no valor de cada equipamento, em vez de
+            virar uma linha própria no pagamento.
+          </p>
 
           <h3>Equipamentos do contrato</h3>
           <table class="tabela-itens-editaveis">
@@ -81,7 +103,7 @@
         <form [formGroup]="formulario" (ngSubmit)="salvarEdicao()">
           <div class="grade">
             <label class="campo-largo"><span>Nome do contrato</span><input type="text" formControlName="nome_contrato"></label>
-            <label class="campo-largo"><span>Fornecedor</span><input type="text" formControlName="fornecedor"></label>
+            <label class="campo-largo"><span>Fornecedor</span><app-autocomplete modo="livre" [opcoes]="fornecedores.opcoes()" [valor]="formulario.get('fornecedor')?.value ?? ''" (valorChange)="atualizarFornecedor($event)"></app-autocomplete></label>
           </div>
           <button type="submit" [disabled]="salvando()">Salvar nome/fornecedor</button>
         </form>
@@ -92,6 +114,15 @@
           <div><span>Data de vencimento</span><strong>{{ formatarData(c.data_vencimento) }}</strong></div>
           <div><span>Total pago</span><strong>{{ formatarMoeda(c.valor_atual) }}</strong></div>
           <div><span>Renovações</span><strong>{{ c.renovacoes_qtd }}</strong></div>
+          @if (c.frete > 0) {
+            <div>
+              <span>Frete (entrega inicial)</span>
+              <strong>
+                {{ formatarMoeda(c.frete) }}
+                — {{ c.lancar_frete_como_item ? 'lançado como item (' + rotuloEapDoItem(c.frete_etapa_id) + ')' : 'embutido nos itens' }}
+              </strong>
+            </div>
+          }
         </div>
 
         <h3>Equipamentos atuais (com o cliente)</h3>

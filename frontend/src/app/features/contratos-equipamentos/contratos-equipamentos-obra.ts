@@ -4,12 +4,15 @@ import { catchError, of } from 'rxjs';
 
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { DadosPagamentoModal } from '../../shared/dados-pagamento/dados-pagamento-modal';
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
 import { AcoesPagamento, aplicarAlteracaoEmMapa } from '../../shared/pagamentos-vinculados-popup/acoes-pagamento';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { copiarParaAreaDeTransferencia } from '../../shared/selecao-lista/selecao-lista';
 import { EditarPagamentoModal, EventoSalvarPagamento } from '../pagamentos/editar-pagamento-modal/editar-pagamento-modal';
 import { normalizarPagamento } from '../pagamentos/pagamentos-calc';
 import { Pagamento } from '../pagamentos/pagamentos.models';
+import { montarMensagemPagamentoContratoEquipamento } from './contratos-equipamentos-mensagem';
 import { ContratoEquipamento, ROTULOS_STATUS_CONTRATO } from './contratos-equipamentos.models';
 import { ContratosEquipamentosService } from './contratos-equipamentos.service';
 import { EditarContratoEquipamentoModal } from './editar-contrato-equipamento-modal';
@@ -23,7 +26,7 @@ import { EditarContratoEquipamentoModal } from './editar-contrato-equipamento-mo
  */
 @Component({
   selector: 'app-contratos-equipamentos-obra',
-  imports: [RedimensionarColunas, EditarPagamentoModal, EditarContratoEquipamentoModal],
+  imports: [RedimensionarColunas, EditarPagamentoModal, EditarContratoEquipamentoModal, DadosPagamentoModal],
   templateUrl: './contratos-equipamentos-obra.html',
   styleUrl: './contratos-equipamentos-obra.scss',
 })
@@ -144,6 +147,38 @@ export class ContratosEquipamentosObra implements OnInit {
 
   protected excluirPagamento(pagamento: Pagamento): void {
     this.acoesPagamento.excluir(pagamento);
+  }
+
+  /**
+   * "Solicitar pagamento" (27/09/2026, pedido do Lucas) — monta a mensagem
+   * pronta pro WhatsApp com o aluguel atual, os equipamentos ainda com o
+   * cliente e o histórico de pagamentos deste contrato, marcando o mais
+   * recente como "(HOJE)". O PIX é escolhido/digitado na hora, no popup
+   * `DadosPagamentoModal` — não fica gravado no contrato.
+   */
+  protected readonly contratoSolicitacaoPagamento = signal<ContratoEquipamento | null>(null);
+
+  protected abrirSolicitacaoPagamento(contrato: ContratoEquipamento, evento: Event): void {
+    evento.stopPropagation();
+    if (!this.pagamentosDoContrato(contrato).length) return;
+    this.contratoSolicitacaoPagamento.set(contrato);
+  }
+
+  protected fecharSolicitacaoPagamento(): void {
+    this.contratoSolicitacaoPagamento.set(null);
+  }
+
+  protected async confirmarSolicitacaoPagamento(pixPorNome: Map<string, string>): Promise<void> {
+    const contrato = this.contratoSolicitacaoPagamento();
+    this.contratoSolicitacaoPagamento.set(null);
+    if (!contrato) return;
+
+    const pix = pixPorNome.get(contrato.fornecedor) ?? '';
+    const mensagem = montarMensagemPagamentoContratoEquipamento(contrato, this.pagamentosDoContrato(contrato), pix);
+    if (!mensagem) return;
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
   }
 
   // ------------------------------------------------------------------

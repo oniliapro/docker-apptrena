@@ -10,7 +10,10 @@ import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { copiarParaAreaDeTransferencia } from '../../shared/selecao-lista/selecao-lista';
+import { DadosPagamentoModal } from '../../shared/dados-pagamento/dados-pagamento-modal';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { formatarPercentual, parsearBR } from '../pagamentos/pagamentos-calc';
 import {
@@ -22,6 +25,7 @@ import {
   rotuloFornecedor,
 } from './mapa-engine';
 import { exportarMapaXlsx } from './mapa-exportar';
+import { montarMensagemPagamentoMapa } from './mapa-mensagem-pagamento';
 import { ResumoEtapas } from './mapa-resumo-etapas';
 import { CabecalhoMapa, ColunaMapaColavel, Fornecedor, ItemMapa } from './mapa.models';
 import { MapaStore } from './mapa.store';
@@ -42,7 +46,7 @@ import { MapaStore } from './mapa.store';
  */
 @Component({
   selector: 'app-mapa',
-  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, FormulaCampo],
+  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, FormulaCampo, DadosPagamentoModal],
   providers: [MapaStore, FormulasContexto],
   templateUrl: './mapa.html',
   styleUrl: './mapa.scss',
@@ -209,7 +213,7 @@ export class Mapa implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `mapa-${this.mapaId()}.pdf`;
+        link.download = nomeArquivoPdf('Mapa', [this.store.cabecalho().numeroMapa, this.store.cabecalho().descricao], this.mapaId());
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);
@@ -257,6 +261,44 @@ export class Mapa implements OnInit {
       return;
     }
     this.store.gerarPagamentos();
+  }
+
+  /**
+   * "Solicitar pagamento" (27/09/2026, pedido do Lucas) — monta uma
+   * mensagem pronta pro WhatsApp com o resumo de pagamentos por fornecedor
+   * vencedor (mesmo dado de "Detalhe por fornecedor") e o cenário indicado.
+   * O PIX de cada fornecedor é escolhido/digitado na hora, no popup
+   * `DadosPagamentoModal` — não fica gravado no mapa.
+   */
+  protected readonly mostrarSolicitacaoPagamento = signal(false);
+
+  protected readonly nomesParaSolicitacao = computed(() => {
+    const nomes = this.store
+      .fornecedores()
+      .filter((f, indice) => f.ativo !== false && this.store.notas().bySupplier[indice]?.used)
+      .map((f) => f.nome);
+    return [...new Set(nomes)];
+  });
+
+  protected abrirSolicitacaoPagamento(): void {
+    if (!this.nomesParaSolicitacao().length) return;
+    this.mostrarSolicitacaoPagamento.set(true);
+  }
+
+  protected async confirmarSolicitacaoPagamento(pixPorNome: Map<string, string>): Promise<void> {
+    this.mostrarSolicitacaoPagamento.set(false);
+
+    const cenarioVencedor = this.store.cenarios().find((c) => c.vencedor)?.rotulo ?? null;
+    const mensagem = montarMensagemPagamentoMapa(
+      this.store.cabecalho(),
+      this.store.fornecedores(),
+      this.store.notas().bySupplier,
+      cenarioVencedor,
+      pixPorNome,
+    );
+
+    const ok = await copiarParaAreaDeTransferencia(mensagem);
+    if (!ok) window.alert('Não foi possível copiar — copie manualmente o texto abaixo:\n\n' + mensagem);
   }
 
   /**

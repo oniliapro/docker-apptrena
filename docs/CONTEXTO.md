@@ -1778,3 +1778,114 @@ AppTrena/
   ("0015058", fornecedor "AF LOCAÇÕES", criado às 20:51) — parece ser do
   próprio Lucas testando a tela antes de mandar o feedback; não foi tocado.
   Ainda não publicado.
+- 27/09/2026 — **Cabeçalho fixo em toda lista, frete no contrato de
+  equipamento, fornecedor com busca** (3 dos 17 itens de um lote grande que o
+  Lucas pediu nesse dia; 1 migration). (1) Cabeçalho de tabela fixo ao rolar
+  (`.cabecalho-fixo`, que só a Empreita usava) virou automático pra QUALQUER
+  tabela com `trenaRedimensionarColunas` — ou seja, praticamente toda
+  lista/tabela de verdade do sistema ganhou de graça, sem precisar pedir por
+  tela; desligado na impressão (cada página do PDF já repete o cabeçalho
+  sozinha). (2) Contrato de equipamento ganhou frete (só na entrega inicial,
+  não em renovação), com a MESMA decisão que o Mapa já tem: "lançar como
+  item" (linha própria no pagamento, com etapa da EAP escolhida pra ela) ou
+  embutido (distribuído proporcionalmente no valor de cada equipamento, sem
+  etapa própria). (3) O campo Fornecedor do contrato de equipamento virou
+  busca com sugestão do cadastro de Fornecedores (aceita texto livre, mesmo
+  padrão já usado no Fornecedor do Pagamento). Testado via API: frete
+  embutido distribuindo certo (`100+300` + frete `100` → `125`/`375`),
+  frete como item virando linha própria com a etapa certa, e o `th` da
+  tabela saindo `position: sticky` de verdade. Ainda não publicado.
+
+  **Pendente do mesmo lote (14 itens, ainda não implementados — Lucas já
+  decidiu 3 pontos-chave, registrados aqui pra não perder):** varredura
+  visual do RDO (campos com texto cortado); mensagem pronta (copiar pra
+  WhatsApp) de solicitação de pagamento de renovação de contrato de
+  equipamento e de pagamento de mapa; padronizar nome de arquivo dos PDFs
+  exportados; **modelos de contrato de empreita e de contrato de
+  obra/proposta** — decidido: múltiplos modelos cadastráveis (não um só fixo),
+  cada um editável, e o usuário escolhe qual usar ao gerar o contrato de uma
+  empreita/obra específica (mesma ideia dos modelos de FVS); coluna de status
+  do contrato na lista de Empreitas; anexo de contrato assinado + marcar
+  "assinado" na Empreita; **notificações automáticas** — decidido: sempre
+  como compromisso na Agenda (mesmo mecanismo do vencimento do contrato de
+  equipamento) — pra quando a medição física do empreiteiro chegar em 80%
+  (lembrete de gerar contrato) e enquanto um contrato gerado não for marcado
+  como assinado; página geral de Contratos de equipamentos (todas as obras,
+  com coluna Obra — mesma relação que "Mapas" geral tem com "MapasObra" por
+  obra); ajustar layout da página geral de Empreitas pra bater com o da aba
+  Empreitas da obra; e **navegação da obra** — decidido: ao clicar numa obra,
+  em vez de abrir a EAP direto, mostra uma tela com uma GRADE de botões (uma
+  por aba) pra escolher; cada aba ganha um botão "← Voltar" pra essa tela
+  (as abas viraram muitas e estavam difíceis de navegar, segundo o Lucas).
+- 27/09/2026 (correção no mesmo dia) — **Cabeçalho fixo não funcionava de
+  verdade; achado e corrigido um bug real de lembrete duplicado na Agenda**.
+  O Lucas testou o cabeçalho fixo do item anterior e não viu efeito nenhum —
+  correto: a primeira versão só conferia se o CSS `position: sticky` tinha
+  sido aplicado, sem checar se ele realmente colava na tela ao rolar. Dois
+  problemas de verdade: (1) `.envoltoria` (usada por quase toda lista) tem
+  `overflow-x: auto` — por regra do CSS, isso faz o navegador tratar o
+  `overflow-y` como `auto` também, mesmo sem pedir, e como essa div nunca
+  tem altura limitada, ela vira um "contêiner de rolagem" que nunca rola de
+  verdade — quebra o sticky (ele gruda relativo a essa div, que nunca sai do
+  lugar). (2) A correção usa `.envoltoria-fixa`, que a Empreita já tinha
+  (rolagem própria, com altura limitada) — mas o cálculo de altura dela
+  dependia de uma variável (`--barra-fixa-fim`) que só a Empreita
+  preenchia; nas outras ~20 telas ela caía num valor fixo (só a barra do
+  topo, 48px) que não considerava o título/filtros de cada tela, sobrando
+  espaço demais e cortando errado. Troquei `class="envoltoria"` por
+  `class="envoltoria-fixa"` em ~20 telas de lista, e criei
+  `ObservadorEnvoltoriaFixa` (`shared/envoltoria-fixa/`) — inicia UMA vez no
+  `AppShell` (raiz de toda tela), observa o documento inteiro por qualquer
+  `.envoltoria-fixa` que apareça e ajusta a altura dela sozinho, pela
+  posição real na tela — nenhuma tela precisou de código novo além da troca
+  de classe. Testado com rolagem de mouse de verdade (não só computed
+  style): o cabeçalho fica parado enquanto as linhas passam por baixo dele.
+
+  **De quebra**, ao investigar isso, apareceram ~15 registros de teste
+  (pagamentos "ZZ..." órfãos de contratos de equipamento que eu já tinha
+  apagado, e 3 lembretes "ZZ..." na Agenda) que minhas limpezas anteriores
+  não tinham pego — apagados agora. E um **bug de verdade, sem relação com
+  hoje**: renovar um contrato de equipamento criava um lembrete novo na
+  Agenda sem apagar o antigo — o contrato de teste do próprio Lucas
+  ("00045476") já tinha 2 lembretes de vencimento por causa disso.
+  Corrigido (`criarLembrete` agora apaga o lembrete anterior do mesmo
+  contrato antes de criar o novo) e o duplicado dele foi removido — o
+  contrato dele e o pagamento continuam intactos, só o lembrete extra saiu.
+  Ainda não publicado.
+- 27/09/2026 (continuação do lote grande) — **RDO com texto cortado
+  corrigido, mensagem de solicitação de pagamento, nome de PDF padronizado
+  em todo o sistema**. (1) RDO: a causa do texto cortado nos campos era o
+  `height: 20px` global de `input, select` (`_base.scss`, pensado pras
+  tabelas densas do resto do sistema) continuando valendo por cima do
+  padding maior do RDO, porque `rdo.scss`/`rdo-lista.scss` nunca declaravam
+  `height` próprio — `height: auto` nos dois resolve. A "cara diferente" do
+  RDO (cartão + acordeão, rem em vez de mono ALL CAPS) parece intencional
+  (documentada no topo dos dois arquivos) — não mexida, fica pra confirmar
+  com o Lucas se ele quiser unificar isso também. (2) Mensagem "Copiar
+  solicitação de pagamento" (📋) — a primeira versão (genérica, em cima da
+  `descricao` do pagamento, no popup de pagamentos vinculados) foi rejeitada
+  pelo Lucas depois de ver o resultado: ele queria dois formatos exatos, um
+  pro Mapa e outro pro Contrato de equipamento, com o PIX escolhido OU
+  digitado só na hora de gerar a mensagem — nunca gravado no cadastro nem no
+  mapa/contrato. Refeito do zero: `shared/dados-pagamento/` (o serviço lê o
+  `dadosRecebimento` que já existe nos cadastros de Fornecedores e
+  Profissionais; o popup `DadosPagamentoModal` mostra um campo de PIX por
+  fornecedor envolvido, sugerindo o que já está cadastrado e aceitando texto
+  livre quando não tem) + um montador de mensagem por tela:
+  `features/mapa/mapa-mensagem-pagamento.ts` (botão "📋 Solicitar pagamento"
+  no editor do Mapa — resumo por fornecedor vencedor com o cenário indicado,
+  o mesmo dado de "Detalhe por fornecedor") e
+  `features/contratos-equipamentos/contratos-equipamentos-mensagem.ts`
+  (botão 📋 na lista de contratos da obra, ao lado do ✖ excluir — aluguel
+  atual, equipamentos ainda com o cliente e todo o histórico de pagamentos
+  já gerados por aquele contrato, com o mais recente marcado "(HOJE)").
+  Testado via Puppeteer nos dois formatos com dados reais da obra de teste
+  (o mesmo mapa e o mesmo contrato "00045476"/JAPÃO DA CONSTRUÇÃO que o
+  Lucas usou de exemplo) — mensagem batendo com o formato pedido, PIX digitado
+  chegando certo em cada bloco, zero erro de console. (3) Nome de
+  arquivo de PDF virou `Tipo-identificador1-identificador2....pdf` em vez do
+  UUID interno cru (ex.: `mapa-c8f8e5c9-...-...pdf` virou
+  `Mapa-12-BetoneiraETc.pdf`) — `shared/pdf-nome-arquivo.ts`, aplicado em
+  Mapa, EAP, Empreita, Medição, Cronograma de desembolso e Relatório; RDO já
+  tinha um nome legível (`RDO-003.pdf`) e não foi mexido. Testado via
+  Puppeteer (compilação limpa, popup com o botão novo). Ainda não publicado.

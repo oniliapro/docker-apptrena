@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
+import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import { ApiService } from '../../core/services/api.service';
 import { formatarMoeda } from '../../core/utils/formato';
 import { formatarPercentual, parsearBR } from '../pagamentos/pagamentos-calc';
@@ -63,7 +64,11 @@ export class Medicao implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `medicao-${this.medicaoId()}.pdf`;
+        link.download = nomeArquivoPdf(
+          'Medicao',
+          [this.eap.cabecalho().mapNumber, this.store.payload()?.sequencia],
+          this.medicaoId(),
+        );
         link.click();
         URL.revokeObjectURL(url);
         this.gerandoPdf.set(false);
