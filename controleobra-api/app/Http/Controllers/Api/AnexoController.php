@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Concerns\ClassificaArquivo;
 use App\Http\Controllers\Controller;
 use App\Models\Arquivo;
+use App\Models\Empreita;
 use App\Models\Obra;
 use App\Models\Pagamento;
 use App\Models\Pasta;
@@ -51,6 +52,20 @@ class AnexoController extends Controller
     public function storeRecebimento(Request $request, Recebimento $recebimento, GeradorMiniatura $gerador)
     {
         return $this->criar($request, 'recebimento', $recebimento->id, $recebimento->obra_id, $recebimento->numero_recebimento, $gerador);
+    }
+
+    /** Anexo de Empreita (27/09/2026, pedido do Lucas) — contrato assinado, principalmente, mas serve pra qualquer arquivo. */
+    public function indexEmpreita(Empreita $empreita)
+    {
+        return $this->listar('empreita', $empreita->id);
+    }
+
+    public function storeEmpreita(Request $request, Empreita $empreita, GeradorMiniatura $gerador, EmpreitaController $empreitaController)
+    {
+        $resposta = $this->criar($request, 'empreita', $empreita->id, $empreita->obra_id, $empreita->numero_empreita, $gerador);
+        $empreitaController->garantirLembreteContratoPendente($empreita, $request->user());
+
+        return $resposta;
     }
 
     private function listar(string $origemTipo, string $origemId)

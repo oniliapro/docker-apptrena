@@ -3,6 +3,14 @@
 .painel { margin-bottom: 14px; }
 .painel.sem-preenchimento { padding: 0; }
 
+// Sem margem embaixo (28/09/2026): a caixa da tabela é `position: sticky` e
+// fica pregada na barra de topo (ver `.envoltoria-tela-toda`, `_base.scss`).
+// Uma margem aqui conta contra o espaço que ela pode "andar" até travar de
+// vez no lugar certo — com ela, a caixa trava alguns pixels ACIMA do ponto
+// certo (atrás da barra de topo). Como esta é a última coisa visível da
+// página, não faz falta nenhuma margem embaixo dela mesmo.
+.envoltoria-tela-toda.painel { margin-bottom: 0; }
+
 .aviso-erro {
   margin-bottom: 14px;
   padding: 9px 12px;

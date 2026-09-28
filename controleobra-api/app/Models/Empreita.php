@@ -20,6 +20,8 @@ class Empreita extends Model
         'descricao_empreita', 'medicao_date', 'competencia', 'obs', 'total_empreita',
         'total_pago', 'atualizado_em', 'is_confirmed', 'confirmed_at',
         'pagamento_iniciado', 'pagamento_iniciado_at', 'medicao_habilitada',
+        'contrato_assinado', 'contrato_assinado_em', 'contrato_agenda_evento_id',
+        'medicao80_alertada',
     ];
 
     protected $casts = [
@@ -32,6 +34,9 @@ class Empreita extends Model
         'medicao_habilitada' => 'boolean',
         'pagamento_iniciado' => 'boolean',
         'pagamento_iniciado_at' => 'datetime',
+        'contrato_assinado' => 'boolean',
+        'contrato_assinado_em' => 'datetime',
+        'medicao80_alertada' => 'boolean',
     ];
 
     public function obra(): BelongsTo

@@ -635,6 +635,25 @@ export class ApiService {
     });
   }
 
+  // ---------------- Anexos de Empreita (27/09/2026, contrato assinado) ----------------
+  listarAnexosEmpreita(empreitaId: string): Observable<Arquivo[]> {
+    return this.http.get<Arquivo[]>(`${this.base}/empreitas/${empreitaId}/anexos`);
+  }
+
+  anexarArquivoEmpreita(empreitaId: string, tagId: string, arquivo: File): Observable<Arquivo> {
+    const dados = new FormData();
+    dados.append('tag_id', tagId);
+    dados.append('arquivo', arquivo);
+    return this.http.post<Arquivo>(`${this.base}/empreitas/${empreitaId}/anexos`, dados, {
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
+  }
+
+  /** Marca/desmarca "contrato assinado" — endpoint dedicado porque cria/apaga o lembrete de assinatura pendente na Agenda. */
+  marcarContratoAssinadoEmpreita(empreitaId: string, assinado: boolean): Observable<Record<string, unknown>> {
+    return this.http.put<Record<string, unknown>>(`${this.base}/empreitas/${empreitaId}/contrato-assinado`, { assinado });
+  }
+
   // ---------------- Configurações — Dados da empresa ----------------
   obterPerfilEmpresa(): Observable<PerfilEmpresa> {
     return this.http.get<PerfilEmpresa>(`${this.base}/empresa/perfil`);

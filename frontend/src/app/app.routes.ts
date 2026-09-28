@@ -325,6 +325,17 @@ export const routes: Routes = [
         loadComponent: () => import('./features/mapas/mapas').then((m) => m.Mapas),
       },
       {
+        // Página de controle geral de Contratos de equipamentos (27/09/2026,
+        // pedido do Lucas) — mesma lista da aba da obra, cruzando todas as obras.
+        path: 'contratos-equipamentos',
+        data: { titulo: 'Contratos de equipamentos' },
+        canActivate: [permissaoModuloGuard('contratos_equipamentos')],
+        loadComponent: () =>
+          import('./features/contratos-equipamentos/contratos-equipamentos-geral').then(
+            (m) => m.ContratosEquipamentosGeral,
+          ),
+      },
+      {
         path: 'empreitas',
         data: { titulo: 'Empreitas' },
         canActivate: [permissaoModuloGuard('empreitas')],

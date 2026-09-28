@@ -207,6 +207,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // padrão do RDO (`{rdo}`, não `{id}`).
     Route::get('obras/{obra}/contratos-equipamentos', [ContratoEquipamentoController::class, 'index'])
         ->middleware(['permissaoModulo:contratos_equipamentos,usar', 'permissaoObra:ver']);
+    // Página de controle geral (27/09/2026, pedido do Lucas) — cruza todas as obras, sem
+    // `permissaoObra` na rota (mesmo motivo da Agenda geral: o filtro roda dentro do controller).
+    Route::get('contratos-equipamentos', [ContratoEquipamentoController::class, 'indexGeral'])
+        ->middleware('permissaoModulo:contratos_equipamentos,usar');
     Route::post('obras/{obra}/contratos-equipamentos', [ContratoEquipamentoController::class, 'store'])
         ->middleware(['permissaoModulo:contratos_equipamentos,criar', 'permissaoObra:lancar']);
     Route::get('contratos-equipamentos/{contratoEquipamento}', [ContratoEquipamentoController::class, 'show'])
@@ -301,6 +305,13 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:empreitas,editar', 'permissaoObra:lancar']);
     Route::get('empreitas/{empreita}/relatorio/pdf', [EmpreitaPdfController::class, 'relatorioEmpreita'])
         ->middleware(['permissaoModulo:empreitas,usar', 'permissaoObra:ver']);
+    // Anexos (27/09/2026, contrato assinado) — mesmo mecanismo de Pagamento/Recebimento, ver AnexoController.
+    Route::get('empreitas/{empreita}/anexos', [AnexoController::class, 'indexEmpreita'])
+        ->middleware(['permissaoModulo:empreitas,usar', 'permissaoObra:ver']);
+    Route::post('empreitas/{empreita}/anexos', [AnexoController::class, 'storeEmpreita'])
+        ->middleware(['permissaoModulo:empreitas,editar', 'permissaoObra:lancar']);
+    Route::put('empreitas/{empreita}/contrato-assinado', [EmpreitaController::class, 'marcarContratoAssinado'])
+        ->middleware(['permissaoModulo:empreitas,editar', 'permissaoObra:lancar']);
 
     // `index` sem `permissaoObra` — cruza várias obras, filtro roda no
     // controller (`PagamentoController::index`).

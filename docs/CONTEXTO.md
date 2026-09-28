@@ -1889,3 +1889,99 @@ AppTrena/
   Mapa, EAP, Empreita, Medição, Cronograma de desembolso e Relatório; RDO já
   tinha um nome legível (`RDO-003.pdf`) e não foi mexido. Testado via
   Puppeteer (compilação limpa, popup com o botão novo). Ainda não publicado.
+- 28/09/2026 (continuação do lote grande) — **Página geral de Contratos de
+  equipamentos e status de contrato na Empreita** (2 itens da lista de 17 do
+  Lucas). (1) `GET /api/contratos-equipamentos` (`ContratoEquipamentoController::indexGeral`,
+  mesmo padrão de `MapaController::index`) cruza todas as obras, com
+  `obra_nome` achatado; tela nova `contratos-equipamentos-geral.ts/html`
+  (rota `/contratos-equipamentos`, menu próprio) reaproveita a mesma tabela/
+  ações da aba da obra (📋 solicitar pagamento, ✖ excluir, popup de
+  pagamentos vinculados), com uma coluna "Obra" a mais; criar contrato novo
+  continua só na aba da obra (o formulário precisa do contexto dela), editar
+  busca a EAP certa na hora (por `obra_id` do próprio contrato, com cache
+  simples em memória pra não repetir a chamada). (2) Empreita ganhou
+  "Contrato assinado": `contrato_assinado`/`contrato_assinado_em` (marcado
+  manualmente, endpoint próprio `PUT /empreitas/{id}/contrato-assinado`, fora
+  do PUT genérico do cabeçalho porque tem efeito colateral — ver abaixo);
+  anexar o arquivo do contrato usa o MESMO mecanismo já existente de
+  Pagamento/Recebimento (`Arquivo` com `origem_tipo='empreita'`,
+  `AnexoController::indexEmpreita/storeEmpreita`, componente
+  `AnexosLancamento` com um terceiro `origemTipo`), sem tabela nova; coluna
+  "Status" (Assinado/Pendente) na lista da obra.
+
+  **Bug achado pelo Lucas na primeira versão**: a 1ª tentativa colocava o
+  status+anexos num painel FIXO acima da tabela de serviços — como
+  `AnexosLancamento` carrega as tags de forma assíncrona, a altura desse
+  painel só se estabiliza depois, e a tabela de serviços (`.envoltoria-fixa`,
+  altura calculada por `calc(100vh - ...)`) acabava sobrando quase sem
+  espaço nenhum, tornando os serviços ilegíveis. Corrigido: o status virou
+  só mais uma etiqueta+botão na MESMA linha de botões que já existia
+  (`Confirmada`/`Reabrir empreita` etc.), e assinatura+anexos foram pro
+  mesmo padrão de popup (`.modal`) já usado em outros lugares da tela
+  (ex.: "O que mostrar" do PDF) — não ocupa espaço nenhum na tela até o
+  usuário clicar em "📎 Contrato". Confirmado com print antes/depois (a
+  tabela voltou a mostrar várias linhas normalmente). Duas notificações
+  automáticas na Agenda, pedidas junto: enquanto tiver um contrato anexado e
+  `contrato_assinado` continuar `false`, existe um lembrete de "assinatura
+  pendente" (criado ao anexar, apagado ao marcar assinado, recriado se
+  desmarcar de novo com o anexo ainda lá — `EmpreitaController::garantirLembreteContratoPendente`);
+
+  **Segundo bug achado pelo Lucas, ainda na mesma tabela**: mesmo depois do
+  popup, a tabela de serviços continuava aparecendo pequena. 1ª tentativa de
+  correção (errada, revertida): tirei `.envoltoria-fixa`/`rodape-fixo` dessa
+  tabela achando que ele queria rolagem de página inteira — o Lucas corrigiu
+  ("não pedi pra tirar a rolagem, pedi pra aumentar a envoltória"): ele
+  queria a caixinha de volta, só maior. Causa real, essa sim confirmada por
+  medição (`getBoundingClientRect`): a nova etiqueta+botão de contrato,
+  posta na mesma linha de botões já lotada (`Adicionar serviço` .. `Baixar
+  PDF`/`Exportar Excel`), estourava a largura e forçava aquela linha a
+  quebrar pra uma 2ª linha — isso engorda a `trenaBarraFixa` (mede a própria
+  altura da barra) e some `--barra-fixa-fim`, que é exatamente o que
+  `.envoltoria-fixa` usa pra saber quanto sobra de tela; menos sobra, menos
+  altura pra tabela. Corrigido de vez: o botão de contrato saiu da linha
+  principal de botões e foi pra linha dos atalhos de teclado (que tinha
+  espaço de sobra), sem tirar `.envoltoria-fixa`/`rodape-fixo` de lugar
+  nenhum. Lição: ao adicionar QUALQUER botão numa barra de ferramentas que
+  já é `trenaBarraFixa`, checar se ela ainda cabe numa linha só — cada linha
+  a mais rouba altura de toda tabela abaixo, em qualquer tela que use esse
+  mecanismo.
+
+  E um aviso ÚNICO quando a medição física (ponderada por `contrato_emp` de
+  cada serviço, mesma conta de `pctFisicoPorEmpreita` no front) cruza 80%,
+  guardado por `medicao80_alertada` pra não repetir a cada medição nova
+  depois da primeira vez. 2 migrations. Testado via API + Puppeteer com uma
+  empreita descartável: anexo criando o lembrete, marcar/desmarcar assinado
+  criando e apagando o lembrete certo, medição de 85% dessa disparando o
+  aviso uma vez só — limpeza completa depois (achado de novo, mesma lição de
+  sempre: excluir a Empreita NÃO apaga sozinho o anexo nem o evento da
+  Agenda vinculados a ela, tive que apagar os dois à parte). Ainda não
+  publicado.
+
+  **Terceiro pedido, ainda na mesma tabela (28/09/2026)**: depois da correção
+  acima o Lucas pediu mais — não só devolver a caixinha, mas ela "pegando uma
+  tela inteira": ao rolar a PÁGINA pra baixo, cabeçalho da empreita e barra
+  de botões deveriam sumir de vez (saindo de tela), sobrando só a tabela
+  ocupando quase a janela toda, com rolagem PRÓPRIA dela (cabeçalho e rodapé
+  da tabela grudados no topo/base da caixa, não da página). Trocado
+  `.envoltoria-fixa` (altura = o que sobra da tela abaixo de uma barra fixa)
+  por uma classe nova só da Empreita, `.envoltoria-tela-toda`: tirei
+  `trenaBarraFixa` da barra de botões (ela deixou de ser sticky, agora rola
+  normal com a página) e a caixa da tabela virou ela mesma `position: sticky`
+  (gruda embaixo da barra de topo assim que a rolagem chega lá), com altura
+  fixa em "quase a tela inteira" (só descontando a barra de topo).
+
+  Pegadinha de CSS chata nessa: um elemento `sticky` nunca consegue passar do
+  fim da PRÓPRIA caixa-pai — e como esta tabela é a última coisa grande da
+  página, o "fim de rolagem" do navegador é definido pelo padding de baixo
+  do `.conteudo` (24px, fora da caixa-pai). Descontar só 12px no cálculo da
+  altura (o valor usado no `.envoltoria-fixa`) faz a caixa travar uns pixels
+  ACIMA do lugar certo na rolagem máxima — escondida atrás da barra de topo
+  fixa, que tem z-index maior (bug só visível rolando até o fim de verdade,
+  não em screenshot do topo da tela). Corrigido descontando os 24px de
+  verdade no `max-height` e zerando a margem de baixo da caixa (a margem
+  padrão de `.painel` também "conta" contra essa mesma conta de sobra de
+  rolagem). Confirmado por medição pixel a pixel (`getBoundingClientRect` em
+  vários pontos da rolagem, não só no início e no fim) e por captura de tela
+  em 3 momentos (topo, rolado até o fim, rolado por dentro da caixa até o
+  rodapé) — cabeçalho da tabela sempre colado exatamente na barra de topo,
+  sem sobreposição, sem espaço sobrando. Ainda não publicado.

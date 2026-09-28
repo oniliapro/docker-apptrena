@@ -628,6 +628,11 @@ export class EmpreitasObra implements OnInit {
     return String(empreita['empreiteiro'] ?? '—');
   }
 
+  /** Coluna "Status" (27/09/2026, pedido do Lucas) — contrato assinado ou pendente de assinatura. */
+  protected contratoAssinado(empreita: Empreita): boolean {
+    return Boolean(empreita['contrato_assinado']);
+  }
+
   protected total(empreita: Empreita): number {
     return this.totalPorEmpreita().get(empreita.id) ?? 0;
   }

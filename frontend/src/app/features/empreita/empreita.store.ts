@@ -138,6 +138,8 @@ export class EmpreitaStore {
     pagamentoIniciado: false,
     pagamentoIniciadoAt: '',
     medicaoHabilitada: true,
+    contratoAssinado: false,
+    contratoAssinadoEm: '',
   });
 
   /**
@@ -351,6 +353,8 @@ export class EmpreitaStore {
       // `true` (o padrão), não `false` — mesma convenção de `ativo` nos
       // cadastros.
       medicaoHabilitada: empreita['medicao_habilitada'] !== false,
+      contratoAssinado: Boolean(empreita['contrato_assinado']),
+      contratoAssinadoEm: String(empreita['contrato_assinado_em'] ?? ''),
     });
 
     const itensBrutos = Array.isArray(empreita['itens'])
@@ -481,6 +485,26 @@ export class EmpreitaStore {
       pagamentoIniciadoAt: new Date().toISOString(),
     }));
     this.salvar();
+  }
+
+  /**
+   * "Contrato assinado" (27/09/2026, pedido do Lucas) — fora do fluxo normal
+   * de `salvar()`/`executarSalvar()` de propósito: tem endpoint próprio no
+   * backend porque marcar/desmarcar cria ou apaga o lembrete de assinatura
+   * pendente na Agenda (side-effect que não cabe no PUT genérico do resto
+   * do cabeçalho).
+   */
+  alternarContratoAssinado(assinado: boolean): void {
+    if (!this.empreitaId) return;
+    this.api.marcarContratoAssinadoEmpreita(this.empreitaId, assinado).subscribe({
+      next: (empreita) =>
+        this.cabecalho.update((c) => ({
+          ...c,
+          contratoAssinado: Boolean(empreita['contrato_assinado']),
+          contratoAssinadoEm: String(empreita['contrato_assinado_em'] ?? ''),
+        })),
+      error: () => window.alert('Não foi possível atualizar o status do contrato.'),
+    });
   }
 
   /** Acrescenta um serviço ao final ou, com `posicao`, no meio da lista (botão "+" da linha e Shift + `+`). */

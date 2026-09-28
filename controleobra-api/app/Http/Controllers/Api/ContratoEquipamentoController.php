@@ -40,6 +40,32 @@ class ContratoEquipamentoController extends Controller
             ->map(fn (ContratoEquipamento $c) => $this->comStatus($c));
     }
 
+    /**
+     * GET /api/contratos-equipamentos (27/09/2026) — página de controle geral,
+     * mesma lista da aba da obra, só que cruzando todas as obras da empresa,
+     * com o nome da obra achatado (`obra_nome`, mesmo padrão de
+     * `MapaController::index`). Mesmo critério de acesso: usuário secundário
+     * não vê contrato de obra com `pode_ver` negado explicitamente; admin vê tudo.
+     */
+    public function indexGeral(Request $request)
+    {
+        $query = ContratoEquipamento::with([...self::RELACOES, 'obra:id,obra_nome'])->orderByDesc('numero');
+
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
+        }
+
+        return $query->get()->map(function (ContratoEquipamento $c) {
+            $array = $this->comStatus($c)->toArray();
+            $array['obra_nome'] = $array['obra']['obra_nome'] ?? '';
+            unset($array['obra']);
+
+            return $array;
+        });
+    }
+
     public function show(ContratoEquipamento $contratoEquipamento)
     {
         return $this->comStatus($contratoEquipamento->load(self::RELACOES));

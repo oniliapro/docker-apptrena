@@ -19,6 +19,11 @@ export class ContratosEquipamentosService {
     return this.http.get<ContratoEquipamento[]>(`${this.base}/obras/${obraId}/contratos-equipamentos`);
   }
 
+  /** Página de controle geral (27/09/2026) — todos os contratos, de todas as obras, com `obra_nome`. */
+  listarGeral(): Observable<Array<ContratoEquipamento & { obra_nome: string }>> {
+    return this.http.get<Array<ContratoEquipamento & { obra_nome: string }>>(`${this.base}/contratos-equipamentos`);
+  }
+
   obter(id: string): Observable<ContratoEquipamento> {
     return this.http.get<ContratoEquipamento>(`${this.base}/contratos-equipamentos/${id}`);
   }

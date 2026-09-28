@@ -43,7 +43,11 @@
   </div>
 
   <!-- ============ Ações ============ -->
-  <div class="painel barra-ferramentas" trenaBarraFixa>
+  <!-- Sem `trenaBarraFixa` (28/09/2026, pedido do Lucas): aqui ele quer que
+       ISSO role com a página normalmente e saia da tela — sobrando só a
+       tabela de serviços, que aí sim ocupa quase a tela toda (ver
+       `.envoltoria-tela-toda` no wrapper da tabela, abaixo). -->
+  <div class="painel barra-ferramentas">
     <div class="linha-ferramentas">
       <button type="button" [disabled]="store.travada()" (click)="store.adicionarItem()"
               title="Desabilitado com a empreita confirmada">
@@ -120,6 +124,12 @@
         ⌨ Tab e setas navegam · Enter desce · Shift + <kbd>+</kbd> insere · Shift + <kbd>−</kbd> remove ·
         campo de valor aceita conta: <kbd>=</kbd>100*3+50
       </span>
+
+      <span class="espacador"></span>
+
+      <button type="button" (click)="mostrarContrato.set(true)" title="Marcar assinatura e anexar o arquivo do contrato">
+        {{ store.cabecalho().contratoAssinado ? '✔ Contrato assinado' : '📎 Contrato pendente' }}
+      </button>
     </div>
   </div>
 
@@ -139,7 +149,15 @@
   }
 
   <!-- ============ Tabela ============ -->
-  <div class="envoltoria envoltoria-fixa painel sem-preenchimento">
+  <!-- `.envoltoria-tela-toda` (28/09/2026, pedido do Lucas), não
+       `.envoltoria-fixa`: a altura aqui é fixa em "quase a tela inteira"
+       (só desconta a barra de topo, que é a única coisa que continua fixa
+       de verdade) — não recalcula pra caber no que sobra abaixo da barra de
+       botões, porque a barra de botões não é mais fixa (ver acima). Rolando
+       a página, cabeçalho da empreita e barra de botões saem da tela e esta
+       caixa passa a ocupar a tela quase toda, com rolagem PRÓPRIA (é ela
+       que tem barra de rolagem, não a página). -->
+  <div class="envoltoria envoltoria-tela-toda painel sem-preenchimento">
     <table class="tabela-empreita cabecalho-fixo rodape-fixo"
            trenaNavegacaoTabela
            trenaRedimensionarColunas
@@ -517,6 +535,35 @@
       }
     </table>
   </div>
+
+  <!-- ============ Contrato (27/09/2026, pedido do Lucas) — popup, não fica fixo na tela pra não empurrar a tabela de serviços ============ -->
+  @if (mostrarContrato()) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="mostrarContrato.set(false)"></div>
+
+      <div class="modal-cartao">
+        <div class="modal-cabecalho">
+          <span class="modal-titulo">Contrato da empreita</span>
+          <button type="button" (click)="mostrarContrato.set(false)" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <div class="linha-ferramentas">
+            <span class="etiqueta" [class.confirmada]="store.cabecalho().contratoAssinado">
+              {{ store.cabecalho().contratoAssinado ? '✔ Contrato assinado' : 'Contrato pendente de assinatura' }}
+            </span>
+            @if (store.cabecalho().contratoAssinado && store.cabecalho().contratoAssinadoEm) {
+              <span class="atenuado pequeno">em {{ formatarData(store.cabecalho().contratoAssinadoEm) }}</span>
+            }
+            <button type="button" (click)="store.alternarContratoAssinado(!store.cabecalho().contratoAssinado)">
+              {{ store.cabecalho().contratoAssinado ? 'Desmarcar assinatura' : 'Marcar como assinado' }}
+            </button>
+          </div>
+          <app-anexos-lancamento origemTipo="empreita" [origemId]="empreitaId()" />
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- ============ PDF: o que mostrar (25/09/2026) ============ -->
   @if (pdfOpcoesAberto()) {

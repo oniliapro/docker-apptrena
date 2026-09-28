@@ -88,6 +88,15 @@ export interface CabecalhoEmpreita {
    * revelada pra sempre, mesmo alternando este campo).
    */
   medicaoHabilitada: boolean;
+  /**
+   * Contrato assinado (27/09/2026, pedido do Lucas) — marcado manualmente,
+   * independente de ter ou não arquivo anexado (`AnexosLancamento`, mesmo
+   * mecanismo de Pagamento/Recebimento). Enquanto houver um contrato
+   * anexado e isto continuar `false`, existe um lembrete de assinatura
+   * pendente na Agenda (criado/apagado sozinho pelo backend).
+   */
+  contratoAssinado: boolean;
+  contratoAssinadoEm: string;
 }
 
 /**

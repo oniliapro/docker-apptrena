@@ -37,7 +37,7 @@ interface GrupoAnexos {
 export class AnexosLancamento implements OnInit {
   private readonly api = inject(ApiService);
 
-  readonly origemTipo = input.required<'pagamento' | 'recebimento'>();
+  readonly origemTipo = input.required<'pagamento' | 'recebimento' | 'empreita'>();
   readonly origemId = input.required<string>();
 
   protected readonly formatarTamanho = formatarTamanho;
@@ -78,14 +78,25 @@ export class AnexosLancamento implements OnInit {
     this.carregarAnexos();
   }
 
+  private requisicaoListar() {
+    switch (this.origemTipo()) {
+      case 'pagamento': return this.api.listarAnexosPagamento(this.origemId());
+      case 'recebimento': return this.api.listarAnexosRecebimento(this.origemId());
+      case 'empreita': return this.api.listarAnexosEmpreita(this.origemId());
+    }
+  }
+
+  private requisicaoAnexar(tagId: string, arquivo: File) {
+    switch (this.origemTipo()) {
+      case 'pagamento': return this.api.anexarArquivoPagamento(this.origemId(), tagId, arquivo);
+      case 'recebimento': return this.api.anexarArquivoRecebimento(this.origemId(), tagId, arquivo);
+      case 'empreita': return this.api.anexarArquivoEmpreita(this.origemId(), tagId, arquivo);
+    }
+  }
+
   private carregarAnexos(aoTerminar?: () => void): void {
     this.carregando.set(true);
-    const requisicao =
-      this.origemTipo() === 'pagamento'
-        ? this.api.listarAnexosPagamento(this.origemId())
-        : this.api.listarAnexosRecebimento(this.origemId());
-
-    requisicao.subscribe({
+    this.requisicaoListar().subscribe({
       next: (lista) => {
         this.anexos.set(lista);
         this.carregando.set(false);
@@ -115,12 +126,7 @@ export class AnexosLancamento implements OnInit {
     }
 
     this.enviando.set(true);
-    const requisicao =
-      this.origemTipo() === 'pagamento'
-        ? this.api.anexarArquivoPagamento(this.origemId(), tagId, arquivo)
-        : this.api.anexarArquivoRecebimento(this.origemId(), tagId, arquivo);
-
-    requisicao.subscribe({
+    this.requisicaoAnexar(tagId, arquivo).subscribe({
       next: (novo) => {
         this.anexos.update((lista) => [...lista, novo]);
         this.enviando.set(false);

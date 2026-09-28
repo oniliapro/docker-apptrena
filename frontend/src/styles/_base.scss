@@ -307,6 +307,46 @@ table.rodape-fixo tfoot th {
   box-shadow: inset 0 1px 0 var(--cor-borda-forte);
 }
 
+// ---- Envoltória em tela cheia (28/09/2026, pedido do Lucas, só na Empreita) ----
+// Diferente de `.envoltoria-fixa` (altura = o que sobra da tela ABAIXO de
+// uma barra de botões que fica fixa): aqui a barra de botões da Empreita
+// NÃO é mais fixa, rola com a página normalmente. Por isso a altura desta
+// caixa não é recalculada a partir de onde ela está agora — é fixa em
+// "quase a tela inteira", descontando só a barra de topo (essa sim sempre
+// fixa). Rolando a página pra baixo, cabeçalho da empreita e barra de
+// botões saem da tela e sobra só esta caixa, ocupando quase a tela toda,
+// com rolagem PRÓPRIA (dela, não da página) e cabeçalho/rodapé da tabela
+// grudados no topo/base dela mesma.
+//
+// `position: sticky`, e por que o `max-height` desconta 24px (não só 12):
+// como esta é a ÚLTIMA coisa grande da página, o "fim de rolagem" do
+// navegador é definido pelo padding de baixo do `.conteudo` (24px,
+// `app-shell.scss`), que fica FORA desta caixa. Um elemento `sticky` nunca
+// consegue passar do fim da sua própria caixa-pai — e essa caixa-pai só
+// "anda" até sobrar exatamente esse padding de baixo na tela. Descontar só
+// 12px (a folga de baixo usada no `.envoltoria-fixa`) faz a conta sobrar:
+// na rolagem máxima, o topo da caixa trava uns pixels ACIMA da barra de
+// topo (escondido atrás dela, que tem z-index maior). Descontando os 24px
+// de verdade, a rolagem máxima do navegador cai bem exatamente onde o topo
+// da caixa alcança `--barra-topo-altura`. Some com `margin-bottom: 0` no
+// `.scss` da Empreita (a margem de baixo do `.painel` conta contra essa
+// mesma conta).
+.envoltoria-tela-toda {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 10;
+  overflow: auto;
+  max-height: calc(100vh - var(--barra-topo-altura) - 24px);
+}
+
+.envoltoria-tela-toda table.cabecalho-fixo thead th,
+.envoltoria-tela-toda table[trenaRedimensionarColunas] thead th {
+  // -1px: mesmo motivo do `.envoltoria-fixa` — ela já começa abaixo da
+  // barra de topo por conta própria, então o sticky do cabeçalho da
+  // tabela usa o valor puro (sem somar a altura da barra de topo).
+  top: -1px;
+}
+
 // ---- Impressão (Gerar PDF do Mapa, 31/07/2026) ----
 // window.print() imprime a página inteira por padrão — aqui escondemos o
 // "chrome" do app (menu lateral, topo, abas da obra) pra sobrar só o

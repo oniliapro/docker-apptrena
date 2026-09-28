@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgendaEvento;
+use App\Models\Arquivo;
 use App\Models\Empreita;
 use App\Models\EmpreitaItem;
 use App\Models\Obra;
@@ -270,6 +272,110 @@ class EmpreitaController extends Controller
             return $registro;
         });
 
+        $this->verificarMedicao80($empreita, $request->user());
+
         return $registro->load('linhas.tipos');
+    }
+
+    /**
+     * PUT /api/empreitas/{empreita}/contrato-assinado (27/09/2026, pedido do
+     * Lucas) — marcar/desmarcar que o contrato desta empreita está assinado.
+     * Desmarcar com um contrato já anexado recria o lembrete de assinatura
+     * pendente; marcar como assinado apaga o lembrete, se tiver um.
+     */
+    public function marcarContratoAssinado(Request $request, Empreita $empreita)
+    {
+        $data = $request->validate(['assinado' => 'required|boolean']);
+
+        if ($data['assinado']) {
+            if ($empreita->contrato_agenda_evento_id) {
+                AgendaEvento::where('id', $empreita->contrato_agenda_evento_id)->delete();
+            }
+            $empreita->update([
+                'contrato_assinado' => true,
+                'contrato_assinado_em' => now(),
+                'contrato_agenda_evento_id' => null,
+            ]);
+        } else {
+            $empreita->update(['contrato_assinado' => false, 'contrato_assinado_em' => null]);
+            if (Arquivo::where('origem_tipo', 'empreita')->where('origem_id', $empreita->id)->exists()) {
+                $this->garantirLembreteContratoPendente($empreita, $request->user());
+            }
+        }
+
+        return $empreita->fresh();
+    }
+
+    /**
+     * Garante que existe um lembrete de "assinatura pendente" — chamado por
+     * `AnexoController::storeEmpreita` a cada arquivo novo anexado e por
+     * `marcarContratoAssinado` ao desmarcar. Não duplica se já existir um
+     * lembrete, e não cria nada se o contrato já estiver assinado.
+     */
+    public function garantirLembreteContratoPendente(Empreita $empreita, $usuario): void
+    {
+        if ($empreita->contrato_assinado || $empreita->contrato_agenda_evento_id) {
+            return;
+        }
+
+        $hoje = now()->startOfDay();
+        $evento = AgendaEvento::create([
+            'empresa_id' => $usuario->empresa_id,
+            'obra_id' => $empreita->obra_id,
+            'criado_por_id' => $usuario->id,
+            'titulo' => "Assinatura pendente — contrato da empreita {$empreita->numero_empreita} ({$empreita->empreiteiro})",
+            'descricao' => 'Um contrato foi anexado a esta empreita, mas ainda não foi marcado como assinado.',
+            'dia_inteiro' => true,
+            'inicio' => $hoje->format('Y-m-d').' 00:00:00',
+            'fim' => $hoje->format('Y-m-d').' 23:59:00',
+        ]);
+
+        $empreita->update(['contrato_agenda_evento_id' => $evento->id]);
+    }
+
+    /**
+     * Aviso único (27/09/2026, pedido do Lucas) quando a medição física
+     * (ponderada pelo contrato do empreiteiro por item, mesma conta de
+     * `empreitas-obra.ts#pctFisicoPorEmpreita`) cruza 80% — hora de
+     * providenciar o contrato, se ainda não tiver. `medicao80_alertada`
+     * garante que só avisa uma vez, não a cada medição nova depois disso.
+     */
+    private function verificarMedicao80(Empreita $empreita, $usuario): void
+    {
+        if ($empreita->medicao80_alertada) {
+            return;
+        }
+
+        $somaPonderada = 0.0;
+        $somaContrato = 0.0;
+        foreach ($empreita->itens()->get() as $item) {
+            $contrato = (float) $item->contrato_emp;
+            if ($contrato <= 0) continue;
+            $atual = $item->medicao_atual !== null ? (float) $item->medicao_atual : (float) $item->medicao_acum;
+            $somaPonderada += $atual * $contrato;
+            $somaContrato += $contrato;
+        }
+        if ($somaContrato <= 0) {
+            return;
+        }
+
+        $percentual = $somaPonderada / $somaContrato;
+        if ($percentual < 80) {
+            return;
+        }
+
+        $hoje = now()->startOfDay();
+        AgendaEvento::create([
+            'empresa_id' => $usuario->empresa_id,
+            'obra_id' => $empreita->obra_id,
+            'criado_por_id' => $usuario->id,
+            'titulo' => sprintf('Medição física em %d%% — empreita %s (%s)', round($percentual), $empreita->numero_empreita, $empreita->empreiteiro),
+            'descricao' => 'A medição física já passou de 80% — hora de providenciar o contrato, se ainda não tiver um.',
+            'dia_inteiro' => true,
+            'inicio' => $hoje->format('Y-m-d').' 00:00:00',
+            'fim' => $hoje->format('Y-m-d').' 23:59:00',
+        ]);
+
+        $empreita->update(['medicao80_alertada' => true]);
     }
 }

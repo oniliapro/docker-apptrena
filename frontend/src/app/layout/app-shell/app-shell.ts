@@ -189,6 +189,15 @@ export class AppShell {
       moduloChave: 'recebimentos',
     },
     {
+      // Página de controle geral de Contratos de equipamentos (27/09/2026) — mesma lista
+      // já usada na aba da obra, cruzando todas as obras.
+      id: 'contratos-equipamentos',
+      rota: '/contratos-equipamentos',
+      icone: 'ferramenta',
+      texto: 'Contratos de equipamentos',
+      moduloChave: 'contratos_equipamentos',
+    },
+    {
       // Relatório Diário de Obra (RDO) — módulo reconstruído em 17/09/2026;
       // único diário do sistema desde 22/09/2026 (F8), quando o item de
       // menu do Diário antigo ("Diários de obra") foi removido daqui.

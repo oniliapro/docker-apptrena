@@ -111,6 +111,7 @@
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('medicaoFinanceira')" title="Quanto do contrato já foi pago/solicitado. Com Detalhar, separada em Empreiteiro e Reserva.">Medição financeira{{ setaOrdenacao(ordenacao(), 'medicaoFinanceira') }}</th>
             <th class="valor ordenavel" (click)="alternarOrdenacaoColuna('valorUltimaSolicitacao')">Valor da última solicitação{{ setaOrdenacao(ordenacao(), 'valorUltimaSolicitacao') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('ultimaSolicitacao')">Data da última solicitação{{ setaOrdenacao(ordenacao(), 'ultimaSolicitacao') }}</th>
+            <th class="centro">Status</th>
             <th class="centro">Ações</th>
           </tr>
         </thead>
@@ -256,13 +257,18 @@
                 }
               </td>
               <td class="centro">{{ formatarData(dataUltimaSolicitacao(empreita)) || '—' }}</td>
+              <td class="centro">
+                <span class="etiqueta-status" [class.pendente]="!contratoAssinado(empreita)">
+                  {{ contratoAssinado(empreita) ? 'Assinado' : 'Pendente' }}
+                </span>
+              </td>
               <td class="centro acoes-linha" (click)="$event.stopPropagation()">
                 <button type="button" title="Excluir" (click)="removerUm(empreita)">✖</button>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="12" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
+              <td colspan="13" class="centro atenuado">Nenhuma empreita cadastrada nesta obra ainda.</td>
             </tr>
           }
         </tbody>

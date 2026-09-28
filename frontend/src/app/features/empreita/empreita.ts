@@ -4,11 +4,11 @@ import { ApiService } from '../../core/services/api.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
-import { formatarMoeda } from '../../core/utils/formato';
+import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { AnexosLancamento } from '../../shared/anexos-lancamento/anexos-lancamento';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
-import { BarraFixa } from '../../shared/barra-fixa/barra-fixa';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
@@ -64,7 +64,7 @@ import { CabecalhoEmpreita, ItemEmpreita, LinhaEmpreitaEstendida, UnidadeMedicao
  */
 @Component({
   selector: 'app-empreita',
-  imports: [NavegacaoTabela, RedimensionarColunas, BarraFixa, Autocomplete, BarraSelecao, FormulaCampo],
+  imports: [NavegacaoTabela, RedimensionarColunas, Autocomplete, BarraSelecao, FormulaCampo, AnexosLancamento],
   providers: [EmpreitaStore, FormulasContexto],
   templateUrl: './empreita.html',
   styleUrl: './empreita.scss',
@@ -76,6 +76,7 @@ export class Empreita implements OnInit {
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
   protected readonly formatarMoeda = formatarMoeda;
+  protected readonly formatarData = formatarData;
   protected readonly tiposCusto = TIPOS_CUSTO;
 
   /** Empreiteiro por `<select>` (03/09/2026, pedido do Lucas) — só os ATIVOS do cadastro. */
@@ -274,6 +275,9 @@ export class Empreita implements OnInit {
     if (!window.confirm('Remover este serviço da empreita?')) return;
     this.store.removerItem(item.id);
   }
+
+  /** Popup "Contrato" (27/09/2026) — assinatura + anexo, fora do fluxo normal da tela pra não empurrar a tabela de serviços. */
+  protected readonly mostrarContrato = signal(false);
 
   // ---- PDF da Empreita: popup "O que mostrar" antes de gerar (25/09/2026) ----
   protected readonly chavesOpcoesPdf = CHAVES_OPCOES_PDF_EMPREITA;
