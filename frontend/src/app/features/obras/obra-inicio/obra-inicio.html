@@ -1,0 +1,5 @@
+<div class="grade-abas">
+  @for (aba of abas(); track aba.caminho) {
+    <a class="botao-aba" [routerLink]="aba.caminho">{{ aba.rotulo }}</a>
+  }
+</div>

@@ -34,28 +34,20 @@
   color: var(--cor-texto-suave);
 }
 
-// ---- Barra de abas ----
-.abas {
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--cor-borda);
-  margin-bottom: 18px;
-  overflow-x: auto;
+// ---- "Voltar para as abas" (28/09/2026, item 16) ----
+// Substitui a faixa horizontal de abas (`.abas`, removida — tinham virado
+// muitas e difíceis de navegar): a entrada da obra agora é uma grade de
+// botões (`ObraInicio`, caminho vazio) e cada aba ganha este link só de
+// volta pra ela, em vez de uma faixa inteira sempre visível.
+.link-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  text-decoration: none;
 
-  a {
-    padding: 10px 14px;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--cor-texto-suave);
-    text-decoration: none;
-    white-space: nowrap;
-    border-bottom: 2px solid transparent;
-
-    &:hover { color: var(--cor-texto); }
-
-    &.ativa {
-      color: var(--cor-primaria);
-      border-bottom-color: var(--cor-destaque);
-    }
-  }
+  &:hover { color: var(--cor-primaria); }
 }

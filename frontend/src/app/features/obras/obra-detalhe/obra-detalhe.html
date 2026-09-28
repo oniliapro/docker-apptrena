@@ -27,10 +27,8 @@
     (alternarConfirmacao)="alternarConfirmacao()" />
 }
 
-<nav class="abas">
-  @for (aba of abas(); track aba.caminho) {
-    <a [routerLink]="aba.caminho" routerLinkActive="ativa">{{ aba.rotulo }}</a>
-  }
-</nav>
+@if (dentroDeAba()) {
+  <a class="link-voltar" [routerLink]="['/obras', id()]">← Voltar para as abas</a>
+}
 
 <router-outlet />

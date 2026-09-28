@@ -2096,11 +2096,69 @@ AppTrena/
      + nome, por consistência, mas não mexi na fonte dele (usa Space
      Grotesk/IBM Plex Mono, fora do escopo — não é uma tela do produto).
 
-  Nada disso foi commitado nem publicado de propósito (pedido do Lucas: ele
-  quer poder desfazer fácil se achar algo errado) — é só revert simples
-  (`git checkout -- <arquivo>` nos arquivos alterados, ou apagar a pasta
-  `frontend/public/marca/` e os 2 ícones novos, que são arquivos novos, não
-  modificações). Verificado com `tsc --noEmit` (limpo), `php -l` nos 3
-  arquivos PHP tocados (limpo) e Playwright (login, dashboard, barra
-  recolhida, lista de obras — 4 telas, zero erro de console, cores/logo
-  batendo com o manual em cada uma).
+  Verificado com `tsc --noEmit` (limpo), `php -l` nos arquivos PHP tocados
+  (limpo) e Playwright (login, dashboard, barra recolhida, lista de obras,
+  PDF da EAP — zero erro de console, cores/logo/tipografia batendo com o
+  manual em cada uma). **Publicado em 28/09/2026** (commit `5389e03`,
+  junto com o favicon oficial de verdade que o Lucas gerou depois —
+  `ComTrena_Identidade_Visual/06_Favicons/`, com `.ico` multi-resolução +
+  `.svg` + `apple-touch-icon.png`, instalados em `frontend/public/`
+  exatamente como o `COMO-USAR.txt` da pasta pede; a pasta
+  `ComTrena_Identidade_Visual/` inteira entrou no commit, como referência
+  de onde vieram os arquivos usados em `frontend/public/marca/`).
+
+- **28/09/2026 — Itens 15 e 16 do lote de melhorias.** Ainda não publicado.
+
+  **Item 15 — layout da lista geral de Empreitas igual ao da aba da obra.**
+  A lista geral (`/empreitas`, menu lateral — `features/empreitas/`) era
+  uma versão antiga e simples, com Total/Pago sempre R$ 0,00 (lia campos
+  `total_empreita`/`total_pago` que o comentário do próprio código já
+  descrevia como "campos mortos, nunca gravados no banco"). A aba da obra
+  (`EmpreitasObra`, `features/empreita/empreitas-obra.ts`) já tinha a
+  conta certa há tempos, calculada a partir de `GET /empreitas/resumo` (por
+  obra) + pagamentos da obra. Reescrita a lista geral: mesma tabela,
+  colunas, barras de medição física/financeira, "Detalhar"
+  (Empreiteiro/Reserva), seleção múltipla e popup de "pagamentos
+  registrados" da aba — com uma coluna Obra a mais (mesma relação que a
+  página geral de Contratos de equipamentos tem com a aba, item 14). Como
+  o cálculo da aba depende só de duas listas (`resumoContrato`,
+  `pagamentosPorEmpreita`), não de qual obra é qual, bastou buscar as duas
+  POR OBRA (uma chamada por obra distinta entre as empreitas carregadas,
+  via `forkJoin`) e juntar tudo — os `computed()` que derivam Total/
+  Saldo/% medição são cópia fiel da aba, sem precisar mudar a fórmula.
+  Reaproveitado também `EmpreitaPagamentosPopup` (já recebe
+  `empreitaId`/`obraId` como input explícito — funciona igual cruzando
+  obras, sem mudança nenhuma nele). **Fora do escopo de propósito** (mesmo
+  raciocínio do item 14: "criar novo" só na aba de Contratos de
+  equipamentos): copiar solicitação/resumo pro WhatsApp, PDF do
+  profissional, lançar reservas, realizar medição, fechar período — pedem
+  a EAP de UMA obra só, e aqui a seleção pode cruzar várias; ficam só na
+  aba. "Nova empreita" continua na lista geral (não depende de EAP), agora
+  com um seletor de obra. De passagem, achado e corrigido um bug real: o
+  tipo `Pagamento` importado era o genérico de `core/models/api.models`
+  (`{ id: string; [campo]: unknown }`) em vez do forte de
+  `features/pagamentos/pagamentos.models.ts` — compilava limpo no `tsc`
+  isolado do projeto mas quebrava no build de verdade do Angular (mesma
+  lição de sempre: `tsc --noEmit` sozinho não é garantia, o build do
+  container é que vale).
+
+  **Item 16 — navegação da obra em grade.** Antes, clicar numa obra (lista
+  de Obras ou qualquer link) ia direto pra aba EAP, com uma faixa
+  horizontal de abas sempre visível — 14 abas, "difícil de navegar"
+  segundo o Lucas. Trocado: a lista `ABAS` (antes privada dentro de
+  `ObraDetalhe`) virou um arquivo à parte (`obra-abas.ts`, exporta
+  `ABAS_OBRA`), reaproveitado por um componente novo, `ObraInicio`
+  (`features/obras/obra-inicio/`) — uma grade de botões, um por aba, já
+  filtrada por permissão (mesmo filtro de sempre). Esse componente virou o
+  caminho vazio dentro de `obras/:id` (`app.routes.ts`, `abasDaObra`), no
+  lugar do antigo `redirectTo: 'eap'`; `Obras.acessar()` (clique na linha
+  da lista) parou de forçar `/eap` no fim do link, agora só
+  `/obras/:id`, caindo na grade. A faixa horizontal de abas saiu de
+  `ObraDetalhe` — no lugar, um link "← Voltar para as abas" aparece só
+  quando a rota filha atual não é a grade (`dentroDeAba`, um signal que
+  escuta `Router.events`/`NavigationEnd` e conta os segmentos da URL:
+  `obras/:id/algo` = dentro de aba, `obras/:id` sozinho = grade). Testado
+  via Playwright: grade mostra as 14 abas, clicar numa leva pra ela com o
+  link de voltar aparecendo, voltar leva de volta pra grade, e clicar numa
+  obra pela lista já cai direto na grade (não mais na EAP) — zero erro de
+  console em cada passo.

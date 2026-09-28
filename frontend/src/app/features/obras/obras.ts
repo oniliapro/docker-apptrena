@@ -197,9 +197,14 @@ export class Obras implements OnInit {
     this.busca.set((evento.target as HTMLInputElement).value);
   }
 
-  /** Clicar na linha abre a obra (20/08/2026, pedido do Lucas — tirou o botão "Acessar obra"). */
+  /**
+   * Clicar na linha abre a obra (20/08/2026, pedido do Lucas — tirou o
+   * botão "Acessar obra"). 28/09/2026, item 16: não pula mais direto pra
+   * EAP — cai na grade de botões (`ObraInicio`, caminho vazio dentro de
+   * `obras/:id`), pra escolher a aba.
+   */
   protected acessar(obra: Obra): void {
-    void this.router.navigate(['/obras', obra.id, 'eap']);
+    void this.router.navigate(['/obras', obra.id]);
   }
 
   // ---- Seleção múltipla (20/09/2026): clicar na linha abre a obra; marcar habilita "Abrir" (com 1) e "Excluir". ----

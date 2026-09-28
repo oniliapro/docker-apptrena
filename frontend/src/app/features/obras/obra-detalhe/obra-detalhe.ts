@@ -1,5 +1,7 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs/operators';
 
 import { Obra, ObraPayload, rotuloStatusObra } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
@@ -7,31 +9,10 @@ import { ArmazenamentoService } from '../../../core/services/armazenamento.servi
 import { PermissoesService } from '../../../core/services/permissoes.service';
 import { Cliente, Responsavel } from '../../cadastros/cadastros.models';
 import { CadastroObraModal, EventoSalvarObra } from '../cadastro-obra-modal/cadastro-obra-modal';
+import { ABAS_OBRA } from './obra-abas';
 
 const CHAVE_CLIENTES = 'controleObra.clientes.v1';
 const CHAVE_RESPONSAVEIS = 'controleObra.responsaveis.v1';
-
-/**
- * Abas da obra, na ordem do protótipo (obracontrol.html). `moduloChave`
- * ausente (só a EAP) = sempre visível — exceção de "Controle de
- * permissões" (31/08/2026): a EAP nunca some, mesmo sem `pode_usar`.
- */
-const ABAS = [
-  { caminho: 'eap', rotulo: 'EAP' },
-  { caminho: 'cronograma', rotulo: 'Cronograma', moduloChave: 'cronograma' },
-  { caminho: 'desembolso', rotulo: 'Cronograma de desembolso', moduloChave: 'desembolso' },
-  { caminho: 'medicoes', rotulo: 'Medições de Obra', moduloChave: 'medicoes' },
-  { caminho: 'empreitas', rotulo: 'Empreitas', moduloChave: 'empreitas' },
-  { caminho: 'mapas', rotulo: 'Mapas', moduloChave: 'mapas' },
-  { caminho: 'pagamentos', rotulo: 'Pagamentos', moduloChave: 'pagamentos' },
-  { caminho: 'recebimentos', rotulo: 'Recebimentos', moduloChave: 'recebimentos' },
-  { caminho: 'diarias', rotulo: 'Diárias', moduloChave: 'diarias' },
-  { caminho: 'agenda', rotulo: 'Agenda', moduloChave: 'agenda' },
-  { caminho: 'rdo', rotulo: 'RDO', moduloChave: 'diario_obra' },
-  { caminho: 'contratos-equipamentos', rotulo: 'Contratos de equipamentos', moduloChave: 'contratos_equipamentos' },
-  { caminho: 'relatorios', rotulo: 'Relatórios', moduloChave: 'relatorios' },
-  { caminho: 'arquivos', rotulo: 'Arquivos Anexados', moduloChave: 'arquivos' },
-] as const;
 
 /**
  * Página de uma obra — estrutura vinda do protótipo do Lucas.
@@ -55,13 +36,14 @@ const ABAS = [
  */
 @Component({
   selector: 'app-obra-detalhe',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CadastroObraModal],
+  imports: [RouterOutlet, RouterLink, CadastroObraModal],
   templateUrl: './obra-detalhe.html',
   styleUrl: './obra-detalhe.scss',
 })
 export class ObraDetalhe implements OnInit {
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
+  private readonly router = inject(Router);
   protected readonly permissoes = inject(PermissoesService);
 
   /** Vem da rota via withComponentInputBinding(). */
@@ -69,8 +51,30 @@ export class ObraDetalhe implements OnInit {
 
   /** "Controle de permissões" (31/08/2026) — some da navegação quem não tem `pode_usar`. */
   protected readonly abas = computed(() =>
-    ABAS.filter((aba) => !('moduloChave' in aba) || this.permissoes.podeModulo(aba.moduloChave, 'usar')),
+    ABAS_OBRA.filter((aba) => !aba.moduloChave || this.permissoes.podeModulo(aba.moduloChave, 'usar')),
   );
+
+  /**
+   * Dentro de uma aba (28/09/2026, item 16) — a tela de entrada da obra é
+   * a grade de botões (`ObraInicio`, caminho vazio); qualquer outro
+   * caminho filho é "dentro de uma aba", e ganha o botão "← Voltar" pra
+   * grade. Comparado por segmento (não string inteira) pra não prender a
+   * uma exatidão de barra final.
+   */
+  protected readonly dentroDeAba = toSignal(
+    this.router.events.pipe(
+      filter((evento): evento is NavigationEnd => evento instanceof NavigationEnd),
+      map(() => this.calcularDentroDeAba()),
+    ),
+    { initialValue: this.calcularDentroDeAba() },
+  );
+
+  private calcularDentroDeAba(): boolean {
+    const segmentos = this.router.url.split('?')[0].split('/').filter(Boolean);
+    // ['obras', ':id', ...resto] — "dentro de aba" quando sobra algo além do id.
+    return segmentos.length > 2;
+  }
+
   protected readonly obra = signal<Obra | null>(null);
   protected readonly carregando = signal(true);
   protected readonly erro = signal<string | null>(null);

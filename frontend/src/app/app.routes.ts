@@ -22,7 +22,14 @@ const reservada = (caminho: string, titulo: string) => ({
  * (/obras/:id/pagamentos), então dá para favoritar e compartilhar.
  */
 const abasDaObra: Routes = [
-  { path: '', redirectTo: 'eap', pathMatch: 'full' },
+  {
+    // Tela de entrada da obra (28/09/2026, item 16) — grade de botões pra
+    // escolher a aba, no lugar do antigo `redirectTo: 'eap'` (a faixa
+    // horizontal de abas tinha virado muitas e difícil de navegar). Cada
+    // aba ganha um "← Voltar" pra cá (`ObraDetalhe.dentroDeAba`).
+    path: '',
+    loadComponent: () => import('./features/obras/obra-inicio/obra-inicio').then((m) => m.ObraInicio),
+  },
   {
     // EAP — exceção de "Controle de permissões" (31/08/2026): sempre
     // visível a quem tem acesso à obra (o guard de obra já roda no pai,
