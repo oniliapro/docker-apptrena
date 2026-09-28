@@ -29,30 +29,23 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/** Quadrado vazado com miolo âmbar — assinatura visual do protótipo. */
-.quadrado {
-  width: 18px;
-  height: 18px;
+// Logomarca oficial (28/09/2026, manual de identidade) — antes era um
+// quadrado desenhado em CSS + o texto "AppTrena", sem relação com a marca
+// ComTrena. Fundo da barra lateral é `--cor-primaria-escura` (#12262F):
+// usa as versões feitas pra esse fundo. Completa com o menu aberto (cabe
+// de sobra na largura da barra); só o símbolo quando recolhido, porque a
+// versão horizontal não cabe nos 60px da barra recolhida.
+.logomarca-marca {
+  height: 24px;
+  width: auto;
   flex-shrink: 0;
-  border: 2px solid var(--cor-destaque);
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 3px;
-    background: var(--cor-destaque);
-  }
 }
 
-.marca-texto {
-  font-family: var(--fonte-titulo);
-  font-weight: 700;
-  font-size: 15px;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.simbolo-marca {
+  display: none;
+  width: 15px;
+  height: auto;
+  flex-shrink: 0;
 }
 
 // ---- Navegação ----
@@ -258,12 +251,12 @@
   .barra-lateral { width: var(--barra-lateral-largura-recolhida); }
   .barra-topo { left: var(--barra-lateral-largura-recolhida); }
   .conteudo { margin-left: var(--barra-lateral-largura-recolhida); }
-  .marca-texto,
+  .logomarca-marca { display: none; }
+  .simbolo-marca { display: block; }
   .nav-texto,
   .seta,
   .submenu,
-  .caixa-plano,
-  .quadrado { display: none; }
+  .caixa-plano { display: none; }
 }
 
 @media (max-width: 860px) {
@@ -273,12 +266,12 @@
     margin-left: var(--barra-lateral-largura-recolhida);
     padding: calc(var(--barra-topo-altura) + 12px) 10px 16px;
   }
-  .marca-texto,
+  .logomarca-marca { display: none; }
+  .simbolo-marca { display: block; }
   .nav-texto,
   .seta,
   .submenu,
-  .caixa-plano,
-  .quadrado { display: none; }
+  .caixa-plano { display: none; }
 }
 
 // ---- Botões e menu do usuário ----

@@ -218,14 +218,12 @@ button:disabled {
 .col-acoes { width: 84px; }
 
 // "Assinatura" de origem do documento (17/08/2026, pedido do Lucas) —
-// empresa dona da conta + AppTrena, nas 6 primeiras colunas do
-// cabeçalho, que sobravam em branco. Sem logo de verdade cadastrado
-// ainda (nem da empresa, nem um arquivo de imagem do próprio AppTrena no
-// repositório) — o "logo" da empresa é um monograma com a inicial do
-// nome (mesmo recurso que apps como Slack/Notion usam até ter uma
-// imagem de verdade), e o do AppTrena reaproveita o quadrado
-// vazado/âmbar que já é a marca dele na barra lateral (`.quadrado` em
-// `app-shell.scss`), pra não inventar um símbolo novo.
+// empresa dona da conta + ComTrena, nas 6 primeiras colunas do
+// cabeçalho, que sobravam em branco. O "logo" da empresa é um monograma
+// com a inicial do nome (mesmo recurso que apps como Slack/Notion usam
+// até ter uma imagem de verdade); o do ComTrena usa o símbolo oficial
+// (28/09/2026, manual de identidade — antes era um quadrado vazado/âmbar
+// desenhado em CSS, sem relação com a marca).
 .assinatura-documento {
   text-align: left;
   vertical-align: middle;
@@ -261,21 +259,10 @@ button:disabled {
   font-weight: 700;
 }
 
-// Mesmo desenho do "logo" do AppTrena na barra lateral — quadrado vazado
-// com miolo âmbar (`.quadrado` em `app-shell.scss`).
-.quadrado-sistema {
+.simbolo-sistema {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--cor-destaque);
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 3px;
-    background: var(--cor-destaque);
-  }
+  width: 12px;
+  height: auto;
 }
 
 .nome-marca {

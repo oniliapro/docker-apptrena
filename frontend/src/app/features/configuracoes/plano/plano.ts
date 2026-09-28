@@ -5,7 +5,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { diasRestantes, formatarData } from '../../../core/utils/formato';
 
 /**
- * Número de atendimento do AppTrena, pro botão "Solicitar atendimento"
+ * Número de atendimento do ComTrena, pro botão "Solicitar atendimento"
  * abrir um chat do WhatsApp já com a mensagem preenchida (28/08/2026,
  * pedido do Lucas). É um link `wa.me` — não é envio automático, quem abre
  * a tela ainda precisa clicar "Enviar" no WhatsApp; não exige nenhuma

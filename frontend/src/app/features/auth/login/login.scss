@@ -28,32 +28,12 @@
   }
 }
 
+// Logomarca oficial (28/09/2026, manual de identidade) — antes era um
+// quadrado em CSS + "APPTRENA" digitado à mão. Fundo aqui é
+// `--cor-primaria` (#1B3A4B): usa a versão da logomarca feita pra esse
+// fundo (a #12262F é pra fundos mais escuros ainda, como a barra lateral).
 .marca-lado {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .quadrado {
-    width: 26px;
-    height: 26px;
-    border: 2px solid var(--cor-destaque);
-    position: relative;
-    flex-shrink: 0;
-
-    &::after {
-      content: '';
-      position: absolute;
-      inset: 5px;
-      background: var(--cor-destaque);
-    }
-  }
-
-  span:last-child {
-    font-family: var(--fonte-titulo);
-    font-weight: 700;
-    font-size: 19px;
-    letter-spacing: 0.02em;
-  }
+  .logo-marca-lado { height: 26px; width: auto; display: block; }
 }
 
 .discurso {
@@ -124,15 +104,9 @@
   padding: 28px 26px;
 }
 
-.marca {
-  font-family: var(--fonte-titulo);
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--cor-destaque);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
+// Logomarca oficial sobre o cartão claro (28/09/2026) — antes era o texto
+// "AppTrena" em âmbar maiúsculo.
+.logo-marca-cartao { height: 22px; width: auto; display: block; margin-bottom: 16px; }
 
 h1 { font-size: 21px; margin: 0 0 4px; }
 

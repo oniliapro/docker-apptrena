@@ -37,10 +37,13 @@
   margin-bottom: 5mm;
 }
 
+// Michroma (28/09/2026, manual de identidade) — título do documento
+// ("Mapa de Cotação"), caixa alta com espaçamento aberto.
 .logo-texto {
-  font-family: var(--fonte-titulo);
-  font-size: 18px;
-  font-weight: 700;
+  font-family: var(--fonte-documento-titulo);
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--cor-primaria);
 }
 

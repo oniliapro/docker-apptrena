@@ -16,15 +16,9 @@
   padding: 28px 26px;
 }
 
-.marca {
-  font-family: var(--fonte-titulo);
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--cor-destaque);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
+// Logomarca oficial (28/09/2026, manual de identidade) — antes era o
+// texto "AppTrena" em âmbar maiúsculo.
+.logo-marca-cartao { height: 22px; width: auto; display: block; margin-bottom: 16px; }
 
 h1 { font-size: 21px; margin: 0 0 4px; }
 

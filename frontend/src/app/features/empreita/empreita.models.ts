@@ -17,7 +17,7 @@ import { ChaveTipo } from '../eap/eap.models';
  * do orçado, só exibe o orçado como referência.
  *
  * `contratoReserva` é a **reserva discricionária** — o diferencial do
- * AppTrena. Em vez de calcular a retenção como percentual fixo atrelado
+ * ComTrena. Em vez de calcular a retenção como percentual fixo atrelado
  * ao avanço físico, o valor é lançado manualmente por serviço, o que
  * permite usar a reserva de uma obra para cobrir um problema em outra.
  */

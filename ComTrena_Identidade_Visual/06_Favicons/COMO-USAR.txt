@@ -1,0 +1,15 @@
+ComTrena · Favicons (T com feixe)
+
+Coloque os arquivos na raiz do site e adicione no <head>:
+
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+No manifest.webmanifest (PWA): android-chrome-192.png e android-chrome-512.png.
+
+Os tamanhos 16 e 32 px usam o T com traço reforçado e degradê mais curto,
+para continuar legível na aba do navegador. De 180 px para cima o traço é
+o mesmo do logotipo.
+
+Alternativas: fundo transparente, fundo escuro (barra clara) e fundo branco.

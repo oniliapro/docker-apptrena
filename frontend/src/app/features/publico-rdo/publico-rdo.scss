@@ -2,7 +2,7 @@
   Página do contratante da obra.
 
   Visual próprio, mais leve que o do sistema: quem abre não é usuário do
-  AppTrena, é o dono da obra abrindo um link no celular. Sem barra lateral,
+  ComTrena, é o dono da obra abrindo um link no celular. Sem barra lateral,
   sem menu, sem nada que sugira que há algo para editar.
 
   O calendário segue o modelo do Google Calendário (pedido nº 15, 15/09/2026),
@@ -14,7 +14,7 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 1rem 1rem 4rem;
-  color: var(--cor-texto, #1f2724);
+  color: var(--cor-texto, #1b3a4b);
 }
 
 .topo {
@@ -29,24 +29,20 @@
   }
 }
 
-.marca {
-  margin: 0;
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--cor-texto-suave, #5b6560);
-}
+// Logomarca oficial (28/09/2026, manual de identidade) — antes era o
+// texto "ComTrena" simples.
+.logo-marca { height: 16px; width: auto; display: block; }
 
 .local {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
 }
 
 .aviso {
   padding: 2rem 1rem;
   text-align: center;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
 }
 
 .aviso-erro {
@@ -59,7 +55,7 @@
 
 .calendario {
   background: var(--cor-superficie, #fff);
-  border: 1px solid var(--cor-borda, #dadcd5);
+  border: 1px solid var(--cor-borda, #baced5);
   border-radius: 4px;
   padding: 0.75rem;
 }
@@ -82,7 +78,7 @@
     line-height: 1;
     width: 36px;
     height: 36px;
-    border: 1px solid var(--cor-borda, #dadcd5);
+    border: 1px solid var(--cor-borda, #baced5);
     border-radius: 3px;
     background: var(--cor-superficie, #fff);
     color: var(--cor-primaria, #1b3a4b);
@@ -94,18 +90,18 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
-  background: var(--cor-borda, #dadcd5);
-  border: 1px solid var(--cor-borda, #dadcd5);
+  background: var(--cor-borda, #baced5);
+  border: 1px solid var(--cor-borda, #baced5);
 }
 
 .cabecalho-dia {
-  background: var(--cor-fundo-alt, #eceee8);
+  background: var(--cor-fundo-alt, #d1dfe3);
   padding: 0.35rem 0.2rem;
   text-align: center;
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
 }
 
 .celula {
@@ -117,14 +113,14 @@
   gap: 0.2rem;
 
   &.fora {
-    background: var(--cor-fundo, #f5f6f3);
+    background: var(--cor-fundo, #dde7ea);
     .numero { opacity: 0.4; }
   }
 }
 
 .numero {
   font-size: 0.75rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
   font-variant-numeric: tabular-nums;
 }
 
@@ -149,7 +145,7 @@
 .legenda {
   margin: 0.6rem 0 0;
   font-size: 0.72rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -194,14 +190,14 @@
   height: 34px;
   font-size: 1.2rem;
   line-height: 1;
-  border: 1px solid var(--cor-borda, #dadcd5);
+  border: 1px solid var(--cor-borda, #baced5);
   border-radius: 3px;
   background: var(--cor-superficie, #fff);
   cursor: pointer;
 }
 
 .modal-topo {
-  border-bottom: 1px solid var(--cor-borda, #dadcd5);
+  border-bottom: 1px solid var(--cor-borda, #baced5);
   padding-bottom: 0.6rem;
   margin-bottom: 0.75rem;
 
@@ -216,7 +212,7 @@
 .modal-data {
   margin: 0.15rem 0 0;
   font-size: 0.85rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
   font-variant-numeric: tabular-nums;
 }
 
@@ -230,20 +226,20 @@
 .impacto {
   margin: 0 0 0.5rem;
   font-size: 0.82rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
 }
 
 .bloco {
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--cor-borda, #dadcd5);
+  border-top: 1px solid var(--cor-borda, #baced5);
 
   h3 {
     margin: 0 0 0.5rem;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--cor-texto-suave, #5b6560);
+    color: var(--cor-texto-suave, #4a7a94);
   }
 
   p { margin: 0.25rem 0; font-size: 0.88rem; line-height: 1.45; }
@@ -255,8 +251,8 @@
   font-size: 0.7rem;
   padding: 0.15rem 0.45rem;
   border-radius: 3px;
-  background: var(--cor-fundo-alt, #eceee8);
-  border: 1px solid var(--cor-borda, #dadcd5);
+  background: var(--cor-fundo-alt, #d1dfe3);
+  border: 1px solid var(--cor-borda, #baced5);
 
   &.concluida {
     background: var(--cor-sucesso-bg, #e4eee3);
@@ -267,7 +263,7 @@
 
 .tarefa {
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--cor-borda, #dadcd5);
+  border-bottom: 1px solid var(--cor-borda, #baced5);
 
   &:last-child { border-bottom: none; }
 }
@@ -288,7 +284,7 @@
   figcaption {
     margin-top: 0.2rem;
     font-size: 0.66rem;
-    color: var(--cor-texto-suave, #5b6560);
+    color: var(--cor-texto-suave, #4a7a94);
     line-height: 1.25;
     word-break: break-word;
   }
@@ -300,7 +296,7 @@
   height: 78px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--cor-borda-forte, #c9ccc4);
+  border: 2px solid var(--cor-borda-forte, #a6c0c8);
 
   img, video { width: 100%; height: 100%; object-fit: cover; display: block; }
 }
@@ -340,14 +336,14 @@
   th, td {
     text-align: left;
     padding: 0.3rem 0.4rem;
-    border-bottom: 1px solid var(--cor-borda, #dadcd5);
+    border-bottom: 1px solid var(--cor-borda, #baced5);
   }
 
   th {
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--cor-texto-suave, #5b6560);
+    color: var(--cor-texto-suave, #4a7a94);
   }
 
   .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -359,7 +355,7 @@
   display: inline-block;
   margin-left: 0.5rem;
   font-size: 0.72rem;
-  color: var(--cor-texto-suave, #5b6560);
+  color: var(--cor-texto-suave, #4a7a94);
 }
 
 /* ---------- Foto ampliada ---------- */
@@ -383,7 +379,7 @@
 }
 
 .foto-legenda { margin: 0.6rem 0 0; font-size: 0.9rem; }
-.foto-nota { margin: 0.2rem 0 0; font-size: 0.78rem; color: var(--cor-texto-suave, #5b6560); }
+.foto-nota { margin: 0.2rem 0 0; font-size: 0.78rem; color: var(--cor-texto-suave, #4a7a94); }
 
 /* ---------- Celular ---------- */
 

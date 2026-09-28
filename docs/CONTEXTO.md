@@ -1985,3 +1985,122 @@ AppTrena/
   em 3 momentos (topo, rolado até o fim, rolado por dentro da caixa até o
   rodapé) — cabeçalho da tabela sempre colado exatamente na barra de topo,
   sem sobreposição, sem espaço sobrando. Ainda não publicado.
+
+- **28/09/2026 — Varredura de identidade visual (ComTrena).** O Lucas anexou
+  `ComTrena_Identidade_Visual/` (manual de identidade v1.0 + logos/símbolos
+  oficiais em SVG/PNG) e pediu pra varrer o sistema inteiro procurando o que
+  estava fora do padrão e corrigir. Ainda não publicado (fica pendente, a
+  pedido dele, até confirmar visualmente).
+
+  **Achados e correções**:
+  1. **Cores** (`frontend/src/styles/_tokens.scss`) — as 5 cores oficiais
+     (`--cor-primaria` #1B3A4B, `--cor-primaria-escura` #12262F,
+     `--cor-primaria-clara` #DDE7EA, `--cor-aco` #4A7A94, `--cor-destaque`
+     #E8A33D) já estavam certas. O que estava errado eram os tons NEUTROS
+     (fundo da página, texto padrão, bordas, zebra de tabela): vinham de uma
+     paleta anterior, "ObraCerta" (cinzas meio esverdeados, o próprio
+     comentário do arquivo já dizia isso), sem nenhuma relação com o
+     ComTrena. Recalculados a partir da própria `--cor-primaria-clara`
+     (mesmo matiz, só variando luminosidade) — `--cor-fundo`/`--cor-texto`
+     agora reaproveitam direto `--cor-primaria-clara`/`--cor-primaria`,
+     `--cor-texto-suave` reaproveita `--cor-aco` (o manual usa essa cor
+     tanto pra "detalhes" quanto pra legendas — não tem um cinza neutro à
+     parte na paleta oficial). `--cor-sucesso`/`--cor-perigo`/`--cor-alerta`
+     ficaram de propósito FORA da troca — o manual não cobre cores de
+     status, e verde/vermelho de sucesso/erro são convenção universal de
+     UI, brand-agnóstica. Como esses tokens já cascateiam pra ~166+
+     referências em toda a tela, um arquivo só resolveu o app inteiro —
+     confirmado por captura de tela (login, menu, dashboard, lista de
+     obras) e nenhum erro de console.
+  2. **Nome errado em todo canto**: "AppTrena" (às vezes "APPTRENA") em ~25
+     arquivos — barra lateral, telas de login/cadastro, cabeçalho de PDF
+     (fallback sem logo cadastrada), rodapé de todos os PDFs (Mapa, EAP,
+     Empreita, Medição, Cronograma, Relatórios, RDO), a página pública do
+     RDO que o contratante recebe por link, o e-mail de aviso de RDO novo
+     (`RdoDisponivel`/`rdo-disponivel.blade.php` — inclusive no ASSUNTO do
+     e-mail) e até o `APP_NAME` do Laravel (`.env.example` estava
+     `APP_NAME=Laravel`, o padrão nunca trocado — vira o nome do
+     remetente dos e-mails). Tudo trocado pra "ComTrena". **Pendência que
+     não dá pra resolver por aqui**: o `.env` local já tem
+     `APP_NAME=ControleObra` (outro nome antigo, diferente até de
+     "AppTrena") e o `.env` de produção no VPS provavelmente tem
+     `APP_NAME=Laravel` ainda — nenhum dos dois é versionado, o Lucas
+     precisa trocar à mão se quiser (`APP_NAME=ComTrena` em cada um).
+  3. **Nenhuma logo de verdade em lugar nenhum**: login, cadastro, barra
+     lateral e a "assinatura" de rodapé do Mapa usavam um quadrado
+     desenhado em CSS (borda âmbar, miolo âmbar) no lugar de logo — sem
+     nenhuma imagem de marca de verdade no repositório até este pedido.
+     Copiados os SVG oficiais do manual pra `frontend/public/marca/`
+     (logomarca horizontal em 3 versões de fundo + símbolo isolado em 2) e
+     trocado em: barra lateral (símbolo, fundo escuro — E também passou a
+     aparecer com a barra recolhida, que antes escondia TUDO, sem logo
+     nenhuma), tela de login (logomarca completa dos dois lados), tela de
+     cadastro, assinatura do rodapé do Mapa (símbolo pequeno) e a página
+     pública do RDO do contratante. Favicon trocado também — o
+     `favicon.ico` antigo (13/08, sem relação com a marca) saiu. Primeira
+     versão foi um PNG avulso (não tinha ferramenta de conversão pra .ico
+     nem essa pasta ainda existia); **28/09/2026, o Lucas gerou e anexou o
+     pacote oficial de favicons** (`ComTrena_Identidade_Visual/06_Favicons/`,
+     com `COMO-USAR.txt` próprio) — trocado pro pacote de verdade:
+     `favicon.ico` (multi-resolução, 16/32px com o traço do T reforçado pra
+     continuar legível pequeno) + `favicon.svg` (nítido em qualquer
+     tamanho) + `apple-touch-icon.png`, instalados em `frontend/public/`
+     exatamente como o `COMO-USAR.txt` pede.
+     **28/09/2026, pedido seguinte do Lucas**: no menu lateral, a logomarca
+     ISOLADA (só o símbolo) virou a logomarca COMPLETA (símbolo + "COMTRENA"
+     + "CONTROLE DE OBRAS") quando o menu está aberto — tem espaço de sobra
+     na largura de 224px. Com o menu recolhido (60px) continua só o
+     símbolo, porque a versão horizontal não cabe; antes das duas versões
+     coexistirem, era só um `<img>` com o símbolo + `<span>` de texto ao
+     lado, viraram dois `<img>` (`.logomarca-marca` / `.simbolo-marca`),
+     um escondendo o outro conforme o estado do menu.
+  4. **Tipografia**: `--fonte-titulo`/`--fonte-mono` continuam só Inter na
+     TELA do app — essa é uma decisão de 19/09/2026 já deliberada ("uma
+     fonte só"), e o manual, lido com calma, não contradiz isso: a seção de
+     tipografia dele reserva Michroma pra "títulos de documentos, rótulos"
+     (ou seja, os PDFs — o corpo de relatório/diário/proposta que ele lista
+     continua Inter). Criado o token `--fonte-documento-titulo: "Michroma",
+     ...`, carregado via Google Fonts em `index.html`. **28/09/2026,
+     aplicado a pedido do Lucas**: em vez de mexer nos 7 modelos de PDF
+     igual, cada um tem seu próprio elemento de "título do documento", sem
+     uma classe em comum — achei os 4 pontos de verdade e apliquei em cada
+     um (`font-family` + `text-transform: uppercase` + `letter-spacing`,
+     igual o manual pede): `.subtitulo` do `cabecalho-impressao`
+     (compartilhado por EAP/Empreita/Cronograma/Relatórios/Medição — é o
+     texto tipo "EAP — Estrutura Analítica do Projeto" embaixo do nome da
+     empresa), `.logo-texto` do `mapa-imprimir` ("Mapa de Cotação", que
+     NÃO usa o `cabecalho-impressao` compartilhado — tem cabeçalho
+     próprio), `.titulo-medicao` do `medicao-imprimir` ("Medição nº X" —
+     a etiqueta de status dentro do título ficou de fora, de propósito,
+     continua na fonte normal, não é texto de título) e
+     `.documento-titulo` do `rdo-imprimir` ("Relatório Diário de Obra" —
+     esse já estava em caixa alta com espaçamento certo, só faltava a
+     fonte). O nome da EMPRESA cliente (`.logo-texto` do
+     `cabecalho-impressao`, diferente do `.logo-texto` do mapa) e o nome
+     da obra (`<h1>` do `relatorios-imprimir`) ficaram de fora de
+     propósito — são dado do cliente, não rótulo do ComTrena. Confirmado
+     por captura de tela do PDF da EAP: título em caixa alta, fonte
+     display, cor `--cor-aco`, bem diferente do nome da empresa ao lado
+     (que continua Inter). Rótulos pequenos de campo (tipo "OBRA"/"DATA"
+     dentro dos formulários dos PDFs) não foram tocados — o manual também
+     pede Michroma neles, mas são muitos elementos espalhados sem padrão
+     em comum; fica como possível próximo passo, não pedido ainda.
+  5. **Cores fora do padrão "escondidas" em fallback**: alguns arquivos
+     (`publico-rdo.scss`, `rdo-imprimir.scss`, `status.html`, o e-mail de
+     RDO) tinham a cor antiga HARDCODED como valor de fallback dentro de
+     `var(--cor-x, #hex)`, ou (no caso do e-mail, que não pode usar CSS var
+     nenhuma) direto no HTML — corrigidos pro valor novo também, senão
+     ficariam divergentes do resto do sistema mesmo com os tokens certos.
+  6. `frontend/public/status.html` (painel interno de andamento do
+     desenvolvimento, não é tela do sistema) recebeu o mesmo ajuste de cor
+     + nome, por consistência, mas não mexi na fonte dele (usa Space
+     Grotesk/IBM Plex Mono, fora do escopo — não é uma tela do produto).
+
+  Nada disso foi commitado nem publicado de propósito (pedido do Lucas: ele
+  quer poder desfazer fácil se achar algo errado) — é só revert simples
+  (`git checkout -- <arquivo>` nos arquivos alterados, ou apagar a pasta
+  `frontend/public/marca/` e os 2 ícones novos, que são arquivos novos, não
+  modificações). Verificado com `tsc --noEmit` (limpo), `php -l` nos 3
+  arquivos PHP tocados (limpo) e Playwright (login, dashboard, barra
+  recolhida, lista de obras — 4 telas, zero erro de console, cores/logo
+  batendo com o manual em cada uma).

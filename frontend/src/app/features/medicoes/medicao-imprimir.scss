@@ -29,12 +29,20 @@
   text-align: center;
 }
 
+// Michroma (28/09/2026, manual de identidade) — título do documento,
+// caixa alta com espaçamento aberto. A etiqueta de status dentro do
+// título continua na fonte normal (badge, não é título).
 .titulo-medicao {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0 0 10px;
-  font-size: 15px;
+  font-family: var(--fonte-documento-titulo);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+
+  .etiqueta-status { font-family: var(--fonte); text-transform: none; letter-spacing: normal; }
 }
 
 // ---- Ajustes de papel sobre o que veio de medicao.scss ----

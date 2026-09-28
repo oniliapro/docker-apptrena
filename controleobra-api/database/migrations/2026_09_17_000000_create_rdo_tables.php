@@ -36,7 +36,7 @@ return new class extends Migration
         /**
          * Cabeçalho técnico do RDO, por obra. Complementa `obras` sem alterá-la:
          * contrato, responsável técnico, CREA e ART são exigências do documento
-         * que o cadastro de obra do AppTrena não tem (e que não cabe a este
+         * que o cadastro de obra do ComTrena não tem (e que não cabe a este
          * módulo acrescentar lá, para não mexer nos outros módulos).
          */
         Schema::create('rdo_obra_dados', function (Blueprint $table) {

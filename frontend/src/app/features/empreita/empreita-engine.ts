@@ -25,7 +25,7 @@
  * EAP continua calculado aqui (`orcado`), mas só como referência de
  * comparação na tela — não entra mais na conta de quanto pagar.
  *
- * A **reserva discricionária** é o diferencial do AppTrena: em vez de
+ * A **reserva discricionária** é o diferencial do ComTrena: em vez de
  * uma retenção percentual fixa, é um valor lançado à mão por serviço,
  * que acompanha o avanço mas pode ser dimensionado caso a caso — e usado
  * para cobrir problema em outra obra.

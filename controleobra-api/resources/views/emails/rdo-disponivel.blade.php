@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><title>Novo relatório diário disponível</title></head>
-<body style="margin:0;padding:24px;background:#f5f6f3;font-family:Arial,Helvetica,sans-serif;color:#1f2724;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dadcd5;border-radius:4px;padding:28px;">
-    <p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#5b6560;">AppTrena</p>
+<body style="margin:0;padding:24px;background:#dde7ea;font-family:Arial,Helvetica,sans-serif;color:#1b3a4b;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #baced5;border-radius:4px;padding:28px;">
+    <p style="margin:0 0 4px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#4a7a94;">ComTrena</p>
     <h1 style="margin:0 0 18px;font-size:20px;color:#1b3a4b;">
       Relatório Diário de Obra nº {{ $rdo->numero }}
     </h1>
@@ -25,7 +25,7 @@
       </a>
     </p>
 
-    <p style="margin:0;font-size:12px;line-height:1.5;color:#5b6560;border-top:1px solid #dadcd5;padding-top:16px;">
+    <p style="margin:0;font-size:12px;line-height:1.5;color:#4a7a94;border-top:1px solid #baced5;padding-top:16px;">
       Se o botão não funcionar, copie este endereço no navegador:<br>
       <span style="word-break:break-all;">{{ $linkPublico }}</span>
     </p>

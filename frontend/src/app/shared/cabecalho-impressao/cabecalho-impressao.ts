@@ -8,10 +8,10 @@ import { formatarDataHora } from '../../core/utils/formato';
  * Cabeçalho compartilhado dos PDFs (26/08/2026, pedido do Lucas: "aplicar
  * logo/cores/papel timbrado nos PDFs existentes") — até aqui, EAP, Mapa,
  * Empreita, Medição, Cronograma de Desembolso e Relatórios duplicavam o
- * mesmo `<header class="folha-cabecalho">` com "AppTrena" fixo; extraído
+ * mesmo `<header class="folha-cabecalho">` com "ComTrena" fixo; extraído
  * pra um componente único pra não repetir a lógica de logo 6 vezes.
  *
- * Sem logomarca cadastrada, cai pro texto "AppTrena" (comportamento
+ * Sem logomarca cadastrada, cai pro texto "ComTrena" (comportamento
  * anterior — nenhuma empresa que ainda não configurou o perfil vê
  * diferença). 28/08/2026, pedido do Lucas: aplicar só a logomarca, não a
  * `corPrimaria` — a cor de destaque do cabeçalho fica sempre a padrão do

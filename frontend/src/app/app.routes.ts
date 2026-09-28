@@ -252,7 +252,7 @@ export const routes: Routes = [
     // `publico/diario/:token`, foi retirada daqui — os links antigos param
     // de abrir, mas nada foi apagado do banco, ver `MigrarDiarioParaRdo`).
     // Mesmo regime: fora do AppShell e sem authGuard, porque quem abre é o
-    // dono da obra, que não tem conta no AppTrena. Somente leitura.
+    // dono da obra, que não tem conta no ComTrena. Somente leitura.
     path: 'publico/rdo/:token',
     loadComponent: () => import('./features/publico-rdo/publico-rdo').then((m) => m.PublicoRdo),
   },

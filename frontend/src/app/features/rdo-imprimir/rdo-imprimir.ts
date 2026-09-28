@@ -16,7 +16,7 @@ import { RdoService } from '../rdo/rdo.service';
  * O layout traz todos os campos da planilha-modelo de RDO que o mercado usa
  * (cabeçalho com contrato/CREA/ART, nº do relatório, clima por turno, mão de
  * obra interna e externa, equipamentos, tarefas numeradas, ocorrências e o
- * bloco de assinaturas), mas na identidade visual do AppTrena — foi a escolha
+ * bloco de assinaturas), mas na identidade visual do ComTrena — foi a escolha
  * da Onilia em 17/09/2026: mesmos campos, layout próprio.
  *
  * O bloco de assinaturas traz três linhas, como o documento do mercado, mas só

@@ -1,6 +1,6 @@
 <!--
   Documento RDO em A4. Campos da planilha-modelo do mercado, identidade
-  visual do AppTrena (decisão da Onilia, 17/09/2026).
+  visual do ComTrena (decisão da Onilia, 17/09/2026).
 -->
 
 @if (rdo(); as r) {
@@ -13,7 +13,7 @@
           <img class="logo" [src]="logo" alt="">
         }
         <div>
-          <p class="empresa-nome">{{ empresa()?.razaoSocial || empresa()?.nome || 'AppTrena' }}</p>
+          <p class="empresa-nome">{{ empresa()?.razaoSocial || empresa()?.nome || 'ComTrena' }}</p>
           @if (empresa()?.endereco) { <p class="empresa-linha">{{ empresa()?.endereco }}</p> }
           @if (empresa()?.emailContato) { <p class="empresa-linha">{{ empresa()?.emailContato }}</p> }
           @if (empresa()?.cnpj) { <p class="empresa-linha">CNPJ {{ empresa()?.cnpj }}</p> }
@@ -314,7 +314,7 @@
 
     <footer class="rodape">
       <span>{{ r.obra?.obra_nome }} — RDO nº {{ numeroFormatado() }} — {{ r.data | date: 'dd/MM/yyyy' }}</span>
-      <span>Gerado pelo AppTrena</span>
+      <span>Gerado pelo ComTrena</span>
     </footer>
 
     <!--

@@ -1,0 +1,25 @@
+ComTrena · Arquivos da identidade visual
+
+Cada peça vem em SVG (vetor, para qualquer tamanho e para gráficas) e PNG com fundo transparente
+(exceto ícones e WhatsApp, que já vêm com fundo).
+
+Grafia: ComTrena, sempre com M. No logotipo, o COM fica em tom mais leve:
+#4A7A94 no fundo claro, #DDE7EA a 60% no fundo escuro, mesma tinta nas monocromáticas.
+
+01_Logomarca_horizontal  Símbolo + nome. "para-fundo-claro" é a versão principal.
+                         "registro-uniforme" tem o T sem degradê, para registro de marca.
+02_Simbolo               A trena a laser isolada.
+03_Logotipo              Só o nome COMTRENA / CONTROLE DE OBRAS.
+04_Monocromaticas        Logomarca, símbolo e logotipo em uma só cor (preto, branco,
+                         primária e secundária), com vazados transparentes.
+05_Icones_app            Ícones de 1024 px (quadrado cheio: as lojas aplicam os cantos),
+                         versão arredondada, Android 512/192 e apple-touch-icon 180.
+06_Favicons              favicon.ico (16, 32, 48, 64), favicon.svg e PNGs.
+07_Cores                 Paleta em texto, CSS e imagem.
+08_WhatsApp              Foto de grupo 1080 × 1080 px, com a logomarca dentro do círculo
+                         que o WhatsApp recorta. Horizontal e vertical, fundo escuro e claro.
+
+Fontes (gratuitas, Google Fonts): Audiowide (base do logotipo), Michroma (títulos e rótulos),
+Inter (app e textos). O logotipo já está convertido em curvas: não precisa das fontes instaladas.
+
+Regras de uso, área de proteção e tamanhos mínimos: veja o manual em PDF nesta pasta.

@@ -33,7 +33,7 @@ class RdoDisponivel extends Mailable
 
     public function build(): self
     {
-        $obra = $this->rdo->obra?->obra_nome ?? 'AppTrena';
+        $obra = $this->rdo->obra?->obra_nome ?? 'ComTrena';
 
         return $this
             ->subject("Relatório Diário de Obra nº {$this->rdo->numero} — {$obra}")

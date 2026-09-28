@@ -24,7 +24,7 @@ interface RespostaPublica {
  * Acompanhamento do contratante da obra (cliente final).
  *
  * Fora do AppShell e sem authGuard — quem abre é o dono da obra, que não tem
- * conta no AppTrena. O token do link é a única credencial.
+ * conta no ComTrena. O token do link é a única credencial.
  *
  * SOMENTE LEITURA, sem exceção: não há nenhum botão de escrever, e o
  * contratante não assina nada (decisão de 08/09/2026, reconfirmada em

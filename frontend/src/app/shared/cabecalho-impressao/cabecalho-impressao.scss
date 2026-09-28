@@ -39,10 +39,15 @@
   object-fit: contain;
 }
 
+// Michroma (28/09/2026, manual de identidade): "títulos de documentos,
+// rótulos... sempre em caixa alta e com espaçamento aberto (8% a 15%)".
 .subtitulo {
-  font-size: 10.5px;
+  font-family: var(--fonte-documento-titulo);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--cor-texto-suave);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .gerado-em {

@@ -1,0 +1,9 @@
+ComTrena · Paleta de cores
+
+Regra 60 · 30 · 10: 60% fundo, 30% marca e apoio, 10% destaque (#E8A33D).
+
+Primária                 #1B3A4B   RGB (27, 58, 75)
+Primária escura          #12262F   RGB (18, 38, 47)
+Primária clara           #DDE7EA   RGB (221, 231, 234)
+Detalhes                 #4A7A94   RGB (74, 122, 148)
+Secundária (destaque)    #E8A33D   RGB (232, 163, 61)
