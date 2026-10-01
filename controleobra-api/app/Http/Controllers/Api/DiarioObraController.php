@@ -15,6 +15,7 @@ use App\Models\Obra;
 use App\Models\ObraContratanteLink;
 use App\Services\PermissaoService;
 use App\Services\WhatsApp\WhatsAppNotifier;
+use App\Support\ValidacaoMidia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -161,7 +162,7 @@ class DiarioObraController extends Controller
             'quantidade_operarios' => 'nullable|integer|min:0',
             'finalizar' => 'nullable|boolean',
             'fotos' => 'nullable|array|max:10',
-            'fotos.*' => 'file|image|max:8192',
+            'fotos.*' => ValidacaoMidia::IMAGEM,
 
             'responsaveis_presentes' => 'nullable|array',
             'responsaveis_presentes.*.nome' => 'required_with:responsaveis_presentes|string|max:150',

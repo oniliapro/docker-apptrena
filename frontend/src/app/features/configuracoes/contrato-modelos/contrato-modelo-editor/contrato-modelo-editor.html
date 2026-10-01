@@ -1,0 +1,448 @@
+<div class="pagina-editor" [class.painel-aberto]="algumPainelAberto()">
+  <header class="barra-topo-editor">
+    <div class="identificacao">
+      <span class="rotulo-tipo">Modelo de contrato — {{ rotulosTipo[tipo()] }}</span>
+      <input type="text" class="campo-nome" [value]="nome()" (input)="nome.set($any($event.target).value)"
+             placeholder="Nome do modelo (ex.: Contrato padrão de empreitada)">
+    </div>
+    <div class="acoes-topo">
+      @if (carregando()) { <span class="atenuado pequeno">Carregando…</span> }
+      @if (salvo()) { <span class="aviso-salvo">✔ Salvo</span> }
+      <button type="button" (click)="cancelar()" [disabled]="salvando()">Cancelar</button>
+      <button type="button" class="primario" (click)="salvar()" [disabled]="salvando() || carregando()">
+        {{ salvando() ? 'Salvando…' : 'Salvar' }}
+      </button>
+    </div>
+  </header>
+
+  @if (erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <!-- Barra única — age sobre a área com foco no momento (corpo, cabeçalho
+       ou rodapé), ver `areaFocada` no `.ts`. -->
+  <div class="barra-formatacao" (mousedown)="evitarPerderSelecao($event)">
+    <span class="indicador-foco" [title]="'Formatando: ' + (areaFocada() === 'corpo' ? 'corpo do contrato' : areaFocada() === 'cabecalho' ? 'cabeçalho' : 'rodapé')">
+      @switch (areaFocada()) {
+        @case ('corpo') { 📄 }
+        @case ('cabecalho') { ⬆ }
+        @case ('rodape') { ⬇ }
+      }
+    </span>
+    <span class="separador-barra"></span>
+
+    <button type="button" title="Negrito" (click)="formatar('bold')"><b>N</b></button>
+    <button type="button" title="Itálico" (click)="formatar('italic')"><i>I</i></button>
+    <button type="button" title="Sublinhado" (click)="formatar('underline')"><u>S</u></button>
+    <span class="separador-barra"></span>
+
+    <select class="select-estilo" title="Aplicar estilo" (change)="onMudarEstilo($event)">
+      <option value="" disabled selected>Estilo…</option>
+      @if (estilosPadrao().length) {
+        <optgroup label="Padrão">
+          @for (estilo of estilosPadrao(); track estilo.id) {
+            <option [value]="estilo.id">{{ estilo.nome }}</option>
+          }
+        </optgroup>
+      }
+      @if (estilosPersonalizados().length) {
+        <optgroup label="Meus estilos">
+          @for (estilo of estilosPersonalizados(); track estilo.id) {
+            <option [value]="estilo.id">{{ estilo.nome }}</option>
+          }
+        </optgroup>
+      }
+    </select>
+    <button type="button" title="Criar e gerenciar meus estilos" (click)="alternarPainelEstilos()">🎨 Estilos</button>
+    <span class="separador-barra"></span>
+
+    <button type="button" title="Lista com marcadores" (click)="formatar('insertUnorderedList')">• Lista</button>
+    <button type="button" title="Lista ordenada (numeração própria, use um estilo pra escolher o formato)" (click)="formatar('insertOrderedList')">1. Lista ordenada</button>
+    <button type="button" title="Aumentar nível da lista" (click)="formatar('indent')">⇥</button>
+    <button type="button" title="Diminuir nível da lista" (click)="formatar('outdent')">⇤</button>
+    <span class="separador-barra"></span>
+
+    <button type="button" title="Alinhar à esquerda" (click)="formatar('justifyLeft')">⇤</button>
+    <button type="button" title="Centralizar" (click)="formatar('justifyCenter')">⇔</button>
+    <button type="button" title="Justificar" (click)="formatar('justifyFull')">☰</button>
+    <span class="separador-barra"></span>
+
+    <div class="menu-colunas" title="Layout de colunas (corpo do texto, selecione o trecho antes)">
+      <span class="rotulo-variaveis">Colunas:</span>
+      <button type="button" (click)="aplicarColunas(1)">1</button>
+      <button type="button" (click)="aplicarColunas(2)">2</button>
+      <button type="button" (click)="aplicarColunas(3)">3</button>
+    </div>
+    <span class="separador-barra"></span>
+
+    <button type="button" title="Inserir quebra de página manual na posição do cursor (corpo do contrato)"
+            [disabled]="areaFocada() !== 'corpo'" (click)="inserirQuebraManual()">⤓ Quebra de página</button>
+    <span class="separador-barra"></span>
+
+    <button type="button" title="Margens, tamanho do papel, cabeçalho e rodapé" (click)="alternarPainelPagina()">⚙ Página</button>
+    <span class="separador-barra"></span>
+
+    <div class="menu-variaveis">
+      <span class="rotulo-variaveis">Inserir variável de:</span>
+      <select class="select-objeto-variavel" [value]="objetoVariavel()" (change)="mudarObjetoVariavel($event)">
+        <option value="">Escolha…</option>
+        @for (objeto of objetosDisponiveis(); track objeto) {
+          <option [value]="objeto">{{ rotulosObjetoVariavel[objeto] }}</option>
+        }
+      </select>
+      @for (v of variaveisDisponiveis(); track v.chave) {
+        <button type="button" class="chip-variavel" (click)="inserirVariavelFocada(v.chave)">{{ v.rotulo }}</button>
+      }
+    </div>
+  </div>
+
+  <!-- Painel "Configurações da página". -->
+  <aside class="painel-lateral" [class.aberto]="painelPaginaAberto()">
+    <div class="painel-cabecalho">
+      <strong>Configurações da página</strong>
+      <button type="button" class="fechar" (click)="alternarPainelPagina()">✖</button>
+    </div>
+    <div class="painel-corpo">
+      <div class="campo-linha">
+        <label>Tamanho do papel
+          <select [value]="tamanhoPapel()" (change)="mudarTamanhoPapel($event)">
+            @for (opcao of opcoesTamanhoPapel; track opcao) {
+              <option [value]="opcao">{{ rotulosTamanhoPapel[opcao] }}</option>
+            }
+          </select>
+        </label>
+        <label>Orientação
+          <select [value]="orientacao()" (change)="mudarOrientacao($event)">
+            <option value="retrato">Retrato</option>
+            <option value="paisagem">Paisagem</option>
+          </select>
+        </label>
+      </div>
+
+      <span class="rotulo-bloco">Margens da folha</span>
+      <div class="campo-linha margens">
+        <label>Direita (mm)
+          <input type="number" min="0" max="100" [value]="margemDireita()" (input)="mudarMargem('direita', $event)">
+        </label>
+        <label>Esquerda (mm)
+          <input type="number" min="0" max="100" [value]="margemEsquerda()" (input)="mudarMargem('esquerda', $event)">
+        </label>
+      </div>
+      <p class="dica-lista">
+        Em cima/embaixo não tem número próprio (30/09/2026) — o corpo do texto começa onde a caixa
+        do cabeçalho termina e acaba onde a do rodapé começa, sempre. Ajuste a distância deles até a
+        borda logo abaixo.
+      </p>
+
+      <span class="rotulo-bloco">Distância do cabeçalho/rodapé até a borda</span>
+      <div class="campo-linha margens">
+        <label>Cabeçalho (mm)
+          <input type="number" min="0" max="60" [value]="margemCabecalho()" (input)="mudarMargem('cabecalho', $event)">
+        </label>
+        <label>Rodapé (mm)
+          <input type="number" min="0" max="60" [value]="margemRodape()" (input)="mudarMargem('rodape', $event)">
+        </label>
+      </div>
+
+      <p class="dica-lista">
+        Cabeçalho e rodapé ficam visíveis direto na página, em toda folha — clique
+        neles ali e use a barra de formatação normal pra editar.
+      </p>
+
+      @if (papelTimbradoUrl()) {
+        <div class="campo-bloco">
+          <span class="rotulo-bloco">Papel timbrado</span>
+          <p class="dica-lista">Sempre centralizado na folha (30/09/2026).</p>
+          <div class="campo-linha">
+            <label>Largura (% da folha)
+              <input type="number" min="1" max="200" [value]="timbradoLarguraPct()" (input)="mudarTimbradoLargura($event)">
+            </label>
+            <label class="checagem-inline">
+              <input type="checkbox" [checked]="timbradoManterProporcao()" (change)="alternarTimbradoManterProporcao()">
+              Manter proporção
+            </label>
+          </div>
+          @if (!timbradoManterProporcao()) {
+            <div class="campo-linha">
+              <label>Altura (% da folha)
+                <input type="number" min="1" max="200" [value]="timbradoAlturaPct() ?? timbradoLarguraPct()" (input)="mudarTimbradoAltura($event)">
+              </label>
+            </div>
+          }
+          <div class="campo-linha">
+            <label>Transparência (opacidade %)
+              <input type="number" min="0" max="100" [value]="timbradoOpacidade()" (input)="mudarTimbradoOpacidade($event)">
+            </label>
+          </div>
+        </div>
+      } @else {
+        <p class="dica-lista">
+          Nenhum papel timbrado cadastrado ainda — suba a imagem em Configurações → Dados da empresa.
+        </p>
+      }
+
+      @if (tipo() === 'empreita') {
+        <div class="campo-bloco">
+          <span class="rotulo-bloco">Geração em lote</span>
+          <label>Tag do anexo automático
+            <select [value]="tagAnexoId()" (change)="tagAnexoId.set($any($event.target).value)">
+              <option value="">Nenhuma (não entra na geração em lote)</option>
+              @for (tag of tags(); track tag.id) {
+                <option [value]="tag.id">{{ tag.nome }}</option>
+              }
+            </select>
+          </label>
+          <p class="dica-lista">
+            Obrigatória só pra usar "Gerar contratos" na lista de Empreitas (seleciona várias, gera
+            e anexa de uma vez) — cada PDF gerado assim entra anexado na empreita com esta tag.
+          </p>
+        </div>
+      }
+
+      <div class="acoes-form-estilo">
+        <button type="button" class="primario" (click)="confirmarPagina()">Aplicar</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Painel "Meus estilos". -->
+  <aside class="painel-lateral" [class.aberto]="painelEstilosAberto()">
+    <div class="painel-cabecalho">
+      <strong>Meus estilos</strong>
+      <button type="button" class="fechar" (click)="alternarPainelEstilos()">✖</button>
+    </div>
+    <div class="painel-corpo">
+      @if (erroEstilo(); as mensagem) {
+        <div class="aviso-erro pequeno">{{ mensagem }}</div>
+      }
+
+      <div class="form-estilo">
+        <label>Nome
+          <input type="text" [value]="estiloForm().nome" placeholder="ex.: Cláusula"
+                 (input)="mudarCampoEstilo('nome', $any($event.target).value)">
+        </label>
+
+        <label>Tipo de estilo
+          <select [value]="estiloForm().modo" (change)="mudarCampoEstilo('modo', $any($event.target).value)">
+            <option value="normal">Parágrafo comum</option>
+            <option value="lista">Lista ordenada avulsa (numeração própria)</option>
+            <option value="titulo">Título numerado hierárquico (1, 1.1, 1.1.1…)</option>
+          </select>
+        </label>
+
+        <label>Aplicado como
+          <select [value]="estiloForm().tag_html" (change)="mudarCampoEstilo('tag_html', $any($event.target).value)">
+            @for (opcao of opcoesTagEstilo; track opcao) {
+              <option [value]="opcao">{{ rotulosTagEstilo[opcao] }}</option>
+            }
+          </select>
+        </label>
+
+        @if (estiloForm().modo === 'titulo') {
+          <label>Nível na hierarquia
+            <select [value]="estiloForm().nivel_titulo" (change)="mudarCampoEstilo('nivel_titulo', +$any($event.target).value)">
+              @for (nivel of opcoesNivelTitulo; track nivel) {
+                <option [value]="nivel">Nível {{ nivel }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (estiloForm().modo === 'lista') {
+          <label>Formato da numeração
+            <select [value]="estiloForm().lista_formato" (change)="mudarCampoEstilo('lista_formato', $any($event.target).value)">
+              @for (opcao of opcoesListaFormato; track opcao) {
+                <option [value]="opcao">{{ rotulosListaFormato[opcao] }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (estiloForm().modo !== 'normal') {
+          <label>Prefixo (opcional)
+            <input type="text" [value]="estiloForm().lista_prefixo" placeholder='ex.: "Cláusula "'
+                   (input)="mudarCampoEstilo('lista_prefixo', $any($event.target).value)">
+          </label>
+          <label>Sufixo (opcional)
+            <input type="text" [value]="estiloForm().lista_sufixo" placeholder='ex.: "ª" ou "."'
+                   (input)="mudarCampoEstilo('lista_sufixo', $any($event.target).value)">
+          </label>
+          <p class="dica-lista">
+            @if (estiloForm().modo === 'titulo') {
+              A numeração deste nível se junta à dos níveis acima dele (ex.: nível 2 dentro do 5º
+              item do nível 1 sai "5.1", "5.2"…) — recalcula sozinha se você inserir, excluir ou
+              mover títulos. Prefixo/sufixo envolvem a cadeia toda.
+            } @else {
+              Numeração própria, sem relação com títulos — sempre começa do primeiro item.
+            }
+          </p>
+        }
+
+        <label>Fonte (opcional)
+          <input type="text" [value]="estiloForm().fonte" placeholder="ex.: Georgia, serif"
+                 (input)="mudarCampoEstilo('fonte', $any($event.target).value)">
+        </label>
+        <label>Tamanho (pt)
+          <input type="number" min="1" max="200" [value]="estiloForm().tamanho_pt"
+                 (input)="mudarCampoEstilo('tamanho_pt', $any($event.target).value ? +$any($event.target).value : null)">
+        </label>
+        <label>Cor
+          <input type="color" [value]="estiloForm().cor || '#1a1a1a'"
+                 (input)="mudarCampoEstilo('cor', $any($event.target).value)">
+        </label>
+        <label>Alinhamento
+          <select [value]="estiloForm().alinhamento" (change)="mudarCampoEstilo('alinhamento', $any($event.target).value)">
+            <option value="esquerda">Esquerda</option>
+            <option value="centro">Centro</option>
+            <option value="direita">Direita</option>
+            <option value="justificado">Justificado</option>
+          </select>
+        </label>
+        <label>Caixa do texto
+          <select [value]="estiloForm().caixa_texto" (change)="mudarCampoEstilo('caixa_texto', $any($event.target).value)">
+            @for (opcao of opcoesCaixaTexto; track opcao) {
+              <option [value]="opcao">{{ rotulosCaixaTexto[opcao] }}</option>
+            }
+          </select>
+        </label>
+        @if (estiloForm().caixa_texto === 'primeira_maiuscula' && estiloForm().modo !== 'normal' && estiloForm().alinhamento !== 'esquerda') {
+          <p class="dica-lista aviso-atencao">
+            "Só a 1ª maiúscula" não tem efeito neste estilo: como ele tem numeração e não está
+            alinhado à esquerda, não dá pra separar o prefixo do texto sem quebrar a centralização/
+            alinhamento à direita. Funciona normalmente em título/lista numerado alinhado à esquerda,
+            ou em qualquer estilo sem numeração.
+          </p>
+        }
+        <div class="opcoes-checkbox">
+          <label><input type="checkbox" [checked]="estiloForm().negrito" (change)="mudarCampoEstilo('negrito', $any($event.target).checked)"> Negrito</label>
+          <label><input type="checkbox" [checked]="estiloForm().italico" (change)="mudarCampoEstilo('italico', $any($event.target).checked)"> Itálico</label>
+          <label><input type="checkbox" [checked]="estiloForm().sublinhado" (change)="mudarCampoEstilo('sublinhado', $any($event.target).checked)"> Sublinhado</label>
+        </div>
+
+        <div class="acoes-form-estilo">
+          @if (estiloForm().id) {
+            <button type="button" (click)="novoEstilo()">Cancelar edição</button>
+          }
+          <button type="button" class="primario" [disabled]="salvandoEstilo()" (click)="salvarEstilo()">
+            {{ salvandoEstilo() ? 'Salvando…' : (estiloForm().id ? 'Atualizar estilo' : 'Criar estilo') }}
+          </button>
+        </div>
+      </div>
+
+      @if (estilos().length) {
+        <ul class="lista-estilos-cadastrados">
+          @for (estilo of estilos(); track estilo.id) {
+            <li>
+              <span>{{ estilo.nome }}@if (estilo.padrao) { <span class="atenuado pequeno">(padrão)</span> }</span>
+              <div class="acoes-item-estilo">
+                <button type="button" title="Editar" (click)="editarEstilo(estilo)">✎</button>
+                <button type="button" title="Excluir" (click)="excluirEstilo(estilo)">✖</button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </aside>
+
+  <div class="folha-editor">
+    <!-- Réguas estilo Word (30/09/2026, pedido do Lucas: "coloque uma
+         régua nas laterais da folha, essas régua medem o tamanho real da
+         folha... troque a forma de definir margem, faça igual o word").
+         Medem em cm de verdade (conversão mm→px já usada no resto do
+         editor) e a zona cinza mostra a margem; arrastar a alça na
+         fronteira da zona cinza muda a margem ao vivo — os campos
+         numéricos do painel "Página" continuam funcionando junto, pra
+         digitar um valor exato. -->
+    <div class="area-reguas" [class.arrastando]="!!arrastandoMargem()">
+      <div class="canto-regua"></div>
+      <div class="regua-horizontal" [style.width.px]="larguraFolhaPx()">
+        @for (cm of marcasHorizontais(); track cm) {
+          <span class="marca-regua" [class.marca-cheia]="cm % 5 === 0" [style.left.px]="mmParaPxPublico(cm * 10)">
+            @if (cm % 5 === 0) { {{ cm }} }
+          </span>
+        }
+        <div class="zona-margem zona-margem-esquerda" [style.width.px]="mmParaPxPublico(margemEsquerda())"></div>
+        <div class="zona-margem zona-margem-direita" [style.width.px]="mmParaPxPublico(margemDireita())"></div>
+        <div class="alca-regua alca-regua-h" [class.ativa]="arrastandoMargem() === 'esquerda'"
+             [style.left.px]="mmParaPxPublico(margemEsquerda())" title="Margem esquerda — arraste pra ajustar"
+             (mousedown)="iniciarArrasteMargem('esquerda', $event)"></div>
+        <div class="alca-regua alca-regua-h" [class.ativa]="arrastandoMargem() === 'direita'"
+             [style.left.px]="larguraFolhaPx() - mmParaPxPublico(margemDireita())" title="Margem direita — arraste pra ajustar"
+             (mousedown)="iniciarArrasteMargem('direita', $event)"></div>
+      </div>
+
+      <div class="regua-vertical" [style.height.px]="alturaFolhaPx()">
+        @for (cm of marcasVerticais(); track cm) {
+          <span class="marca-regua" [class.marca-cheia]="cm % 5 === 0" [style.top.px]="mmParaPxPublico(cm * 10)">
+            @if (cm % 5 === 0) { {{ cm }} }
+          </span>
+        }
+        <div class="zona-margem zona-margem-superior" [style.height.px]="mmParaPxPublico(margemCabecalho())"></div>
+        <div class="zona-margem zona-margem-inferior" [style.height.px]="mmParaPxPublico(margemRodape())"></div>
+        <div class="alca-regua alca-regua-v" [class.ativa]="arrastandoMargem() === 'cabecalho'"
+             [style.top.px]="mmParaPxPublico(margemCabecalho())" title="Distância do cabeçalho até a borda — arraste pra ajustar"
+             (mousedown)="iniciarArrasteMargem('cabecalho', $event)"></div>
+        <div class="alca-regua alca-regua-v" [class.ativa]="arrastandoMargem() === 'rodape'"
+             [style.top.px]="alturaFolhaPx() - mmParaPxPublico(margemRodape())" title="Distância do rodapé até a borda — arraste pra ajustar"
+             (mousedown)="iniciarArrasteMargem('rodape', $event)"></div>
+      </div>
+
+    <div #paginaEl class="pagina-simulada" [style.width.px]="larguraFolhaPx()">
+
+      <!-- Papel timbrado como fundo — div PRÓPRIA (não direto no estilo
+           da página), porque `opacity` precisa valer só pra imagem, sem
+           desbotar o texto do contrato junto (30/09/2026, pedido do
+           Lucas: "aplicar transparência na imagem"). -->
+      @if (estiloTimbradoFundo(); as timbrado) {
+        <div class="timbrado-fundo-editor" [style.background-image]="timbrado.backgroundImage"
+             [style.background-size]="timbrado.backgroundSize" [style.opacity]="timbrado.opacity"></div>
+      }
+
+      <!-- Caixa do CABEÇALHO — prévia dos itens predefinidos (logo, nome
+           da empresa, subtítulo, "Gerado em...") + texto próprio do
+           usuário, juntos (30/09/2026, pedido do Lucas: "inclua os itens
+           predefinidos dentro do cabeçalho... o cabeçalho deve ter o
+           tamanho mínimo pra caber esses itens"). Repete em TODA página
+           do PDF de verdade (`ContratoPdfController::construirCabecalhoPdf`)
+           — aqui no editor, a página 1 é esta caixa (a única realmente
+           canônica); as demais páginas mostram um CLONE dela
+           (`criarCloneCabecalhoOuRodape`, dentro de cada `.quebra-pagina`)
+           — editar em qualquer uma sincroniza com as outras. A parte
+           predefinida nunca é editável (vem do Perfil da empresa); só
+           `.area-editavel-sincronizada` é. -->
+      <div #caixaCabecalho class="caixa-cabecalho" [style.padding-top.px]="mmParaPxPublico(margemCabecalho())"
+           [style.padding-left.px]="mmParaPxPublico(margemEsquerda())" [style.padding-right.px]="mmParaPxPublico(margemDireita())">
+        <div class="previa-sistema" [title]="'Gerado automaticamente pelo sistema — edite em Configurações → Dados da empresa'">
+          <div class="previa-cabecalho-sistema">
+            <div class="previa-identidade">
+              @if (logoUrl(); as url) {
+                <img class="previa-logo" [src]="url" [alt]="perfilEmpresa()?.nome || 'Logomarca'">
+              }
+              <div>
+                <div class="previa-nome-empresa">{{ perfilEmpresa()?.nome || 'ComTrena' }}</div>
+                <div class="previa-subtitulo">{{ subtituloDocumento() }}</div>
+              </div>
+            </div>
+            <div class="previa-data">Gerado em {{ formatarDataHora(geradoEmExemplo) }}</div>
+          </div>
+        </div>
+        <div #areaCabecalho class="area-editavel-sincronizada" contenteditable="true" spellcheck="true"
+             (focus)="aoFocarArea('cabecalho')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"></div>
+      </div>
+
+      <div #area class="area-edicao" contenteditable="true" spellcheck="true"
+           (focus)="aoFocarArea('corpo')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"
+           [style.padding]="paddingFolha()"></div>
+
+      <!-- Caixa do RODAPÉ da página 1 — mesma ideia do cabeçalho acima, sem os itens predefinidos (só o texto próprio do usuário). -->
+      <div #caixaRodape class="caixa-rodape" [style.padding-bottom.px]="mmParaPxPublico(margemRodape())"
+           [style.padding-left.px]="mmParaPxPublico(margemEsquerda())" [style.padding-right.px]="mmParaPxPublico(margemDireita())">
+        <div #areaRodape class="area-editavel-sincronizada" contenteditable="true" spellcheck="true"
+             (focus)="aoFocarArea('rodape')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"></div>
+      </div>
+
+    </div>
+    </div>
+  </div>
+</div>

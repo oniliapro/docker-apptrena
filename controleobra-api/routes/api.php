@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\ArquivoController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CronogramaPdfController;
 use App\Http\Controllers\Api\ContratoEquipamentoController;
+use App\Http\Controllers\Api\ContratoEstiloController;
+use App\Http\Controllers\Api\ContratoModeloController;
+use App\Http\Controllers\Api\ContratoPdfController;
 use App\Http\Controllers\Api\CronogramaPlanejamentoController;
 use App\Http\Controllers\Api\DiariaController;
 use App\Http\Controllers\Api\DiarioObraController;
@@ -149,6 +152,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:empreitas,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/desembolso/relatorio/pdf', [CronogramaPdfController::class, 'relatorioCronograma'])
         ->middleware(['permissaoModulo:desembolso,usar', 'permissaoObra:ver']);
+    Route::get('obras/{obra}/contrato/pdf', [ContratoPdfController::class, 'obra'])
+        ->middleware('permissaoObra:ver');
     Route::get('obras/{obra}/relatorio/pdf', [RelatorioPdfController::class, 'relatorioObra'])
         ->middleware(['permissaoModulo:relatorios,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/cronograma/planejamentos', [CronogramaPlanejamentoController::class, 'index'])
@@ -312,6 +317,30 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:empreitas,editar', 'permissaoObra:lancar']);
     Route::put('empreitas/{empreita}/contrato-assinado', [EmpreitaController::class, 'marcarContratoAssinado'])
         ->middleware(['permissaoModulo:empreitas,editar', 'permissaoObra:lancar']);
+
+    // Modelos de contrato (28/09/2026, itens 8/9) — cadastro geral
+    // (Configurações), sem `permissaoModulo` própria, mesmo padrão de
+    // Materiais/Profissionais/Fornecedores (ver ContratoModeloController).
+    Route::get('contrato-modelos', [ContratoModeloController::class, 'index']);
+    Route::post('contrato-modelos', [ContratoModeloController::class, 'store']);
+    Route::put('contrato-modelos/{contratoModelo}', [ContratoModeloController::class, 'update']);
+    Route::delete('contrato-modelos/{contratoModelo}', [ContratoModeloController::class, 'destroy']);
+
+    // Estilos de texto nomeados pelo usuário (29/09/2026, editor rico dos
+    // modelos de contrato) — únicos por empresa, mesmo padrão acima.
+    Route::get('contrato-estilos', [ContratoEstiloController::class, 'index']);
+    Route::post('contrato-estilos', [ContratoEstiloController::class, 'store']);
+    Route::put('contrato-estilos/{contratoEstilo}', [ContratoEstiloController::class, 'update']);
+    Route::delete('contrato-estilos/{contratoEstilo}', [ContratoEstiloController::class, 'destroy']);
+
+    Route::get('empreitas/{empreita}/contrato/pdf', [ContratoPdfController::class, 'empreita'])
+        ->middleware(['permissaoModulo:empreitas,usar', 'permissaoObra:ver']);
+
+    // Geração em massa + anexo automático (30/09/2026) — sem `{empreita}`
+    // na URL (recebe uma lista no corpo), então a checagem de acesso por
+    // obra é manual, dentro do controller (ver `gerarEAnexarEmLote`).
+    Route::post('empreitas/contratos/gerar-em-lote', [ContratoPdfController::class, 'gerarEAnexarEmLote'])
+        ->middleware('permissaoModulo:empreitas,usar');
 
     // `index` sem `permissaoObra` — cruza várias obras, filtro roda no
     // controller (`PagamentoController::index`).

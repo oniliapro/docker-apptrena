@@ -7,7 +7,9 @@ import { Obra, ObraPayload, rotuloStatusObra } from '../../../core/models/api.mo
 import { ApiService } from '../../../core/services/api.service';
 import { ArmazenamentoService } from '../../../core/services/armazenamento.service';
 import { PermissoesService } from '../../../core/services/permissoes.service';
+import { nomeArquivoPdf } from '../../../shared/pdf-nome-arquivo';
 import { Cliente, Responsavel } from '../../cadastros/cadastros.models';
+import { ContratoModelo } from '../../configuracoes/contrato-modelos/contrato-modelo.models';
 import { CadastroObraModal, EventoSalvarObra } from '../cadastro-obra-modal/cadastro-obra-modal';
 import { ABAS_OBRA } from './obra-abas';
 
@@ -98,6 +100,61 @@ export class ObraDetalhe implements OnInit {
 
   protected fecharEditar(): void {
     this.editarAberto.set(false);
+  }
+
+  // ------------------------------------------------------------------
+  // "Gerar contrato" (28/09/2026, itens 8/9) — a partir de um modelo de
+  // contrato de obra/proposta cadastrado em Configurações.
+  // ------------------------------------------------------------------
+  protected readonly mostrarContrato = signal(false);
+  protected readonly modelosContrato = signal<ContratoModelo[]>([]);
+  protected readonly modeloContratoId = signal('');
+  protected readonly gerandoContrato = signal(false);
+  protected readonly erroContrato = signal<string | null>(null);
+
+  protected abrirContrato(): void {
+    this.mostrarContrato.set(true);
+    this.erroContrato.set(null);
+    this.api.listarContratoModelos('obra').subscribe({
+      next: (lista) => this.modelosContrato.set(lista),
+      error: () => this.modelosContrato.set([]),
+    });
+  }
+
+  protected fecharContrato(): void {
+    if (this.gerandoContrato()) return;
+    this.mostrarContrato.set(false);
+  }
+
+  protected mudarModeloContrato(evento: Event): void {
+    this.modeloContratoId.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected gerarContrato(): void {
+    const modeloId = this.modeloContratoId();
+    if (!modeloId) {
+      this.erroContrato.set('Escolha um modelo de contrato.');
+      return;
+    }
+
+    this.erroContrato.set(null);
+    this.gerandoContrato.set(true);
+    this.api.baixarContratoObraPdf(this.id(), modeloId).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivoPdf('Contrato', [this.obra()?.obra_nome], this.id());
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoContrato.set(false);
+        this.mostrarContrato.set(false);
+      },
+      error: () => {
+        this.erroContrato.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoContrato.set(false);
+      },
+    });
   }
 
   ngOnInit(): void {

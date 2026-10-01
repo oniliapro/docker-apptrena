@@ -127,7 +127,7 @@
 
       <span class="espacador"></span>
 
-      <button type="button" (click)="mostrarContrato.set(true)" title="Marcar assinatura e anexar o arquivo do contrato">
+      <button type="button" (click)="abrirContrato()" title="Marcar assinatura, anexar o arquivo do contrato ou gerar um novo a partir de um modelo">
         {{ store.cabecalho().contratoAssinado ? '✔ Contrato assinado' : '📎 Contrato pendente' }}
       </button>
     </div>
@@ -559,6 +559,28 @@
               {{ store.cabecalho().contratoAssinado ? 'Desmarcar assinatura' : 'Marcar como assinado' }}
             </button>
           </div>
+
+          <!-- ============ Gerar contrato a partir de um modelo (28/09/2026, itens 8/9) ============ -->
+          <div class="linha-ferramentas gerar-contrato">
+            <select [value]="modeloContratoId()" (change)="mudarModeloContrato($event)">
+              <option value="">Escolha um modelo de contrato…</option>
+              @for (modelo of modelosContrato(); track modelo.id) {
+                <option [value]="modelo.id">{{ modelo.nome }}</option>
+              }
+            </select>
+            <button type="button" [disabled]="gerandoContrato() || !modelosContrato().length" (click)="gerarContrato()">
+              {{ gerandoContrato() ? 'Gerando…' : '📄 Gerar contrato' }}
+            </button>
+          </div>
+          @if (!modelosContrato().length) {
+            <p class="atenuado pequeno">
+              Nenhum modelo de contrato de empreita cadastrado ainda — cadastre um em Configurações → Modelos de contrato.
+            </p>
+          }
+          @if (erroContrato(); as mensagemErro) {
+            <div class="aviso-erro">{{ mensagemErro }}</div>
+          }
+
           <app-anexos-lancamento origemTipo="empreita" [origemId]="empreitaId()" />
         </div>
       </div>

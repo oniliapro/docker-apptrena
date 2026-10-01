@@ -10,6 +10,7 @@ import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela'
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { Empreiteiro as EmpreiteiroCadastro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
@@ -278,6 +279,56 @@ export class Empreita implements OnInit {
 
   /** Popup "Contrato" (27/09/2026) — assinatura + anexo, fora do fluxo normal da tela pra não empurrar a tabela de serviços. */
   protected readonly mostrarContrato = signal(false);
+
+  /**
+   * "Gerar contrato" a partir de um modelo cadastrado (28/09/2026, itens
+   * 8/9) — dentro do mesmo popup "Contrato". A lista de modelos só é
+   * buscada quando o popup abre (não faz sentido carregar isso toda vez
+   * que a tela da empreita abre).
+   */
+  protected readonly modelosContrato = signal<ContratoModelo[]>([]);
+  protected readonly modeloContratoId = signal('');
+  protected readonly gerandoContrato = signal(false);
+  protected readonly erroContrato = signal<string | null>(null);
+
+  protected abrirContrato(): void {
+    this.mostrarContrato.set(true);
+    this.erroContrato.set(null);
+    this.api.listarContratoModelos('empreita').subscribe({
+      next: (lista) => this.modelosContrato.set(lista),
+      error: () => this.modelosContrato.set([]),
+    });
+  }
+
+  protected mudarModeloContrato(evento: Event): void {
+    this.modeloContratoId.set((evento.target as HTMLSelectElement).value);
+  }
+
+  protected gerarContrato(): void {
+    const modeloId = this.modeloContratoId();
+    if (!modeloId) {
+      this.erroContrato.set('Escolha um modelo de contrato.');
+      return;
+    }
+
+    this.erroContrato.set(null);
+    this.gerandoContrato.set(true);
+    this.api.baixarContratoEmpreitaPdf(this.empreitaId(), modeloId).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivoPdf('Contrato', [this.store.cabecalho().empreiteiro], this.empreitaId());
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoContrato.set(false);
+      },
+      error: () => {
+        this.erroContrato.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
+        this.gerandoContrato.set(false);
+      },
+    });
+  }
 
   // ---- PDF da Empreita: popup "O que mostrar" antes de gerar (25/09/2026) ----
   protected readonly chavesOpcoesPdf = CHAVES_OPCOES_PDF_EMPREITA;

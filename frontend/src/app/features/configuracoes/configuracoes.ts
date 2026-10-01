@@ -2,13 +2,14 @@ import { Component, inject, output, signal } from '@angular/core';
 
 import { PermissoesService } from '../../core/services/permissoes.service';
 import { CategoriasDiariaConfig } from './categorias-diaria/categorias-diaria';
+import { ContratoModelosConfig } from './contrato-modelos/contrato-modelos';
 import { ControlePermissoes } from './controle-permissoes/controle-permissoes';
 import { DadosEmpresa } from './dados-empresa/dados-empresa';
 import { FvsModelosConfig } from './fvs-modelos/fvs-modelos';
 import { Plano } from './plano/plano';
 import { Tags } from './tags/tags';
 
-type AbaConfiguracao = 'empresa' | 'plano' | 'permissoes' | 'tags' | 'diarias' | 'fvs';
+type AbaConfiguracao = 'empresa' | 'plano' | 'permissoes' | 'tags' | 'diarias' | 'fvs' | 'contratos';
 
 /**
  * Popup de Configurações (26/08/2026, pedido do Lucas) — aba lateral que
@@ -28,7 +29,7 @@ type AbaConfiguracao = 'empresa' | 'plano' | 'permissoes' | 'tags' | 'diarias' |
  */
 @Component({
   selector: 'app-configuracoes',
-  imports: [DadosEmpresa, Plano, ControlePermissoes, Tags, CategoriasDiariaConfig, FvsModelosConfig],
+  imports: [DadosEmpresa, Plano, ControlePermissoes, Tags, CategoriasDiariaConfig, FvsModelosConfig, ContratoModelosConfig],
   templateUrl: './configuracoes.html',
   styleUrl: './configuracoes.scss',
 })

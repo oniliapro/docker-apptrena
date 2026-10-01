@@ -1,0 +1,125 @@
+// Layout para papel (A4 retrato — texto corrido, sem tabela larga), usado
+// só pelo Chromium headless que gera o PDF (ver ContratoPdfController,
+// docs/GERAR-PDF.md).
+//
+// 01/10/2026: era `:host { ... }` — este componente usa
+// `ViewEncapsulation.None` (precisa, porque a `<style>` dos ESTILOS
+// nomeados é injetada via DOM puro em `contrato-imprimir.ts`, e o Angular
+// só mescla/atualiza isso certo sem o encapsulamento padrão). SEM
+// encapsulamento, o Angular NÃO reescreve `:host` pra nada — a regra vai
+// pro CSS global com o texto `:host` literal, que só tem significado
+// dentro de uma Shadow DOM de verdade (que este app não usa). Resultado:
+// a regra inteira (font-size 11pt, line-height 1.6, cor, fundo) nunca
+// batia em NADA — achado comparando pixel a pixel o PDF real contra a
+// edição (texto saía bem mais compacto no PDF: a página inteira caía pro
+// `body { font-size: 12.5px }` global do app, com `line-height: normal`
+// em vez de 1.6, bem mais apertado) — a causa raiz de a quebra de página
+// da edição nunca bater com a do PDF de verdade mesmo depois de acertar
+// cabeçalho/rodapé e as margens dos títulos. Selecionar a TAG do próprio
+// componente em vez de `:host` resolve, porque sem Shadow DOM o seletor
+// de tag normal bate direto no elemento-raiz do componente.
+app-contrato-imprimir {
+  display: block;
+  font-family: var(--fonte);
+  font-size: 11pt;
+  line-height: 1.6;
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+// 30/09/2026: a regra `@page { size: A4 portrait; margin: 15mm; }` que
+// ficava aqui foi REMOVIDA — achada como causa raiz de um bug sério
+// testando de verdade: tamanho/margem da página são 100% controlados
+// pelo `ContratoPdfController::gerar()` via `Browsershot::margins()`/
+// `format()`/`landscape()` desde que o modelo ganhou configuração
+// própria de papel (29/09/2026), mas essa regra `@page` ERA DE ANTES
+// disso existir e nunca foi removida — o Chromium aplicava o `margin:
+// 15mm` fixo dela por cima de QUALQUER margem calculada no PHP (inclusive
+// a nova margem medida do cabeçalho/rodapé), então mudar a margem
+// calculada no backend não tinha efeito NENHUM no PDF final — o corpo do
+// texto sempre começava a 15mm do topo, sobrepondo qualquer cabeçalho
+// mais alto que isso. Confirmado isolando: aumentar a margem calculada
+// pra um valor exagerado (30mm de folga) não mudou UM PIXEL do PDF
+// gerado, até essa regra ser removida.
+
+// Papel timbrado como fundo de página inteira (30/09/2026). SEM
+// `z-index` negativo de propósito — um `@media print` global (`_base.scss`,
+// pensado pras telas antigas que usam `window.print()`) pinta `html,body`
+// de branco, e isso também vale aqui (o Browsershot gera o PDF emulando a
+// mídia "print"); com `z-index:-1` esse fundo branco do `html,body`
+// aparecia por cima do timbrado. Sem `z-index` (auto), `position: fixed`
+// já cria seu próprio contexto de empilhamento e fica atrás do resto só
+// por ser o primeiro elemento no HTML (ver `contrato-imprimir.html`).
+.timbrado-fundo {
+  position: fixed;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.atenuado { color: var(--cor-texto-suave); }
+
+// 29/09/2026: `conteudo` virou HTML de verdade (editor rico, ver
+// `ContratoModeloEditor`) — estas regras cobrem as tags que a barra de
+// formatação dele produz. 30/09/2026: a formatação/numeração de cada
+// ESTILO nomeado vem de uma `<style>` criada via DOM puro em
+// `contrato-imprimir.ts` (gerada por `shared/contrato-estilo-css.ts`, a
+// MESMA função que o editor usa) — não pode ser uma `<style>` literal no
+// template porque o Angular a extrai/mescla no CSS do componente em
+// tempo de compilação, e o node deixa de ser atualizável em runtime.
+// Aqui ficam só os padrões visuais BASE das tags puras (sem estilo
+// nomeado aplicado).
+.corpo-contrato {
+  // Reseta só o contador de NÍVEL 1 — mesmo motivo do editor
+  // (`contrato-modelo-editor.scss`): resetar os níveis 2-7 aqui também,
+  // redundante com o reset que cada estilo de título já faz nele mesmo,
+  // quebra a renumeração entre grupos no Chromium (achado testando de
+  // verdade: o 1º Título 2 do 2º Título 1 saía com o número que faltava
+  // do 1º grupo, em vez de recomeçar do 1).
+  counter-reset: titulo1;
+
+  p {
+    margin: 0 0 4mm;
+    text-align: justify;
+  }
+
+  h1 { font-family: var(--fonte-titulo); font-size: 15pt; font-weight: 700; margin: 6mm 0 4mm; }
+  h2 { font-family: var(--fonte-titulo); font-size: 13pt; font-weight: 700; margin: 5mm 0 3mm; }
+  h3 { font-family: var(--fonte-titulo); font-size: 12pt; font-weight: 700; margin: 4mm 0 2mm; }
+  h4 { font-family: var(--fonte-titulo); font-size: 11pt; font-weight: 700; margin: 3mm 0 2mm; }
+  h5 { font-family: var(--fonte-titulo); font-size: 10.5pt; font-weight: 700; margin: 2mm 0 1mm; }
+  h6 { font-family: var(--fonte-titulo); font-size: 10pt; font-weight: 700; margin: 2mm 0 1mm; }
+  blockquote {
+    margin: 0 0 4mm;
+    padding: 1mm 5mm;
+    border-left: 0.8mm solid var(--cor-borda);
+    color: var(--cor-texto-suave);
+    font-style: italic;
+  }
+  ul, ol { margin: 0 0 4mm; padding-left: 6mm; }
+  b, strong { font-weight: 700; }
+
+  .colunas { column-gap: 8mm; margin: 0 0 4mm; }
+  .colunas-2 { column-count: 2; }
+  .colunas-3 { column-count: 3; }
+
+  // Quebra de página MANUAL (01/10/2026, `inserirQuebraManual` no
+  // editor) — some da página impressa (não é conteúdo de verdade, só um
+  // marcador) e força o Chromium a começar página nova ali mesmo, de
+  // verdade (`break-before`/`page-break-before`, não a aproximação em JS
+  // que a edição usa).
+  .quebra-manual {
+    display: block;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    break-before: page;
+    page-break-before: always;
+  }
+}

@@ -11,6 +11,7 @@
       @if (salvando()) {
         <span class="atenuado pequeno">salvando…</span>
       }
+      <button type="button" (click)="abrirContrato()" title="Gerar o contrato da obra a partir de um modelo">📄 Gerar contrato</button>
       <button type="button" (click)="abrirEditar()">✎ Editar obra</button>
     </div>
   }
@@ -25,6 +26,47 @@
     (salvar)="salvarEdicao($event)"
     (fechar)="fecharEditar()"
     (alternarConfirmacao)="alternarConfirmacao()" />
+}
+
+<!-- ============ Gerar contrato (28/09/2026, itens 8/9) ============ -->
+@if (mostrarContrato()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharContrato()"></div>
+
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Gerar contrato da obra</span>
+        <button type="button" (click)="fecharContrato()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        <label class="campo">
+          <span class="obrigatorio">Modelo</span>
+          <select [value]="modeloContratoId()" (change)="mudarModeloContrato($event)">
+            <option value="">Escolha um modelo de contrato…</option>
+            @for (modelo of modelosContrato(); track modelo.id) {
+              <option [value]="modelo.id">{{ modelo.nome }}</option>
+            }
+          </select>
+        </label>
+        @if (!modelosContrato().length) {
+          <p class="atenuado pequeno">
+            Nenhum modelo de contrato de obra cadastrado ainda — cadastre um em Configurações → Modelos de contrato.
+          </p>
+        }
+        @if (erroContrato(); as mensagemErro) {
+          <div class="aviso-erro">{{ mensagemErro }}</div>
+        }
+      </div>
+
+      <div class="modal-rodape">
+        <button type="button" [disabled]="gerandoContrato()" (click)="fecharContrato()">Cancelar</button>
+        <button class="primario" type="button" [disabled]="gerandoContrato() || !modelosContrato().length" (click)="gerarContrato()">
+          {{ gerandoContrato() ? 'Gerando…' : 'Gerar PDF' }}
+        </button>
+      </div>
+    </div>
+  </div>
 }
 
 @if (dentroDeAba()) {

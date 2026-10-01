@@ -23,6 +23,7 @@ use App\Models\RdoRegistro;
 use App\Models\RdoResponsavelPresente;
 use App\Models\RdoTarefa;
 use App\Services\PermissaoService;
+use App\Support\ValidacaoMidia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -568,8 +569,10 @@ class RdoController extends Controller
             // `rdo_comentarios_internos` não apagada, só parou de receber dados novos.
 
             // Fotos: arquivo + metadados posicionais (índice 0 = fotos[0]).
-            'fotos' => 'nullable|array|max:20',
-            'fotos.*' => 'file|image|max:8192',
+            // 30/09/2026: regra centralizada em `ValidacaoMidia::IMAGEM` —
+            // ver o comentário lá (era `image|max:8192`, rejeitava foto de
+            // celular grande/HEIC sem erro nenhum na tela).
+            'fotos.*' => ValidacaoMidia::IMAGEM,
             'fotos_meta' => 'nullable|array',
             'fotos_meta.*.tarefa_id' => 'nullable|string|max:36',
             'fotos_meta.*.legenda' => 'nullable|string|max:200',
@@ -581,7 +584,7 @@ class RdoController extends Controller
             // galeria; sem croqui (não faz sentido marcar ponto num vídeo).
             // 100 MB por arquivo, cabe no limite do servidor (110 MB).
             'videos' => 'nullable|array|max:5',
-            'videos.*' => 'file|mimetypes:video/mp4,video/quicktime,video/webm|max:102400',
+            'videos.*' => ValidacaoMidia::VIDEO,
             'videos_meta' => 'nullable|array',
             'videos_meta.*.tarefa_id' => 'nullable|string|max:36',
             'videos_meta.*.legenda' => 'nullable|string|max:200',

@@ -19,6 +19,7 @@ import {
   RdoFoto,
   RdoPreparo,
   RdoRegistro,
+  TAMANHO_MAXIMO_FOTO,
   TAMANHO_MAXIMO_VIDEO,
   TIPOS_OCORRENCIA,
   TURNOS_CLIMA,
@@ -753,21 +754,36 @@ export class Rdo implements OnInit {
   // Fotos e vídeos — ainda não salvos (escolhidos agora)
   // ------------------------------------------------------------------
 
+  /**
+   * 30/09/2026: ganhou a mesma pré-checagem de tamanho que `escolherVideos`
+   * já tinha — antes, uma foto grande (celular moderno, 12MP+ passa fácil
+   * de alguns MB) só era rejeitada no Salvar, com a requisição INTEIRA
+   * voltando com erro (nada do dia salvava).
+   */
   protected escolherFotos(evento: Event, tarefaRef: string | null): void {
     const input = evento.target as HTMLInputElement;
     const arquivos = Array.from(input.files ?? []);
+    input.value = '';
 
-    const novas = arquivos.map((arquivo) => ({
-      arquivo,
-      previewUrl: URL.createObjectURL(arquivo),
-      tarefaRef,
-      legenda: '',
-      marcador: null,
-      nota: '',
-    }));
+    const grandeDemais = arquivos.filter((a) => a.size > TAMANHO_MAXIMO_FOTO);
+    if (grandeDemais.length) {
+      this.erro.set(
+        `${grandeDemais.map((a) => a.name).join(', ')}: foto maior que 25 MB — reduza a resolução antes de anexar.`,
+      );
+    }
+
+    const novas = arquivos
+      .filter((a) => a.size <= TAMANHO_MAXIMO_FOTO)
+      .map((arquivo) => ({
+        arquivo,
+        previewUrl: URL.createObjectURL(arquivo),
+        tarefaRef,
+        legenda: '',
+        marcador: null,
+        nota: '',
+      }));
 
     this.fotosSelecionadas.update((atual) => [...atual, ...novas]);
-    input.value = '';
   }
 
   protected fotosDaTarefa(tarefaRef: string | null): FotoSelecionada[] {
@@ -1114,9 +1130,20 @@ export class Rdo implements OnInit {
     return TIPOS_OCORRENCIA.find((t) => t.valor === valor)?.rotulo ?? valor;
   }
 
+  /**
+   * 30/09/2026: passou a ler `errors` (por campo) antes do `message`
+   * genérico — o `message` de topo de um 422 de validação do Laravel é
+   * sempre a frase fixa em inglês "The given data was invalid.", mesmo
+   * com `lang/pt_BR/validation.php` publicado (esse arquivo só traduz as
+   * mensagens DENTRO de `errors`, por campo). Sem isso, um upload de foto
+   * rejeitado (tamanho/formato) aparecia como "The given data was
+   * invalid." em vez de dizer qual foto e por quê.
+   */
   private mensagemDeErro(e: unknown): string {
-    const erro = e as { error?: { message?: string; mensagem?: string } };
+    const erro = e as { error?: { message?: string; mensagem?: string; errors?: Record<string, string[]> } };
 
-    return erro?.error?.mensagem ?? erro?.error?.message ?? 'Não foi possível concluir a operação.';
+    const primeiraMensagemDeCampo = erro?.error?.errors ? Object.values(erro.error.errors)[0]?.[0] : undefined;
+
+    return primeiraMensagemDeCampo ?? erro?.error?.mensagem ?? erro?.error?.message ?? 'Não foi possível concluir a operação.';
   }
 }

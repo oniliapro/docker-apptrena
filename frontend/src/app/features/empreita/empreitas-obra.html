@@ -47,6 +47,10 @@
               title="PDF de resumo das empreitas selecionadas, para entregar ao profissional (você escolhe o que incluir)">
         📄 PDF do profissional
       </button>
+      <button type="button" (click)="abrirGerarContratos()"
+              title="Gera o contrato de cada empreita selecionada a partir de um modelo e já anexa na própria empreita">
+        📑 Gerar contratos
+      </button>
     }
     <button class="botao-novo" type="button" (click)="novo()">+ Nova empreita</button>
     <input class="busca" type="search" placeholder="Buscar nº, descrição, profissional…" (input)="mudarBusca($event)" />
@@ -390,6 +394,79 @@
                 [disabled]="gerandoPdfResumo()" (click)="gerarPdfResumo()">
           {{ gerandoPdfResumo() ? 'Gerando PDF…' : 'Gerar PDF' }}
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ============ Gerar contratos em massa (30/09/2026) ============ -->
+@if (gerarContratosAberto()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharGerarContratos()"></div>
+
+    <div class="modal-cartao modal-estreito">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Gerar contratos — {{ selecao.contagem() }} empreita{{ selecao.contagem() > 1 ? 's' : '' }}</span>
+        <button type="button" (click)="fecharGerarContratos()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+      </div>
+
+      <div class="modal-corpo">
+        @if (!resultadoContratosLote()) {
+          <label class="campo">
+            <span>Modelo de contrato</span>
+            <select [value]="modeloContratoLoteId()" (change)="modeloContratoLoteId.set($any($event.target).value)">
+              <option value="" disabled>Escolha um modelo…</option>
+              @for (modelo of modelosContratoLote(); track modelo.id) {
+                <option [value]="modelo.id">{{ modelo.nome }}</option>
+              }
+            </select>
+          </label>
+
+          @if (modeloContratoLoteId() && !modeloContratoLoteEscolhido()?.tag_anexo_id) {
+            <div class="aviso-atencao">
+              Este modelo não tem uma tag de anexo configurada — não dá pra gerar em lote com ele.
+              Abra o modelo em Configurações → Modelos de contrato e defina a "Tag do anexo automático"
+              antes de tentar de novo.
+            </div>
+          }
+
+          <p class="atenuado pequeno">
+            Gera um PDF por empreita selecionada e já anexa cada um na própria empreita, com a tag
+            definida no modelo. Pode demorar — uns 15-20 segundos POR empreita, um de cada vez.
+          </p>
+
+          @if (erroContratosLote(); as mensagemErro) {
+            <div class="aviso-erro">{{ mensagemErro }}</div>
+          }
+        } @else {
+          <p>
+            <b>{{ resultadoContratosLote()!.sucesso.length }}</b> contrato{{ resultadoContratosLote()!.sucesso.length === 1 ? '' : 's' }}
+            gerado{{ resultadoContratosLote()!.sucesso.length === 1 ? '' : 's' }} e anexado{{ resultadoContratosLote()!.sucesso.length === 1 ? '' : 's' }} com sucesso.
+          </p>
+          @if (resultadoContratosLote()!.falhas.length) {
+            <div class="aviso-erro">
+              <p>{{ resultadoContratosLote()!.falhas.length }} falharam:</p>
+              <ul>
+                @for (falha of resultadoContratosLote()!.falhas; track falha.empreita_id) {
+                  <li>{{ falha.erro }}</li>
+                }
+              </ul>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal-rodape">
+        @if (!resultadoContratosLote()) {
+          <button type="button" [disabled]="gerandoContratosLote()" (click)="fecharGerarContratos()">Cancelar</button>
+          <button class="primario" type="button"
+                  [disabled]="gerandoContratosLote() || !modeloContratoLoteId() || !modeloContratoLoteEscolhido()?.tag_anexo_id"
+                  (click)="gerarContratosLote()">
+            {{ gerandoContratosLote() ? 'Gerando…' : 'Gerar e anexar' }}
+          </button>
+        } @else {
+          <button class="primario" type="button" (click)="fecharGerarContratos()">Fechar</button>
+        }
       </div>
     </div>
   </div>

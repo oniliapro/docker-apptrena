@@ -1,0 +1,42 @@
+<div class="contrato-modelos">
+  <div class="topo">
+    <h2>Modelos de contrato</h2>
+    <button type="button" class="botao-secundario" (click)="carregar()" title="Recarregar a lista">🔄 Atualizar</button>
+  </div>
+  <p class="dica">
+    Modelos reaproveitáveis de contrato — ao gerar o contrato de uma empreita ou de uma obra, você escolhe
+    qual usar. Editar ou criar um modelo abre numa aba própria; volte aqui e clique em "Atualizar" pra ver a mudança.
+  </p>
+
+  @if (erro()) {
+    <p class="alerta alerta-erro">{{ erro() }}</p>
+  }
+
+  @if (carregando()) {
+    <p class="carregando">Carregando…</p>
+  } @else {
+    @for (tipo of tipos; track tipo) {
+      <div class="grupo-tipo">
+        <div class="topo-tipo">
+          <h3>{{ rotulosTipo[tipo] }}</h3>
+          <button type="button" class="botao-primario" (click)="novo(tipo)">+ Novo modelo</button>
+        </div>
+
+        @if (!modelosPorTipo(tipo).length) {
+          <p class="vazio">Nenhum modelo de {{ rotulosTipo[tipo].toLowerCase() }} cadastrado ainda.</p>
+        } @else {
+          <ul class="lista-modelos">
+            @for (modelo of modelosPorTipo(tipo); track modelo.id) {
+              <li>
+                <div class="linha-modelo" (click)="editar(modelo)">
+                  <span class="nome-modelo">{{ modelo.nome }}</span>
+                </div>
+                <button type="button" class="botao-remover" title="Excluir" (click)="excluir(modelo)">✖</button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  }
+</div>

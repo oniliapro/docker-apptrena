@@ -266,3 +266,13 @@ export interface VideoSelecionado {
 
 /** 100 MB — cabe no limite do servidor (110 MB, ver `RdoController::validarPayload`). */
 export const TAMANHO_MAXIMO_VIDEO = 100 * 1024 * 1024;
+
+/**
+ * 25 MB — mesmo limite de `ValidacaoMidia::IMAGEM` no backend (30/09/2026).
+ * Antes não existia pré-checagem nenhuma pra foto (diferente do vídeo,
+ * que já tinha) — o usuário só descobria que a foto era grande demais ao
+ * clicar Salvar, quando a validação do backend rejeitava a requisição
+ * INTEIRA (nada do dia era salvo, nem os outros campos), com uma
+ * mensagem genérica.
+ */
+export const TAMANHO_MAXIMO_FOTO = 25 * 1024 * 1024;

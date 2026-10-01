@@ -8,6 +8,7 @@ use App\Models\FvsPreenchimento;
 use App\Models\FvsPreenchimentoItem;
 use App\Models\Obra;
 use App\Models\RdoPendencia;
+use App\Support\ValidacaoMidia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -113,7 +114,7 @@ class FvsController extends Controller
     public function enviarFoto(Request $request, FvsPreenchimentoItem $item)
     {
         $this->confirmarPosse($item, $request);
-        $request->validate(['foto' => 'required|file|image|max:8192']);
+        $request->validate(['foto' => 'required|' . ValidacaoMidia::IMAGEM]);
 
         $ordem = (int) $item->fotos()->max('ordem') + 1;
         $foto = FvsFoto::create([

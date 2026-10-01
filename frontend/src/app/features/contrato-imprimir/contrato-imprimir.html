@@ -1,0 +1,22 @@
+@if (timbradoFundoUrl(); as url) {
+  <div class="timbrado-fundo" [style.background-image]="'url(' + url + ')'" [style.background-size]="timbradoFundoTamanho()"
+       [style.opacity]="timbradoFundoOpacidade()"></div>
+}
+
+<!-- 30/09/2026: logo/nome da empresa/subtítulo/"Gerado em" não aparecem
+     mais aqui, no CORPO da página — moveram pro cabeçalho de verdade do
+     Puppeteer (`ContratoPdfController::construirCabecalhoPdf`), que
+     repete em TODA página do PDF. Ficando aqui, só apareciam na 1ª
+     página (o corpo não se repete, só o header/footer de verdade do
+     Chromium repetem sozinhos). -->
+
+@if (carregando()) {
+  <p class="atenuado">Carregando…</p>
+} @else if (erro(); as mensagem) {
+  <p class="atenuado">{{ mensagem }}</p>
+} @else {
+  <!-- 30/09/2026: não mostra mais o NOME DO MODELO (era um identificador
+       interno do cadastro, não algo pra aparecer no documento entregue
+       ao cliente — pedido do Lucas). -->
+  <div class="corpo-contrato" [innerHTML]="conteudoPreenchido()"></div>
+}

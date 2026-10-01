@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { Arquivo, ConteudoPasta, Pasta, RaizesPastas } from '../../features/arquivos/arquivos.models';
+import { ContratoEstilo, ContratoModelo, ResultadoGeracaoEmLote, TipoContratoModelo } from '../../features/configuracoes/contrato-modelos/contrato-modelo.models';
 import { ResumoContratoEmpreita } from '../../features/empreita/empreita.models';
 import { Tag } from '../../features/configuracoes/tags/tags.models';
 import {
@@ -454,6 +455,89 @@ export class ApiService {
       context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
       params: { opcoes: opcoes.join(','), colunas: colunas.join(',') },
     });
+  }
+
+  /**
+   * GET /empreitas/{empreita}/contrato/pdf — contrato gerado a partir de um
+   * modelo cadastrado (28/09/2026, itens 8/9, ver ContratoPdfController).
+   */
+  baixarContratoEmpreitaPdf(empreitaId: string, modeloId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/empreitas/${empreitaId}/contrato/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: { modelo_id: modeloId },
+    });
+  }
+
+  /**
+   * Geração em massa + anexo automático (30/09/2026, ver
+   * `ContratoPdfController::gerarEAnexarEmLote`) — chamado a partir da
+   * lista de Empreitas da obra: escolhe um modelo (já com a tag de anexo
+   * configurada) e gera+anexa o contrato de cada empreita selecionada de
+   * uma vez, sequencial no servidor. Pode demorar bastante com várias
+   * empreitas (~15-20s cada, mesmo tempo de qualquer PDF via Browsershot
+   * neste projeto) — por isso `SEM_TIMEOUT_LONGO`, igual aos outros PDFs.
+   */
+  gerarContratosEmLote(modeloId: string, empreitaIds: string[]): Observable<ResultadoGeracaoEmLote> {
+    return this.http.post<ResultadoGeracaoEmLote>(
+      `${this.base}/empreitas/contratos/gerar-em-lote`,
+      { modelo_id: modeloId, empreita_ids: empreitaIds },
+      { context: new HttpContext().set(SEM_TIMEOUT_LONGO, true) },
+    );
+  }
+
+  /** GET /obras/{obra}/contrato/pdf — mesma ideia acima, pro contrato de obra/proposta. */
+  baixarContratoObraPdf(obraId: string, modeloId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/obras/${obraId}/contrato/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: { modelo_id: modeloId },
+    });
+  }
+
+  /**
+   * CRUD de modelos de contrato (28/09/2026, itens 8/9, Configurações) —
+   * fica aqui (não num serviço próprio como `FvsService`/`RdoService`) de
+   * propósito: `ContratoImprimir` (a tela que o PDF acima imprime) também
+   * busca o modelo escolhido, e só o `ApiService.base` já sabe usar a URL
+   * alternativa da API quando o Chromium headless do PDF chama a tela
+   * (`definirBaseParaImpressao` — um serviço à parte teria seu próprio
+   * `base` fixo em `environment.apiUrl`, inalcançável de dentro do
+   * container do PDF; foi exatamente esse bug que apareceu no teste).
+   */
+  listarContratoModelos(tipo?: TipoContratoModelo): Observable<ContratoModelo[]> {
+    let params = new HttpParams();
+    if (tipo) params = params.set('tipo', tipo);
+    return this.http.get<ContratoModelo[]>(`${this.base}/contrato-modelos`, { params });
+  }
+
+  criarContratoModelo(dados: Partial<ContratoModelo>): Observable<ContratoModelo> {
+    return this.http.post<ContratoModelo>(`${this.base}/contrato-modelos`, dados);
+  }
+
+  atualizarContratoModelo(id: string, dados: Partial<ContratoModelo>): Observable<ContratoModelo> {
+    return this.http.put<ContratoModelo>(`${this.base}/contrato-modelos/${id}`, dados);
+  }
+
+  excluirContratoModelo(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/contrato-modelos/${id}`);
+  }
+
+  /** Estilos de texto nomeados pelo usuário (29/09/2026) — únicos por empresa, ver `ContratoEstiloController`. */
+  listarContratoEstilos(): Observable<ContratoEstilo[]> {
+    return this.http.get<ContratoEstilo[]>(`${this.base}/contrato-estilos`);
+  }
+
+  criarContratoEstilo(dados: Partial<ContratoEstilo>): Observable<ContratoEstilo> {
+    return this.http.post<ContratoEstilo>(`${this.base}/contrato-estilos`, dados);
+  }
+
+  atualizarContratoEstilo(id: string, dados: Partial<ContratoEstilo>): Observable<ContratoEstilo> {
+    return this.http.put<ContratoEstilo>(`${this.base}/contrato-estilos/${id}`, dados);
+  }
+
+  excluirContratoEstilo(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/contrato-estilos/${id}`);
   }
 
   /**

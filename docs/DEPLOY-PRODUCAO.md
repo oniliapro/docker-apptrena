@@ -275,6 +275,19 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Imagens/vídeos do sistema (30/09/2026 — bloco que faltava aqui e
+    # provavelmente explica "nenhuma imagem aparece em produção"): toda
+    # foto/logo/timbrado é servida em `/storage/...` (não `/api/storage/`)
+    # — sem este bloco, esse caminho cai no `location /` do Angular lá
+    # embaixo, que devolve o `index.html` no lugar da imagem de verdade.
+    location /storage/ {
+        proxy_pass http://127.0.0.1:8088;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # App antigo (vanilla), mantido em /html/ — mesma convivência do PUBLICAR.md
     location /html/ {
         proxy_pass http://127.0.0.1:8080/;
@@ -327,6 +340,12 @@ acima.
 - [ ] `https://trenadigital.com.br/html/` ainda abre o app antigo.
 - [ ] Login funciona e as telas (Clientes, Obras, EAP…) carregam dados
       de verdade, não ficam em branco.
+- [ ] **(30/09/2026) Uma imagem de verdade abre**: `curl -I
+      https://trenadigital.com.br/storage/<algum-caminho-real>` devolve
+      `Content-Type: image/...` — se vier `text/html`, o nginx do sistema
+      está sem o bloco `location /storage/` (ver seção 5) e NENHUMA
+      imagem do sistema vai aparecer (logo, fotos de RDO, papel
+      timbrado…), sintoma já visto em produção.
 - [ ] Testar em outro navegador/aba anônima: fechar e abrir de novo não
       perde o que foi salvo (prova de que está no banco, não no
       navegador).

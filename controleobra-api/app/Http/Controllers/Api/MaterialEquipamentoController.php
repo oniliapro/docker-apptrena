@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MaterialEquipamento;
+use App\Support\ValidacaoMidia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -46,7 +47,7 @@ class MaterialEquipamentoController extends Controller
 
     public function salvarFoto(Request $request, MaterialEquipamento $materiaisEquipamento)
     {
-        $request->validate(['foto' => 'required|file|image|max:8192']);
+        $request->validate(['foto' => 'required|' . ValidacaoMidia::IMAGEM]);
 
         if ($materiaisEquipamento->foto_path) {
             Storage::disk('public')->delete($materiaisEquipamento->foto_path);

@@ -254,6 +254,20 @@ export const routes: Routes = [
       import('./features/medicoes/medicao-imprimir').then((m) => m.MedicaoImprimir),
   },
   {
+    // Versão "para imprimir" do contrato de uma Empreita (28/09/2026, itens
+    // 8/9) — mesma ideia das rotas acima. Ver ContratoPdfController.
+    path: 'imprimir/obras/:id/contratos/empreita/:empreitaId',
+    data: { tipo: 'empreita' },
+    loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
+  },
+  {
+    // Versão "para imprimir" do contrato de uma Obra/proposta (28/09/2026,
+    // itens 8/9) — mesma ideia acima. Ver ContratoPdfController.
+    path: 'imprimir/obras/:id/contratos/obra',
+    data: { tipo: 'obra' },
+    loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
+  },
+  {
     // Acompanhamento do contratante no RDO (17/09/2026) — o único diário
     // daqui pra frente (F8, 22/09/2026: a rota pública do Diário antigo,
     // `publico/diario/:token`, foi retirada daqui — os links antigos param
@@ -389,6 +403,27 @@ export const routes: Routes = [
         data: { titulo: 'Agenda' },
         canActivate: [permissaoModuloGuard('agenda')],
         loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+      },
+      {
+        // Editor de um modelo de contrato (29/09/2026, pedido do Lucas: mais
+        // visual, "parecido com o Word", numa aba própria em vez do
+        // textarea dentro do popup de Configurações). `window.open` em
+        // `ContratoModelosConfig.novo/editar` — funciona igual acessada
+        // direto (só sem o `window.close()` automático depois de salvar).
+        path: 'contrato-modelos/novo',
+        data: { titulo: 'Novo modelo de contrato' },
+        loadComponent: () =>
+          import('./features/configuracoes/contrato-modelos/contrato-modelo-editor/contrato-modelo-editor').then(
+            (m) => m.ContratoModeloEditor,
+          ),
+      },
+      {
+        path: 'contrato-modelos/:contratoModeloId',
+        data: { titulo: 'Editar modelo de contrato' },
+        loadComponent: () =>
+          import('./features/configuracoes/contrato-modelos/contrato-modelo-editor/contrato-modelo-editor').then(
+            (m) => m.ContratoModeloEditor,
+          ),
       },
       {
         // Lista geral de RDOs, todas as obras (F8, 22/09/2026: virou lista +

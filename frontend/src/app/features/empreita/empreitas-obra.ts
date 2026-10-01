@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { Empreita } from '../../core/models/api.models';
+import { ContratoModelo, ResultadoGeracaoEmLote } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData, formatarMoeda, hojeIso } from '../../core/utils/formato';
@@ -516,6 +517,63 @@ export class EmpreitasObra implements OnInit {
       error: () => {
         this.erroPdfResumo.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
         this.gerandoPdfResumo.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Geração de contratos em massa (30/09/2026, pedido do Lucas: "gerar
+  // os contratos em massa, selecionando vários e clicando para gerar...
+  // anexados... com uma tag predefinida no modelo do contrato"). Cada
+  // PDF gerado já nasce ANEXADO na própria empreita (ver
+  // `ContratoPdfController::gerarEAnexarEmLote`) — não baixa nada no
+  // navegador, por isso recarrega a lista no final (o contador de
+  // anexos/lembretes pode mudar).
+  // ------------------------------------------------------------------
+  protected readonly gerarContratosAberto = signal(false);
+  protected readonly modelosContratoLote = signal<ContratoModelo[]>([]);
+  protected readonly modeloContratoLoteId = signal('');
+  protected readonly gerandoContratosLote = signal(false);
+  protected readonly resultadoContratosLote = signal<ResultadoGeracaoEmLote | null>(null);
+  protected readonly erroContratosLote = signal<string | null>(null);
+
+  protected readonly modeloContratoLoteEscolhido = computed(
+    () => this.modelosContratoLote().find((m) => m.id === this.modeloContratoLoteId()) ?? null,
+  );
+
+  protected abrirGerarContratos(): void {
+    this.erroContratosLote.set(null);
+    this.resultadoContratosLote.set(null);
+    this.modeloContratoLoteId.set('');
+    this.gerarContratosAberto.set(true);
+    this.api.listarContratoModelos('empreita').subscribe({ next: (lista) => this.modelosContratoLote.set(lista) });
+  }
+
+  protected fecharGerarContratos(): void {
+    if (this.gerandoContratosLote()) return;
+    this.gerarContratosAberto.set(false);
+  }
+
+  protected gerarContratosLote(): void {
+    const modeloId = this.modeloContratoLoteId();
+    const empreitas = this.selecao.selecionados(this.listaOrdenada());
+    if (!modeloId || !empreitas.length) return;
+
+    this.erroContratosLote.set(null);
+    this.resultadoContratosLote.set(null);
+    this.gerandoContratosLote.set(true);
+
+    this.api.gerarContratosEmLote(modeloId, empreitas.map((e) => e.id)).subscribe({
+      next: (resultado) => {
+        this.gerandoContratosLote.set(false);
+        this.resultadoContratosLote.set(resultado);
+        if (resultado.sucesso.length) this.recarregarLista();
+      },
+      error: (erro) => {
+        this.gerandoContratosLote.set(false);
+        this.erroContratosLote.set(
+          erro?.error?.message || 'Não foi possível gerar os contratos. Tente novamente em alguns segundos.',
+        );
       },
     });
   }

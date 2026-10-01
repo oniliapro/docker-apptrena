@@ -35,6 +35,10 @@
                 (click)="selecionarAba('fvs')">
           Fichas de verificação
         </button>
+        <button type="button" class="aba" [class.ativa]="abaAtiva() === 'contratos'"
+                (click)="selecionarAba('contratos')">
+          Modelos de contrato
+        </button>
       </aside>
 
       <div class="painel-config">
@@ -56,6 +60,9 @@
           }
           @case ('fvs') {
             <app-fvs-modelos />
+          }
+          @case ('contratos') {
+            <app-contrato-modelos />
           }
         }
       </div>

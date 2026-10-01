@@ -1,0 +1,741 @@
+:host { display: block; }
+
+.pagina-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--barra-topo-altura));
+  transition: padding-right 0.15s ease;
+
+  // Some empurrado pra esquerda enquanto um painel lateral está aberto —
+  // sem isso, o painel (fixed, por cima) cobre a ponta direita da barra de
+  // formatação e nada ali dá pra clicar (ver `algumPainelAberto` no `.ts`).
+  &.painel-aberto { padding-right: 340px; }
+}
+
+.barra-topo-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cor-borda);
+  margin-bottom: 10px;
+}
+
+.identificacao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rotulo-tipo {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.campo-nome {
+  flex: 1;
+  max-width: 420px;
+  // `input` global (`_base.scss`) fixa `width:100%; height:20px;` pras
+  // tabelas densas do resto do sistema — sem desligar aqui, o texto fica
+  // cortado (mesma causa já achada e corrigida no RDO em 27/09, ver
+  // CONTEXTO.md). Todo campo novo deste editor repete esse desligamento.
+  width: auto;
+  height: auto;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+}
+
+.acoes-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.aviso-salvo { font-size: 12.5px; font-weight: 600; color: var(--cor-sucesso); }
+
+button.primario {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+}
+
+// ---- Barra de formatação — sticky logo abaixo da barra de topo do app,
+// pra ficar sempre acessível independente do tanto de texto que o
+// contrato já tem. ----
+.barra-formatacao {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  margin-bottom: 16px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-sm);
+
+  button {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 5px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--raio-sm);
+    background: none;
+    cursor: pointer;
+
+    &:hover { background: var(--cor-fundo-alt); }
+  }
+}
+
+.separador-barra {
+  width: 1px;
+  align-self: stretch;
+  background: var(--cor-borda);
+  margin: 2px 4px;
+}
+
+.menu-variaveis {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rotulo-variaveis {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  margin-right: 2px;
+}
+
+.chip-variavel {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+
+  &:hover { background: var(--cor-primaria-clara); }
+}
+
+.select-objeto-variavel {
+  // idem `.select-estilo` — desliga o `width:100%; height:20px` global.
+  width: auto;
+  height: auto;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+}
+
+.indicador-foco {
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.select-estilo {
+  // idem `.campo-nome` — desliga o `width:100%; height:20px` global.
+  width: auto;
+  height: auto;
+  min-width: 150px;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+}
+
+.menu-colunas {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  button { min-width: 26px; }
+}
+
+// ---- Painéis laterais ("Configurações da página" / "Meus estilos") —
+// sempre presentes no DOM (só `translateX` some por CSS), pra não perder o
+// que já foi digitado no cabeçalho/rodapé (contenteditable) toda vez que o
+// painel fecha. ----
+.painel-lateral {
+  position: fixed;
+  top: var(--barra-topo-altura);
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--cor-superficie);
+  border-left: 1px solid var(--cor-borda);
+  box-shadow: var(--sombra-md);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.15s ease;
+  overflow-y: auto;
+
+  &.aberto { transform: translateX(0); }
+}
+
+.painel-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--cor-borda);
+  flex-shrink: 0;
+
+  button.fechar {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--cor-texto-suave);
+  }
+}
+
+.painel-corpo {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.campo-linha {
+  display: flex;
+  gap: 10px;
+
+  label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+  }
+
+  select, input {
+    // idem `.campo-nome` — desliga o `height:20px` global (o `width:100%`
+    // aqui é o que já se quer: campo preenchendo a largura do `label`).
+    height: auto;
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-sm);
+  }
+
+  &.margens label { flex: 1 1 25%; }
+}
+
+.campo-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.rotulo-bloco {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+// ---- Painel "Meus estilos" ----
+.form-estilo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+  }
+
+  select, input[type="text"], input[type="number"] {
+    height: auto;
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-sm);
+  }
+
+  input[type="color"] { width: 60px; padding: 2px; height: 30px; }
+}
+
+.linha-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400 !important;
+}
+
+.dica-lista {
+  font-size: 11.5px;
+  color: var(--cor-texto-suave);
+  margin: -2px 0 4px;
+  line-height: 1.4;
+
+  &.aviso-atencao {
+    color: var(--cor-perigo);
+  }
+}
+
+.opcoes-checkbox {
+  display: flex;
+  gap: 12px;
+  font-size: 12.5px;
+
+  label { flex-direction: row; align-items: center; gap: 4px; font-weight: 400; }
+}
+
+.acoes-form-estilo {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lista-estilos-cadastrados {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--cor-borda);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 2px;
+    font-size: 13px;
+  }
+}
+
+.acoes-item-estilo {
+  display: flex;
+  gap: 4px;
+
+  button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+
+    &:hover { color: var(--cor-texto); }
+  }
+}
+
+// ---- "Folha" — visual de página de documento (fundo cinza atrás, folha
+// branca centralizada com sombra), pra parecer um editor de texto de
+// verdade em vez de um textarea qualquer. ----
+.folha-editor {
+  flex: 1;
+  background: var(--cor-fundo-alt);
+  padding: 24px 0 60px;
+  margin: 0 -18px;
+  display: flex;
+  justify-content: center;
+}
+
+// A "folha" propriamente dita (30/09/2026: passou a envolver cabeçalho +
+// corpo + rodapé juntos, não só o corpo — antes cabeçalho/rodapé ficavam
+// escondidos num painel à parte, pedido do Lucas foi exatamente poder VER
+// os três juntos, como no Word). Largura vem do TS (`[style.width.px]`,
+// calculada do tamanho do papel/orientação — ver `larguraFolhaPx`); altura
+// é automática (soma cabeçalho + corpo + rodapé, que cresce com o texto).
+.pagina-simulada {
+  position: relative;
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// Papel timbrado como fundo — camada PRÓPRIA, atrás de tudo (30/09/2026,
+// redesenho: "tire a faixa no topo, centralizar, transparência,
+// redimensionar mantendo ou não a proporção") — precisa ser separada do
+// conteúdo porque `opacity` aqui só pode valer pra imagem, nunca pro
+// texto do contrato por cima.
+.timbrado-fundo-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+}
+
+// Caixa do cabeçalho/rodapé — prévia dos itens predefinidos (logo/nome/
+// data) + texto próprio do usuário, repetida em toda folha (30/09/2026,
+// substitui `.faixa-pagina`/`.rotulo-faixa` de antes — agora cabeçalho E
+// rodapé aparecem em CADA página, não só uma vez). Fundo branco igual ao
+// resto da folha (pedido do Lucas, 30/09/2026: era cinza/`--cor-fundo-alt`
+// e ficava "difícil de ver esses itens" contra o papel) — o limite da
+// área agora é marcado por uma linha tracejada (abaixo do cabeçalho,
+// acima do rodapé) em vez de diferença de cor de fundo.
+.caixa-cabecalho,
+.caixa-rodape {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  background: var(--cor-superficie);
+
+  &:focus-within { background: var(--cor-primaria-clara); }
+}
+
+.caixa-cabecalho { border-bottom: 1px dashed var(--cor-borda); }
+.caixa-rodape { border-top: 1px dashed var(--cor-borda); }
+
+// Prévia do que o `CabecalhoImpressao`/`ContratoPdfController::
+// construirCabecalhoPdf` desenha sozinho no PDF de verdade (30/09/2026,
+// pedido do Lucas: "elementos aparecem no PDF mas não na minha
+// visualização... logo, título com nome da empresa, papel timbrado,
+// data de geração") — só leitura, dentro de `.caixa-cabecalho`.
+.previa-sistema {
+  user-select: none;
+  cursor: default;
+}
+
+.previa-cabecalho-sistema {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--cor-primaria);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.previa-identidade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.previa-logo {
+  display: block;
+  max-height: 30px;
+  max-width: 100px;
+  object-fit: contain;
+}
+
+.previa-nome-empresa {
+  font-family: var(--fonte-titulo);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+.previa-subtitulo {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cor-texto-suave);
+}
+
+.previa-data {
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+// Área de verdade editável dentro da caixa de cabeçalho/rodapé
+// (30/09/2026, substitui `.area-mini`) — tanto a canônica (página 1)
+// quanto a ilha editável dentro de cada CLONE (`.clone-pagina`, ver
+// `criarCloneCabecalhoOuRodape` no `.ts`) usam esta mesma classe.
+.area-editavel-sincronizada {
+  min-height: 20px;
+  padding: 4px 0;
+  font-size: 12px;
+  outline: none;
+
+  :focus-visible { outline: none; }
+}
+
+.area-edicao {
+  font-family: var(--fonte);
+  // 11pt/1.6 igual ao `:host` de `contrato-imprimir.scss` (30/09/2026,
+  // achado comparando os dois lado a lado: aqui estava 14px/1.7 — a
+  // diferença parece pequena por linha, mas composta ao longo de um
+  // contrato inteiro desalinhava a quebra de página da edição em
+  // relação ao PDF de verdade). 11pt = 11 × 96/72px.
+  font-size: 14.67px;
+  line-height: 1.6;
+  color: var(--cor-texto);
+  outline: none;
+  position: relative;
+  z-index: 1;
+
+  :focus-visible { outline: none; }
+}
+
+// Réguas estilo Word (30/09/2026) — grid 2x2: canto vazio, régua
+// horizontal, régua vertical, folha. `.folha-editor` (flex + justify-
+// content:center) agora centra este grid inteiro, não só a folha.
+$largura-regua: 20px;
+
+.area-reguas {
+  display: grid;
+  grid-template-columns: $largura-regua auto;
+  grid-template-rows: $largura-regua auto;
+  width: max-content;
+
+  &.arrastando { cursor: grabbing; }
+}
+
+.canto-regua {
+  grid-column: 1;
+  grid-row: 1;
+  background: var(--cor-fundo-alt);
+  border-right: 1px solid var(--cor-borda);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.regua-horizontal,
+.regua-vertical {
+  position: relative;
+  background: var(--cor-fundo-alt);
+  overflow: hidden;
+}
+
+.regua-horizontal {
+  grid-column: 2;
+  grid-row: 1;
+  height: $largura-regua;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.regua-vertical {
+  grid-column: 1;
+  grid-row: 2;
+  width: $largura-regua;
+  border-right: 1px solid var(--cor-borda);
+}
+
+.pagina-simulada { grid-column: 2; grid-row: 2; }
+
+// Cada marca é ao mesmo tempo o tracinho E (só nas "cheias", a cada 5cm)
+// o número — mais simples que separar as duas coisas em elementos
+// diferentes, já que o loop já sabe a posição de cada cm.
+.marca-regua {
+  position: absolute;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--cor-texto-suave);
+  pointer-events: none;
+  user-select: none;
+}
+
+.regua-horizontal .marca-regua {
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  border-left: 1px solid var(--cor-borda);
+
+  &.marca-cheia {
+    height: 8px;
+    padding: 0 0 1px 2px;
+    white-space: nowrap;
+  }
+}
+
+.regua-vertical .marca-regua {
+  right: 0;
+  width: 4px;
+  height: 1px;
+  border-top: 1px solid var(--cor-borda);
+
+  &.marca-cheia {
+    width: 8px;
+    text-align: right;
+    padding-right: 1px;
+    transform: translateY(-100%);
+  }
+}
+
+// Zona cinza = margem (fora da área imprimível), igual o Word.
+.zona-margem {
+  position: absolute;
+  background: repeating-linear-gradient(45deg, var(--cor-borda) 0, var(--cor-borda) 1px, transparent 1px, transparent 5px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.regua-horizontal .zona-margem { top: 0; bottom: 0; }
+.zona-margem-esquerda { left: 0; }
+.zona-margem-direita { right: 0; }
+
+.regua-vertical .zona-margem { left: 0; right: 0; }
+.zona-margem-superior { top: 0; }
+.zona-margem-inferior { bottom: 0; }
+
+// Alça de arraste — barra fininha na fronteira da margem, com área de
+// clique maior (via ::before invisível) pra não precisar acertar o pixel.
+.alca-regua {
+  position: absolute;
+  z-index: 3;
+
+  &::before {
+    content: '';
+    position: absolute;
+  }
+}
+
+.alca-regua-h {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--cor-primaria);
+  cursor: ew-resize;
+  transform: translateX(-1px);
+
+  &::before { left: -5px; right: -5px; top: 0; bottom: 0; }
+  &.ativa { background: var(--cor-perigo); }
+}
+
+.alca-regua-v {
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--cor-primaria);
+  cursor: ns-resize;
+  transform: translateY(-1px);
+
+  &::before { top: -5px; bottom: -5px; left: 0; right: 0; }
+  &.ativa { background: var(--cor-perigo); }
+}
+
+
+// `::ng-deep` (30/09/2026): o conteúdo aqui dentro é criado por
+// `execCommand`/manipulação direta de DOM, não compilado pelo Angular —
+// não carrega o atributo `_ngcontent-*` que o CSS com escopo normal do
+// componente precisa pra casar o seletor, então essas regras NUNCA
+// aplicavam de verdade (só coincidiam, por acaso, com o padrão do
+// navegador pra h1-h4/negrito/lista — ficou óbvio só na numeração
+// aninhada das cláusulas, que depende 100% de CSS customizado). Mesma
+// causa raiz do bug já corrigido em `ContratoImprimir` (`ViewEncapsulation.
+// None` lá); aqui, como o resto do componente tem estilo de verdade
+// compilado pelo Angular (barra, painéis), usamos `::ng-deep` só neste
+// bloco em vez de desligar o encapsulamento do componente inteiro.
+:host ::ng-deep .area-edicao {
+  // Reseta só o contador de NÍVEL 1 logo no início do corpo (30/09/2026)
+  // — a formatação/numeração de verdade de cada estilo vem da `<style>`
+  // gerada por `gerarCssEstilos` (`#folhaEstilos` no template), atualizada
+  // sempre que os estilos mudam — é o que resolve "se eu alterar o
+  // formato do título 1 o texto não atualiza". Níveis 2-7 são resetados
+  // só pelo `counter-reset` que cada estilo de título gera no PRÓPRIO
+  // elemento (ex.: Título 1 reseta titulo2..titulo7 nele mesmo) — resetar
+  // esses níveis AQUI TAMBÉM (redundante) quebra a renumeração: achado
+  // testando de verdade, o Chromium não reencadeia o contador do filho
+  // pro escopo do 2º Título 1 em diante quando o mesmo contador já tem
+  // reset num ancestral, e a numeração "trava" no valor do 1º grupo
+  // (ex.: "2.3" em vez de "2.1" pro 1º Título 2 dentro do 2º Título 1).
+  counter-reset: titulo1;
+
+  // Tamanhos/margens convertidos 1:1 de `contrato-imprimir.scss`
+  // (`.corpo-contrato`) — pt→px a 96/72, mm→px a 96/25.4 (mesma conta que
+  // o Chromium usa pra essas unidades; `mmParaPx()` do `.ts` usa o mesmo
+  // fator). Antes eram valores em px escolhidos à parte, sem relação
+  // nenhuma com o PDF de verdade — outra causa do desalinhamento da
+  // quebra de página achada em 30/09/2026 (ver nota no `.ts`,
+  // `alturaUtilPaginaPx`).
+  h1 { font-family: var(--fonte-titulo); font-size: 20px; font-weight: 700; margin: 22.68px 0 15.12px; }
+  h2 { font-family: var(--fonte-titulo); font-size: 17.33px; font-weight: 700; margin: 18.9px 0 11.34px; }
+  h3 { font-family: var(--fonte-titulo); font-size: 16px; font-weight: 700; margin: 15.12px 0 7.56px; }
+  h4 { font-family: var(--fonte-titulo); font-size: 14.67px; font-weight: 700; margin: 11.34px 0 7.56px; }
+  h5 { font-family: var(--fonte-titulo); font-size: 14px; font-weight: 700; margin: 7.56px 0 3.78px; }
+  h6 { font-family: var(--fonte-titulo); font-size: 13.33px; font-weight: 700; margin: 7.56px 0 3.78px; }
+  blockquote {
+    margin: 0 0 15.12px;
+    padding: 3.78px 18.9px;
+    border-left: 3.02px solid var(--cor-borda);
+    color: var(--cor-texto-suave);
+    font-style: italic;
+  }
+
+  // Separação de páginas DE VERDADE (30/09/2026, pedido do Lucas: "deixe
+  // a separação de páginas evidente, criando as folhas mesmo separadas
+  // por um vazio entre elas") — substitui a antiga linha-guia aproximada.
+  // Precisa estar DENTRO deste bloco `::ng-deep` pelo mesmo motivo do
+  // comentário lá em cima: `<div>` criado via `document.createElement`
+  // em `recalcularQuebrasPagina()` (ver `.ts`), não pelo template, então
+  // nunca carrega `_ngcontent-*` — um seletor `.quebra-pagina` fora do
+  // `::ng-deep` simplesmente nunca bate nele (achado do mesmo jeito que
+  // o bug do `<style>`: a classe aplicava mas o fundo saía transparente,
+  // só as bordas finas apareciam). Sangra até a borda da folha
+  // (`margin-left/right` negativos, setados via JS por dependerem da
+  // margem atual) pra parecer o vão de verdade entre duas folhas
+  // empilhadas, com uma sombra leve simulando a borda de cada uma.
+  .quebra-pagina {
+    display: block;
+    background: var(--cor-fundo-alt);
+    border-top: 1px solid var(--cor-borda);
+    border-bottom: 1px solid var(--cor-borda);
+    box-shadow:
+      inset 0 6px 6px -6px rgba(0, 0, 0, 0.35),
+      inset 0 -6px 6px -6px rgba(0, 0, 0, 0.35);
+  }
+
+  // Quebra de página MANUAL (01/10/2026, `inserirQuebraManual`) — ao
+  // contrário do `.quebra-pagina` (espaçador automático, nunca salvo),
+  // este É conteúdo salvo de verdade; o rótulo deixa claro que foi o
+  // usuário quem decidiu quebrar ali, distinto do vão automático que vem
+  // logo depois dele.
+  .quebra-manual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 6px 0;
+    padding: 3px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cor-primaria);
+    background: var(--cor-primaria-clara);
+    border: 1px dashed var(--cor-primaria);
+    border-radius: 4px;
+    user-select: none;
+    cursor: default;
+
+    &::selection { background: var(--cor-primaria); color: #fff; }
+  }
+
+  p { margin: 0 0 15.12px; }
+  ul, ol { margin: 0 0 15.12px; padding-left: 22.68px; }
+
+  // Layout de colunas — sem equivalente em `execCommand`, então é só CSS
+  // (`column-count`) sobre um `<div>` que o editor cria ao aplicar.
+  .colunas {
+    column-gap: 30.24px;
+    margin: 0 0 15.12px;
+  }
+  .colunas-2 { column-count: 2; }
+  .colunas-3 { column-count: 3; }
+}

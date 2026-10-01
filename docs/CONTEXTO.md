@@ -2162,3 +2162,1072 @@ AppTrena/
   link de voltar aparecendo, voltar leva de volta pra grade, e clicar numa
   obra pela lista já cai direto na grade (não mais na EAP) — zero erro de
   console em cada passo.
+
+- **28/09/2026 — Itens 8 e 9: modelos de contrato de Empreita e de Obra/
+  proposta.** Últimos 2 itens do lote de 17 de 27/09/2026 — lote completo
+  agora. Ainda não publicado. Decisões já confirmadas com o Lucas antes de
+  começar: múltiplos modelos cadastráveis (não um só fixo), cada um
+  editável, preenchimento automático de variáveis, saída em PDF — "mesma
+  ideia dos modelos de FVS" (Configurações → cadastro reaproveitável,
+  escolhido na hora de gerar).
+
+  **Backend**: tabela nova `contrato_modelos` (`id`, `empresa_id`, `tipo`
+  enum `empreita`/`obra`, `nome`, `conteudo` texto livre, `ativo`) —
+  `ContratoModelo` (model) + `ContratoModeloController` (CRUD, mesmo
+  padrão de `FvsModeloController`, sem `permissaoModulo` própria — cadastro
+  geral tipo Materiais/Profissionais). `ContratoPdfController` gera o PDF
+  do jeito de sempre (Browsershot abrindo a própria tela de impressão do
+  Angular com um token de vida curta, ver docs/GERAR-PDF.md) — a diferença
+  aqui é que é A TELA (`ContratoImprimir`, rota `/imprimir/obras/:id/
+  contratos/empreita/:empreitaId` ou `/obra`) que busca o modelo escolhido
+  (`?modeloId=`) e os dados e faz a substituição das variáveis, não o
+  controller: ele só orquestra o Chromium, igual todo o resto.
+
+  **Variáveis** (`ContratoModeloController::VARIAVEIS`, espelhado no
+  frontend em `VARIAVEIS_CONTRATO_MODELO`): empreita tem
+  `empresa_nome`/`empresa_cnpj`/`obra_nome`/`cliente`/`empreiteiro`/
+  `descricao_empreita`/`numero_empreita`/`valor`/`data`; obra tem
+  `empresa_nome`/`empresa_cnpj`/`obra_nome`/`cliente`/`responsavel`/
+  `local_obra`/`data`. `{{valor}}` da empreita é a soma Empreiteiro+Reserva
+  de todos os itens — mesma conta de `EmpreitasObra.total()`, buscada de
+  `GET /empreitas/resumo`; obra não tem um campo de valor único no
+  cadastro, então ficou de fora do tipo obra (o texto do modelo pode
+  simplesmente não usar essa variável nesse caso). Uma variável sem valor
+  fica em branco (não quebra o preenchimento); uma chave que não existe na
+  lista fica visível como `{{chave}}` no PDF — mais fácil notar um nome
+  errado no modelo do que a informação sumir sozinha.
+
+  **Frontend**: aba nova "Modelos de contrato" em Configurações (CRUD com
+  nome + texto do contrato + legenda das variáveis disponíveis, separado
+  por tipo); popup "Contrato" da Empreita (já existia, de 27/09) ganhou uma
+  seção "Gerar contrato" (escolher modelo + botão); `ObraDetalhe` ganhou um
+  botão "📄 Gerar contrato" no cabeçalho, com popup próprio (a obra não
+  tinha nenhum popup de contrato ainda). `preencherModeloContrato`
+  (`shared/contrato-modelo-render.ts`) é a função pura de substituição
+  (`{{chave}}` → valor), reaproveitada só por `ContratoImprimir`.
+
+  **Bug real achado e corrigido no meio do teste**: a primeira versão tinha
+  um `ContratoModelosService` próprio (mesmo padrão de `FvsService`/
+  `RdoService` — um serviço à parte por módulo). O PDF gerava (200 OK,
+  binário válido) mas o CONTEÚDO vinha com "Não foi possível carregar os
+  dados do contrato" — só apareceu lendo o PDF de verdade, não só
+  conferindo o status HTTP do download. Causa: aquele serviço à parte tinha
+  seu próprio `base = environment.apiUrl` fixo, sem saber da URL
+  alternativa de API que `ContratoImprimir` recebe por query string
+  (`apiUrl=`) e aplica via `ApiService.definirBaseParaImpressao` — sem essa
+  troca, dentro do container do Chromium headless que gera o PDF,
+  `localhost:8088` não é alcançável (é o próprio container do Node/
+  Chromium, não a API). Corrigido movendo os 4 métodos de CRUD pra dentro
+  do `ApiService` compartilhado (que já resolve isso certo) e apagando o
+  serviço à parte — mesma armadilha que `FvsService`/`RdoService` também
+  têm hoje (não confirmado se algum dia mordeu alguém, mas é o mesmo
+  padrão arriscado; não mexido agora, fora do escopo deste pedido).
+  Lição: pra qualquer tela nova que apareça DENTRO de um PDF gerado, testar
+  lendo o PDF de verdade — 200 OK com bytes de PDF válidos não garante que
+  o conteúdo carregou.
+
+  Testado via Playwright ponta a ponta: criação dos 2 modelos (empreita e
+  obra) via API, geração e download dos 2 PDFs pela tela de verdade
+  (popup da Empreita e popup da Obra), leitura do PDF resultante
+  confirmando cada variável substituída certo (nome da empresa, obra,
+  profissional, valor formatado em R$, data, cliente) — campos vazios no
+  cadastro de teste (CNPJ, nº da empreita, responsável, local da obra)
+  aparecem em branco no contrato, como esperado. Zero erro de console.
+  Dados de teste (`ZZ Teste Empreita`/`ZZ Teste Obra`) apagados depois.
+
+- **29/09/2026 — Editor de modelos de contrato virou visual/rico (pedido
+  do Lucas, depois de ver a primeira versão dos itens 8/9 com textarea
+  simples: "acho que possa ser interessante algo mais parecido com o
+  word, o sistema abrir uma nova janela pra editar").** Trocado o
+  formulário simples (embutido no popup de Configurações) por um editor
+  de página inteira, `ContratoModeloEditor`, aberto numa ABA NOVA do
+  navegador (`window.open`), com visual de "folha" branca centralizada
+  sobre fundo cinza e barra de formatação fixa no topo ao rolar: negrito,
+  itálico, sublinhado, título/subtítulo/texto normal, lista com/sem
+  marcadores, alinhamento (esquerda/centro/justificado) e chips pra
+  inserir cada `{{variável}}` disponível daquele tipo (empreita/obra) no
+  cursor. Implementado com `contenteditable` + `document.execCommand`
+  (sem instalar biblioteca nova de rich text — nada disso já existia no
+  `package.json`, e o padrão deste projeto é preferir solução própria a
+  dependência nova). `conteudo` do modelo passou de texto puro a HTML de
+  verdade; a tela de Configurações ficou só a lista (com "+ Novo modelo"
+  e clique na linha abrindo a aba de edição).
+
+  **Detalhe de implementação que quebra fácil**: clicar num `<button>`
+  da barra de formatação tira o foco (e a seleção de texto) da área
+  `contenteditable` ANTES do `click` disparar, porque isso é o
+  comportamento padrão do `mousedown` do navegador — sem tratar isso,
+  `execCommand` roda sem seleção nenhuma e não faz nada. Corrigido com
+  `(mousedown)="$event.preventDefault()"` no contêiner da barra (por
+  delegação, cobre todos os botões de uma vez) + um `.focus()` explícito
+  na área antes de cada `execCommand`, como reforço.
+
+  **Rota do `window.open` tem que ser relativa, sem `/` na frente**
+  (`'contrato-modelos/novo?tipo=empreita'`, não `/contrato-modelos/...`):
+  o Angular roda sob `/app/` em produção mas `/` local — só path relativo
+  resolve certo nos dois, contra o `<base href>` (`document.baseURI`), não
+  contra a raiz do domínio.
+
+  **Dois bugs reais achados testando o PDF de verdade** (mesma lição de
+  28/09: 200 OK com PDF válido não garante que o CONTEÚDO saiu certo —
+  só se vê lendo o PDF):
+  1. Um teste automatizado inicial pareceu "perder" um trecho digitado
+     depois de clicar em Negrito — investigado a fundo e concluído que
+     era o PRÓPRIO SCRIPT de teste usando um seletor ambíguo
+     (`button:has-text("N")`, que casa com qualquer botão/chip contendo
+     "n" ou "N" — inclusive "Normal" e nomes de variável como
+     `empresa_nome`), não um bug do editor: reproduções isoladas com
+     seletor preciso (`button[title="Negrito"]`) e a sequência completa
+     original (Título → Enter → Normal → Negrito → digitar → Negrito off
+     → inserir variável) deram o HTML esperado de ponta a ponta.
+  2. **Esse sim um bug real, sem relação com o teste acima**: os botões
+     de alinhamento (centralizar/direita/justificado) do editor não
+     tinham NENHUM efeito no PDF gerado — o `<p style="text-align:...">`
+     que o `execCommand('justifyCenter'/...)` produz chegava ao
+     `[innerHTML]` de `ContratoImprimir` sem o atributo `style`, porque o
+     sanitizador padrão do Angular remove `style` de conteúdo passado por
+     `[innerHTML]`. Corrigido em `contrato-imprimir.ts` envolvendo o HTML
+     final em `DomSanitizer.bypassSecurityTrustHtml(...)` antes de
+     atribuir ao signal renderizado — seguro aqui porque quem escreve
+     esse HTML é sempre um usuário logado da própria empresa editando o
+     modelo, e cada VALOR de variável substituído já passa por
+     `escaparHtml` em `preencherModeloContrato` antes de entrar no
+     texto. Confirmado depois lendo o PDF de verdade: parágrafo
+     centralizado aparece centralizado, negrito/itálico/lista também
+     saem certos.
+
+  Modelos de teste (`ZZ Teste Editor Rico`, `ZZ Teste PDF Rico`,
+  `ZZ Teste Alinhamento`) apagados do banco depois de cada teste.
+
+- **29/09/2026 (mesmo dia, segunda rodada) — Editor de contrato ganhou
+  estilos nomeados, lista de cláusulas numerada, colunas e layout de
+  página por modelo (pedido do Lucas: "algo mais parecido com o Word...
+  estilos que eu crio e nomeio... listas em níveis igual a EAP... layout
+  de colunas... margens, tamanho da folha, cabeçalho, rodapé... papel
+  timbrado com imagem... todos os dados do cliente/empreiteiro/obra/
+  empresa como variável").** Decisões confirmadas com o Lucas antes de
+  implementar: estilos são personalizados (não um conjunto fixo), a lista
+  em níveis é numeração hierárquica (1, 1.1, 1.1.1 — igual à EAP), o papel
+  timbrado é único por empresa, e margens/tamanho/cabeçalho/rodapé são por
+  MODELO de contrato (não uma config única pro sistema todo).
+
+  **Papel timbrado já existia** (`Empresa::papel_timbrado_path`, upload em
+  Configurações → Dados da empresa, aplicado por `CabecalhoImpressao` —
+  usado por TODO PDF do sistema, contrato incluído) — não precisou
+  implementar de novo, só confirmar que já cobria o pedido.
+
+  **Backend**: `contrato_modelos` ganhou `margem_{superior,direita,
+  inferior,esquerda}_mm`, `tamanho_papel` (a4/carta/ofício), `orientacao`
+  (retrato/paisagem), `cabecalho_html`/`rodape_html` (repetem em toda
+  página do PDF). Nova tabela `contrato_estilos` (nome, tag HTML aplicada,
+  fonte, tamanho em pt, cor, negrito/itálico/sublinhado, alinhamento) —
+  única por empresa, reaproveitável em qualquer modelo, CRUD em
+  `ContratoEstiloController`. `ContratoPdfController::gerar()` agora lê
+  essas colunas do modelo e configura o Browsershot
+  (`->margins()`/`->paperSize()`/`->format()`/`->landscape()`); cabeçalho/
+  rodapé vão por `->headerHtml()`/`->footerHtml()` (recurso do próprio
+  Puppeteer — roda FORA do DOM da página normal, isolado), o que obrigou
+  duplicar em PHP um subconjunto da substituição de variáveis que
+  `ContratoImprimir` já faz em TS (só os campos que o controller já tem à
+  mão: Obra + Empresa, sem o `valor` calculado da empreita, que só existe
+  no relatório do frontend). `{{pagina}}`/`{{total_paginas}}` viram
+  `<span class="pageNumber">`/`<span class="totalPages">` — sintaxe
+  especial do Puppeteer pra numeração de verdade.
+
+  **Frontend**: barra do editor ganhou um `<select>` de estilos (padrão +
+  os que o usuário criou), botão "🎨 Estilos" que abre um painel lateral
+  com CRUD do estilo (nome, tag, fonte, tamanho, cor, negrito/itálico/
+  sublinhado, alinhamento — aplicado como estilo INLINE no bloco atual,
+  não como classe CSS, pra sair igual no PDF sem depender de folha de
+  estilo nenhuma); botão "1. Cláusulas" + "aumentar/diminuir nível"
+  (`execCommand('insertOrderedList'/'indent'/'outdent')`, numeração 100%
+  via contador CSS em `.lista-clausulas`, não texto digitado — reordenar/
+  aninhar recalcula sozinho); seletor de colunas (1/2/3 — sem
+  `execCommand` equivalente, então é manipulação de DOM direta: envolve os
+  elementos de nível 1 que a seleção cruza num `<div class="colunas
+  colunas-N">`, ou desfaz devolvendo os filhos pro lugar); painel lateral
+  "⚙ Página" com tamanho do papel/orientação/margens e dois mini-editores
+  (cabeçalho/rodapé, com barra reduzida + `<select>` de variável,
+  incluindo `pagina`/`total_paginas`). Os dois painéis laterais ficam
+  SEMPRE no DOM (só escondidos por `transform: translateX` via classe
+  `.aberto`), de propósito — se fossem `@if`, fechar o painel destruiria o
+  `contenteditable` do cabeçalho/rodapé e perderia o que já foi digitado.
+
+  **Bug real achado testando o PDF de verdade (o mais importante desta
+  rodada)**: a lista de cláusulas simplesmente não numerava direito no
+  PDF (saía "1./2." em vez de "1.1./1.2." nos itens aninhados) — não era
+  bug da numeração em si, e sim do CSS inteiro do `.corpo-contrato` (não
+  só a lista: títulos, citação, colunas — tudo) **nunca estar sendo
+  aplicado de verdade**. Causa: `ContratoImprimir` injeta o HTML do
+  contrato via `[innerHTML]`, e o Angular só marca com o atributo
+  `_ngcontent-*` (que o CSS com escopo do componente depende pra casar os
+  seletores) elementos que ELE MESMO compila do template — conteúdo
+  jogado via `[innerHTML]` fica de fora do escopo, então as regras do
+  `.scss` do componente nunca alcançavam esse HTML. Passou despercebido
+  até agora porque `h2`/negrito/itálico/lista com marcador têm estilo
+  padrão do PRÓPRIO NAVEGADOR parecido o bastante pra disfarçar — só ficou
+  óbvio na lista de cláusulas, que depende 100% de CSS customizado (sem
+  fallback nenhum do navegador). Corrigido com
+  `encapsulation: ViewEncapsulation.None` no `ContratoImprimir` (seguro
+  aqui porque essa tela só existe pra virar PDF via Browsershot, nunca é
+  composta com o resto do app). **Provavelmente esse bug já afetava a
+  primeira versão dos itens 8/9 (28/09) também** — só não fica óbvio
+  porque títulos/negrito/lista continuavam parecendo certos por
+  coincidência com o padrão do navegador. Lição nova, complementar à de
+  28/09: verificar CSS de telas que usam `[innerHTML]` testando algo que
+  NÃO tenha equivalente de estilo padrão do navegador (ex.: um contador
+  CSS customizado), não só título/negrito/lista simples — esses escondem
+  o problema.
+
+  Testado via Playwright ponta a ponta (UI de verdade): criação de estilo
+  personalizado e aplicação num parágrafo, lista de cláusulas com
+  aninhamento, colunas (aplicar 2 colunas numa seleção e desfazer),
+  cabeçalho/rodapé com variável + numeração de página — cada peça isolada
+  pra não repetir a armadilha de seletor ambíguo já registrada em cima.
+  PDF final lido de verdade: papel Carta em paisagem, margens customizadas
+  aplicadas, cabeçalho/rodapé repetindo corretamente ("pág. 1/1"), estilo
+  personalizado (cor vinho, negrito, tamanho maior), numeração hierárquica
+  "1./1.1./1.2./2." certa, e as duas colunas lado a lado. Dados de teste
+  (`ZZ Teste Avançado`, `ZZ Teste PDF Completo`, `Cláusula Grande` e
+  outros) apagados do banco depois.
+
+  **Ficou de fora, decidido com o Lucas (fase separada, ainda não
+  iniciada)**: dados completos de Cliente/Empreiteiro (telefone,
+  documento, endereço, e-mail) como variável do contrato. Hoje
+  `Obra.cliente` e `Empreita.empreiteiro` são só um NOME em texto livre,
+  sem ligação real com o cadastro (que também ainda não é tabela
+  relacional — vive na ponte genérica de storage, mesma pendência já
+  registrada acima). O Lucas escolheu a opção "ligar de verdade" (não só
+  buscar por nome) — precisa promover Clientes e Empreiteiros/
+  Profissionais pra tabela relacional de verdade e adicionar
+  `cliente_id`/`empreiteiro_id` na Obra/Empreita antes de expandir essas
+  duas variáveis. Trabalho grande, fora do escopo de "melhorar o editor",
+  fica pra uma sessão dedicada a isso.
+
+- **29/09/2026 (mesmo dia, terceira rodada) — Dois bugs reais de verdade no
+  editor de contrato, achados só depois de OLHAR a tela renderizada** (o
+  Lucas testou e relatou "ficou diferente da identidade visual do site,
+  aquela questão dos textos cortados... quase nada do editor tá
+  funcionando" — as duas rodadas anteriores só tinham sido verificadas por
+  automação checando o HTML gerado, nunca por um screenshot de verdade).
+
+  1. **Texto cortado nos campos novos** — mesma causa já corrigida uma vez
+     no RDO (27/09/2026): o `_base.scss` fixa `input, select { width:100%;
+     height:20px; }` globalmente (pensado pras tabelas densas do resto do
+     sistema); os campos novos do editor (`select` de estilo, campos do
+     painel de página, formulário de "Meus estilos") não desligavam essa
+     altura, e o padding maior deles não cabia dentro dos 20px — texto
+     visualmente cortado, e o `select` de estilo (sem `width` próprio
+     também) esticava pra 100% da barra inteira, quebrando o layout do
+     resto da barra de formatação. Corrigido repetindo `height: auto`
+     (e `width` adequado) em cada campo novo — mesmo remédio já usado no
+     RDO.
+  2. **Painel lateral bloqueando a própria barra de formatação** — os
+     painéis "Configurações da página"/"Meus estilos" são `position:
+     fixed` por cima do conteúdo (de propósito, pra não perder o
+     cabeçalho/rodapé digitado quando fecham); sem empurrar o resto da
+     página, eles cobriam a ponta direita da barra de formatação —
+     inclusive o próprio botão que abriu o painel, então depois de abrir
+     não dava pra fechar clicando de novo nele (só pelo ✖ do painel).
+     Corrigido dando um `padding-right: 340px` em `.pagina-editor`
+     enquanto algum painel está aberto, empurrando a barra/folha pra não
+     ficar por baixo.
+
+  Confirmado com screenshots reais (não só HTML): barra de formatação
+  cabe numa linha só, campos do painel de página com texto legível, painel
+  de estilos com visual consistente com o resto do site (mesma fonte/cores
+  dos inputs em Configurações), texto digitado aparecendo formatado
+  (negrito, título, lista de cláusulas numerada) com a cor/fonte certas do
+  tema. Salvamento conferido batendo no banco de verdade (não só o "✔
+  Salvo" na tela). `ZZ Teste Pós-Correção` apagado depois.
+
+  **Lição**: telas verificadas só por automação (checar `innerHTML`/status
+  HTTP) podem passar por "certas" mesmo com problema visual grave — layout
+  quebrado, campo cortado, elemento sobrepondo outro. A partir de agora,
+  qualquer tela nova (não só PDF) merece pelo menos um screenshot de
+  verdade antes de reportar como pronta.
+
+- **29-30/09/2026 (mesmo lote, quarta rodada) — Depois dos screenshots, o
+  Lucas testou de novo e relatou que "quase nada do editor tá funcionando"
+  ainda (colunas, estilos, o seletor de estilo nem abria, configuração de
+  página, variável no cabeçalho/rodapé, sem botão de confirmação na
+  página) — e pediu pra trocar a forma de inserir variável por um seletor
+  de OBJETO (empresa/obra/cliente/empreiteiro/empreita) que mostra as
+  variáveis daquele objeto como botões com nome amigável, em vez da lista
+  solta de `chave` crua.
+
+  **Bug real, raiz de quase tudo que "não funcionava"**: o
+  `(mousedown)="evitarPerderSelecao($event)"` no contêiner da barra de
+  ferramentas (pensado pra não perder a seleção de texto ao clicar num
+  botão de formatação) também bloqueava o `<select>` de estilo — o
+  `mousedown` de um clique nele sobe (bubbling) até o contêiner, que
+  chama `preventDefault()` ANTES do navegador abrir o dropdown, então ele
+  simplesmente não abria. Mesmo problema no `<select>` de variável do
+  cabeçalho/rodapé. **Não apareceu nos testes anteriores** porque eu
+  tinha usado `page.selectOption()` do Playwright, que troca o valor do
+  `<select>` direto via protocolo do navegador, sem passar pelo
+  `mousedown`/clique real — não exercita (nem detecta) esse tipo de
+  bloqueio. Corrigido: `evitarPerderSelecao` agora ignora o evento quando
+  o alvo é `SELECT`/`INPUT`/`OPTION`, só bloqueia em botões de verdade.
+
+  **Variáveis reorganizadas por objeto** (`contrato-modelo.models.ts`):
+  `VARIAVEIS_POR_OBJETO` (empresa/obra/cliente/empreiteiro/empreita/geral,
+  cada chave com um `rotulo` amigável — ex.: `cliente` → "Nome",
+  `empresa_cnpj` → "CNPJ") e `OBJETOS_POR_TIPO` (obra não tem
+  empreiteiro/empreita). Um `<select>` de objeto + botões com o rótulo
+  aparecem em 3 pontos independentes (corpo, cabeçalho, rodapé), cada um
+  com seu próprio objeto selecionado; cabeçalho/rodapé ainda ganham
+  `pagina`/`total_paginas` dentro do grupo "Geral" (só faz sentido ali).
+
+  **Painel de página ganhou um botão "Aplicar"** (pedido explícito do
+  Lucas) — margens/papel/orientação/cabeçalho/rodapé já ficavam nos
+  signals conforme editado (só vão pro banco quando o modelo inteiro é
+  salvo), mas sem um botão de confirmação visível não ficava claro que a
+  mudança "pegou"; o botão fecha o painel como confirmação.
+
+  **Verificado com interação REAL, não atalho de teste** (lição da rodada
+  anterior aplicada a fundo agora): `mousedown` sintético confirmando
+  `defaultPrevented === false` no select de estilo; `locator.click()` de
+  verdade + navegação por teclado (seta/Enter) escolhendo um estilo;
+  colunas aplicadas numa seleção feita arrastando o mouse de verdade
+  (`page.mouse.down/move/up`), não um `Range` criado via `evaluate`;
+  troca de tamanho de papel por clique real; variável inserida no
+  cabeçalho clicando no botão de verdade depois de escolher "Obra" no
+  seletor de objeto; botão "Aplicar" fechando o painel. Tudo passou.
+  Screenshot final conferido batendo com a identidade visual do resto do
+  site.
+
+  **Lição nova, mais específica que a anterior**: `page.selectOption()`
+  (e qualquer atalho que manipule o DOM/estado direto via `evaluate`, sem
+  passar pelo eventos de mouse/teclado de verdade) esconde bugs de
+  interação — só serve pra preparar dado de teste rápido, nunca pra
+  validar se um elemento interativo funciona pro usuário de verdade.
+
+- **30/09/2026 (mesmo lote, quinta rodada) — Lote grande de correções e
+  pedidos novos**, depois do Lucas usar o editor de verdade: WYSIWYG de
+  verdade (a folha reflete o papel/margens/orientação configurados),
+  numeração de lista aninhada não funcionava DENTRO do editor (só no PDF),
+  rodapé com fonte minúscula no PDF, colunas só funcionavam com texto já
+  separado, não dava pra continuar editando um modelo depois de salvar, e
+  pedido de estilos "padrão" editáveis + prefixo/sufixo customizável de
+  lista (ex.: "Cláusula 1ª").
+
+  **Bug real, mesma raiz do de 29/09 (encapsulamento do Angular), agora
+  dentro do PRÓPRIO EDITOR**: `.lista-clausulas` nunca numerava certo
+  *enquanto editando* (nível 2 saía "1./2." em vez de "1.1./1.2.") —
+  confirmado que o conteúdo dentro de `.area-edicao` (criado por
+  `execCommand`, não compilado pelo Angular) também não carrega
+  `_ngcontent-*`, então o CSS com escopo do componente nunca alcançava
+  esse conteúdo — só parecia "quase certo" porque o marcador nativo do
+  navegador (`list-style-type: decimal`) também mostra "1." pra um item
+  não aninhado, disfarçando o problema até aninhar de verdade. Diferente
+  do `ContratoImprimir` (que virou `ViewEncapsulation.None` inteiro,
+  seguro por ser tela só-de-PDF), aqui o resto do componente (barra,
+  painéis) É compilado pelo Angular e tem estilo de verdade — corrigido
+  com `::ng-deep` só no bloco `.area-edicao`, não no componente inteiro.
+
+  **WYSIWYG de verdade** (pedido: "quero ver o contrato ao vivo... o
+  editor deve refletir exatamente como vai sair... a margem tá cortando
+  em vez de empurrar") — `.area-edicao` tinha `max-width`/`padding`
+  FIXOS, sem nenhuma relação com o papel/margens escolhidos. Agora
+  largura/altura vêm de `tamanhoPapel`+`orientacao` (A4/Carta/Ofício, mm
+  convertidos pra px a 96dpi) e o padding vem das margens, tudo por
+  `[style.*]` ligado aos mesmos signals do painel de página — muda a
+  folha AO VIVO. Como `box-sizing: border-box` já é padrão do projeto,
+  aumentar a margem agora ENCOLHE a área de texto (quebra linha) em vez
+  de cortar.
+
+  **Rodapé/cabeçalho com fonte minúscula no PDF** — o `headerTemplate`/
+  `footerTemplate` do Puppeteer roda num contexto ISOLADO, sem acesso a
+  nenhum CSS da página (nem `font-family`/`font-size` herdados), só o
+  padrão minúsculo do próprio Chromium quando o HTML não traz tamanho
+  explícito. `ContratoPdfController::prepararHtmlPagina` agora envolve o
+  HTML final num `<div style="font-size:9.5pt; ...">` explícito.
+
+  **Colunas só funcionavam com texto já separado** — a versão anterior só
+  envolvia parágrafos que JÁ EXISTIAM; num editor vazio (ou só com o
+  cursor, sem nada selecionado) não tinha bloco nenhum pra envolver e
+  nada acontecia. Agora, sem seleção/bloco, cria uma coluna vazia e
+  posiciona o cursor dentro — como `column-count` reflui sozinho, digitar
+  direto ali já fica dividido automaticamente.
+
+  **Bug real achado testando o PDF de novo**: com um prefixo/sufixo
+  customizado mais longo ("Cláusula 1ª" em vez de "1."), o marcador
+  (`::before`) ficava SOBREPOSTO ao texto — a versão anterior usava
+  `position: absolute` com um espaço fixo reservado pequeno (calibrado só
+  pra "1."/"1.1."). Corrigido tirando o posicionamento absoluto: o
+  marcador agora flui normal antes do texto (`margin-right`), então
+  qualquer tamanho de prefixo cabe.
+
+  **Não dava pra continuar editando depois de salvar** — a aba fechava
+  sozinha (`window.close()`) logo depois de qualquer "Salvar", inclusive
+  ao CRIAR um modelo novo; pra continuar mexendo era preciso voltar na
+  lista e reabrir. Agora só fecha com "Cancelar" (ação explícita); ao
+  criar, a URL troca pro id de verdade sem navegar/recarregar
+  (`Location.replaceState`, mesmo espírito do editor do RDO) e o "✔
+  Salvo" fica visível por alguns segundos em vez de anunciar que vai
+  fechar.
+
+  **Estilos "padrão" viraram editáveis de verdade** (pedido: "quero poder
+  editar os estilos padrão do modelo") — Normal/Título 1-3/Citação eram
+  só `execCommand('formatBlock', tag)` direto, sem nada salvo, então não
+  tinha o que editar. Agora são `ContratoEstilo` de verdade (`padrao:
+  true`), semeados automaticamente pra cada empresa na primeira vez que
+  a lista é pedida (`ContratoEstiloController::semearPadroes`) —
+  editáveis/excluíveis como qualquer estilo criado pelo usuário.
+
+  **Prefixo/sufixo customizável de lista, vinculado ao estilo** (pedido:
+  "cláusula 1ª, cláusula 2ª..."): `contrato_estilos` ganhou `eh_lista`,
+  `lista_prefixo`, `lista_sufixo` — um estilo marcado como lista aplica
+  esses valores como CSS custom properties (`--lista-prefixo`/
+  `--lista-sufixo`, já com aspas, setados via JS no `<ol>`) que o
+  `::before` do contador lê (`content: var(--lista-prefixo, '')
+  counters(...) var(--lista-sufixo, '.')`) — a numeração em si continua
+  100% automática e em níveis; só o texto ao redor muda. Um 6º estilo
+  padrão ("Lista de cláusulas", prefixo vazio/sufixo ".") cobre o atalho
+  rápido da barra ("1. Cláusulas").
+
+  Tudo testado com interação real (não atalhos) e conferido visualmente:
+  numeração aninhada aparecendo certa NO EDITOR (screenshot), folha
+  mudando de tamanho ao vivo ao trocar papel/orientação/margem, colunas
+  funcionando digitando do zero, PDF final lido de verdade com "Cláusula
+  1ª"/"Cláusula 1.1ª"/"Cláusula 2ª" sem sobreposição, cabeçalho/rodapé
+  legíveis, margens grandes (30/25mm) sem cortar nada, e salvar→continuar
+  editando confirmado com o conteúdo batendo no banco depois de 2 saves
+  seguidos sem fechar a aba.
+
+  **Achado ao limpar dados de teste — não é bug, é dado real do Lucas**:
+  existe um modelo chamado "teste" no banco (não criado por mim) com um
+  contrato de verdade colado de outro editor (Word/Google Docs), usando
+  variáveis que ainda NÃO EXISTEM no sistema:
+  `{{tipo_cliente}}`, `{{CPF/CNPJ_cliente}}`, `{{endereco_cliente}}`,
+  `{{tipo_empreiteiro}}`, `{{CPF/CNPJ_empreiteiro}}`,
+  `{{endereco_empreiteiro}}`. Confirma na prática a pendência já registrada
+  em 29/09 ("várias variáveis do empreiteiro e do cliente não estão
+  aparecendo") — são exatamente os campos que dependem de Cliente/
+  Empreiteiro virarem cadastro relacional de verdade (fase separada,
+  decidida com o Lucas: "ligar de verdade", ainda não iniciada). Esse
+  modelo NÃO foi tocado/apagado.
+
+- **30/09/2026 (mesmo lote, sexta rodada) — WYSIWYG de verdade (cabeçalho/
+  rodapé/timbrado visíveis na edição, guia de quebra de página) + lote de
+  correções no sistema de imagens/vídeos do sistema todo**, depois do
+  Lucas testar de novo e reagir com força: "o pdf gerado depois tem que
+  tá 100% fiel ao que eu vejo na tela... quero VEEEERR a configuração
+  aplicada, sabe como funciona o Word?".
+
+  **Cabeçalho e rodapé passaram a aparecer DIRETO na folha simulada do
+  editor** (antes ficavam escondidos num painel lateral, só visíveis
+  abrindo "⚙ Página") — duas faixas (acima/abaixo do corpo, com fundo
+  levemente diferente pra distinguir, igual ao Word) com miniatura da
+  barra de formatação e o seletor de variável embutidos; o painel lateral
+  ficou só com tamanho do papel/orientação/margens/papel timbrado.
+
+  **Guia de quebra de página** (pedido: "não vejo a quebra de página") —
+  não é paginação de verdade (o navegador não separa `contenteditable` em
+  páginas; só o Chromium do PDF faz isso ao gerar) — é uma RÉGUA
+  aproximada: uma linha a cada altura de folha, via `repeating-linear-
+  gradient` com `background-size` ligado a `alturaFolhaPx`. Deixa claro
+  que é aproximação, não promete exatidão de pixel.
+
+  **Papel timbrado ganhou modo "fundo de página inteira"** (pedido: "a
+  imagem pode pegar a folha toda se eu quiser, dimensionada de acordo com
+  minha preferência") — a imagem em si continua única por empresa
+  (`Empresa::papel_timbrado_path`); `contrato_modelos` ganhou
+  `timbrado_modo` (topo/fundo) e `timbrado_ajuste` (cobrir/conter/
+  esticar) POR MODELO. Visível também na prévia do editor (`.pagina-
+  simulada` ganha o mesmo `background-image`/`background-size`).
+
+  **Bug real, achado testando o PDF de novo**: o modo "fundo" funcionava
+  perfeito na TELA normal mas o fundo simplesmente não aparecia no PDF.
+  Isolado com um teste mínimo direto no Browsershot (HTML estático, sem
+  Angular) — confirmou que `position:fixed` FUNCIONA nesse Chromium,
+  então não era limitação da engine. Causa real: um `@media print {
+  html, body { background:#fff } }` GLOBAL (`_base.scss`, pensado pras
+  telas antigas que usam `window.print()`) também vale aqui, porque
+  Browsershot gera o PDF emulando a mídia "print" — e com `z-index:-1`
+  no fundo do timbrado, esse branco global pintava por cima dele. Tirando
+  o `z-index:-1` (o `position:fixed` já cria seu próprio contexto de
+  empilhamento, e por ser o PRIMEIRO elemento no HTML já fica atrás do
+  resto só pela ordem do DOM) resolveu. Confirmado no PDF de verdade: o
+  timbrado cobre a página inteira, texto legível por cima.
+
+  **Lote de correções em imagem/vídeo do sistema** (pedido: "essa questão
+  das imagens tá sendo um problema em vários pontos... elabore uma
+  resolução definitiva"). Investigação (agente dedicado) do relato "o RDO
+  não aceita as imagens, na hora de salvar a imagem não aparece" achou
+  DOIS bugs reais, sem relação um com o outro:
+  1. `max_file_uploads = 20` no `php-uploads.ini` — limite do PRÓPRIO PHP
+     pra quantos arquivos cabem numa requisição (soma TODOS os campos).
+     O RDO aceita até 20 fotos + 5 vídeos (25 no total) na mesma
+     requisição — passando de 20, o PHP corta os excedentes de `$_FILES`
+     ANTES do Laravel sequer processar a requisição, **sem gerar erro
+     nenhum**: a validação nunca vê os arquivos cortados, a transação
+     comita normal, a API responde sucesso, e a(s) foto(s) cortada(s)
+     simplesmente nunca vira(m) registro no banco. Subido pra 50.
+  2. `'fotos.*' => 'image|max:8192'` (8MB, regra `image` baseada em
+     `getimagesize()`) — fotos de celular moderno (12MP+) passam de 8MB
+     fácil, e a regra `image` não reconhece HEIC/HEIF (formato padrão da
+     câmera do iPhone). Sem pré-checagem no frontend (diferente do vídeo,
+     que já tinha), o usuário só descobria ao clicar Salvar, quando a
+     requisição INTEIRA voltava rejeitada (nada do dia salvava) — e a
+     mensagem vinha em INGLÊS mesmo com `APP_LOCALE=pt_BR`, porque não
+     existia `lang/pt_BR/` publicado (`APP_FALLBACK_LOCALE=en` cobria o
+     buraco). Corrigido:
+     - `app/Support/ValidacaoMidia.php` — regra ÚNICA e centralizada
+       (`IMAGEM`: `mimetypes` incluindo HEIC/HEIF, 25MB; `VIDEO`: igual
+       já era) — usada agora em `RdoController`, `FvsController`,
+       `MaterialEquipamentoController` e `DiarioObraController` (o antigo,
+       aposentado mas não apagado) em vez de cada um escrever a regra na
+       mão. **Qualquer upload de imagem/vídeo NOVO deve usar essa
+       classe.**
+     - `lang/pt_BR/validation.php` publicado — mensagens de validação em
+       português EM TODO O SISTEMA de uma vez (não só fotos), já que
+       `APP_LOCALE=pt_BR` só passou a fazer efeito com esse arquivo
+       existindo.
+     - `escolherFotos()` do RDO ganhou a mesma pré-checagem de tamanho
+       que `escolherVideos()` já tinha (avisa ANTES de tentar salvar).
+     - `mensagemDeErro()` do RDO passou a ler `errors` (mensagem por
+       campo) antes do `message` genérico — o `message` de topo de um
+       422 do Laravel é sempre a frase fixa em inglês "The given data was
+       invalid.", mesmo com `lang/pt_BR` publicado (só traduz o que está
+       DENTRO de `errors`).
+
+  Confirmado via API: uma "foto" de 10MB (maior que o limite antigo de
+  8MB) agora sobe e persiste como registro de verdade.
+
+  **Suspeita forte, não confirmada (sem acesso ao VPS), pro "nenhuma
+  imagem aparece na versão publicada"**: o guia `docs/DEPLOY-PRODUCAO.md`
+  (seção 5, config de nginx do SISTEMA no VPS) só tem `location /api/`
+  proxiando pro container Laravel — **não existe nenhum `location
+  /storage/`**. Toda imagem do sistema é servida em `/storage/...} (não
+  `/api/storage/...`), então se o nginx do VPS foi configurado igual a
+  esse exemplo, qualquer pedido de imagem cai no bloco `location /
+  { try_files $uri $uri/ /index.html; }` (a regra do Angular) — sem
+  achar um arquivo com esse nome dentro do build do Angular, serve o
+  `index.html` como fallback: a imagem "quebra" (o navegador recebe uma
+  página HTML em vez de um `image/*`), em TODAS as imagens do sistema de
+  uma vez, exatamente o sintoma relatado. **Não dá pra confirmar sem
+  acessar o nginx de verdade do VPS** (este ambiente não tem esse
+  acesso) — verificação simples pro Lucas rodar:
+  `curl -I https://trenadigital.com.br/storage/<algum-caminho-de-imagem-
+  real>` — se o `Content-Type` vier `text/html` em vez de `image/...`,
+  confirma a causa. Correção: adicionar ao nginx do sistema um bloco
+  igual ao de `/api/`, só trocando o caminho:
+  ```nginx
+  location /storage/ {
+      proxy_pass http://127.0.0.1:8088;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+  }
+  ```
+  `docs/DEPLOY-PRODUCAO.md` também precisa desse bloco adicionado ao
+  exemplo, pra não repetir o mesmo buraco numa próxima migração de VPS.
+
+  **Método de verificação pra não repetir esse tipo de bug** (pedido:
+  "elabore um método de verificação"): (1) depois de qualquer deploy,
+  `curl -I` numa URL de imagem real do sistema em produção, conferindo
+  `Content-Type: image/...`; (2) qualquer upload de imagem/vídeo NOVO usa
+  `ValidacaoMidia::IMAGEM`/`VIDEO`, nunca uma regra escrita na mão; (3)
+  testar upload com um arquivo de verdade GRANDE (>8MB) e, se possível,
+  em HEIC, não só um arquivo pequeno de teste; (4) pra qualquer imagem
+  que apareça DENTRO de um PDF gerado, ler o PDF de verdade (lição já
+  registrada em 28-29/09) — o mesmo vale agora pra `position:fixed`
+  (confirmado nesta rodada: funciona diferente na tela normal e dentro do
+  Browsershot/print).
+
+- 30/09/2026: **Reformulação grande do editor de modelos de contrato**
+  (`ContratoModeloEditor`) e do pipeline de impressão (`ContratoImprimir`/
+  `ContratoPdfController`), a partir de uma lista longa de pedidos do
+  Lucas depois de usar a primeira versão (28-29/09) num contrato de
+  teste de verdade dele.
+
+  **Barra de formatação única**: as barrinhas separadas que existiam
+  dentro do cabeçalho/rodapé foram removidas — agora existe só UMA barra,
+  que age sobre a área com foco no momento (corpo, cabeçalho ou rodapé;
+  indicador visual 📄/⬆/⬇ mostra qual). O menu de inserir variável
+  também é único, compartilhado pelas três áreas.
+
+  **Margens de cabeçalho/rodapé**: além das margens da folha (que já
+  existiam), o modelo ganhou `margem_cabecalho_mm`/`margem_rodape_mm`
+  (padrão 8mm cada) — "Do topo"/"Do rodapé" do Word — plugadas no
+  `padding-top`/`padding-bottom` que o `ContratoPdfController` monta pro
+  `headerHtml()`/`footerHtml()` do Browsershot.
+
+  **Prévia do que o sistema desenha sozinho**: o editor ganhou uma
+  `.previa-sistema` (só leitura) mostrando logo, nome da empresa,
+  subtítulo do documento, papel timbrado em faixa e "Gerado em ..." —
+  elementos que sempre apareceram no PDF final mas não na tela de edição
+  (pedido explícito do Lucas, que tinha achado isso confuso).
+
+  **Nome do modelo não aparece mais no documento impresso** — era só um
+  identificador interno do cadastro (removido o `<h1
+  class="titulo-contrato">` de `contrato-imprimir.html`).
+
+  **Estilos viraram um vínculo de verdade, não mais uma cópia** — bug
+  relatado pelo Lucas: "se eu alterar o formato do título 1 o texto não
+  atualiza". Antes, aplicar um estilo COPIAVA os valores formatados como
+  `style=` inline no bloco (um retrato daquele momento, nunca mais
+  atualizado). Agora aplicar um estilo só marca o bloco com a classe
+  `.estilo-<id>`; a formatação de verdade vive numa folha de estilos
+  gerada de novo (`shared/contrato-estilo-css.ts::gerarCssEstilos`)
+  toda vez que a lista de estilos muda — editar um estilo depois
+  atualiza instantaneamente todo texto que usa ele, em qualquer lugar
+  (editor e PDF, mesma função nos dois).
+
+  **Numeração automática 100% via contador CSS, sem nenhuma
+  contabilidade em JS** — a parte mais complexa do pedido (o Lucas
+  descreveu um comportamento de renumeração automática idêntico ao
+  Word/estilos vinculados a título, com exemplos numéricos detalhados de
+  inserir/excluir título no meio do documento). Resolvida inteira com
+  `counter-reset`/`counter-increment` nativos do CSS: o navegador já
+  recalcula contador sozinho toda vez que o DOM muda, então inserir,
+  excluir ou mover um título já renumera tudo abaixo de graça — não guarda
+  posição nem ordem em lugar nenhum. Dois modos, escolhidos por estilo:
+  - **Título numerado hierárquico** (`nivel_titulo`, 1 a 7): a numeração
+    de um nível se encadeia com a dos níveis acima (ex.: o 1º título de
+    nível 2 dentro do 5º título de nível 1 sai "5.1").
+  - **Lista ordenada avulsa** (`eh_lista`): numeração própria, independente
+    da hierarquia de títulos, sempre recomeçando do 1; formato escolhível
+    por estilo (número, romano minúsculo/maiúsculo, letra minúscula/
+    maiúscula) via o 2º parâmetro nativo do `counter()` do CSS.
+  Cada estilo numerado (dos dois modos) tem prefixo/sufixo próprios
+  (`lista_prefixo`/`lista_sufixo`, ex.: "Cláusula " + "."), aplicados via
+  `--lista-prefixo`/`--lista-sufixo` (custom properties CSS setadas
+  INLINE por bloco, não na folha gerada — permite dois estilos do mesmo
+  nível terem prefixos diferentes). O botão "Lista de cláusulas" saiu;
+  virou "1. Lista ordenada" (o `insertOrderedList` puro do
+  `execCommand`, sem estilo hierárquico nenhum).
+
+  **Caixa do texto por estilo** (`caixa_texto`): nenhuma/MAIÚSCULA/Primeira
+  maiúscula/Cada Palavra Maiúscula, via `text-transform`/`::first-letter`
+  na mesma folha gerada.
+
+  **7 níveis de título por padrão** (antes só 3-4) — `semearPadroes()`
+  agora cria Título 1 a Título 7 (tamanho decrescendo 22pt→11pt), mas
+  NENHUM vem pré-marcado como numerado (`nivel_titulo` fica em branco) —
+  numerar é opt-in, o usuário escolhe quais níveis participam da
+  hierarquia.
+
+  **Três bugs sérios achados e corrigidos durante esta rodada** (os três
+  só apareceram testando de verdade, nenhum um `tsc`/`php -l` pegaria):
+
+  1. **`<style>` literal dentro de um template Angular nunca é um nó de
+     DOM atualizável em runtime.** O Angular extrai/mescla o conteúdo de
+     qualquer `<style>` escrito literalmente no HTML de um componente pro
+     CSS compilado do próprio componente, EM TEMPO DE COMPILAÇÃO — não
+     importa se a tag tem `[textContent]="algumSignal()"` ou não, o
+     binding nunca tem efeito (o elemento que existe em runtime não é o
+     mesmo que o Angular tratou como "estilo do componente"). Sintoma: a
+     folha de estilos gerada por `gerarCssEstilos()` simplesmente nunca
+     aparecia em `document.querySelectorAll('style')`, então nenhum
+     `.estilo-<id>` era aplicado nem no editor nem no PDF. **Correção**:
+     nunca declarar `<style>` no template quando o conteúdo precisa ser
+     atualizado depois — criar via `document.createElement('style')` como
+     campo da classe, anexar em `document.head` no `ngOnInit()`, atualizar
+     `.textContent` direto, remover no `ngOnDestroy()`. Aplicado em
+     `ContratoModeloEditor` e `ContratoImprimir`.
+  2. **`Rule::prohibitedIf()`/`prohibited` do Laravel não trata `false`
+     como "vazio"** — só `null`/`''` contam. Enviar `eh_lista: false`
+     junto de um `nivel_titulo` preenchido (regra `prohibitedIf`) dava
+     422 mesmo sendo a combinação correta. Corrigido trocando por uma
+     checagem manual (`if ($ehLista && $temNivelTitulo) throw
+     ValidationException::withMessages(...)`) antes do `$request->validate()`,
+     com os dois campos voltando a `nullable|boolean`/`nullable|integer`
+     simples. Mesma causa também exigiu, no front, mandar campos
+     "proibidos quando não aplicável" (ex. `lista_formato` quando o modo
+     não é lista) como `undefined` — `JSON.stringify` derruba a chave —
+     em vez de qualquer valor "neutro" tipo `'numero'`.
+  3. **Contador CSS "trava" a renumeração entre grupos quando o MESMO
+     contador é resetado tanto no elemento ANCESTRAL quanto em cada
+     título-pai** — achado só depois de testar de verdade com Playwright
+     e CONFERIR O SCREENSHOT (a numeração parecia certa olhando só o CSS
+     via DOM, `getComputedStyle(el, '::before').content` mostra a FÓRMULA
+     do `counter()`, não o número já calculado — só dá pra ver o número
+     de verdade olhando a tela renderizada). Sintoma: com Título 1 e
+     Título 2 marcados como numerados, o 1º Título 2 dentro do 2º Título 1
+     saía "2.3" em vez de "2.1" (carregava o valor que faltava do 1º
+     grupo, em vez de recomeçar do 1). Isolado num teste HTML mínimo, sem
+     Angular nenhum: o container (`.area-edicao`/`.corpo-contrato`) tinha
+     `counter-reset: titulo1 titulo2 ... titulo7` (resetando TODOS os
+     níveis de uma vez, "por garantia"), enquanto cada estilo de Título 1
+     TAMBÉM reseta titulo2..titulo7 nele mesmo — esse reset duplo (no
+     ancestral E em cada título-pai) faz o Chromium não reencadear o
+     escopo do contador corretamente a partir do 2º título-pai em diante.
+     **Correção**: o container reseta SÓ o contador do nível 1 (o único
+     sem "pai" pra resetá-lo); os níveis 2-7 ficam só a cargo do reset que
+     cada título de nível acima já faz nele mesmo — que por sua vez já
+     reseta TODOS os níveis abaixo dele (não só o nível seguinte), cobrindo
+     também o caso de pular um nível (ex. Título 1 seguido direto de
+     Título 3, sem Título 2 no meio). Corrigido em
+     `contrato-modelo-editor.scss`, `contrato-imprimir.scss` e no helper
+     `cssBaseContadores()` (não usado hoje, mas mantido consistente).
+     Reverificado depois com o mesmo teste (Título 1 "Item Um"/"Item
+     Dois" + Título 2 "A"/"B"/"C") — saiu "1.1 A; 1.2 B; Cláusula 2. Item
+     Dois; 2.1 C", certo.
+
+  **Bug do "texto cortado" no PDF** (relatado pelo Lucas testando o
+  contrato de teste real dele): causa raiz é conteúdo colado do
+  Word/Google Docs carregando margens NEGATIVAS inline
+  (`margin-left:-1cm` etc., artefato de exportação), que empurram o
+  parágrafo pra fora da área imprimível — o Chromium do Browsershot corta
+  o que sai da página. **Corrigido só para colagens FUTURAS**: um
+  handler de `(paste)` (`aoColar`/`limparHtmlColado` em
+  `contrato-modelo-editor.ts`) remove margens inline que comecem com
+  `-` antes de inserir o HTML colado. **O modelo "teste" real do Lucas,
+  já salvo antes dessa correção, CONTINUA com o corte** — confirmado de
+  novo nesta rodada gerando a tela de impressão de verdade pra esse
+  modelo (texto cortado à esquerda em quase toda linha). Ainda não foi
+  limpo (decisão deliberada de não alterar o conteúdo real dele sem
+  perguntar antes) — **pendente confirmar com o Lucas se pode limpar
+  esse registro específico agora que a causa e a correção estão
+  confirmadas.**
+
+  **Incidente sério, com correção já aplicada**: durante esta rodada, ao
+  adicionar colunas nas migrations de `contrato_modelos`/`contrato_estilos`
+  (ainda não publicadas, então editadas em vez de criar uma nova), o
+  fluxo padrão de "`migrate:rollback` + editar + `migrate`" foi rodado
+  sem antes confirmar que a tabela só tinha dado de teste — isso apagou
+  o modelo "teste" REAL do Lucas do banco local. Recuperado na mesma
+  sessão reconstruindo o registro (mesmo nome, mesmo `conteudo`/
+  `cabecalho_html`/`rodape_html`/margens, capturados antes do rollback)
+  via `POST /api/contrato-modelos` — confirmado restaurado (novo id
+  `6bf019d0-22fd-490a-8eb1-f9b08e9187a6`, mesmo texto). Não houve perda
+  de dado em produção (isso tudo rodou só no banco local Docker) — mas
+  fica registrado aqui como lição: **daqui pra frente, antes de rodar
+  `migrate:rollback` numa migration só porque ela ainda não foi
+  publicada, confirmar antes que a tabela afetada não tem dado real
+  digitado por alguém** (mesmo em ambiente local).
+
+  **Adiado pra uma fase futura, separada** (fora do escopo desta rodada,
+  três pedidos do Lucas que são feature grande cada um):
+  - Régua estilo Word nas laterais da folha, com margens arrastáveis e
+    linhas tracejadas guia (hoje as margens só têm campos numéricos).
+  - Separação visual REAL de página a página, com vazio entre as folhas
+    (hoje só tem uma linha guia aproximada via gradiente CSS repetido —
+    não é paginação de verdade, só o Chromium do PDF separa em página de
+    fato).
+  - Geração de contrato em massa a partir da lista de Empreitas
+    (selecionar várias, gerar todas de uma vez) com anexo automático
+    dentro da Empreita, usando uma tag pré-definida no modelo.
+
+  Testado via Playwright com interação real (clique/teclado, sem atalho
+  de `selectOption` em áreas de texto rico) e screenshot de verdade em
+  cada etapa: seleção de estilo, formulário de estilos (modo
+  normal/lista/título + nível + formato + prefixo/sufixo + caixa de
+  texto), numeração hierárquica (recriado do zero depois da correção do
+  bug 3 acima), folha de estilos dinâmica presente tanto no editor quanto
+  na tela de impressão.
+
+  **Mais dois bugs achados pelo próprio Lucas testando** (relatou "não
+  funcionou" em dois pontos específicos que meu teste anterior não tinha
+  coberto — os dois já corrigidos e reverificados):
+
+  4. **O vínculo do estilo não "vencia" texto colado com formatação
+     inline antiga.** `aplicarEstiloAoBloco()` (em
+     `contrato-modelo-editor.ts`) adicionava a classe `.estilo-<id>` no
+     bloco, mas nunca limpava o `style=` inline que já estava lá (de
+     colar do Word/Docs, ou de qualquer edição anterior) — e um `style=`
+     inline tem prioridade sobre QUALQUER regra de classe no CSS, então o
+     texto ficava preso na formatação antiga mesmo com a classe certa
+     aplicada; editar o estilo depois não mudava nada visualmente. Batia
+     exatamente com o "teste" real do Lucas (colado do Word, sem nenhuma
+     classe `.estilo-`) — reproduzido isolado simulando uma colagem com
+     `style="color:...; font-size:...;"` e aplicando um estilo em cima:
+     a cor/tamanho antigos continuavam depois. **Corrigido** limpando o
+     `style=` do próprio bloco e de tudo dentro dele
+     (`removeAttribute('style')` recursivo) no momento de aplicar um
+     estilo — a partir daí a classe manda sozinha, sem concorrência.
+     Reverificado com o mesmo teste: depois da correção, a cor/tamanho
+     passam a vir do estilo escolhido, não mais do texto colado.
+  5. **"Só a 1ª maiúscula" não tem efeito nenhum em título numerado (ou
+     qualquer estilo com prefixo).** Causa: o Chromium considera o
+     conteúdo do `::before` (o prefixo/número gerado) como parte da
+     "primeira linha" pra fins de `::first-letter` — então o
+     `text-transform: uppercase` do `::first-letter` acaba mirando a
+     primeira letra do PREFIXO ("C" de "Cláusula", já maiúsculo por
+     natureza), não a primeira letra do texto digitado pelo usuário.
+     Reproduzido visualmente: um título com prefixo "Cláusula " e texto
+     digitado em minúsculo saía "Cláusula 0.0.0.1. texto em minusculo..."
+     — a opção simplesmente não tinha efeito nenhum, sem erro ou aviso.
+     Não existe seletor CSS pra mirar só o texto real quando ele vem
+     depois de um `::before` no mesmo elemento (tentar mover o prefixo
+     pra fora do fluxo normal, ex. `position: absolute`, resolveria mas
+     arrisca quebrar o alinhamento da numeração que já está funcionando —
+     não tentado por ora). **Corrigido de forma conservadora**: a opção
+     só é aplicada de verdade em estilo SEM numeração (`gerarCssEstilos`
+     em `shared/contrato-estilo-css.ts`); em estilo com numeração, o
+     formulário agora mostra um aviso explicando que a opção não tem
+     efeito nesse caso, em vez de parecer que fez algo e não fez.
+
+  **Atualização do mesmo dia — bug 5 resolvido de verdade** (pedido do
+  Lucas: "queria resolver isso da letra idependente da numeração"). A
+  solução: tirar o `::before` (prefixo/número gerado) do fluxo inline
+  normal com `float: left` faz o `::first-letter` passar a mirar
+  corretamente a primeira letra do TEXTO, não mais do prefixo — técnica
+  clássica de CSS (testada isolada antes de aplicar: texto quebrando
+  linha normal, só a letra certa mudando). Só é seguro fazer isso com
+  `alinhamento: esquerda` — `float` ignora `text-align` completamente,
+  então num título centralizado/à direita o prefixo "escaparia" sempre
+  pra esquerda da caixa, independente do resto do texto (testado,
+  confirma quebrar visualmente). Por isso `gerarCssEstilos` só aplica o
+  `float`/`::first-letter` quando as três condições batem (numerado +
+  "só 1ª maiúscula" + esquerda); nos outros alinhamentos continua a
+  limitação conhecida (aviso no formulário), documentada como opção
+  consciente, não bug.
+
+  ---
+
+  **Mesmo dia, rodada seguinte — os 3 itens que tinham ficado adiados**
+  (pedido do Lucas: "depois de resolver isso já resolve esses 3 ponto"):
+
+  6. **Régua estilo Word, com margem arrastável.** Grid 2×2 acima/à
+     esquerda da folha (`.area-reguas` em `contrato-modelo-editor.html`/
+     `.scss`) — régua horizontal e vertical em cm de verdade (conversão
+     mm→px já usada no resto do editor), zona cinza hachurada mostrando a
+     margem (igual ao Word), alça azul na fronteira arrastável com o
+     mouse (`iniciarArrasteMargem()` no `.ts`, ouvindo `mousemove`/
+     `mouseup` no `window` enquanto arrasta). Os campos numéricos do
+     painel "Página" continuam funcionando junto — dois jeitos de chegar
+     no mesmo signal de margem, não um substituindo o outro. Testado com
+     arraste de mouse de verdade (não `selectOption`/atalho): arrastar a
+     alça esquerda mudou o campo "Esquerda (mm)" de 15 pra 36 e o
+     `padding-left` real do corpo do texto junto. Também adicionada uma
+     linha tracejada (`.guia-margens`) sobre a própria folha, marcando o
+     retângulo imprimível de verdade (só da 1ª página, mesma aproximação
+     de antes).
+  7. **Separação de páginas DE VERDADE, com vazio entre as folhas**
+     (pedido do Lucas: "criando as folhas mesmo separadas por um vazio
+     entre elas" — antes só tinha uma linha-guia aproximada via gradiente
+     CSS repetido, removida nesta rodada). Implementado com um `<div
+     contenteditable="false">` (`.quebra-pagina`) inserido dinamicamente
+     ANTES do bloco que ultrapassaria a altura útil de uma página
+     (`recalcularQuebrasPagina()` em `contrato-modelo-editor.ts`),
+     empurrando o resto do texto pra a "próxima folha" — como o
+     espaçador nunca é focável, o cursor nunca entra nele, então
+     inserir/tirar não mexe na posição de edição em nenhum texto real
+     (testado: digitar bastante conteúdo até estourar a 1ª página,
+     esperar o recálculo, e CONTINUAR digitando depois — o texto novo
+     apareceu no lugar certo, cursor não pulou). Recalcula sozinho: ao
+     digitar (debounce de 900ms — não a cada tecla, pra não atrapalhar o
+     meio da digitação), ao arrastar/mudar margem, papel ou orientação
+     (via `effect()` do Angular observando os signals). O espaçador
+     nunca entra no `conteudo` salvo — `salvar()` lê de um CLONE do DOM
+     com `.quebra-pagina` removido antes de virar HTML, então a altura de
+     página pode mudar depois (trocar papel/margem) sem deixar vão
+     errado gravado. **Achado de bug só testando visualmente** (regra já
+     conhecida desta sessão: `getComputedStyle` não mostra cor/fundo
+     real de elemento criado via `document.createElement`, só o valor
+     "puro"): a regra CSS de `.quebra-pagina` não aplicava — mesma causa
+     raiz do bug do `<style>`/numeração desta sessão inteira, o Angular
+     só escopa CSS pra elementos que vêm do TEMPLATE, um `<div>` criado
+     via JS nunca carrega o atributo `_ngcontent-*`. Corrigido movendo a
+     regra pra dentro do bloco `:host ::ng-deep .area-edicao { ... }` que
+     já existe no arquivo por esse mesmo motivo. Ainda é uma
+     APROXIMAÇÃO do PDF de verdade (só o Chromium do Browsershot decide
+     a quebra definitiva; um bloco sozinho maior que uma página inteira
+     não é dividido) — mas resolve o pedido visual de verdade.
+  8. **Gerar contratos em massa a partir da lista de Empreitas, com anexo
+     automático** (pedido do Lucas: "selecionando vários e clicando para
+     gerar os contratos... anexados... com uma tag predefinida no modelo
+     do contrato"). Modelo de contrato ganhou `tag_anexo_id` (migration
+     nova `2026_09_30_020000`, `nullable`, FK pra `tags`) — configurável
+     no painel "Página" do editor, só aparece pra modelos tipo Empreita;
+     sem essa tag definida, o modelo não pode ser usado na geração em
+     lote (aviso explícito, tanto no editor quanto no popup de gerar).
+     `empreitas-obra` (lista de empreitas da obra) ganhou o botão
+     "📑 Gerar contratos" ao lado de "PDF do profissional", reaproveitando
+     a MESMA seleção múltipla que já existia na lista — popup escolhe o
+     modelo, um clique gera+anexa o contrato de cada empreita marcada.
+     Backend novo (`ContratoPdfController::gerarEAnexarEmLote`, rota
+     `POST /empreitas/contratos/gerar-em-lote`) roda sequencial (Browsershot
+     não paraleliza sem mais Chromium concorrente), salva cada PDF
+     direto como `Arquivo`/anexo via a MESMA lógica de nomeação/pasta que
+     `AnexoController::criar()` usa pra upload manual (`AnexoNomeador`,
+     `GeradorMiniatura`, `PastaRaizes`) — só que os bytes nascem no
+     servidor (Browsershot), não vêm de um upload de verdade, por isso um
+     método próprio (`salvarComoAnexo()`) em vez de reusar `criar()`
+     como está (que exige um `UploadedFile` de requisição HTTP). Como a
+     rota recebe uma LISTA de empreitas (não uma só na URL), a checagem
+     de permissão por obra é manual dentro do loop
+     (`PermissaoService::podeObra()`), pulando (sem derrubar o lote
+     inteiro) qualquer empreita que o usuário não possa ver — reporta
+     como falha em vez de erro genérico. Testado de ponta a ponta via
+     API real: selecionar 2 empreitas de uma obra de teste, escolher um
+     modelo com tag configurada, gerar — voltou `2 sucessos, 0 falhas`;
+     conferido depois que o `Arquivo` de cada uma tem o `tag_id` certo,
+     está marcado `origem_tipo:empreita`/`origem_id` da empreita certa, e
+     até a miniatura do PDF foi gerada.
+
+  **Não publicado ainda** — falta decidir com o Lucas se limpa o "teste"
+  real antes ou depois de publicar, e revisar junto com ele os itens
+  8/9 originais (marcar contrato como modelo ativo/padrão por tipo,
+  publicar o lote inteiro desta sessão de reformulação).
+
+  ---
+
+  **Mesmo dia, rodada seguinte — reformulação de cabeçalho/rodapé/margem/
+  paginação e do papel timbrado** (pedido do Lucas, resumido: "a
+  separação de página [deve usar] o tamanho real da folha sempre...
+  cabeçalho e rodapé aparecendo em todas as folhas... a edição de
+  qualquer cabeçalho ou rodapé edita em todas as folhas... inclua os
+  itens predefinidos dentro do cabeçalho... as bordas superiores e
+  inferiores da página devem ser calculadas com base na base e topo do
+  cabeçalho e rodapé... tire a opção de papel timbrado em faixa no
+  topo, coloque centralizar/transparência/redimensionar"). A maior
+  mudança de arquitetura do editor desde que ele existe — resumo por
+  peça:
+
+  **1. Cabeçalho/rodapé repetem em TODA folha do editor, com os itens
+  predefinidos DENTRO deles.** Antes: `.previa-sistema` (logo/nome/
+  subtítulo/data) era um bloco só de leitura acima da folha, visível só
+  uma vez; `#areaCabecalho`/`#areaRodape` também apareciam só uma vez.
+  Agora: `.caixa-cabecalho` (`contrato-modelo-editor.html`) reúne os dois
+  — a prévia predefinida (ainda só leitura) mais a área editável do
+  usuário (`.area-editavel-sincronizada`, mesma classe do antigo
+  `.area-mini`) — e essa caixa inteira é CLONADA em cada quebra de
+  página (`criarCloneCabecalhoOuRodape()` no `.ts`), com a parte
+  predefinida sempre só-leitura e só a ilha `.area-editavel-sincronizada`
+  de verdade editável dentro do clone. Editar em QUALQUER cópia (a
+  canônica da 1ª página ou qualquer clone de uma página seguinte)
+  propaga pra todas — digitar no clone copia pro elemento canônico na
+  hora (`sincronizarDeClone()`), e as OUTRAS cópias pegam a mudança no
+  próximo recálculo de paginação (debounced, dispara ao clicar fora do
+  clone — não instantâneo tecla-a-tecla, decisão consciente pra não
+  arriscar perder o cursor de quem está digitando, mesmo motivo do item
+  2 abaixo). Testado com interação real: digitei no cabeçalho da página
+  1, texto apareceu certo no clone da página 2; digitei no RODAPÉ de um
+  CLONE, cliquei fora, e tanto o canônico quanto o outro clone
+  atualizaram.
+  - **Achado testando (mesma classe de bug já encontrada 2x nesta
+    sessão)**: o `.clone-pagina` (raiz do clone) É um elemento
+    compilado pelo Angular (`caixaCabecalho.nativeElement.cloneNode(true)`),
+    então ele e seus filhos JÁ carregam o atributo `_ngcontent-*` (copiado
+    pelo `cloneNode`) — diferente do `.quebra-pagina`/`<style>` das
+    rodadas anteriores (criados do zero via `document.createElement`,
+    sem esse atributo) — por isso o CSS normal com escopo do componente
+    (`.caixa-cabecalho { ... }`, sem `::ng-deep`) já funciona certinho
+    nos clones, sem precisar da mesma gambiarra.
+
+  **2. Separação de páginas usa o tamanho REAL da folha sempre — inclui
+  documento curto.** Na rodada anterior, só aparecia um vão quando o
+  conteúdo REALMENTE estourava a página; agora `recalcularQuebrasPagina()`
+  sempre completa a página atual até a altura real (`alturaUtilPaginaPx`)
+  com um espaçador em branco + clone do rodapé, mesmo sem ter estourado
+  nada (documento de uma linha só já mostra a folha inteira, com o
+  rodapé lá embaixo e o resto em branco).
+  - **Bug sério achado testando de verdade** (não só olhando o código):
+    num documento VAZIO, o espaçador (não-editável) sozinho ocupava TODA
+    a área clicável da folha — sem nenhum texto real pra ancorar o
+    cursor, as primeiras teclas digitadas simplesmente SOMIAM (confirmado
+    lendo o HTML real: o texto digitado não aparecia em lugar nenhum).
+    Corrigido pulando o espaçador quando não existe NENHUM conteúdo real
+    ainda — a folha "cheia" só aparece a partir do primeiro caractere
+    digitado, que sempre garante um bloco real pra clicar.
+
+  **3. Margem superior/inferior do corpo deixou de ser um número
+  escolhido — agora é CALCULADA a partir da altura real do cabeçalho/
+  rodapé** (pedido do Lucas: "as bordas superiores e inferiores da
+  página devem ser calculadas com base na base e topo do cabeçalho e
+  rodapé respectivamente"). `margem_superior_mm`/`margem_inferior_mm`
+  saíram do modelo TS e da tela (as colunas ainda existem no banco, só
+  não são mais lidas/escritas por nada) — só sobraram
+  `margem_esquerda_mm`/`margem_direita_mm` (concretas, arrastáveis) e
+  `margem_cabecalho_mm`/`margem_rodape_mm` (distância da BORDA até o
+  cabeçalho/rodapé, também arrastável). O corpo começa onde o cabeçalho
+  termina e acaba onde o rodapé começa, sempre — no editor,
+  `alturaUtilPaginaPx` subtrai a altura REAL medida (`caixaCabecalho`/
+  `caixaRodape` via `offsetHeight`) da altura da folha; no PDF de
+  verdade, `ContratoPdfController::gerar()` faz a mesma conta, só que
+  precisa MEDIR o cabeçalho/rodapé ANTES de gerar o PDF de verdade
+  (Puppeteer não ajusta margem sozinho pro conteúdo — outra chamada ao
+  Chromium, só pra medir via `document.body.scrollHeight`, antes da
+  chamada que gera o PDF real com a margem já certa).
+  - **Dois bugs sérios de medição achados só testando o PDF de verdade
+    (a medição isolada parecia certa)**:
+    1. **`scrollHeight` tinha um PISO.** `Browsershot::html($html)`
+       recebe só um FRAGMENTO (sem `<!DOCTYPE html>`) — o Chromium
+       renderiza em MODO QUIRKS, onde `<body>` historicamente estica pra
+       preencher a altura da JANELA de medição inteira, não só o
+       conteúdo. Um rodapé de uma linha só media exatamente a altura da
+       janela de medição (100px), não a altura real (bem menor).
+       Confirmado aumentando a janela de 100 pra 2000px: a medição
+       "pulou" de ~100 pra ~2000 junto, prova de que não estava medindo
+       conteúdo nenhum. Corrigido envolvendo o HTML num documento de
+       verdade (`<!DOCTYPE html><html><body>...`) antes de medir — modo
+       STANDARDS, altura automática de novo baseada só no conteúdo.
+    2. **A causa raiz de verdade, achada DEPOIS de corrigir a medição e
+       o corpo continuar sobrepondo o cabeçalho mesmo assim**: existia
+       uma regra `@page { size: A4 portrait; margin: 15mm; }` esquecida
+       em `contrato-imprimir.scss`, de ANTES do modelo de contrato ter
+       tamanho de papel/margem configurável (29/09) — nunca removida.
+       Isolado aumentando a margem calculada pra um valor
+       PROPOSITALMENTE exagerado (30mm de folga extra): o PDF gerado não
+       mudou UM PIXEL, provando que a margem calculada no PHP não tinha
+       efeito nenhum — o Chromium aplicava o `margin: 15mm` fixo da CSS
+       por cima de qualquer coisa vinda do `Browsershot::margins()`.
+       Corrigido removendo a regra `@page` (tamanho/margem já são 100%
+       controlados via PHP desde 29/09, essa regra CSS já não deveria
+       existir). **Verificado renderizando o PDF de verdade em pixels**
+       (não só extração de texto, que mascarava a sobreposição parecendo
+       "linhas próximas" em vez de LITERALMENTE em cima uma da outra —
+       usado PDF.js via um servidor HTTP local só pra essa checagem,
+       servido de dentro do scratchpad) — antes mostrava "Cláusula de
+       teste" em cima de "CONTRATO DE EMPREITADA"; depois de corrigido,
+       layout limpo, cabeçalho/rodapé repetindo certo nas 2 páginas do
+       PDF de teste.
+    - Mantida uma folga de segurança pequena (`FOLGA_MEDICAO_MM`, 4mm)
+      por cima da medição — o `headerTemplate`/`footerTemplate` de
+      verdade do Puppeteer roda num mecanismo interno diferente
+      (`Page.printToPDF`) de uma página normal, então a altura pode não
+      bater 100% com a mesma HTML medida como página comum.
+    - Efeito colateral aceito: gerar o PDF agora faz 3 chamadas ao
+      Chromium em vez de 1 (medir cabeçalho, medir rodapé, gerar o PDF
+      de verdade) — no teste, ~38s em vez dos ~15-20s de antes. Avisar
+      o Lucas dessa demora maior.
+
+  **4. Papel timbrado redesenhado** (pedido do Lucas: "tire a opção de
+  papel timbrado em faixa no topo, coloque a opção de centralizar a
+  imagem na folha e coloque uma opção de aplicar transparência... e
+  redimensionar... mantendo ou não a proporção"). `timbrado_modo`
+  ("faixa no topo" vs "fundo") e `timbrado_ajuste` (cobrir/conter/
+  esticar) saíram da tela — só existe mais o modo "fundo", sempre
+  centralizado. Campos novos (migration `2026_09_30_030000`):
+  `timbrado_largura_pct` (% da folha, default 100), `timbrado_altura_pct`
+  (só usado sem manter proporção), `timbrado_manter_proporcao` (bool,
+  default true — usa `background-size: X% auto`, o próprio CSS calcula
+  a altura mantendo a proporção natural da imagem, sem precisar saber as
+  dimensões dela no backend/frontend), `timbrado_opacidade` (0-100,
+  default 100). A imagem agora fica numa camada PRÓPRIA (`.timbrado-fundo-editor`
+  no editor, já existia separado no `ContratoImprimir`) — `opacity` só
+  pode valer pra imagem, nunca pro texto do contrato por cima dela.
+  Testado com interação real: mudar largura pra 50% e opacidade pra 40%
+  no painel "Página" — a imagem na folha ficou visivelmente menor,
+  centralizada e translúcida.
+
+  **5. Bug do arraste travando em 149mm, corrigido.** O limite do
+  arraste na régua vertical usava `Math.round(tamanhoMm / 2)` — pra A4
+  retrato (297mm de altura), isso dá exatamente 149, batendo com o
+  relatado pelo Lucas. Como agora a régua vertical arrasta
+  `margemCabecalho`/`margemRodape` (distância até a borda, não mais uma
+  margem do corpo inteiro), o limite virou um teto fixo de 60mm (mesmo
+  já usado nos campos numéricos). Testado arrastando a alça do rodapé
+  bem além de 149mm — parou em 60mm, não mais travado num valor
+  arbitrário no meio do caminho.
+
+  **Arquivos principais tocados**: `contrato-modelo-editor.ts`/`.html`/
+  `.scss` (reescrita grande), `contrato-imprimir.ts`/`.html`/`.scss`
+  (removido `<app-cabecalho-impressao>` do corpo — os itens predefinidos
+  só existem mais via o cabeçalho de verdade do Puppeteer; removida a
+  `@page` órfã), `ContratoPdfController.php` (cabeçalho combinado +
+  medição + margem calculada), `contrato-modelo.models.ts`
+  (`ContratoModelo` sem margem_superior/inferior, com os 4 campos novos
+  de timbrado), 2 migrations novas (`timbrado_largura_pct` e famÍlia;
+  nenhuma mudança nas colunas de margem_superior/inferior, só paradas de
+  usar).
+
+  **Não publicado ainda** — agora cobre TRÊS rodadas de reformulação do
+  editor de contrato no mesmo dia (30/09). Falta decidir com o Lucas
+  publicação + limpeza do "teste" real + os itens 8/9 originais.
