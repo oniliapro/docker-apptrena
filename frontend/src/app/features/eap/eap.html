@@ -269,6 +269,7 @@
                   @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                     <td class="celula-saldo">
                       <span class="valor-saldo"
+                            [title]="formatarMoeda(saldoDoItemTipo(i, item, tipo.chave))"
                             [class.saldo-positivo]="saldoDoItemTipo(i, item, tipo.chave) >= 0"
                             [class.saldo-negativo]="saldoDoItemTipo(i, item, tipo.chave) < 0">
                         {{ formatarMoeda(saldoDoItemTipo(i, item, tipo.chave)) }}
@@ -281,6 +282,7 @@
                 }
                 <td class="celula-saldo">
                   <span class="valor-saldo"
+                        [title]="formatarMoeda(saldoDoItem(i, item))"
                         [class.saldo-positivo]="saldoDoItem(i, item) >= 0"
                         [class.saldo-negativo]="saldoDoItem(i, item) < 0">
                     <b>{{ formatarMoeda(saldoDoItem(i, item)) }}</b>
@@ -301,6 +303,7 @@
                     @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                       <td class="celula-saldo">
                         <button type="button" class="link-realizado valor-saldo"
+                                [title]="formatarMoeda(saldoNaoComprometidoDoItemTipo(i, item, tipo.chave))"
                                 [class.saldo-positivo]="saldoNaoComprometidoDoItemTipo(i, item, tipo.chave) >= 0"
                                 [class.saldo-negativo]="saldoNaoComprometidoDoItemTipo(i, item, tipo.chave) < 0"
                                 (click)="abrirPagamentosDoItem(item, tipo.chave)">
@@ -314,6 +317,7 @@
                   }
                   <td class="celula-saldo">
                     <button type="button" class="link-realizado valor-saldo"
+                            [title]="formatarMoeda(saldoNaoComprometidoDoItem(i, item))"
                             [class.saldo-positivo]="saldoNaoComprometidoDoItem(i, item) >= 0"
                             [class.saldo-negativo]="saldoNaoComprometidoDoItem(i, item) < 0"
                             (click)="abrirPagamentosDoItem(item)">
@@ -509,6 +513,7 @@
                 @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                   <th class="celula-saldo">
                     <span class="valor-saldo"
+                          [title]="formatarMoeda(saldoTotalPorTipo()[tipo.chave])"
                           [class.saldo-positivo]="saldoTotalPorTipo()[tipo.chave] >= 0"
                           [class.saldo-negativo]="saldoTotalPorTipo()[tipo.chave] < 0">
                       {{ formatarMoeda(saldoTotalPorTipo()[tipo.chave]) }}
@@ -521,6 +526,7 @@
               }
               <th class="celula-saldo">
                 <span class="valor-saldo"
+                      [title]="formatarMoeda(saldoTotalGeral())"
                       [class.saldo-positivo]="saldoTotalGeral() >= 0"
                       [class.saldo-negativo]="saldoTotalGeral() < 0">
                   <b>{{ formatarMoeda(saldoTotalGeral()) }}</b>
@@ -540,6 +546,7 @@
                   @for (tipo of store.tiposVisiveis(); track tipo.chave) {
                     <th class="celula-saldo">
                       <button type="button" class="link-realizado valor-saldo"
+                              [title]="formatarMoeda(saldoNaoComprometidoTotalPorTipo()[tipo.chave])"
                               [class.saldo-positivo]="saldoNaoComprometidoTotalPorTipo()[tipo.chave] >= 0"
                               [class.saldo-negativo]="saldoNaoComprometidoTotalPorTipo()[tipo.chave] < 0"
                               (click)="abrirPagamentosTotais(tipo.chave)">
@@ -553,6 +560,7 @@
                 }
                 <th class="celula-saldo">
                   <button type="button" class="link-realizado valor-saldo"
+                          [title]="formatarMoeda(saldoNaoComprometidoTotalGeral())"
                           [class.saldo-positivo]="saldoNaoComprometidoTotalGeral() >= 0"
                           [class.saldo-negativo]="saldoNaoComprometidoTotalGeral() < 0"
                           (click)="abrirPagamentosTotais()">

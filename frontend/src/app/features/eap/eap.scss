@@ -338,7 +338,22 @@ li:last-child .item-obra-copiar { border-bottom: none; }
   vertical-align: middle;
 }
 
+// Nunca deixar um valor em dinheiro quebrar linha (R$ de um lado, o número
+// do outro) — bug visto pelo Lucas (01/10/2026) assim que "Saldo não
+// comprometido" virou botão clicável: numa coluna redimensionada manualmente
+// pra um valor que já não cabe mais (a largura arrastada é por COLUNA,
+// compartilhada entre os 3 modos de totais — ver `RedimensionarColunas`,
+// "a remedição automática não mexe" em coluna manual), a célula virava
+// 2-3 linhas ou estourava o limite. Em vez de depender de toda coluna caber
+// o valor inteiro, trunca com reticências e mantém o valor completo no
+// `title` — mesmo padrão já usado pro cabeçalho da tabela nesse cenário.
 .valor-saldo {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   font-family: var(--fonte-mono);
   font-size: 11px;
 }
