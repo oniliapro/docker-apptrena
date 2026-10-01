@@ -24,9 +24,10 @@ import { FvsModelo, FvsVinculo } from '../fvs/fvs.models';
 import { FvsService } from '../fvs/fvs.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
-import { ehDescendente } from './eap-engine';
+import { calcularValoresEmAbertoPorEmpreitas, ehDescendente } from './eap-engine';
 import { CampoCelula, apelidoDaChave } from './eap-formulas';
-import { calcularContextoRealizado } from './eap-realizado';
+import { calcularContextoPendente, calcularContextoRealizado } from './eap-realizado';
+import { ResumoContratoEmpreita } from '../empreita/empreita.models';
 import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
@@ -35,6 +36,7 @@ import { EapStore } from './eap.store';
 import {
   ChaveTipo,
   EscopoBdi,
+  EstadoUi,
   ItemEap,
   ModoBdi,
   PorTipo,
@@ -74,6 +76,30 @@ export class Eap implements OnInit {
    * (providers acima), então isso não interfere com a aba Pagamentos.
    */
   private readonly pagamentosStore = inject(PagamentosStore);
+
+  /**
+   * Empreitas-irmãs da obra (01/10/2026, "Saldo não comprometido") — só
+   * leitura, mesma fonte que `calcularSaldoDisponivelPorEap` já usa na
+   * Empreita (`empreita.store.ts`/`empreita-engine.ts:345`). A EAP não
+   * tinha motivo pra carregar isso antes de existir este modo de
+   * exibição.
+   */
+  protected readonly siblingsEmpreitas = signal<ResumoContratoEmpreita[]>([]);
+
+  /**
+   * `true` até a primeira resposta de `siblingsEmpreitas` chegar (01/10/2026,
+   * bug relatado pelo Lucas: o "Saldo não comprometido" saiu sem descontar
+   * o valor em aberto das empreitas). Causa raiz: `modoTotais` fica salvo
+   * entre sessões — ao reabrir a EAP já em "saldo_nao_comprometido", a
+   * tabela renderiza na hora com `siblingsEmpreitas()` ainda vazio (medido
+   * testando de verdade: mais de 1s de janela onde o componente já existe
+   * mas a lista de empreitas ainda não chegou), mostrando um saldo maior
+   * do que o real até a resposta chegar — sem nada avisando que o número
+   * ainda está incompleto. Usado pra travar os botões de saldo não
+   * comprometido com um "carregando…" nessa janela, em vez de mostrar um
+   * valor que parece definitivo mas não é.
+   */
+  protected readonly carregandoSiblings = signal(true);
 
   /**
    * Vínculo com modelos de FVS (F10, 25/09/2026, "qualquer linha da EAP
@@ -145,6 +171,9 @@ export class Eap implements OnInit {
    * só, sem multiplicar sinais de estado.
    */
   protected readonly filtroPagamentosAberto = signal<FiltroPagamentosAberto | null>(null);
+
+  /** "Empreitas desta etapa" do popup, só preenchido no modo Saldo não comprometido — ver `abrirPagamentosDoItem`/`empreitasDaEtapa`. */
+  protected readonly empreitasPopup = signal<Array<{ numeroEmpreita: string; contratado: number; emAberto: number }> | null>(null);
 
   /**
    * Soma do "Realizado" de cada item da EAP: o total já pago em itens de
@@ -321,6 +350,14 @@ export class Eap implements OnInit {
 
     this.fvsApi.listarModelos().subscribe({ next: (lista) => this.fvsModelos.set(lista), error: () => void 0 });
     this.fvsApi.listarVinculos(this.obraId()).subscribe({ next: (lista) => this.fvsVinculos.set(lista), error: () => void 0 });
+
+    this.api.obterResumoContratoEmpreitas(this.obraId()).subscribe({
+      next: (lista) => {
+        this.siblingsEmpreitas.set(lista);
+        this.carregandoSiblings.set(false);
+      },
+      error: () => this.carregandoSiblings.set(false),
+    });
   }
 
   // ------------------------------------------------------------------
@@ -952,8 +989,170 @@ export class Eap implements OnInit {
 
   protected readonly saldoTotalGeral = computed(() => this.totalOrcado() - this.totalRealizadoGeral());
 
-  protected alternarModoTotais(): void {
-    this.store.alternarModoTotais();
+  protected definirModoTotais(modo: EstadoUi['modoTotais']): void {
+    this.store.definirModoTotais(modo);
+  }
+
+  // ------------------------------------------------------------------
+  // Saldo NÃO comprometido (01/10/2026, pedido do Lucas) — terceiro modo
+  // de exibição da EAP confirmada: além do Realizado, desconta também
+  // pagamentos em ABERTO (de qualquer origem) e a fatia do contrato das
+  // empreitas-irmãs que ainda nem virou pagamento nenhum. Ver
+  // `calcularValoresEmAbertoPorEmpreitas` (eap-engine.ts) e
+  // `calcularContextoPendente` (eap-realizado.ts) pro porquê da conta não
+  // ter sobreposição entre os termos.
+  // ------------------------------------------------------------------
+
+  /** Flat, mesma ideia de `realizadoPorItem` — usado pelo total POR ITEM (`pendenteDoItem`), que precisa incluir também pagamentos de categoria inválida ("S/ Categoria"). */
+  protected readonly pendentePorItem = computed(() => {
+    const mapa = new Map<string, number>();
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status !== 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (!item.eapId) continue;
+        mapa.set(item.eapId, (mapa.get(item.eapId) ?? 0) + item.valorCalculado);
+      }
+    }
+    return mapa;
+  });
+
+  private readonly contextoPendenteDosPagamentos = computed(() => calcularContextoPendente(this.pagamentosStore.pagamentos()));
+  protected readonly pendentePorItemPorTipo = computed(() => this.contextoPendenteDosPagamentos().porItem);
+  protected readonly pendenteSemDefinicaoPorTipo = computed(() => this.contextoPendenteDosPagamentos().semDefinicao);
+
+  protected pendenteDoItem(item: ItemEap): number {
+    const mapa = this.pendentePorItem();
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id) ?? 0), 0);
+  }
+
+  protected pendenteDoItemTipo(item: ItemEap, tipo: ChaveTipo): number {
+    const mapa = this.pendentePorItemPorTipo();
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id)?.[tipo] ?? 0), 0);
+  }
+
+  protected readonly totalPendentePorTipo = computed(() => {
+    const mapa = this.pendentePorItemPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const item of this.store.itens()) {
+      if (item.isGroup) continue;
+      const porTipo = mapa.get(item.id);
+      if (!porTipo) continue;
+      for (const tipo of TIPOS_CUSTO) totais[tipo.chave] += porTipo[tipo.chave] ?? 0;
+    }
+    return totais;
+  });
+
+  protected readonly totalPendentePorTipoGeral = computed(() => {
+    const porEtapa = this.totalPendentePorTipo();
+    const semDefinicao = this.pendenteSemDefinicaoPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const tipo of TIPOS_CUSTO) totais[tipo.chave] = porEtapa[tipo.chave] + semDefinicao[tipo.chave];
+    return totais;
+  });
+
+  protected readonly totalPendenteGeral = computed(() => {
+    const mapa = this.pendentePorItem();
+    let semEtapa = 0;
+    for (const pagamento of this.pagamentosStore.pagamentos()) {
+      if (pagamento.status !== 'pendente') continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (!item.eapId) semEtapa += item.valorCalculado;
+      }
+    }
+    return this.store.itens().reduce((soma, item) => soma + (mapa.get(item.id) ?? 0), semEtapa);
+  });
+
+  /** Por item×categoria, a fatia do contrato das empreitas-irmãs que ainda não virou pagamento — ver `calcularValoresEmAbertoPorEmpreitas`. */
+  protected readonly valoresEmAbertoPorItemPorTipo = computed(() =>
+    calcularValoresEmAbertoPorEmpreitas(this.siblingsEmpreitas(), this.pagamentosStore.pagamentos()),
+  );
+
+  protected valoresEmAbertoDoItemTipo(item: ItemEap, tipo: ChaveTipo): number {
+    const mapa = this.valoresEmAbertoPorItemPorTipo();
+    return this.idsRealizadoDoItem(item).reduce((soma, id) => soma + (mapa.get(id)?.[tipo] ?? 0), 0);
+  }
+
+  protected valoresEmAbertoDoItem(item: ItemEap): number {
+    return TIPOS_CUSTO.reduce((soma, t) => soma + this.valoresEmAbertoDoItemTipo(item, t.chave), 0);
+  }
+
+  protected readonly totalValoresEmAbertoPorTipo = computed(() => {
+    const mapa = this.valoresEmAbertoPorItemPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const item of this.store.itens()) {
+      if (item.isGroup) continue;
+      const porTipo = mapa.get(item.id);
+      if (!porTipo) continue;
+      for (const tipo of TIPOS_CUSTO) totais[tipo.chave] += porTipo[tipo.chave] ?? 0;
+    }
+    return totais;
+  });
+
+  protected readonly totalValoresEmAbertoGeral = computed(() =>
+    TIPOS_CUSTO.reduce((soma, t) => soma + this.totalValoresEmAbertoPorTipo()[t.chave], 0),
+  );
+
+  protected saldoNaoComprometidoDoItemTipo(indice: number, item: ItemEap, tipo: ChaveTipo): number {
+    return (
+      this.orcadoDoItemTipo(indice, item, tipo) -
+      this.realizadoDoItemTipo(item, tipo) -
+      this.pendenteDoItemTipo(item, tipo) -
+      this.valoresEmAbertoDoItemTipo(item, tipo)
+    );
+  }
+
+  protected saldoNaoComprometidoDoItem(indice: number, item: ItemEap): number {
+    return (
+      this.orcadoDoItem(indice, item) -
+      this.realizadoDoItem(item) -
+      this.pendenteDoItem(item) -
+      this.valoresEmAbertoDoItem(item)
+    );
+  }
+
+  protected readonly saldoNaoComprometidoTotalPorTipo = computed(() => {
+    const orcado = this.totalOrcadoPorTipo();
+    const realizado = this.totalRealizadoPorTipoGeral();
+    const pendente = this.totalPendentePorTipoGeral();
+    const emAberto = this.totalValoresEmAbertoPorTipo();
+    const totais = criarVazioPorTipo();
+    for (const tipo of TIPOS_CUSTO) {
+      totais[tipo.chave] = orcado[tipo.chave] - realizado[tipo.chave] - pendente[tipo.chave] - emAberto[tipo.chave];
+    }
+    return totais;
+  });
+
+  protected readonly saldoNaoComprometidoTotalGeral = computed(
+    () => this.totalOrcado() - this.totalRealizadoGeral() - this.totalPendenteGeral() - this.totalValoresEmAbertoGeral(),
+  );
+
+  /**
+   * Empreitas-irmãs com item nesta etapa, pro bloco "Empreitas desta etapa" do
+   * popup — ver `abrirPagamentosDoItem`. `tipo` filtra pela mesma categoria da
+   * célula clicada (undefined = Total, mostra todas as categorias) — sem isso
+   * o popup aberto pela coluna "Mão de obra" também listava itens de empreita
+   * classificados como "material"/outras categorias, confundindo o Lucas ao
+   * dar a entender que aquele valor deveria (mas não devia) descontar do
+   * saldo de mão de obra (01/10/2026).
+   */
+  protected empreitasDaEtapa(
+    item: ItemEap,
+    tipo?: ChaveTipo,
+  ): Array<{ numeroEmpreita: string; contratado: number; emAberto: number }> {
+    const ids = new Set(this.idsRealizadoDoItem(item));
+    const linhas: Array<{ numeroEmpreita: string; contratado: number; emAberto: number }> = [];
+
+    for (const sibling of this.siblingsEmpreitas()) {
+      const itensDaEtapa = sibling.itens.filter((i) => ids.has(i.eapId) && (!tipo || i.tipo === tipo));
+      if (!itensDaEtapa.length) continue;
+
+      const contratado = itensDaEtapa.reduce((soma, i) => soma + (i.contratoEmp || 0) + (i.contratoReserva || 0), 0);
+      const mapaEmAberto = calcularValoresEmAbertoPorEmpreitas([sibling], this.pagamentosStore.pagamentos());
+      const emAberto = itensDaEtapa.reduce((soma, i) => soma + (mapaEmAberto.get(i.eapId)?.[i.tipo] ?? 0), 0);
+
+      linhas.push({ numeroEmpreita: sibling.numeroEmpreita, contratado, emAberto });
+    }
+    return linhas;
   }
 
   // ------------------------------------------------------------------
@@ -969,6 +1168,13 @@ export class Eap implements OnInit {
       titulo,
       corresponde: (ip) => ids.has(ip.eapId) && (!tipo || ip.tipo === tipo),
     });
+    // "Empreitas desta etapa" (01/10/2026) — só faz sentido no modo Saldo
+    // não comprometido, aberto a partir de um item de verdade (não dos
+    // agregados "Totais"/"S/ Categoria"/"S/ Definição", que não têm um
+    // `ItemEap` único pra calcular `idsRealizadoDoItem`).
+    this.empreitasPopup.set(
+      this.store.ui().modoTotais === 'saldo_nao_comprometido' ? this.empreitasDaEtapa(item, tipo) : null,
+    );
   }
 
   /**
@@ -1074,6 +1280,7 @@ export class Eap implements OnInit {
     this.filtroPopupBeneficiado.set('');
     this.filtroPopupDataDe.set('');
     this.filtroPopupDataAte.set('');
+    this.empreitasPopup.set(null);
   }
 
   /** Rótulo de uma categoria de custo (Material, Mão de obra…), para o detalhamento do hover. */

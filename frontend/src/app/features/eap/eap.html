@@ -50,10 +50,13 @@
         {{ store.cabecalho().isConfirmed ? 'Reabrir EAP' : 'Confirmar EAP' }}
       </button>
       @if (store.cabecalho().isConfirmed) {
-        <button type="button" (click)="alternarModoTotais()"
-                title="Alterna a tabela entre Orçado x Realizado e Saldo por categoria">
-          {{ store.ui().modoTotais === 'saldo' ? '📊 Ver Orçado x Realizado' : '📉 Ver Saldo' }}
-        </button>
+        <select class="select-modo-totais" [value]="store.ui().modoTotais"
+                title="Escolhe o que a tabela mostra por categoria"
+                (change)="definirModoTotais($any($event.target).value)">
+          <option value="detalhado">📊 Orçado x Realizado</option>
+          <option value="saldo">📉 Saldo</option>
+          <option value="saldo_nao_comprometido">🔓 Saldo não comprometido</option>
+        </select>
       }
       <button type="button" [disabled]="!store.itens().length || gerandoPdf()" (click)="baixarPdf()"
               title="Gera e baixa o PDF da EAP">
@@ -92,10 +95,16 @@
         </label>
       } @else {
         <span class="pequeno atenuado">
-          @if (store.ui().modoTotais === 'saldo') {
-            EAP confirmada — mostrando Saldo (Orçado − Realizado) por categoria. Nada é editável até reabrir.
-          } @else {
-            EAP confirmada — mostrando Orçado x Realizado por categoria. Nada é editável até reabrir.
+          @switch (store.ui().modoTotais) {
+            @case ('saldo') {
+              EAP confirmada — mostrando Saldo (Orçado − Realizado) por categoria. Nada é editável até reabrir.
+            }
+            @case ('saldo_nao_comprometido') {
+              EAP confirmada — mostrando Saldo não comprometido (Orçado − Realizado − pagamentos em aberto − contrato ainda não faturado das empreitas) por categoria. Nada é editável até reabrir.
+            }
+            @default {
+              EAP confirmada — mostrando Orçado x Realizado por categoria. Nada é editável até reabrir.
+            }
           }
         </span>
       }
@@ -141,7 +150,11 @@
           @if (store.cabecalho().isConfirmed) {
             <th class="grupo-orc-real"
                 [attr.colspan]="store.mostrarColunasTipo() ? store.tiposVisiveis().length + 2 : 1">
-              {{ store.ui().modoTotais === 'saldo' ? 'Saldo (Orçado − Realizado)' : 'Totais (Orçado x Realizado)' }}
+              @switch (store.ui().modoTotais) {
+                @case ('saldo') { Saldo (Orçado − Realizado) }
+                @case ('saldo_nao_comprometido') { Saldo não comprometido }
+                @default { Totais (Orçado x Realizado) }
+              }
             </th>
           } @else {
             @if (store.ui().showUnit) {
@@ -273,6 +286,41 @@
                     <b>{{ formatarMoeda(saldoDoItem(i, item)) }}</b>
                   </span>
                 </td>
+              } @else if (store.ui().modoTotais === 'saldo_nao_comprometido') {
+                <!-- Saldo NÃO comprometido (orçado − realizado − em aberto − contrato ainda não faturado das empreitas), por categoria — clicável, mesmo popup de pagamentos do modo detalhado, com a seção extra "Empreitas desta etapa" (ver abrirPagamentosDoItem). Enquanto `carregandoSiblings()`, mostra "…" em vez do valor — ver comentário no `.ts`: sem isso, o valor aparecia maior do que o real por mais de 1s a cada abertura da tela (o termo "em aberto das empreitas" ficava de fora até a lista de empreitas-irmãs chegar). -->
+                @if (carregandoSiblings()) {
+                  @if (store.mostrarColunasTipo()) {
+                    @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                      <td class="celula-saldo"><span class="valor-saldo atenuado" title="Carregando dados de empreitas…">…</span></td>
+                    }
+                    <td class="celula-saldo"><span class="valor-saldo atenuado">—</span></td>
+                  }
+                  <td class="celula-saldo"><span class="valor-saldo atenuado" title="Carregando dados de empreitas…">…</span></td>
+                } @else {
+                  @if (store.mostrarColunasTipo()) {
+                    @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                      <td class="celula-saldo">
+                        <button type="button" class="link-realizado valor-saldo"
+                                [class.saldo-positivo]="saldoNaoComprometidoDoItemTipo(i, item, tipo.chave) >= 0"
+                                [class.saldo-negativo]="saldoNaoComprometidoDoItemTipo(i, item, tipo.chave) < 0"
+                                (click)="abrirPagamentosDoItem(item, tipo.chave)">
+                          {{ formatarMoeda(saldoNaoComprometidoDoItemTipo(i, item, tipo.chave)) }}
+                        </button>
+                      </td>
+                    }
+                    <td class="celula-saldo">
+                      <span class="valor-saldo atenuado">—</span>
+                    </td>
+                  }
+                  <td class="celula-saldo">
+                    <button type="button" class="link-realizado valor-saldo"
+                            [class.saldo-positivo]="saldoNaoComprometidoDoItem(i, item) >= 0"
+                            [class.saldo-negativo]="saldoNaoComprometidoDoItem(i, item) < 0"
+                            (click)="abrirPagamentosDoItem(item)">
+                      <b>{{ formatarMoeda(saldoNaoComprometidoDoItem(i, item)) }}</b>
+                    </button>
+                  </td>
+                }
               } @else {
                 <!-- Totais (Orçado x Realizado), por categoria -->
                 @if (store.mostrarColunasTipo()) {
@@ -478,6 +526,40 @@
                   <b>{{ formatarMoeda(saldoTotalGeral()) }}</b>
                 </span>
               </th>
+            } @else if (store.ui().modoTotais === 'saldo_nao_comprometido') {
+              @if (carregandoSiblings()) {
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <th class="celula-saldo"><span class="valor-saldo atenuado" title="Carregando dados de empreitas…">…</span></th>
+                  }
+                  <th class="celula-saldo"><span class="valor-saldo atenuado">—</span></th>
+                }
+                <th class="celula-saldo"><span class="valor-saldo atenuado" title="Carregando dados de empreitas…">…</span></th>
+              } @else {
+                @if (store.mostrarColunasTipo()) {
+                  @for (tipo of store.tiposVisiveis(); track tipo.chave) {
+                    <th class="celula-saldo">
+                      <button type="button" class="link-realizado valor-saldo"
+                              [class.saldo-positivo]="saldoNaoComprometidoTotalPorTipo()[tipo.chave] >= 0"
+                              [class.saldo-negativo]="saldoNaoComprometidoTotalPorTipo()[tipo.chave] < 0"
+                              (click)="abrirPagamentosTotais(tipo.chave)">
+                        {{ formatarMoeda(saldoNaoComprometidoTotalPorTipo()[tipo.chave]) }}
+                      </button>
+                    </th>
+                  }
+                  <th class="celula-saldo">
+                    <span class="valor-saldo atenuado">—</span>
+                  </th>
+                }
+                <th class="celula-saldo">
+                  <button type="button" class="link-realizado valor-saldo"
+                          [class.saldo-positivo]="saldoNaoComprometidoTotalGeral() >= 0"
+                          [class.saldo-negativo]="saldoNaoComprometidoTotalGeral() < 0"
+                          (click)="abrirPagamentosTotais()">
+                    <b>{{ formatarMoeda(saldoNaoComprometidoTotalGeral()) }}</b>
+                  </button>
+                </th>
+              }
             } @else {
               @if (store.mostrarColunasTipo()) {
                 @for (tipo of store.tiposVisiveis(); track tipo.chave) {
@@ -760,6 +842,34 @@
             </table>
           } @else {
             <p class="atenuado pequeno">Nenhum pagamento vinculado a este item ainda.</p>
+          }
+
+          @if (empreitasPopup(); as empreitas) {
+            <div class="bloco-empreitas-etapa">
+              <span class="painel-titulo">Empreitas desta etapa</span>
+              @if (empreitas.length) {
+                <table class="tabela-empreitas-etapa">
+                  <thead>
+                    <tr>
+                      <th>Empreita</th>
+                      <th class="valor">Contratado (empreiteiro + reserva)</th>
+                      <th class="valor">Ainda não faturado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (e of empreitas; track e.numeroEmpreita) {
+                      <tr>
+                        <td>{{ e.numeroEmpreita }}</td>
+                        <td class="valor">{{ formatarMoeda(e.contratado) }}</td>
+                        <td class="valor">{{ formatarMoeda(e.emAberto) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              } @else {
+                <p class="atenuado pequeno">Nenhuma empreita com serviço nesta etapa.</p>
+              }
+            </div>
           }
         </div>
 

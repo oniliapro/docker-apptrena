@@ -257,17 +257,18 @@ export class EapStore {
   }
 
   /**
-   * Alterna Orçado x Realizado ⇄ Saldo (25/08/2026, correção de bug
-   * apontado pelo Lucas: "botão ver saldo não está funcionando") —
-   * `modoTotais` é só um toggle de EXIBIÇÃO, não uma edição de verdade da
-   * EAP, mas o botão só aparece quando a EAP está confirmada
-   * (`travada() === true`) — passando por `atualizarUi()`, o guard
-   * `if (this.travada()) return` (pensado pra bloquear edições de
-   * conteúdo, tipo BDI/showTypes) sempre bloqueava a troca bem na hora
-   * em que o botão fica visível. Método próprio, sem o guard.
+   * Escolhe entre Orçado x Realizado / Saldo / Saldo não comprometido
+   * (25/08/2026, correção de bug apontado pelo Lucas: "botão ver saldo não
+   * está funcionando"; 01/10/2026: virou menu de 3 opções, era um toggle
+   * binário) — `modoTotais` é só EXIBIÇÃO, não edição de verdade da EAP,
+   * mas o menu só aparece quando a EAP está confirmada (`travada() ===
+   * true`) — passando por `atualizarUi()`, o guard `if (this.travada())
+   * return` (pensado pra bloquear edições de conteúdo, tipo BDI/showTypes)
+   * sempre bloquearia a troca bem na hora em que o menu fica visível.
+   * Método próprio, sem o guard.
    */
-  alternarModoTotais(): void {
-    this.ui.update((u) => ({ ...u, modoTotais: u.modoTotais === 'saldo' ? 'detalhado' : 'saldo' }));
+  definirModoTotais(modo: EstadoUi['modoTotais']): void {
+    this.ui.update((u) => ({ ...u, modoTotais: modo }));
     this.salvar();
   }
 

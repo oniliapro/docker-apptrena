@@ -21,6 +21,7 @@ class Mapa extends Model
         'freteiro_particular', 'lancar_frete_como_item', 'frete_etapa_id', 'frete_categoria_tipo',
         'lancar_imposto_desconto_como_item', 'imposto_desconto_etapa_id', 'imposto_desconto_categoria_tipo',
         'modo_manual', 'is_confirmed', 'confirmed_at', 'ultima_finalizacao_em', 'total_mapa',
+        'mostrar_rateio_etapa',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class Mapa extends Model
         'lancar_imposto_desconto_como_item' => 'boolean',
         'modo_manual' => 'boolean',
         'is_confirmed' => 'boolean',
+        'mostrar_rateio_etapa' => 'boolean',
         // 'date' truncava a hora (virava sempre 00:00) — 'datetime' corrige
         // isso pra valer o que o comentário de MapaStore::alternarConfirmacao
         // já dizia querer desde 04/08/2026 ("guarda data E hora").

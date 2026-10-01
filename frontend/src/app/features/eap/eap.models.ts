@@ -58,15 +58,18 @@ export interface EstadoUi {
   /** Como comparar orçado x realizado: em reais ou em percentual. */
   orcRealMode: 'value' | 'pct';
   /**
-   * Com a EAP confirmada, alterna a tabela entre mostrar Real./Orç.
-   * empilhados por categoria (`'detalhado'`, o padrão) ou um valor só de
-   * Saldo (`orçado − realizado`) por categoria (`'saldo'`) — pedido do
-   * Lucas em 23/08/2026, pra ver de relance se alguma etapa vai estourar
-   * o planejamento sem precisar calcular a diferença de cabeça. Não
-   * confundir com `orcRealMode`, que decide a UNIDADE (R$ x %); este
-   * campo decide QUAL bloco aparece.
+   * Com a EAP confirmada, escolhe o que a tabela mostra por categoria:
+   * Real./Orç. empilhados (`'detalhado'`, o padrão), só o Saldo (`orçado −
+   * realizado`, `'saldo'` — pedido do Lucas em 23/08/2026, pra ver de
+   * relance se alguma etapa vai estourar o planejamento), ou o Saldo NÃO
+   * COMPROMETIDO (`'saldo_nao_comprometido'`, 01/10/2026 — além do
+   * realizado, desconta pagamentos em aberto e a parte do contrato das
+   * empreitas-irmãs que ainda nem virou pagamento; ver
+   * `calcularValoresEmAbertoPorEmpreitas` em `eap-engine.ts`). Não
+   * confundir com `orcRealMode`, que decide a UNIDADE (R$ x %); este campo
+   * decide QUAL bloco aparece.
    */
-  modoTotais: 'detalhado' | 'saldo';
+  modoTotais: 'detalhado' | 'saldo' | 'saldo_nao_comprometido';
   visibleTypes: Record<ChaveTipo, boolean>;
 }
 

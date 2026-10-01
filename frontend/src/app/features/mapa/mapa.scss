@@ -783,6 +783,13 @@ tfoot tr:first-child th { border-top: 2px solid var(--cor-borda-forte); }
   }
 }
 
+// 01/10/2026: substitui o `.envoltoria-fixa` que envolvia a tabela (ver
+// comentário no `.html`) — mantém só a rolagem HORIZONTAL (útil com muitos
+// fornecedores cotados, a tabela pode ficar larga), sem limitar a altura.
+.tabela-etapas-wrapper {
+  overflow-x: auto;
+}
+
 .tabela-etapas {
   width: 100%;
   border-collapse: collapse;

@@ -514,7 +514,7 @@
   @if (store.itens().length) {
     <div class="barra-relatorios">
       <label class="checagem-inline pequeno">
-        <input type="checkbox" [checked]="mostrarRateio()" (change)="mostrarRateio.set(!mostrarRateio())" />
+        <input type="checkbox" [checked]="mostrarRateio()" (change)="store.salvarMostrarRateioEtapa(!mostrarRateio())" />
         Exibir "Rateio por etapa da obra"
       </label>
     </div>
@@ -553,7 +553,15 @@
             percentual e o restante se redistribui entre os demais.
           </p>
 
-          <div class="envoltoria-fixa">
+          <!-- 01/10/2026: era envolto em `.envoltoria-fixa` — essa classe
+               limita a altura ao que sobra da JANELA a partir da posição do
+               elemento na tela (pensada pra tabelas logo abaixo de uma barra
+               fixa, perto do topo). Este painel é um resumo pequeno e fica
+               bem mais abaixo na página (depois da tabela principal e dos
+               cenários); a conta dava uma altura mínima/negativa e o
+               conteúdo saía cortado. Renderiza na altura natural, como os
+               outros painéis da `.grade-inferior` ao redor. -->
+          <div class="tabela-etapas-wrapper">
             <table class="tabela-etapas" trenaRedimensionarColunas>
               <thead>
                 <tr>

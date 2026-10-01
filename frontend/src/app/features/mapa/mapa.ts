@@ -95,8 +95,12 @@ export class Mapa implements OnInit {
    */
   protected readonly resumo = new ResumoEtapas();
 
-  /** Mostra/esconde o relatório "Rateio por etapa da obra" (17/08/2026, pedido do Lucas). */
-  protected readonly mostrarRateio = signal(true);
+  /**
+   * Mostra/esconde o relatório "Rateio por etapa da obra" (17/08/2026,
+   * pedido do Lucas). 01/10/2026: passou a vir do `store` (persistido,
+   * reflete também no PDF) — ver `MapaStore.mostrarRateioEtapa`.
+   */
+  protected readonly mostrarRateio = this.store.mostrarRateioEtapa;
 
   /** Linhas do cruzamento etapa × fornecedor, recalculadas sozinhas. */
   protected readonly linhasEtapa = computed(() =>

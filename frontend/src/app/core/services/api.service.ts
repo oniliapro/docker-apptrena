@@ -181,6 +181,19 @@ export class ApiService {
     return this.http.delete<void>(`${this.base}/mapas/${id}`);
   }
 
+  /**
+   * PATCH isolado, fora do `atualizarMapa()` (01/10/2026) — "mostrar rateio
+   * por etapa" é preferência de exibição, não dado do mapa: precisa salvar
+   * mesmo com o mapa travado/finalizado, e não pode arriscar sobrescrever
+   * outros campos com um payload parcial (`atualizarMapa` espera o mapa
+   * inteiro). Ver `MapaController::atualizarMostrarRateioEtapa`.
+   */
+  atualizarMostrarRateioEtapa(id: string, mostrar: boolean): Observable<{ mostrar_rateio_etapa: boolean }> {
+    return this.http.patch<{ mostrar_rateio_etapa: boolean }>(`${this.base}/mapas/${id}/mostrar-rateio-etapa`, {
+      mostrar_rateio_etapa: mostrar,
+    });
+  }
+
   // ---------------- Empreitas ----------------
   /** GET /empreitas — aceita `obraId` para trazer só as empreitas de uma obra. */
   listarEmpreitas(obraId?: string): Observable<Empreita[]> {

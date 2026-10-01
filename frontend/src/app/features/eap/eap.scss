@@ -855,6 +855,37 @@ tfoot th {
   th.valor, td.valor { text-align: right; }
 }
 
+// "Empreitas desta etapa" — seção extra do popup, só no modo Saldo não
+// comprometido (01/10/2026, pedido do Lucas).
+.bloco-empreitas-etapa {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cor-borda);
+
+  .painel-titulo { display: block; margin-bottom: 6px; }
+}
+
+.tabela-empreitas-etapa {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--cor-borda-forte);
+    color: var(--cor-texto-suave);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  td { padding: 6px 8px; border-bottom: 1px solid var(--cor-fundo-alt); }
+  tr:last-child td { border-bottom: none; }
+  th.valor, td.valor { text-align: right; }
+}
+
+.select-modo-totais { font-size: 12px; padding: 4px 6px; }
+
 .marca-pendente {
   display: inline-block;
   margin-left: 4px;

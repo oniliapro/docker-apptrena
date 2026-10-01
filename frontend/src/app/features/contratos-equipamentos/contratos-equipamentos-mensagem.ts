@@ -26,15 +26,24 @@ export function montarMensagemPagamentoContratoEquipamento(
   const ordenados = [...pagamentos].sort(
     (a, b) => new Date(a.dataPagamento || a.dataSolicitacao).getTime() - new Date(b.dataPagamento || b.dataSolicitacao).getTime(),
   );
-  const atual = ordenados[ordenados.length - 1];
+  // 01/10/2026: era `ordenados[ordenados.length - 1]` (o último por DATA) —
+  // bug achado testando de verdade: `AcoesPagamento.confirmar()` grava
+  // `dataPagamento` como o instante do clique em "confirmar", não a data do
+  // pagamento em si. Se um pagamento ANTIGO (de uma renovação anterior) é
+  // confirmado depois que a renovação ATUAL já existe como pendente, a data
+  // dele "pula" pra hoje e pode ficar depois da `dataSolicitacao` do
+  // pendente — a ordenação por data inverte e o "último" passava a ser o
+  // pagamento já pago, cobrando o valor errado. O pagamento "atual" (a
+  // cobrar) é sempre o PENDENTE, não importa a data.
+  const atual = ordenados.find((p) => p.status === 'pendente') ?? ordenados[ordenados.length - 1];
 
   const equipamentos = contrato.itens
     .filter((item) => !item.devolvido_em)
     .map((item) => `- \`${item.descricao} (x${item.quantidade})\``);
 
-  const historico = ordenados.map((pagamento, indice) => {
+  const historico = ordenados.map((pagamento) => {
     const data = formatarData(pagamento.dataPagamento || pagamento.dataSolicitacao);
-    const marca = indice === ordenados.length - 1 ? ' (HOJE)' : '';
+    const marca = pagamento === atual ? ' (HOJE)' : '';
     return `${data} - ${formatarMoeda(pagamento.valorTotal)}${marca}`;
   });
 

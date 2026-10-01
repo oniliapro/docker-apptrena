@@ -75,6 +75,24 @@ class MapaController extends Controller
         return $this->syncCompleto($request, $mapa);
     }
 
+    /**
+     * PATCH isolado só pra "mostrar rateio por etapa" (01/10/2026). De
+     * propósito FORA do `syncCompleto()`: aquele endpoint espera o payload
+     * INTEIRO do mapa a cada chamada (vários campos caem pra `''`/`0` se
+     * ausentes, ver `$mapa->fill([...])` acima) e é bloqueado no frontend
+     * enquanto o mapa está travado/finalizado (`atualizarCabecalho` checa
+     * `travada()`) — mas isto é só preferência de EXIBIÇÃO, não dado do
+     * mapa, e precisa continuar ajustável mesmo com o mapa finalizado (é
+     * exatamente quando o mapa já finalizado vai ser impresso).
+     */
+    public function atualizarMostrarRateioEtapa(Request $request, Mapa $mapa)
+    {
+        $data = $request->validate(['mostrar_rateio_etapa' => 'required|boolean']);
+        $mapa->update(['mostrar_rateio_etapa' => $data['mostrar_rateio_etapa']]);
+
+        return response()->json(['mostrar_rateio_etapa' => $mapa->mostrar_rateio_etapa]);
+    }
+
     public function destroy(Mapa $mapa)
     {
         $mapa->delete();

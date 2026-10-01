@@ -148,7 +148,7 @@
   </div>
 
   <div class="painel sem-preenchimento envoltoria">
-    <table trenaRedimensionarColunas>
+    <table trenaRedimensionarColunas trenaNavegacaoTabela [permiteAtalhos]="false">
       <thead>
         <tr>
           <th class="col-descricao">Descrição</th>
@@ -201,7 +201,8 @@
                     <input type="text" class="valor" [disabled]="store.aprovada()"
                            [value]="valorCelula(item, tipo.chave)"
                            [appFormulaCampo]="'i.' + item.id + '.' + tipo.chave"
-                           (change)="editarCelula(item, tipo.chave, $event)" />
+                           (change)="editarCelula(item, tipo.chave, $event)"
+                           (focus)="$any($event.target).select()" />
                   </div>
 
                   <span class="rotulo-celula">Avanço</span>

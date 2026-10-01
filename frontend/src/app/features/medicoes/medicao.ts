@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { Router } from '@angular/router';
 
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
+import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import { ApiService } from '../../core/services/api.service';
@@ -24,7 +25,7 @@ import { MedicaoStore } from './medicao.store';
  */
 @Component({
   selector: 'app-medicao',
-  imports: [DatePipe, RedimensionarColunas, FormulaCampo],
+  imports: [DatePipe, RedimensionarColunas, NavegacaoTabela, FormulaCampo],
   providers: [EapStore, MedicaoStore, FormulasContexto],
   templateUrl: './medicao.html',
   styleUrl: './medicao.scss',

@@ -381,12 +381,20 @@ class ContratoEquipamentoController extends Controller
 
         $aviso = DiasUteis::diaUtilAnterior($contrato->data_vencimento);
 
+        // 01/10/2026, pedido do Lucas: a descrição não dizia QUAIS itens
+        // estavam alugados — só "contrato vence em tal data". Lista os
+        // ainda não devolvidos (mesmo filtro de `comStatus()`, acima).
+        $itens = $contrato->itens()->whereNull('devolvido_em')->get();
+        $listaItens = $itens->isEmpty()
+            ? ''
+            : ' Itens: '.$itens->map(fn ($item) => "{$item->descricao} (x{$item->quantidade})")->implode(', ').'.';
+
         return AgendaEvento::create([
             'empresa_id' => $usuario->empresa_id,
             'obra_id' => $contrato->obra_id,
             'criado_por_id' => $usuario->id,
             'titulo' => "Vencimento do contrato de equipamento nº {$contrato->numero} — {$contrato->nome_contrato}",
-            'descricao' => "Contrato com {$contrato->fornecedor} vence em {$contrato->data_vencimento->format('d/m/Y')}.",
+            'descricao' => "Contrato com {$contrato->fornecedor} vence em {$contrato->data_vencimento->format('d/m/Y')}.{$listaItens}",
             'dia_inteiro' => true,
             'inicio' => $aviso->format('Y-m-d').' 00:00:00',
             'fim' => $aviso->format('Y-m-d').' 23:59:00',

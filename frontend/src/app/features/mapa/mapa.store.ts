@@ -210,6 +210,15 @@ export class MapaStore {
     ultimaFinalizacaoEm: '',
   });
 
+  /**
+   * "Mostrar rateio por etapa" (01/10/2026) — preferência de EXIBIÇÃO, não
+   * dado do mapa; por isso fica fora de `CabecalhoMapa` (que é salvo junto
+   * com tudo mais em `salvar()`, bloqueado enquanto `travada()`). Tem save
+   * próprio (`salvarMostrarRateioEtapa`), sem essa trava — ver
+   * `ApiService.atualizarMostrarRateioEtapa`.
+   */
+  readonly mostrarRateioEtapa = signal(true);
+
   readonly fornecedores = signal<Fornecedor[]>([]);
   readonly itens = signal<ItemMapa[]>([]);
 
@@ -809,6 +818,12 @@ export class MapaStore {
       confirmedAt: String(mapa['confirmed_at'] ?? ''),
       ultimaFinalizacaoEm: String(mapa['ultima_finalizacao_em'] ?? ''),
     });
+    // Ausente (mapa salvo antes de 01/10/2026) cai em `true` — mesmo padrão
+    // do backend (coluna com `default(true)`), preserva o comportamento de
+    // sempre (painel aparecia incondicionalmente).
+    this.mostrarRateioEtapa.set(
+      mapa['mostrar_rateio_etapa'] === undefined ? true : Boolean(mapa['mostrar_rateio_etapa']),
+    );
 
     const fornecedoresBrutos = Array.isArray(mapa['fornecedores'])
       ? (mapa['fornecedores'] as Record<string, unknown>[])
@@ -978,6 +993,16 @@ export class MapaStore {
     if (this.travada()) return;
     this.cabecalho.update((c) => ({ ...c, [campo]: valor }));
     this.salvar();
+  }
+
+  /** Liga/desliga "mostrar rateio por etapa" — ver comentário no `signal` acima. Otimista: atualiza a tela na hora, desfaz se o PATCH falhar. */
+  salvarMostrarRateioEtapa(mostrar: boolean): void {
+    if (!this.mapaId) return;
+    const anterior = this.mostrarRateioEtapa();
+    this.mostrarRateioEtapa.set(mostrar);
+    this.api.atualizarMostrarRateioEtapa(this.mapaId, mostrar).subscribe({
+      error: () => this.mostrarRateioEtapa.set(anterior),
+    });
   }
 
   /**

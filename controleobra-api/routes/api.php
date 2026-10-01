@@ -292,6 +292,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middlewareFor('destroy', ['permissaoModulo:mapas,excluir', 'permissaoObra:lancar']);
     Route::get('mapas/{mapa}/relatorio/pdf', [MapaPdfController::class, 'relatorioMapa'])
         ->middleware(['permissaoModulo:mapas,usar', 'permissaoObra:ver']);
+    Route::patch('mapas/{mapa}/mostrar-rateio-etapa', [MapaController::class, 'atualizarMostrarRateioEtapa'])
+        ->middleware(['permissaoModulo:mapas,editar', 'permissaoObra:lancar']);
 
     // Precisa vir ANTES do apiResource abaixo — senão o route-model-binding
     // de `{empreita}` tenta interpretar "resumo" como um id e nunca chega

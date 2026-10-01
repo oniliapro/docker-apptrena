@@ -241,7 +241,7 @@
 <!-- ============ Relatórios do mapa ============ -->
 @if (store.itens().length) {
   <div class="quebra-antes">
-    @if (linhasEtapa().length) {
+    @if (linhasEtapa().length && store.mostrarRateioEtapa()) {
       <div class="painel painel-etapas">
         <span class="painel-titulo">Rateio por etapa da obra</span>
 

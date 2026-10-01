@@ -26,6 +26,7 @@
 import {
   CabecalhoObra,
   CacheOrcado,
+  ChaveTipo,
   ItemEap,
   PorTipo,
   TIPOS_CUSTO,
@@ -39,6 +40,9 @@ import {
   somarPorTipo,
   ehDescendente,
 } from './eap-normalize';
+import { ResumoContratoEmpreita } from '../empreita/empreita.models';
+import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
+import { Pagamento } from '../pagamentos/pagamentos.models';
 
 // Reexportado por conveniência — vários módulos (Empreita, Cronograma de
 // Desembolso, o próprio componente da EAP) já importavam `ehDescendente`
@@ -330,4 +334,51 @@ export function orcadoDaEtapa(etapaId: string, itens: ItemEap[], cache: CacheOrc
   somarEmPorTipo(total, grupo.directByType);
   somarEmPorTipo(total, grupo.bdiByType);
   return total;
+}
+
+/**
+ * Fatia do contrato de cada empreita-irmã (empreiteiro + reserva) que AINDA
+ * NÃO virou nenhuma solicitação de pagamento — termo "valores em aberto
+ * das empreitas" do "Saldo não comprometido" da EAP (01/10/2026, pedido do
+ * Lucas). Por item×categoria: soma, para cada empreita com item naquela
+ * etapa, quanto do contrato dela ainda não tem NENHUM `Pagamento` (de
+ * qualquer status — pendente OU confirmado) gerado a partir dela para esse
+ * mesmo item/categoria. Não redunda com "pagamentos em aberto"
+ * (`calcularContextoPendente`): aquele cobre pagamentos que já EXISTEM
+ * como linha; este cobre dinheiro comprometido que ainda não tem linha
+ * nenhuma. Nunca fica negativo — uma empreita não pode "ter gerado mais
+ * pagamento do que contratou" contar a favor do saldo.
+ */
+export function calcularValoresEmAbertoPorEmpreitas(
+  siblings: readonly ResumoContratoEmpreita[],
+  pagamentosDaObra: readonly Pagamento[],
+): Map<string, PorTipo> {
+  const resultado = new Map<string, PorTipo>();
+
+  for (const sibling of siblings) {
+    const jaGeradoDestaEmpreita = new Map<string, PorTipo>();
+    for (const pagamento of pagamentosDaObra) {
+      if (pagamento.origem?.tipo !== 'empreita' || pagamento.origem?.refId !== sibling.id) continue;
+      for (const item of expandirItensPagamento(pagamento)) {
+        if (!item.eapId) continue;
+        const tipo = item.tipo as ChaveTipo;
+        const atual = jaGeradoDestaEmpreita.get(item.eapId) ?? criarVazioPorTipo();
+        atual[tipo] += item.valorCalculado;
+        jaGeradoDestaEmpreita.set(item.eapId, atual);
+      }
+    }
+
+    for (const itemContrato of sibling.itens) {
+      const contratado = (itemContrato.contratoEmp || 0) + (itemContrato.contratoReserva || 0);
+      const gerado = jaGeradoDestaEmpreita.get(itemContrato.eapId)?.[itemContrato.tipo] ?? 0;
+      const emAberto = Math.max(0, contratado - gerado);
+      if (!emAberto) continue;
+
+      const atual = resultado.get(itemContrato.eapId) ?? criarVazioPorTipo();
+      atual[itemContrato.tipo] += emAberto;
+      resultado.set(itemContrato.eapId, atual);
+    }
+  }
+
+  return resultado;
 }
