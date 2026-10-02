@@ -22,7 +22,7 @@ class ContratoEquipamento extends Model
     protected $table = 'contratos_equipamentos';
 
     protected $fillable = [
-        'id', 'empresa_id', 'obra_id', 'numero', 'nome_contrato', 'fornecedor',
+        'id', 'empresa_id', 'obra_id', 'mapa_id', 'numero', 'nome_contrato', 'fornecedor',
         'frete', 'lancar_frete_como_item', 'frete_etapa_id',
         'data_entrega', 'periodo_quantidade', 'periodo_unidade', 'data_vencimento',
         'encerrado_em', 'pagamento_inicial_id', 'agenda_evento_id',
@@ -41,6 +41,11 @@ class ContratoEquipamento extends Model
     public function obra(): BelongsTo
     {
         return $this->belongsTo(Obra::class);
+    }
+
+    public function mapa(): BelongsTo
+    {
+        return $this->belongsTo(Mapa::class);
     }
 
     public function itens(): HasMany

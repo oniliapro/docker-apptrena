@@ -23,6 +23,10 @@ import {
   paraPayloadApi,
   parsearBR,
 } from '../pagamentos/pagamentos-calc';
+import {
+  PrefillContratoEquipamento,
+  PrefillContratoEquipamentoItem,
+} from '../contratos-equipamentos/contratos-equipamentos.models';
 import { ItemPagamento, Pagamento } from '../pagamentos/pagamentos.models';
 import {
   calcularBaseItem,
@@ -395,6 +399,43 @@ export class MapaStore {
       descontosAplicaveis(this.alocacoes(), this.itens(), this.fornecedores()),
     ),
   );
+
+  /**
+   * Pré-preenchimento de "Gerar contrato de equipamento" (01/10/2026,
+   * pedido do Lucas) — um item por fornecedor vencedor que levou algum
+   * item de categoria "equipamento", na MESMA alocação (`alocacoes()`) que
+   * "Gerar pagamento"/"Rateio por etapa" já usam (nunca confia só no
+   * `choice` persistido, que só reflete a escolha manual). Preço =
+   * `item.unit[supplierIndex]` bruto (cotado, sem imposto/desconto/frete-
+   * da-loja embutidos) — `ContratoEquipamento` não tem esses conceitos; o
+   * desconto da nota só é não-zero na compra integral (um fornecedor leva
+   * tudo), cenário em que normalmente há um vencedor só mesmo, então essa
+   * perda não afeta o caso comum desta feature (vários vencedores).
+   */
+  readonly prefillsContratoEquipamento = computed((): PrefillContratoEquipamento[] => {
+    const itens = this.itens();
+    const fornecedores = this.fornecedores();
+    const porFornecedor = new Map<number, PrefillContratoEquipamentoItem[]>();
+
+    for (const alocacao of this.alocacoes()) {
+      const item = itens[alocacao.itemIndex];
+      if (!item || item.tipo !== 'equipamento') continue;
+      const lista = porFornecedor.get(alocacao.supplierIndex) ?? [];
+      lista.push({
+        descricao: item.desc,
+        eap_item_id: item.eapId || null,
+        quantidade: Math.max(1, Math.round(Number(item.qtde) || 0)),
+        valor_unitario: Number(item.unit[alocacao.supplierIndex]) || 0,
+      });
+      porFornecedor.set(alocacao.supplierIndex, lista);
+    }
+
+    return [...porFornecedor.entries()].map(([si, itensDoFornecedor]) => ({
+      fornecedor: rotuloFornecedor(fornecedores, si),
+      freteSugerido: Number(fornecedores[si]?.frete) || 0,
+      itens: itensDoFornecedor,
+    }));
+  });
 
   readonly fracionado = computed(() =>
     calcularFracionado(
@@ -1236,7 +1277,7 @@ export class MapaStore {
     if (fornecedorIntegral !== null) {
       return this.montarPagamentoIntegral(
         fornecedorIntegral,
-        itens,
+        itens.filter((item) => item.tipo !== 'equipamento'),
         fornecedores,
         cabecalho,
         fornecedoresConfirmados,
@@ -1245,11 +1286,25 @@ export class MapaStore {
       );
     }
 
-    // `this.notas()` já é exatamente esta conta (alocação recomendada +
-    // desconto real) desde a correção de "Detalhe por fornecedor" —
-    // reaproveitar evita ter a fórmula duplicada em dois lugares.
-    const alocacoes = this.alocacoes();
-    const notas = this.notas();
+    // Itens de categoria "equipamento" não entram no Pagamento do mapa —
+    // viram Contrato de equipamento (01/10/2026, "Gerar contrato de
+    // equipamento"), que já gera seu próprio Pagamento. Sem excluir aqui,
+    // um fornecedor que ganhasse equipamento + material seria cobrado em
+    // dobro. Recalcula a nota (não só filtra as linhas): `notas()` soma o
+    // total a partir de TODAS as alocações, e se a nota ficasse maior do
+    // que a soma das linhas restantes, `arredondarLinhasParaTotal()`
+    // (dentro de `construirLinhasDoFornecedor`) jogaria a diferença
+    // inteira — o valor do equipamento excluído — como "resíduo de
+    // arredondamento" na última linha. `itens` continua o array completo
+    // (só `alocacoes` é filtrado) porque a nota/índices são contra ele.
+    const alocacoes = this.alocacoes().filter((a) => itens[a.itemIndex]?.tipo !== 'equipamento');
+    const notas = calcularNotasPorFornecedor(
+      alocacoes,
+      itens,
+      fornecedores,
+      this.incluirFreteLoja(),
+      descontosAplicaveis(alocacoes, itens, fornecedores),
+    );
 
     const itensPorFornecedor = new Map<number, ItemMapa[]>();
     for (const alocacao of alocacoes) {

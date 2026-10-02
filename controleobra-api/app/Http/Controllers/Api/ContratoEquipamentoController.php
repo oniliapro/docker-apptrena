@@ -90,6 +90,8 @@ class ContratoEquipamentoController extends Controller
             'itens.*.eap_item_id' => 'nullable|string|max:36',
             'itens.*.quantidade' => 'required|integer|min:1',
             'itens.*.valor_unitario' => 'required|numeric|min:0',
+            // Mapa de origem (01/10/2026, "Gerar contrato de equipamento" no Mapa) — só rastreabilidade.
+            'mapa_id' => 'nullable|string|max:36',
         ]);
 
         $usuario = $request->user();
@@ -97,11 +99,13 @@ class ContratoEquipamentoController extends Controller
         $vencimento = DiasUteis::somar($dataEntrega, (int) $data['periodo_quantidade'], $data['periodo_unidade']);
         $freteComoItem = (bool) ($data['lancar_frete_como_item'] ?? false);
         $freteEtapaId = $this->eapItemValido($obra->id, $data['frete_etapa_id'] ?? null);
+        $mapaId = $this->mapaValido($obra->id, $data['mapa_id'] ?? null);
 
-        $contrato = DB::transaction(function () use ($data, $obra, $usuario, $dataEntrega, $vencimento, $freteComoItem, $freteEtapaId) {
+        $contrato = DB::transaction(function () use ($data, $obra, $usuario, $dataEntrega, $vencimento, $freteComoItem, $freteEtapaId, $mapaId) {
             $contrato = ContratoEquipamento::create([
                 'empresa_id' => $usuario->empresa_id,
                 'obra_id' => $obra->id,
+                'mapa_id' => $mapaId,
                 'numero' => $this->proximoNumero($obra->id),
                 'nome_contrato' => $data['nome_contrato'],
                 'fornecedor' => $data['fornecedor'],
@@ -348,6 +352,16 @@ class ContratoEquipamentoController extends Controller
         }
 
         return \App\Models\EapItem::where('obra_id', $obraId)->where('id', $eapItemId)->value('id');
+    }
+
+    /** Mesmo cuidado: o id vem do cliente, confirma que é um Mapa DESTA obra antes de gravar o vínculo. */
+    private function mapaValido(string $obraId, ?string $mapaId): ?string
+    {
+        if (!$mapaId) {
+            return null;
+        }
+
+        return \App\Models\Mapa::where('obra_id', $obraId)->where('id', $mapaId)->value('id');
     }
 
     /** Mesmo critério de `gerarNumeroPagamento()` do frontend (`pagamentos-calc.ts`) — "PG-0001", por obra. */

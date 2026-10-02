@@ -175,6 +175,10 @@
             title="Cria um pagamento pendente por fornecedor vencedor, pra confirmar depois na aba Pagamentos">
       {{ store.gerandoPagamento() ? 'Gerando…' : '💳 Gerar pagamento' }}
     </button>
+    <button type="button" [disabled]="!store.cabecalho().isConfirmed" (click)="gerarContratoEquipamento()"
+            title="Cria um contrato de aluguel por fornecedor vencedor dos itens de categoria Equipamento deste mapa">
+      🔧 Gerar contrato de equipamento
+    </button>
     <button type="button" [disabled]="!nomesParaSolicitacao().length" (click)="abrirSolicitacaoPagamento()"
             title="Copia uma mensagem de solicitação de pagamento pros fornecedores vencedores, pronta pra colar no WhatsApp">
       📋 Solicitar pagamento
@@ -187,6 +191,21 @@
 
   @if (store.resultadoGerarPagamento(); as mensagem) {
     <div class="aviso-info">{{ mensagem }}</div>
+  }
+
+  @if (filaContratoEquipamento(); as fila) {
+    <div class="aviso-info">
+      Contrato {{ indiceContratoEquipamento() + 1 }} de {{ fila.length }} — fornecedor
+      "{{ fila[indiceContratoEquipamento()].fornecedor }}"
+    </div>
+    <app-editar-contrato-equipamento-modal
+      [contrato]="null"
+      [obraId]="obraId()"
+      [itensEap]="itensEapMapa()"
+      [valoresIniciais]="fila[indiceContratoEquipamento()]"
+      [mapaId]="mapaId()"
+      (salvo)="aoContratoEquipamentoSalvo()"
+      (fechar)="cancelarFilaContratoEquipamento()" />
   }
 
   @if (mostrarSolicitacaoPagamento()) {

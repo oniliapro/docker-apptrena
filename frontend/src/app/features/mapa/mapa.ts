@@ -14,6 +14,9 @@ import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { copiarParaAreaDeTransferencia } from '../../shared/selecao-lista/selecao-lista';
 import { DadosPagamentoModal } from '../../shared/dados-pagamento/dados-pagamento-modal';
+import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
+import { EditarContratoEquipamentoModal } from '../contratos-equipamentos/editar-contrato-equipamento-modal';
+import { PrefillContratoEquipamento } from '../contratos-equipamentos/contratos-equipamentos.models';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { formatarPercentual, parsearBR } from '../pagamentos/pagamentos-calc';
 import {
@@ -46,7 +49,15 @@ import { MapaStore } from './mapa.store';
  */
 @Component({
   selector: 'app-mapa',
-  imports: [NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, FormulaCampo, DadosPagamentoModal],
+  imports: [
+    NavegacaoTabela,
+    RedimensionarColunas,
+    AutoAlturaTextarea,
+    BarraSelecao,
+    FormulaCampo,
+    DadosPagamentoModal,
+    EditarContratoEquipamentoModal,
+  ],
   providers: [MapaStore, FormulasContexto],
   templateUrl: './mapa.html',
   styleUrl: './mapa.scss',
@@ -169,6 +180,62 @@ export class Mapa implements OnInit {
   ngOnInit(): void {
     this.store.carregar(this.mapaId(), this.obraId());
     this.formulas.definir('mapa.' + this.mapaId());
+    this.api.obterEap(this.obraId()).subscribe({
+      next: (payload) => this.itensEapMapa.set(extrairItensEapResumo(payload.eapItems)),
+      error: () => this.itensEapMapa.set([]),
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Gerar contrato de equipamento (01/10/2026, pedido do Lucas)
+  // ------------------------------------------------------------------
+
+  /** Itens da EAP, pro autocomplete de etapa do `EditarContratoEquipamentoModal` — mesmo padrão de `ContratosEquipamentosObra`. */
+  protected readonly itensEapMapa = signal<ItemEapResumo[]>([]);
+
+  /** Fila de contratos a criar (1 por fornecedor vencedor de equipamento) — null = fila fechada. */
+  protected readonly filaContratoEquipamento = signal<PrefillContratoEquipamento[] | null>(null);
+  protected readonly indiceContratoEquipamento = signal(0);
+
+  protected gerarContratoEquipamento(): void {
+    if (!this.store.cabecalho().isConfirmed) return;
+    const fila = this.store.prefillsContratoEquipamento();
+    if (!fila.length) {
+      window.alert('Nenhum item de equipamento com fornecedor vencedor neste mapa.');
+      return;
+    }
+    const aviso =
+      fila.length === 1
+        ? 'Gerar contrato de equipamento para o fornecedor vencedor? Você vai revisar e confirmar os dados antes de salvar.'
+        : `Gerar contrato de equipamento para ${fila.length} fornecedores vencedores? Você vai revisar e confirmar os dados de cada um, um de cada vez.`;
+    if (!window.confirm(aviso)) return;
+    this.filaContratoEquipamento.set(fila);
+    this.indiceContratoEquipamento.set(0);
+  }
+
+  /** Avança a fila; no fim, recalcula os pagamentos do mapa (que já exclui equipamento — ver `montarPagamentosPorFornecedor`). */
+  protected aoContratoEquipamentoSalvo(): void {
+    const fila = this.filaContratoEquipamento();
+    if (!fila) return;
+    const proximo = this.indiceContratoEquipamento() + 1;
+    if (proximo < fila.length) {
+      this.indiceContratoEquipamento.set(proximo);
+      return;
+    }
+    this.filaContratoEquipamento.set(null);
+    this.store.gerarPagamentos();
+  }
+
+  /** Cancelar no meio da fila não desfaz os contratos já criados — só recalcula os pagamentos do mapa com o que já existe. */
+  protected cancelarFilaContratoEquipamento(): void {
+    const fila = this.filaContratoEquipamento();
+    if (!fila) return;
+    const restam = fila.length - this.indiceContratoEquipamento();
+    if (restam > 1 && !window.confirm('Os contratos já criados continuam salvos. Cancelar a criação dos restantes?')) {
+      return;
+    }
+    this.filaContratoEquipamento.set(null);
+    this.store.gerarPagamentos();
   }
 
   /**
@@ -281,6 +348,13 @@ export class Mapa implements OnInit {
       .fornecedores()
       .filter((f, indice) => f.ativo !== false && this.store.notas().bySupplier[indice]?.used)
       .map((f) => f.nome);
+    // 01/10/2026, bug relatado pelo Lucas: o freteiro particular (quando
+    // vence a comparação de cenários) é quem efetivamente é pago, mas não
+    // é um `Fornecedor` da cotação — nunca entrava na lista de nomes que
+    // este popup pede PIX, nem na mensagem (ver `montarMensagemPagamentoMapa`).
+    if (this.store.freteParticularVencedor()) {
+      nomes.push(this.store.cabecalho().freteiroParticular?.trim() || 'Frete particular');
+    }
     return [...new Set(nomes)];
   });
 
@@ -293,12 +367,17 @@ export class Mapa implements OnInit {
     this.mostrarSolicitacaoPagamento.set(false);
 
     const cenarioVencedor = this.store.cenarios().find((c) => c.vencedor)?.rotulo ?? null;
+    const cabecalho = this.store.cabecalho();
+    const freteiro = this.store.freteParticularVencedor()
+      ? { nome: cabecalho.freteiroParticular?.trim() || 'Frete particular', valor: Number(cabecalho.freteParticular) || 0 }
+      : null;
     const mensagem = montarMensagemPagamentoMapa(
-      this.store.cabecalho(),
+      cabecalho,
       this.store.fornecedores(),
       this.store.notas().bySupplier,
       cenarioVencedor,
       pixPorNome,
+      freteiro,
     );
 
     const ok = await copiarParaAreaDeTransferencia(mensagem);

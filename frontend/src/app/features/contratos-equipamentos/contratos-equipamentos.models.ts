@@ -41,6 +41,8 @@ export interface ContratoEquipamentoRenovacao {
 export interface ContratoEquipamento {
   id: string;
   obra_id: string;
+  /** Mapa de origem, quando o contrato foi gerado a partir de um Mapa (01/10/2026) — só rastreabilidade. */
+  mapa_id: string | null;
   numero: number;
   nome_contrato: string;
   fornecedor: string;
@@ -81,6 +83,30 @@ export interface ContratoEquipamentoPayload {
   periodo_quantidade: number;
   periodo_unidade: PeriodoUnidade;
   itens: ContratoEquipamentoItemPayload[];
+  /** Mapa de origem, quando criado via "Gerar contrato de equipamento" no Mapa — ver `PrefillContratoEquipamento`. */
+  mapa_id?: string | null;
+}
+
+/**
+ * Pré-preenchimento de um contrato a partir dos itens de categoria
+ * "equipamento" que um fornecedor venceu num Mapa (01/10/2026, "Gerar
+ * contrato de equipamento" — ver `MapaStore.prefillsContratoEquipamento`).
+ * Um objeto por fornecedor vencedor — o Mapa não tem `nome_contrato`/
+ * `data_entrega`/`periodo_*`, então o usuário ainda preenche isso na
+ * revisão de cada contrato antes de salvar.
+ */
+export interface PrefillContratoEquipamentoItem {
+  descricao: string;
+  eap_item_id: string | null;
+  quantidade: number;
+  valor_unitario: number;
+}
+
+export interface PrefillContratoEquipamento {
+  fornecedor: string;
+  /** Frete do fornecedor no Mapa, sugerido como default editável — não é gravado sem revisão. */
+  freteSugerido: number;
+  itens: PrefillContratoEquipamentoItem[];
 }
 
 export interface RenovarContratoPayload {

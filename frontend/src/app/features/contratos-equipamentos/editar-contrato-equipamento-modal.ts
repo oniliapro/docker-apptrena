@@ -9,6 +9,7 @@ import {
   ContratoEquipamento,
   PERIODO_UNIDADES,
   PeriodoUnidade,
+  PrefillContratoEquipamento,
   ROTULOS_STATUS_CONTRATO,
 } from './contratos-equipamentos.models';
 import { ContratosEquipamentosService } from './contratos-equipamentos.service';
@@ -38,6 +39,16 @@ export class EditarContratoEquipamentoModal {
   readonly contrato = input<ContratoEquipamento | null>(null);
   readonly obraId = input.required<string>();
   readonly itensEap = input<ItemEapResumo[]>([]);
+  /**
+   * Pré-preenchimento vindo do Mapa ("Gerar contrato de equipamento",
+   * 01/10/2026) — só usado em modo criação (`contrato() === null`). Cada
+   * novo valor reabre o formulário já populado com fornecedor/itens/frete
+   * daquele vencedor; `nome_contrato`/`data_entrega`/`periodo_*` continuam
+   * em branco — são conceitos de aluguel que o Mapa não tem de onde tirar.
+   */
+  readonly valoresIniciais = input<PrefillContratoEquipamento | null>(null);
+  /** Mapa de origem, gravado no contrato só pra rastreabilidade — ver `ContratoEquipamento.mapa_id`. */
+  readonly mapaId = input<string | null>(null);
 
   readonly fechar = output<void>();
   readonly salvo = output<ContratoEquipamento>();
@@ -93,6 +104,7 @@ export class EditarContratoEquipamentoModal {
 
     effect(() => {
       const contrato = this.contrato();
+      const prefill = this.valoresIniciais();
       this.renovando.set(false);
       this.erro.set(null);
       this.aviso.set(null);
@@ -103,15 +115,28 @@ export class EditarContratoEquipamentoModal {
       } else {
         this.formulario.reset({
           nome_contrato: '',
-          fornecedor: '',
+          fornecedor: prefill?.fornecedor ?? '',
           data_entrega: '',
           periodo_quantidade: 30,
           periodo_unidade: 'dias_corridos',
-          frete: 0,
+          frete: prefill?.freteSugerido ?? 0,
           lancar_frete_como_item: false,
           frete_etapa_id: null,
         });
-        this.adicionarItem();
+        if (prefill?.itens.length) {
+          prefill.itens.forEach((item) => {
+            this.itensArr().push(
+              this.fb.group({
+                descricao: [item.descricao, Validators.required],
+                eap_item_id: [item.eap_item_id],
+                quantidade: [item.quantidade, [Validators.required, Validators.min(1)]],
+                valor_unitario: [item.valor_unitario, [Validators.required, Validators.min(0)]],
+              }),
+            );
+          });
+        } else {
+          this.adicionarItem();
+        }
       }
     });
   }
@@ -200,6 +225,7 @@ export class EditarContratoEquipamentoModal {
         quantidade: Number(i.quantidade),
         valor_unitario: Number(i.valor_unitario),
       })),
+      mapa_id: this.mapaId(),
     }).subscribe({
       next: (contrato) => {
         this.salvando.set(false);
