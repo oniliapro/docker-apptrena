@@ -5,14 +5,6 @@ import { permissaoModuloGuard } from './core/guards/permissao-modulo.guard';
 import { permissaoObraGuard } from './core/guards/permissao-obra.guard';
 import { AppShell } from './layout/app-shell/app-shell';
 
-/** Rota de tela ainda não construída, com o título exibido no cabeçalho. */
-const reservada = (caminho: string, titulo: string) => ({
-  path: caminho,
-  data: { titulo },
-  loadComponent: () =>
-    import('./shared/pagina-reservada/pagina-reservada').then((m) => m.PaginaReservada),
-});
-
 /**
  * Abas de uma obra — a estrutura do protótipo do Lucas, em que a obra é
  * a entidade central e cada módulo vive dentro dela.
@@ -38,7 +30,16 @@ const abasDaObra: Routes = [
     path: 'eap',
     loadComponent: () => import('./features/eap/eap').then((m) => m.Eap),
   },
-  { ...reservada('cronograma', 'Cronograma'), canActivate: [permissaoModuloGuard('cronograma')] },
+  {
+    // Cronograma de obra (CPM — Critical Path Method, 02/10/2026, pedido
+    // do Lucas) — tarefas com precedência (TI/II/TT/IT), latência, marcos,
+    // cálculo automático de datas e caminho crítico. Não confundir com
+    // 'desembolso' (Cronograma de Desembolso, financeiro) logo abaixo.
+    path: 'cronograma',
+    data: { titulo: 'Cronograma' },
+    canActivate: [permissaoModuloGuard('cronograma')],
+    loadComponent: () => import('./features/cronograma-obra/cronograma-obra').then((m) => m.CronogramaObra),
+  },
   {
     // Matriz EAP x período (item 3 do roteiro, 04/08/2026) — cruza os
     // itens da EAP com os pagamentos confirmados da obra, agrupados por
@@ -51,6 +52,16 @@ const abasDaObra: Routes = [
       import('./features/cronograma-desembolso/cronograma-desembolso').then(
         (m) => m.CronogramaDesembolso,
       ),
+  },
+  {
+    // Linha do tempo de saldo acumulado (recebimentos − pagamentos) da obra
+    // (01/10/2026, pedido do Lucas — Parte 3 das pendências de outubro,
+    // item adiantado antes do Cronograma de obra). Período trocável (dia a
+    // ano) — ver `fluxo-caixa-engine.ts`.
+    path: 'fluxo-caixa',
+    data: { titulo: 'Fluxo de caixa' },
+    canActivate: [permissaoModuloGuard('fluxo_caixa')],
+    loadComponent: () => import('./features/fluxo-caixa/fluxo-caixa').then((m) => m.FluxoCaixa),
   },
   {
     // Lista de medições desta obra (23/08/2026, pedido do Lucas — mesmo

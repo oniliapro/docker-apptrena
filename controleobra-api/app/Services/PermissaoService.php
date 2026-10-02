@@ -36,7 +36,7 @@ class PermissaoService
      * backend de verdade).
      */
     public const MODULOS = [
-        'obras', 'eap', 'cronograma', 'desembolso', 'medicoes',
+        'obras', 'eap', 'cronograma', 'desembolso', 'fluxo_caixa', 'medicoes',
         'mapas', 'empreitas', 'pagamentos', 'recebimentos', 'diarias', 'agenda', 'diario_obra', 'relatorios', 'arquivos',
         'contratos_equipamentos',
     ];

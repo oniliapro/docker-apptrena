@@ -11,6 +11,7 @@ const MODULOS = [
   { chave: 'eap', rotulo: 'EAP' },
   { chave: 'cronograma', rotulo: 'Cronograma' },
   { chave: 'desembolso', rotulo: 'Cronograma de desembolso' },
+  { chave: 'fluxo_caixa', rotulo: 'Fluxo de caixa' },
   { chave: 'medicoes', rotulo: 'Medições' },
   { chave: 'mapas', rotulo: 'Mapas' },
   { chave: 'empreitas', rotulo: 'Empreitas' },

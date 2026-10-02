@@ -1,0 +1,84 @@
+<div class="modal">
+  <div class="modal-fundo" (fecharModal)="fecharClick()"></div>
+
+  <div class="modal-cartao largo">
+    <div class="modal-cabecalho">
+      <span class="modal-titulo">{{ modoNovo() ? 'Nova tarefa' : 'Editar tarefa' }}</span>
+      <button type="button" class="fechar" (click)="fecharClick()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+    </div>
+
+    <div class="modal-corpo">
+      @if (erro()) { <p class="aviso-erro">{{ erro() }}</p> }
+
+      <form [formGroup]="formulario" (ngSubmit)="salvar()">
+        <div class="grade">
+          <label class="campo-largo"><span>Nome</span><input type="text" formControlName="nome"></label>
+          <label>
+            <span>Tipo</span>
+            <select formControlName="tipo">
+              <option value="tarefa">Tarefa</option>
+              <option value="marco">Marco</option>
+            </select>
+          </label>
+          <label>
+            <span>Duração (dias corridos)</span>
+            <input type="number" min="0" formControlName="duracao_dias">
+          </label>
+          <label class="campo-largo">
+            <span>Item da EAP (opcional — só rastreabilidade de custo)</span>
+            <app-autocomplete modo="restrito" placeholder="Opcional…"
+                               [opcoes]="opcoesEtapaEap()"
+                               [valor]="formulario.get('eap_item_id')?.value ?? ''"
+                               (confirmou)="escolherEtapaEap($event)"></app-autocomplete>
+          </label>
+          <label>
+            <span>Início manual</span>
+            <input type="date" formControlName="data_inicio_manual">
+            @if (temPredecessoras()) {
+              <span class="atenuado pequeno">Calculado automaticamente — esta tarefa tem predecessora(s).</span>
+            }
+          </label>
+        </div>
+
+        <h3>Predecessoras</h3>
+        <table class="tabela-itens-editaveis">
+          <thead>
+            <tr>
+              <th>Tarefa predecessora</th>
+              <th>Tipo de precedência</th>
+              <th class="centro">Latência (dias)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody formArrayName="predecessoras">
+            @for (linha of predecessorasArr().controls; track linha; let i = $index) {
+              <tr [formGroupName]="i">
+                <td>
+                  <select formControlName="predecessoraId">
+                    <option value="" disabled>Escolha…</option>
+                    @for (t of tarefasDisponiveis(); track t.id) { <option [value]="t.id">{{ t.nome }}</option> }
+                  </select>
+                </td>
+                <td>
+                  <select formControlName="tipo">
+                    @for (tp of tiposPrecedencia; track tp.chave) { <option [value]="tp.chave">{{ tp.rotulo }}</option> }
+                  </select>
+                </td>
+                <td class="centro"><input type="number" formControlName="latenciaDias" class="campo-qtde" title="Pode ser negativa (antecipação)"></td>
+                <td class="centro"><button type="button" (click)="removerPredecessora(i)" aria-label="Remover predecessora">✖</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <button type="button" class="botao-adicionar" (click)="adicionarPredecessora()">+ Predecessora</button>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharClick()">Cancelar</button>
+          <button class="primario" type="submit" [disabled]="salvando()">
+            {{ salvando() ? 'Salvando…' : (modoNovo() ? 'Criar tarefa' : 'Salvar') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

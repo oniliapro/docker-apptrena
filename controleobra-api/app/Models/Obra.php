@@ -99,6 +99,12 @@ class Obra extends Model
         return $this->hasMany(CronogramaPlanejamento::class);
     }
 
+    /** Tarefas do Cronograma de obra (CPM, 02/10/2026) — não confundir com `planejamentosCronograma()` (Cronograma de Desembolso, financeiro). */
+    public function cronogramaTarefas(): HasMany
+    {
+        return $this->hasMany(CronogramaTarefa::class)->orderBy('ordem');
+    }
+
     public function acessos(): HasMany
     {
         return $this->hasMany(ObraAcesso::class);

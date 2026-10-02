@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ContratoEquipamentoController;
 use App\Http\Controllers\Api\ContratoEstiloController;
 use App\Http\Controllers\Api\ContratoModeloController;
 use App\Http\Controllers\Api\ContratoPdfController;
+use App\Http\Controllers\Api\CronogramaController;
 use App\Http\Controllers\Api\CronogramaPlanejamentoController;
 use App\Http\Controllers\Api\DiariaController;
 use App\Http\Controllers\Api\DiarioObraController;
@@ -226,6 +227,26 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:contratos_equipamentos,editar', 'permissaoObra:lancar']);
     Route::delete('contratos-equipamentos/{contratoEquipamento}', [ContratoEquipamentoController::class, 'destroy'])
         ->middleware(['permissaoModulo:contratos_equipamentos,excluir', 'permissaoObra:lancar']);
+
+    // Cronograma de obra (CPM — Critical Path Method, 02/10/2026) — tarefas
+    // têm `obra_id` direto, então `permissaoObra` resolve sozinho; uma
+    // dependência não tem `obra_id` (só referencia duas tarefas), então
+    // esses dois métodos conferem a permissão de obra NA MÃO dentro do
+    // controller (ver comentário em `CronogramaController`).
+    Route::get('obras/{obra}/cronograma', [CronogramaController::class, 'index'])
+        ->middleware(['permissaoModulo:cronograma,usar', 'permissaoObra:ver']);
+    Route::post('obras/{obra}/cronograma-tarefas', [CronogramaController::class, 'storeTarefa'])
+        ->middleware(['permissaoModulo:cronograma,criar', 'permissaoObra:lancar']);
+    Route::put('cronograma-tarefas/{cronogramaTarefa}', [CronogramaController::class, 'updateTarefa'])
+        ->middleware(['permissaoModulo:cronograma,editar', 'permissaoObra:lancar']);
+    Route::delete('cronograma-tarefas/{cronogramaTarefa}', [CronogramaController::class, 'destroyTarefa'])
+        ->middleware(['permissaoModulo:cronograma,excluir', 'permissaoObra:lancar']);
+    Route::post('cronograma-dependencias', [CronogramaController::class, 'storeDependencia'])
+        ->middleware('permissaoModulo:cronograma,criar');
+    Route::put('cronograma-dependencias/{cronogramaDependencia}', [CronogramaController::class, 'updateDependencia'])
+        ->middleware('permissaoModulo:cronograma,editar');
+    Route::delete('cronograma-dependencias/{cronogramaDependencia}', [CronogramaController::class, 'destroyDependencia'])
+        ->middleware('permissaoModulo:cronograma,excluir');
 
     // Agenda (26/09/2026) — compromissos com horário, gerais ou de uma obra, com participantes.
     // Sem `permissaoObra` na rota: a Agenda geral junta todas as obras, então o filtro/conferência

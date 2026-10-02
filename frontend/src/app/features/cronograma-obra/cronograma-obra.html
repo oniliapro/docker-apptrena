@@ -1,0 +1,156 @@
+@if (carregando()) {
+  <div class="painel atenuado">Carregando o cronograma…</div>
+} @else {
+
+  @if (erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <div class="painel cabecalho-tela">
+    <div>
+      <h2>Cronograma de obra</h2>
+      <div class="atenuado pequeno">
+        Datas calculadas automaticamente a partir das predecessoras de cada tarefa (TI/II/TT/IT +
+        latência) — caminho crítico destacado em vermelho. Edição por formulário; arrastar barra fica
+        para uma próxima rodada.
+      </div>
+    </div>
+    <div class="acoes-cabecalho">
+      <label class="campo-inline">
+        <span>Zoom</span>
+        <select [value]="zoom()" (change)="mudarZoom($event)">
+          <option value="dia">Dia</option>
+          <option value="semana">Semana</option>
+          <option value="mes">Mês</option>
+        </select>
+      </label>
+      <button type="button" [disabled]="!dataBaseParaInput() || !itensEap().length || importandoEap()"
+              (click)="importarEap()" title="Cria uma tarefa pra cada item da EAP, vinculada a ele — sem predecessora, você liga como quiser depois">
+        {{ importandoEap() ? 'Importando…' : '⭳ Importar itens da EAP' }}
+      </button>
+      <button type="button" class="primario" (click)="abrirNovaTarefa()" [disabled]="!dataBaseParaInput()">
+        + Nova tarefa
+      </button>
+    </div>
+  </div>
+
+  @if (!dataBaseParaInput()) {
+    <div class="painel">
+      <label class="campo-inline">
+        <span>Data base do cronograma (início do projeto)</span>
+        <input type="date" (change)="salvarDataBase($event)">
+      </label>
+      <p class="atenuado pequeno">
+        Defina a data base da obra antes de cadastrar tarefas — é o início padrão de qualquer tarefa
+        sem predecessora.
+      </p>
+    </div>
+  } @else {
+
+    @if (haErros()) {
+      <div class="aviso-erro">
+        Há dependência circular entre tarefas — as tarefas envolvidas não têm data calculada até isso
+        ser corrigido (veja a coluna "Situação" na lista abaixo).
+      </div>
+    }
+
+    @if (!calculado().length) {
+      <div class="painel atenuado">Nenhuma tarefa cadastrada ainda — clique em "+ Nova tarefa" para começar.</div>
+    } @else {
+      <div class="painel sem-preenchimento">
+        <div class="gantt-wrapper">
+          <div class="gantt-corpo" [style.width.px]="larguraColunasFixas + larguraGradeTotalPx()">
+
+            <!-- Cabeçalho -->
+            <div class="gantt-cabecalho">
+              <div class="gantt-colunas-fixas gantt-colunas-fixas-cabecalho" [style.width.px]="larguraColunasFixas">
+                <span class="col-nome">Tarefa</span>
+                <span class="col-numero">Dur.</span>
+                <span class="col-data">Início</span>
+                <span class="col-data">Fim</span>
+                <span class="col-numero">Folga</span>
+                <span class="col-acoes"></span>
+              </div>
+              <div class="gantt-grade-cabecalho" [style.width.px]="larguraGradeTotalPx()">
+                @for (marcador of marcadoresGrade(); track marcador.leftPx) {
+                  <span class="gantt-marcador" [style.left.px]="marcador.leftPx">{{ marcador.rotulo }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Linhas -->
+            <div class="gantt-linhas" [style.height.px]="alturaGradeTotalPx()">
+              <div class="gantt-colunas-fixas" [style.width.px]="larguraColunasFixas">
+                @for (linha of linhasGantt(); track linha.calculado.tarefa.id) {
+                  <div class="gantt-linha-fixa" [style.height.px]="alturaLinha">
+                    <span class="col-nome" [title]="linha.calculado.tarefa.nome">
+                      {{ linha.calculado.tarefa.tipo === 'marco' ? '◆ ' : '' }}{{ linha.calculado.tarefa.nome }}
+                    </span>
+                    <span class="col-numero">{{ linha.calculado.tarefa.tipo === 'marco' ? '—' : linha.calculado.tarefa.duracao_dias }}</span>
+                    @if (linha.calculado.erro) {
+                      <span class="col-data col-data-dupla erro" [title]="linha.calculado.erro">⚠ circular</span>
+                    } @else {
+                      <span class="col-data">{{ formatarData(linha.calculado.inicio) }}</span>
+                      <span class="col-data">{{ formatarData(linha.calculado.fim) }}</span>
+                      <span class="col-numero" [class.critica]="linha.calculado.critica">
+                        {{ linha.calculado.critica ? 'crítica' : (linha.calculado.folgaDias + 'd') }}
+                      </span>
+                    }
+                    <span class="col-acoes">
+                      <button type="button" (click)="abrirEdicaoTarefa(linha.calculado.tarefa)" title="Editar">✎</button>
+                      <button type="button" (click)="excluirTarefa(linha.calculado.tarefa)" title="Excluir">✖</button>
+                    </span>
+                  </div>
+                }
+              </div>
+
+              <div class="gantt-grade" [style.width.px]="larguraGradeTotalPx()">
+                @for (marcador of marcadoresGrade(); track marcador.leftPx) {
+                  <div class="gantt-linha-grade" [style.left.px]="marcador.leftPx"></div>
+                }
+
+                @for (linha of linhasGantt(); track linha.calculado.tarefa.id) {
+                  <div class="gantt-linha-fundo" [style.top.px]="linha.linha * alturaLinha" [style.height.px]="alturaLinha"></div>
+                  @if (!linha.calculado.erro) {
+                    @if (linha.calculado.tarefa.tipo === 'marco') {
+                      <div class="gantt-marco" [class.critica]="linha.calculado.critica"
+                           [style.left.px]="linha.leftPx" [style.top.px]="linha.linha * alturaLinha + alturaLinha / 2"
+                           [title]="linha.calculado.tarefa.nome + ' — ' + formatarData(linha.calculado.inicio)"></div>
+                    } @else {
+                      <div class="gantt-barra" [class.critica]="linha.calculado.critica"
+                           [style.left.px]="linha.leftPx" [style.width.px]="linha.widthPx"
+                           [style.top.px]="linha.linha * alturaLinha + 4"
+                           [title]="linha.calculado.tarefa.nome + ': ' + formatarData(linha.calculado.inicio) + ' a ' + formatarData(linha.calculado.fim)"></div>
+                    }
+                  }
+                }
+
+                <svg class="gantt-setas" [attr.width]="larguraGradeTotalPx()" [attr.height]="alturaGradeTotalPx()">
+                  @for (seta of setasGantt(); track seta.id) {
+                    <path [attr.d]="seta.d" [class.critica]="seta.critica" marker-end="url(#seta-ponta)" />
+                  }
+                  <defs>
+                    <marker id="seta-ponta" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L6,3 z" class="seta-ponta" />
+                    </marker>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+}
+
+@if (mostrarModalTarefa()) {
+  <app-editar-tarefa-cronograma-modal
+    [tarefa]="tarefaEmEdicao()"
+    [obraId]="obraId()"
+    [todasTarefas]="tarefas()"
+    [dependencias]="dependencias()"
+    [itensEap]="itensEap()"
+    (salvo)="aoSalvarTarefa()"
+    (fechar)="fecharEdicao()" />
+}

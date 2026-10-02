@@ -21,6 +21,7 @@ export const ABAS_OBRA: readonly AbaObra[] = [
   { caminho: 'eap', rotulo: 'EAP' },
   { caminho: 'cronograma', rotulo: 'Cronograma', moduloChave: 'cronograma' },
   { caminho: 'desembolso', rotulo: 'Cronograma de desembolso', moduloChave: 'desembolso' },
+  { caminho: 'fluxo-caixa', rotulo: 'Fluxo de caixa', moduloChave: 'fluxo_caixa' },
   { caminho: 'medicoes', rotulo: 'Medições de Obra', moduloChave: 'medicoes' },
   { caminho: 'empreitas', rotulo: 'Empreitas', moduloChave: 'empreitas' },
   { caminho: 'mapas', rotulo: 'Mapas', moduloChave: 'mapas' },

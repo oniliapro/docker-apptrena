@@ -1,0 +1,181 @@
+.cabecalho-tela {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.acoes-cabecalho {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+// Mesmo padrão de `cronograma-desembolso.scss`/`fluxo-caixa.scss` — o
+// `<select>` precisa desligar a altura global de 20px (`_base.scss`),
+// senão o texto sai cortado.
+.campo-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+
+  span {
+    font-family: var(--fonte-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+  }
+
+  select, input { width: auto; min-width: 110px; height: 26px; }
+}
+
+// ---- Gantt ----
+// Um único contêiner rolável (`.gantt-wrapper`) nos dois eixos — as colunas
+// "fixas" (nome/duração/início/fim/folga) usam `position: sticky` (não um
+// painel separado sincronizado por JS), mesma técnica de "cabeçalho +
+// coluna congelados com CSS puro" aplicada duas vezes (cabeçalho gruda no
+// topo, coluna gruda à esquerda — os dois juntos "grudam" o canto).
+.gantt-wrapper {
+  overflow: auto;
+  max-height: calc(100vh - 340px);
+}
+
+.gantt-corpo {
+  position: relative;
+}
+
+.gantt-cabecalho {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  height: 36px;
+}
+
+.gantt-colunas-fixas-cabecalho {
+  position: sticky;
+  left: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--cor-fundo-alt);
+  border-right: 1px solid var(--cor-borda);
+  border-bottom: 1px solid var(--cor-borda);
+  font-family: var(--fonte-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.gantt-grade-cabecalho {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--cor-fundo-alt);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.gantt-marcador {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 3px;
+  border-left: 1px solid var(--cor-borda);
+  font-size: 9.5px;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.gantt-linhas {
+  position: relative;
+  display: flex;
+}
+
+.gantt-colunas-fixas {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  flex-shrink: 0;
+  background: var(--cor-superficie);
+  border-right: 1px solid var(--cor-borda);
+}
+
+.gantt-linha-fixa {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--cor-borda);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.col-nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-numero { flex: 0 0 44px; text-align: right; font-family: var(--fonte-mono); font-size: 10.5px; }
+.col-data { flex: 0 0 64px; text-align: right; font-family: var(--fonte-mono); font-size: 10.5px; }
+.col-data-dupla { flex: 0 0 128px; }
+.col-acoes { flex: 0 0 44px; display: flex; gap: 2px; justify-content: flex-end; }
+
+.col-numero.critica { color: var(--cor-perigo); font-weight: 700; }
+.col-data.erro { color: var(--cor-perigo); }
+
+.gantt-grade {
+  position: relative;
+}
+
+.gantt-linha-grade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--cor-borda);
+}
+
+.gantt-linha-fundo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.gantt-barra {
+  position: absolute;
+  height: 24px;
+  border-radius: 3px;
+  background: var(--cor-primaria);
+
+  &.critica { background: var(--cor-perigo); }
+}
+
+.gantt-marco {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--cor-primaria);
+  transform: translate(-7px, -7px) rotate(45deg);
+
+  &.critica { background: var(--cor-perigo); }
+}
+
+.gantt-setas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+
+  path:not(.seta-ponta) {
+    fill: none;
+    stroke: var(--cor-texto-suave);
+    stroke-width: 1.5;
+
+    &.critica { stroke: var(--cor-perigo); }
+  }
+}
+
+.seta-ponta { fill: var(--cor-texto-suave); }

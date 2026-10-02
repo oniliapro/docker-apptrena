@@ -1,0 +1,58 @@
+@if (carregando()) {
+  <div class="painel atenuado">Carregando o fluxo de caixa…</div>
+} @else {
+
+  @if (pagamentosStore.erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+  @if (recebimentosStore.erro(); as mensagem) {
+    <div class="aviso-erro">{{ mensagem }}</div>
+  }
+
+  <div class="painel cabecalho-tela">
+    <div>
+      <h2>Fluxo de caixa</h2>
+      <div class="atenuado pequeno">
+        Saldo acumulado (recebimentos − pagamentos) desde o primeiro lançamento da obra — mostra a
+        tendência, não o saldo bancário real. "Realizado" conta só o que já foi confirmado;
+        "Projetado" também soma o que ainda está pendente.
+      </div>
+    </div>
+    <label class="campo-inline">
+      <span>Período</span>
+      <select [value]="unidade()" (change)="mudarUnidade($event)">
+        @for (u of unidades; track u.chave) {
+          <option [value]="u.chave" [selected]="u.chave === unidade()">{{ u.rotulo }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (!pontos().length) {
+    <div class="painel atenuado">
+      Nenhum pagamento ou recebimento lançado nesta obra ainda — o gráfico aparece assim que houver
+      o primeiro lançamento.
+    </div>
+  } @else {
+    @if (ultimoPonto(); as ultimo) {
+      <div class="painel resumo-saldos">
+        <div class="bloco-saldo">
+          <span class="rotulo-saldo">Saldo realizado</span>
+          <span class="valor-saldo-grande" [class.negativo]="ultimo.saldoRealizadoAcumulado < 0">
+            {{ formatarMoeda(ultimo.saldoRealizadoAcumulado) }}
+          </span>
+        </div>
+        <div class="bloco-saldo">
+          <span class="rotulo-saldo">Saldo projetado (com pendentes)</span>
+          <span class="valor-saldo-grande atenuado" [class.negativo]="ultimo.saldoProjetadoAcumulado < 0">
+            {{ formatarMoeda(ultimo.saldoProjetadoAcumulado) }}
+          </span>
+        </div>
+      </div>
+    }
+
+    <div class="painel grafico-wrapper">
+      <canvas #canvas></canvas>
+    </div>
+  }
+}
