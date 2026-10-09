@@ -74,6 +74,9 @@ AppTrena/
 
 - **Domínio de produção:** `trenadigital.com.br` — não mudar até o Lucas
   registrar o domínio "apptrena". Site já está no ar de verdade lá.
+  **(09/10/2026)** O domínio definitivo passou a ser `comtrena.com.br`
+  (já registrado pelo Lucas, ainda não apontado para o VPS) — ver a REGRA
+  no topo de "Pontos vivos" antes de publicar o app.
 - **Dev local:** duplo clique em `AppTrena-Angular/INICIAR-COM-BACKEND.bat`
   — sobe o Docker Desktop direto (não precisa mais de WSL) e o Angular
   (`localhost:4200`).
@@ -84,6 +87,56 @@ AppTrena/
   Empreita, Resumos, validação de CPF/CNPJ).
 
 ## Pontos vivos / decisões pendentes
+
+- **REGRA (09/10/2026, decisão do Lucas): o app ComTrena NÃO PODE ser
+  publicado na Play Store (nem na App Store) antes da migração do domínio
+  para comtrena.com.br** — ou seja, enquanto o `apiUrl` de
+  `frontend/src/environments/environment.mobile.ts` apontar para
+  `trenadigital.com.br`. Motivo: cada versão instalada do app guarda o
+  endereço da API com que foi gerada. O `appId` (`br.com.comtrena.app`)
+  já está no formato definitivo — é o nome do app nas lojas e não pode
+  mudar depois da primeira publicação. Mudar de domínio NÃO mexe no banco:
+  é o mesmo servidor e os mesmos dados.
+
+  **Migração do domínio — quem vai fazer é a Onilia.** Checklist levantado
+  em 09/10/2026 lendo o código. No VPS o projeto fica em `~/docker-apptrena`
+  (usuário root).
+  0. ANTES DE TUDO, backup completo de produção (banco + `storage` com
+     fotos/arquivos + `.env`), como no Passo 1 de
+     `docs/migrar-vps-repositorio-unico.md`, e copiar o backup para fora
+     do VPS. O sistema já controla uma obra real: a migração não move nem
+     apaga dados (mesmo servidor, mesmo banco), mas mexe na produção.
+  1. DNS no painel da Hostinger: `comtrena.com.br` e `www` → `187.77.59.52`
+     (em 09/10 o domínio já é do Lucas, mas está "estacionado").
+  2. nginx do VPS: incluir `comtrena.com.br www.comtrena.com.br` no
+     `server_name` e gerar o certificado com o certbot (mesmo procedimento
+     de `docs/DEPLOY-PRODUCAO.md`).
+  3. `controleobra-api/.env` de produção (no fim, rodar
+     `docker exec controleobra-phpfpm php artisan config:cache`):
+     - `APP_URL` → `https://comtrena.com.br`. Ele também monta o link do
+       e-mail "RDO disponível" para o contratante (`App\Mail\RdoDisponivel`).
+     - `PDF_FRONTEND_URL` e `PDF_API_URL` → trocar o domínio
+       (`config/pdf.php`). Se esquecer e o domínio antigo sair do ar, a
+       geração de PDF para de funcionar.
+     - `MAIL_*`: NADA a fazer. Conferido em produção em 09/10/2026:
+       `MAIL_MAILER=log` e `MAIL_FROM_ADDRESS="hello@example.com"` — o
+       sistema não envia e-mail nenhum (só grava no log). Consequência à
+       parte: o aviso ao contratante quando um RDO é finalizado
+       (`App\Mail\RdoDisponivel`) nunca saiu de verdade; só passa a sair
+       quando alguém configurar um SMTP.
+  4. Frontend: o rodapé de `features/medicoes/medicao-imprimir.html`
+     ("Medição gerada automaticamente pelo ComTrena — trenadigital.com.br")
+     → trocar para comtrena.com.br e publicar o build. NÃO trocar antes da
+     migração (o PDF mandaria as pessoas para a página estacionada).
+  5. App: trocar o `apiUrl` do `environment.mobile.ts` para
+     `https://comtrena.com.br/api`, gerar e testar no celular.
+  6. `trenadigital.com.br`: redirecionar para `comtrena.com.br` (mantendo o
+     caminho) e avisar a equipe que o login precisa ser feito de novo uma
+     vez no endereço novo (o navegador guarda a sessão por domínio). Como
+     em 09/10 o sistema é usado só pela equipe interna (numa obra real), nenhum link real de
+     RDO foi enviado (só testes) e o app ainda não foi publicado, NÃO é
+     preciso manter o domínio antigo a longo prazo: deixar o
+     redirecionamento até o vencimento atual e não renovar.
 
 - **Feito (07/09/2026): cabeçalho da obra simplificado + cadastro/edição
   de obra unificados num popup só + "Local da obra" no cadastro + "Quem
@@ -3231,3 +3284,53 @@ AppTrena/
   **Não publicado ainda** — agora cobre TRÊS rodadas de reformulação do
   editor de contrato no mesmo dia (30/09). Falta decidir com o Lucas
   publicação + limpeza do "teste" real + os itens 8/9 originais.
+
+- **09/10/2026 — Início do app ComTrena para Android (Capacitor), sem
+  mexer no site.** Decisões do Lucas: aproveitar este frontend Angular;
+  Play Store agora e App Store depois; primeira versão só com o RDO
+  (diário de obra), que precisa funcionar OFFLINE e enviar quando a
+  internet voltar; depois entram Empreita, Cadastros e Pagamentos.
+
+  O que foi feito (só adições — o build do site e o `environment.prod.ts`
+  não mudaram):
+  - `frontend/capacitor.config.ts` — `appId` **`br.com.comtrena.app`**
+    (identidade do app nas lojas; NÃO pode mudar depois de publicado).
+  - `frontend/src/environments/environment.mobile.ts` + configuração
+    `mobile` no `angular.json` (sai em `dist/mobile/`, separada do build
+    que vai pro VPS) — `apiUrl` absoluto `https://trenadigital.com.br/api`,
+    porque dentro do app as telas abrem em `https://localhost`.
+  - `frontend/android/` — projeto Android gerado (`npx cap add android`),
+    targetSdk 36 / minSdk 24. Chaves de assinatura (`*.jks`,
+    `*.keystore`) ignoradas pelo git.
+  - Scripts: `npm run build:mobile` e `npm run android` (build + sync +
+    abre o Android Studio).
+  - `.dockerignore` na raiz, para o `Dockerfile_angular` não copiar pra
+    imagem o `node_modules` que agora também existe no Windows.
+
+  **Atualização (mesma madrugada, 09/10):** o app rodou de verdade no
+  Xiaomi do Lucas e o login funcionou. Itens (1), (2) e (3) abaixo
+  RESOLVIDOS: CORS de produção ajustado direto no container
+  (`docker exec controleobra-phpfpm ...`, backup em
+  `controleobra-api/.env.bak-20261009` no VPS); Node do Windows
+  atualizado para 24.21; Android Studio instalado em
+  `D:\Android\Android Studio`, SDK em `D:\Android\Sdk`, cache do Gradle
+  em `D:\Android\.gradle` e celulares virtuais em `D:\Android\avd`
+  (variáveis `GRADLE_USER_HOME`, `CAPACITOR_ANDROID_STUDIO_PATH` e
+  `ANDROID_AVD_HOME`) — o disco C do PC é pequeno. Gradle do projeto
+  usa o JDK 21 (o Android Studio novo vem com 25, incompatível).
+  Rodar o app no celular: `npm.cmd run android` na pasta `frontend` e
+  depois ▶ no Android Studio.
+
+  Pendências: (1) CORS de produção — `CORS_ALLOWED_ORIGINS` no
+  `controleobra-api/.env` do VPS precisa ganhar
+  `https://localhost,capacitor://localhost` e depois `php artisan
+  config:cache` (conferido em 09/10: hoje a API só libera
+  `https://trenadigital.com.br`, então o login do app falharia);
+  (2) o Node do Windows é 22.14 e o Angular 22 exige 22.22.3 ou mais —
+  atualizar antes de rodar `npm run android` (o build desta vez foi feito
+  fora do Windows); (3) instalar o Android Studio (2025.2.1 ou mais novo);
+  (4) `urlPublica()` em `rdo-lista.ts` usa `window.location.origin` — no
+  app geraria link `https://localhost/...` pro contratante; corrigir na
+  adaptação do RDO; (5) offline do RDO ainda não começou (precisa de um
+  identificador único por lançamento, gerado no celular, para a API não
+  duplicar quando o envio for repetido).

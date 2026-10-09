@@ -1,0 +1,11 @@
+# 09/10/2026 - O Dockerfile_angular faz `COPY frontend/ .` e depois roda
+# `npm install` DENTRO do container (Linux). Desde que o frontend passou a
+# ter node_modules instalado tambem no Windows (para gerar o app Android
+# com o Capacitor), sem este arquivo o build da imagem copiaria essa pasta
+# (centenas de MB, com binarios do Windows) para dentro do container.
+# Nenhum dos outros Dockerfiles usa estas pastas.
+frontend/node_modules
+frontend/dist
+frontend/.angular
+frontend/android
+frontend/ios
