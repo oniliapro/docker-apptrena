@@ -11,12 +11,21 @@
 <header class="rdo-topo">
   <div>
     <button type="button" class="botao-voltar" (click)="voltarParaLista()">← Voltar à lista</button>
-    <h1>{{ ehNovo() ? 'Novo RDO' : 'RDO nº ' + (registroAtual()?.numero ?? '') }}</h1>
+    <h1>{{ ehNovo() ? 'Novo RDO' : rascunhoLocal() ? 'RDO guardado no celular' : 'RDO nº ' + (registroAtual()?.numero ?? '') }}</h1>
     <p class="rdo-subtitulo">Registro técnico do canteiro — vale como prova de responsabilidade técnica.</p>
   </div>
 
   <div class="rdo-topo-acoes">
-    @if (!ehNovo() && registroAtual(); as registro) {
+    <!-- App (09/10/2026): RDO que ainda está só no celular — finalizar, PDF e
+         excluir do servidor só depois que ele chegar lá. -->
+    @if (rascunhoLocal(); as local) {
+      <span class="etiqueta etiqueta-celular">{{ local.estado === 'erro' ? 'não enviado' : 'aguardando envio' }}</span>
+      @if (local.estado === 'erro') {
+        <button type="button" class="botao-secundario" (click)="tentarEnviarDeNovo()">Tentar enviar de novo</button>
+      }
+      <button type="button" class="botao-remover" (click)="excluirRascunhoLocal()">Excluir do celular</button>
+    }
+    @if (!ehNovo() && !rascunhoLocal() && registroAtual(); as registro) {
       @if (registro.status === 'rascunho') {
         <span class="etiqueta etiqueta-rascunho">rascunho</span>
         <button type="button" class="botao-primario" (click)="finalizar()">Finalizar e assinar</button>
@@ -26,7 +35,10 @@
           @if (registro.assinante_crea) { — CREA {{ registro.assinante_crea }} }
         </span>
       }
-      <button type="button" class="botao-secundario" (click)="baixarPdf()">PDF</button>
+      <!-- App: o WebView do Android não baixa arquivo gerado na hora — o PDF fica para o site por enquanto. -->
+      @if (!ehApp) {
+        <button type="button" class="botao-secundario" (click)="baixarPdf()">PDF</button>
+      }
       <button type="button" class="botao-remover" (click)="excluir()">Excluir</button>
     }
     <button type="button" class="botao-secundario" (click)="mostrarCabecalho.set(!mostrarCabecalho())">
@@ -40,6 +52,21 @@
 }
 @if (aviso()) {
   <p class="alerta alerta-ok" role="status">{{ aviso() }}</p>
+}
+@if (rascunhoLocal(); as local) {
+  @if (local.estado === 'erro') {
+    <p class="alerta alerta-erro" role="alert">
+      O servidor recusou este RDO: {{ local.ultimoErro }} Corrija o que for preciso e salve de novo.
+    </p>
+  } @else {
+    <p class="alerta alerta-celular" role="status">
+      Este RDO está guardado no celular e vai ser enviado sozinho quando houver internet. O número
+      é definido no envio; finalizar e assinar, só depois que ele chegar ao servidor.
+      @if (local.ultimoErro) {
+        <br><small>Última tentativa: {{ local.ultimoErro }}</small>
+      }
+    </p>
+  }
 }
 
 <!-- Cabeçalho técnico: contrato, responsável técnico, CREA, ART. Vem do
@@ -112,8 +139,12 @@
                   <th scope="row">{{ t.rotulo }}</th>
                   @for (c of climas; track c.valor) {
                     <td class="centro">
-                      <input type="radio" [formControlName]="t.controlClima" [value]="c.valor"
-                             [attr.aria-label]="c.rotulo + ' — ' + t.rotulo">
+                      <!-- label em volta do rádio (09/10/2026): no celular a célula inteira vira o
+                           botão, com o nome do clima (data-rotulo) — ver o @media de 600px no SCSS. -->
+                      <label class="opcao-clima" [attr.data-rotulo]="c.simbolo + '\n' + c.rotulo">
+                        <input type="radio" [formControlName]="t.controlClima" [value]="c.valor"
+                               [attr.aria-label]="c.rotulo + ' — ' + t.rotulo">
+                      </label>
                     </td>
                   }
                   <td>

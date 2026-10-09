@@ -1,6 +1,7 @@
 export const environment = {
   producao: true,
   revisao: false,
+  app: false,
 
   /**
    * Em produção o frontend e a API ficam no mesmo domínio

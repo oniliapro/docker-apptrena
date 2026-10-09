@@ -9,7 +9,7 @@
       <select [value]="obraEscolhida()" (change)="obraEscolhida.set($any($event.target).value)">
         <option value="">Escolha a obra…</option>
         @for (obra of obras(); track obra.id) {
-          <option [value]="obra.id">{{ obra.obra_nome || '(sem nome)' }}</option>
+          <option [value]="obra.id" [selected]="obra.id === obraEscolhida()">{{ obra.obra_nome || '(sem nome)' }}</option>
         }
       </select>
     }
@@ -81,10 +81,14 @@
         @for (registro of listaFiltrada(); track registro.id) {
           <tr class="linha-clicavel" (click)="abrir(registro)">
             <td class="mono">{{ registro.data | date: 'dd/MM/yyyy' }}</td>
-            <td class="centro mono">{{ registro.numero }}</td>
+            <td class="centro mono">{{ registro.numero ?? '—' }}</td>
             @if (geral()) { <td>{{ registro.obra?.obra_nome || '—' }}</td> }
             <td class="centro">
-              @if (registro.status === 'rascunho') {
+              @if (registro.naFila === 'erro') {
+                <span class="etiqueta etiqueta-celular-erro" [title]="registro.erroFila || ''">não enviado</span>
+              } @else if (registro.naFila) {
+                <span class="etiqueta etiqueta-celular" title="Guardado no celular — vai ser enviado quando houver internet">no celular</span>
+              } @else if (registro.status === 'rascunho') {
                 <span class="etiqueta etiqueta-rascunho">rascunho</span>
               } @else {
                 <span class="etiqueta etiqueta-assinado">assinado</span>
@@ -109,7 +113,9 @@
     </table>
   </section>
 
-  @if (!geral()) {
+  <!-- App (09/10/2026): o link do contratante fica só no site — dentro do app o endereço gerado
+       seria o do próprio celular (https://localhost/...), que não abre para ninguém. -->
+  @if (!geral() && !ehApp) {
     <!-- Link de acompanhamento do contratante — é da OBRA, não de um RDO específico. -->
     <section class="painel">
       <h2>Acompanhamento do contratante</h2>

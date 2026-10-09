@@ -1,0 +1,47 @@
+<div class="app-movel">
+  <header class="app-topo">
+    <a class="app-marca" routerLink="/rdo">
+      <img src="/marca/comtrena-simbolo-para-fundo-escuro-12262F.svg" alt="" />
+      <span>ComTrena</span>
+    </a>
+
+    <div class="app-estado">
+      @if (!fila.online()) {
+        <span class="selo selo-sem-rede">Sem internet</span>
+      }
+      @if (fila.pendentes() > 0) {
+        <button
+          type="button"
+          class="selo selo-fila"
+          [class.selo-erro]="fila.comErro() > 0"
+          [disabled]="fila.enviando() || !fila.online()"
+          [title]="fila.online() ? 'Enviar agora' : 'Vai enviar sozinho quando a internet voltar'"
+          (click)="enviarAgora()">
+          {{ textoFila() }}
+        </button>
+      }
+    </div>
+
+    <div class="app-menu-area">
+      <button
+        type="button"
+        class="app-avatar"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="menuAberto()"
+        (click)="menuAberto.set(!menuAberto())">
+        {{ iniciais() }}
+      </button>
+      @if (menuAberto()) {
+        <div class="app-menu" role="menu">
+          <span class="app-menu-nome">{{ usuario()?.name || usuario()?.email }}</span>
+          <a routerLink="/rdo" role="menuitem" (click)="menuAberto.set(false)">RDOs</a>
+          <button type="button" role="menuitem" (click)="sair()">Sair</button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <main class="app-conteudo">
+    <router-outlet />
+  </main>
+</div>

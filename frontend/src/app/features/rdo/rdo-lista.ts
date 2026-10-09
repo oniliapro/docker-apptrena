@@ -1,12 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { environment } from '../../../environments/environment';
 import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { DiaCalendario, construirSemanas, mesComPasso, mesDoMaisRecente } from './rdo-calendario';
+import { RdoFilaService } from './rdo-fila.service';
 import { RdoContratanteLink, RdoRegistro } from './rdo.models';
 import { RdoService } from './rdo.service';
+
+/** Linha da lista: um RDO do servidor ou (app) um RDO ainda na fila do celular. */
+type ItemLista = RdoRegistro & { naFila?: 'pendente' | 'erro'; erroFila?: string | null };
 
 /**
  * Lista de RDOs (F8, 22/09/2026, pedido do Lucas) — o calendário É a lista:
@@ -32,6 +37,11 @@ export class RdoLista implements OnInit {
   private readonly api = inject(ApiService);
   private readonly rdoApi = inject(RdoService);
   private readonly router = inject(Router);
+  private readonly fila = inject(RdoFilaService);
+
+  /** App ComTrena (09/10/2026) — no site é sempre `false`. */
+  protected readonly ehApp = environment.app;
+  private estavaEnviando = false;
 
   /** Vazio = lista geral (todas as obras); preenchido pela rota `/obras/:id/rdo`. */
   readonly obraId = input<string>('', { alias: 'id' });
@@ -58,28 +68,78 @@ export class RdoLista implements OnInit {
     this.mesAtual().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
   );
 
-  protected readonly semanas = computed<DiaCalendario<RdoRegistro>[][]>(() =>
-    construirSemanas(this.mesAtual(), this.registros(), (r) => r.data),
+  /**
+   * App: RDOs lançados no celular que ainda não chegaram ao servidor entram
+   * na lista e no calendário junto com os do servidor, marcados como "no
+   * celular". No site a fila é sempre vazia.
+   */
+  protected readonly todos = computed<ItemLista[]>(() => {
+    const obra = this.obraId();
+    const locais: ItemLista[] = this.fila
+      .itens()
+      .filter((i) => !obra || i.obraId === obra)
+      .map((i) => ({
+        id: i.id,
+        empresa_id: '',
+        obra_id: i.obraId,
+        numero: null,
+        data: typeof i.payload['data'] === 'string' ? (i.payload['data'] as string) : i.criadoEm.substring(0, 10),
+        status: 'rascunho',
+        obra: { id: i.obraId, obra_nome: i.obraNome ?? '' },
+        naFila: i.estado,
+        erroFila: i.ultimoErro,
+      }) as unknown as ItemLista);
+    const idsLocais = new Set(locais.map((l) => l.id));
+
+    return [...locais, ...this.registros().filter((r) => !idsLocais.has(r.id))].sort((a, b) =>
+      b.data.localeCompare(a.data),
+    );
+  });
+
+  protected readonly semanas = computed<DiaCalendario<ItemLista>[][]>(() =>
+    construirSemanas(this.mesAtual(), this.todos(), (r) => r.data),
   );
 
   protected readonly listaFiltrada = computed(() => {
     const dia = this.dataFiltro();
-    const lista = this.registros();
+    const lista = this.todos();
     return dia ? lista.filter((r) => r.data.substring(0, 10) === dia) : lista;
   });
+
+  constructor() {
+    // App: terminou uma rodada de envio da fila → atualiza a lista do servidor
+    // (o RDO que estava "no celular" agora aparece com número).
+    effect(() => {
+      const enviando = this.fila.enviando();
+      if (this.estavaEnviando && !enviando) untracked(() => this.carregar(true));
+      this.estavaEnviando = enviando;
+    });
+  }
 
   ngOnInit(): void {
     this.carregar();
 
     if (this.geral()) {
-      this.api.listarObras().subscribe({ next: (obras) => this.obras.set(obras), error: () => void 0 });
+      this.api.listarObras().subscribe({
+        next: (obras) => {
+          this.obras.set(obras);
+          if (this.ehApp) {
+            // Com uma obra só, já deixa escolhida para o "+ Novo RDO".
+            if (obras.length === 1 && !this.obraEscolhida()) this.obraEscolhida.set(obras[0].id);
+            void this.fila.prepararParaUsoSemInternet(obras.slice(0, 20).map((o) => o.id));
+          }
+        },
+        error: () => void 0,
+      });
     } else {
+      if (this.ehApp) void this.fila.prepararParaUsoSemInternet([this.obraId()]);
       this.rdoApi.listarLinks(this.obraId()).subscribe({ next: (links) => this.links.set(links), error: () => void 0 });
     }
   }
 
-  private carregar(): void {
-    this.carregando.set(true);
+  /** `silencioso`: atualiza sem trocar a tela por "Carregando…" (app, depois de um envio). */
+  private carregar(silencioso = false): void {
+    if (!silencioso) this.carregando.set(true);
     this.erro.set(null);
 
     // 100 = teto do backend (`RdoController::index`) — dá pra navegar uns
@@ -125,8 +185,14 @@ export class RdoLista implements OnInit {
     void this.router.navigate(['/obras', registro.obra_id, 'rdo', registro.id]);
   }
 
-  protected excluir(registro: RdoRegistro, evento: Event): void {
+  protected excluir(registro: ItemLista, evento: Event): void {
     evento.stopPropagation();
+    if (registro.naFila) {
+      if (confirm('Excluir este RDO do celular? Ele ainda não foi enviado ao servidor e vai ser perdido.')) {
+        void this.fila.remover(registro.id).then(() => this.aviso.set('RDO excluído do celular.'));
+      }
+      return;
+    }
     if (!confirm(`Excluir o RDO nº ${registro.numero}? Esta ação não pode ser desfeita.`)) {
       return;
     }

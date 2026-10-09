@@ -2,6 +2,8 @@ export const environment = {
   producao: false,
   /** Build publicado só para revisão visual, sem backend. */
   revisao: false,
+  /** App de celular (Capacitor) — só o `environment.mobile.ts` liga isto. */
+  app: false,
 
   /**
    * API do Controle de Obra.

@@ -1,0 +1,151 @@
+/*
+  Casca do app de celular (09/10/2026). O Android 15+ desenha o app por
+  baixo das barras do sistema (edge-to-edge); o Capacitor 8 informa a
+  altura delas em --safe-area-inset-* — a barra do topo e a faixa de baixo
+  ocupam esse espaço com o azul da marca (o texto das barras do sistema fica
+  claro: `SystemBars.style = 'DARK'` em capacitor.config.ts).
+*/
+:host {
+  display: block;
+}
+
+.app-movel {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cor-fundo);
+}
+
+.app-topo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: calc(0.55rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 0.85rem 0.55rem;
+  background: var(--cor-primaria);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.app-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--fonte-titulo);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+
+  img {
+    height: 30px;
+    width: auto;
+  }
+}
+
+.app-estado {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.selo {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.selo-sem-rede {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--cor-primaria-clara);
+}
+
+.selo-fila {
+  background: var(--cor-destaque);
+  color: var(--cor-primaria-escura);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.85;
+  }
+}
+
+.selo-erro {
+  background: var(--cor-perigo);
+  color: #fff;
+}
+
+.app-menu-area {
+  position: relative;
+}
+
+.app-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--cor-primaria-escura);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.app-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+
+  a,
+  button {
+    padding: 0.8rem 1rem;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--cor-zebra);
+    color: var(--cor-texto);
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+}
+
+.app-menu-nome {
+  padding: 0.7rem 1rem;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.app-conteudo {
+  flex: 1;
+  padding: 0.85rem 0.75rem calc(1.25rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* Faixa atrás da barra de navegação do Android, no azul da marca. */
+.app-movel::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  background: var(--cor-primaria);
+  z-index: 20;
+}

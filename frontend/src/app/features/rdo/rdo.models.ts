@@ -243,6 +243,8 @@ export interface RdoContratanteLink {
  * em coordenadas relativas, mesmo formato que o backend grava.
  */
 export interface FotoSelecionada {
+  /** App (09/10/2026): identidade da foto na fila de envio do celular — ver `RdoFilaService`. */
+  idLocal?: string;
   arquivo: File;
   previewUrl: string;
   tarefaRef: string | null;
@@ -258,6 +260,8 @@ export interface FotoSelecionada {
  * não uma miniatura estática.
  */
 export interface VideoSelecionado {
+  /** App (09/10/2026): identidade do vídeo na fila de envio do celular — ver `RdoFilaService`. */
+  idLocal?: string;
   arquivo: File;
   previewUrl: string;
   tarefaRef: string | null;

@@ -21,6 +21,14 @@ const config: CapacitorConfig = {
   appId: 'br.com.comtrena.app',
   appName: 'ComTrena',
   webDir: 'dist/mobile/browser',
+  plugins: {
+    // O app é desenhado por baixo das barras do Android (edge-to-edge). A
+    // barra do topo do app é azul-escura, então o relógio/ícones do sistema
+    // ficam claros (09/10/2026, ver layout/app-movel).
+    SystemBars: {
+      style: 'DARK',
+    },
+  },
 };
 
 export default config;

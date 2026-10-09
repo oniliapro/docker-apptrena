@@ -1,8 +1,10 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, map, of, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { SEM_TIMEOUT_LONGO } from '../../core/interceptors/auth.interceptor';
+import { SEM_CACHE_OFFLINE } from '../../core/offline/cache-offline.interceptor';
 import {
   FotoSelecionada,
   RdoContratanteLink,
@@ -63,12 +65,19 @@ export class RdoService {
     return this.http.get<RdoPreparo>(`${this.base}/rdo/preparar`, { params });
   }
 
+  /**
+   * `payload.id` (09/10/2026, app): o RDO novo já nasce com o id gerado no
+   * aparelho. Se o envio cair no meio e for repetido, o servidor não cria um
+   * segundo RDO (o id é a chave primária) — ver `RdoFilaService`.
+   */
   criar(
     payload: Record<string, unknown>,
     fotos: FotoSelecionada[],
     videos: VideoSelecionado[] = [],
   ): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/rdo`, this.montarCorpo(payload, fotos, videos));
+    return this.http.post<RdoRegistro>(`${this.base}/rdo`, this.montarCorpo(payload, fotos, videos), {
+      context: this.contextoEnvio(),
+    });
   }
 
   /**
@@ -81,7 +90,25 @@ export class RdoService {
     fotos: FotoSelecionada[],
     videos: VideoSelecionado[] = [],
   ): Observable<RdoRegistro> {
-    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}`, this.montarCorpo(payload, fotos, videos));
+    return this.http.post<RdoRegistro>(`${this.base}/rdo/${id}`, this.montarCorpo(payload, fotos, videos), {
+      context: this.contextoEnvio(),
+    });
+  }
+
+  /**
+   * Confere direto no servidor (nunca no cache do celular) se um RDO já
+   * existe — usado pela fila de envio do app quando a tentativa anterior caiu
+   * sem resposta e não dá pra saber se o RDO chegou ou não.
+   */
+  existeNoServidor(id: string): Observable<boolean> {
+    return this.http
+      .get<RdoRegistro>(`${this.base}/rdo/${id}`, { context: new HttpContext().set(SEM_CACHE_OFFLINE, true) })
+      .pipe(
+        map(() => true),
+        catchError((erro: unknown) =>
+          erro instanceof HttpErrorResponse && erro.status === 404 ? of(false) : throwError(() => erro),
+        ),
+      );
   }
 
   /** Finalizar É assinar — não existe ação separada de assinatura. */
@@ -127,6 +154,15 @@ export class RdoService {
 
   revogarLink(id: string): Observable<RdoContratanteLink> {
     return this.http.post<RdoContratanteLink>(`${this.base}/rdo/links/${id}/revogar`, {});
+  }
+
+  /**
+   * Envio com fotos/vídeos (09/10/2026): sem o tempo-limite padrão de 15 s do
+   * authInterceptor — no 4G da obra, subir as fotos do dia passa disso fácil,
+   * e o RDO chegava no servidor enquanto a tela dizia que tinha dado erro.
+   */
+  private contextoEnvio(): HttpContext {
+    return new HttpContext().set(SEM_TIMEOUT_LONGO, true);
   }
 
   /**

@@ -24,5 +24,11 @@
 export const environment = {
   producao: true,
   revisao: false,
+  /**
+   * Liga o modo app (09/10/2026): só as telas do RDO, barra própria do
+   * celular, consultas guardadas para uso sem internet e fila de envio do
+   * RDO — ver `app.routes.app.ts` e `core/offline/`.
+   */
+  app: true,
   apiUrl: 'https://trenadigital.com.br/api',
 };

@@ -1,7 +1,10 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TimeoutError } from 'rxjs';
 
+import { environment } from '../../../environments/environment';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { hojeIso } from '../../core/utils/formato';
@@ -25,6 +28,7 @@ import {
   TURNOS_CLIMA,
   VideoSelecionado,
 } from './rdo.models';
+import { RdoFilaService, RdoPendenteEnvio } from './rdo-fila.service';
 import { RdoService } from './rdo.service';
 
 /** Valor bruto de uma pendência/ocorrência dentro de uma linha de tarefa — ver `desmembrarTarefas`. */
@@ -86,6 +90,7 @@ interface LinhaTarefaBruta {
 })
 export class Rdo implements OnInit {
   private readonly rdoApi = inject(RdoService);
+  private readonly fila = inject(RdoFilaService);
   private readonly fvsApi = inject(FvsService);
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
@@ -318,6 +323,34 @@ export class Rdo implements OnInit {
   }
 
   protected readonly ehNovo = computed(() => this.rdoId() === 'novo');
+
+  /** App ComTrena (09/10/2026) — no site é sempre `false`. */
+  protected readonly ehApp = environment.app;
+  /**
+   * Id do RDO novo, gerado aqui. A API aceita e usa como id definitivo
+   * (`RdoController::store`) — no app, é o que permite guardar o RDO no
+   * celular e mandar depois sem risco de duplicar.
+   */
+  private readonly idNovo = crypto.randomUUID();
+  /** App: RDO lançado no celular que ainda está na fila de envio (`RdoFilaService`). */
+  protected readonly rascunhoLocal = signal<RdoPendenteEnvio | null>(null);
+  private rascunhoVistoNaFila = false;
+
+  constructor() {
+    // App: quando o RDO aberto sai da fila (chegou ao servidor), troca a
+    // versão do celular pela do servidor — com número, fotos salvas e FVS.
+    effect(() => {
+      const local = this.rascunhoLocal();
+      const naFila = !!local && this.fila.itens().some((i) => i.id === local.id);
+      const enviando = this.fila.enviando();
+      if (!local) return;
+      if (naFila) {
+        this.rascunhoVistoNaFila = true;
+      } else if (this.rascunhoVistoNaFila && !enviando) {
+        untracked(() => this.trocarPeloEnviado(local.id));
+      }
+    });
+  }
   protected readonly numeroPrevisto = computed(() => this.preparo()?.proximo_numero ?? 1);
 
   ngOnInit(): void {
@@ -341,17 +374,91 @@ export class Rdo implements OnInit {
     });
 
     if (!this.ehNovo()) {
-      this.rdoApi.obter(this.rdoId()).subscribe({
-        next: (registro) => {
-          this.aplicarRegistro(registro);
-          this.carregando.set(false);
-        },
-        error: () => {
-          this.erro.set('Não foi possível carregar este relatório.');
-          this.carregando.set(false);
-        },
-      });
+      if (this.ehApp) {
+        // App: o RDO pode estar só no celular, esperando para ser enviado.
+        void this.fila
+          .obter(this.rdoId())
+          .then((local) => (local ? this.aplicarRascunhoLocal(local) : this.carregarDoServidor()));
+      } else {
+        this.carregarDoServidor();
+      }
     }
+  }
+
+  private carregarDoServidor(): void {
+    this.rdoApi.obter(this.rdoId()).subscribe({
+      next: (registro) => {
+        this.aplicarRegistro(registro);
+        this.carregando.set(false);
+      },
+      error: () => {
+        this.erro.set('Não foi possível carregar este relatório.');
+        this.carregando.set(false);
+      },
+    });
+  }
+
+  /**
+   * App: abre no formulário um RDO que está na fila do celular. O corpo
+   * guardado tem o mesmo formato do que a API devolve (tarefas, etapas,
+   * pendências, mão de obra...), então reaproveita `aplicarRegistro`; as
+   * fotos e os vídeos voltam como "selecionados, ainda não enviados".
+   */
+  private aplicarRascunhoLocal(item: RdoPendenteEnvio): void {
+    const p = item.payload as Record<string, unknown>;
+    const lista = (chave: string) => (Array.isArray(p[chave]) ? (p[chave] as Array<Record<string, unknown>>) : []);
+    const texto = (chave: string) => (typeof p[chave] === 'string' ? (p[chave] as string) : null);
+
+    const registro = {
+      id: item.id,
+      empresa_id: '',
+      obra_id: item.obraId,
+      numero: null,
+      data: texto('data') ?? hojeIso(),
+      clima_manha: texto('clima_manha'),
+      clima_tarde: texto('clima_tarde'),
+      clima_noite: texto('clima_noite'),
+      condicao_manha: texto('condicao_manha'),
+      condicao_tarde: texto('condicao_tarde'),
+      condicao_noite: texto('condicao_noite'),
+      impacto_cronograma: texto('impacto_cronograma'),
+      observacoes: texto('observacoes'),
+      status: 'rascunho',
+      assinado_em: null,
+      assinante_nome: null,
+      assinante_crea: null,
+      tarefas: lista('tarefas').map((t, i) => ({ ...t, ordem: i })),
+      etapas: lista('etapas').map((e, i) => ({ id: `${item.id}-etapa-${i}`, ...e })),
+      pendencias: lista('pendencias').map((x, i) => ({ id: `${item.id}-pendencia-${i}`, tarefa_id: null, ...x })),
+      ocorrencias: lista('ocorrencias').map((x, i) => ({ id: `${item.id}-ocorrencia-${i}`, tarefa_id: null, ...x })),
+      mao_de_obra: lista('mao_de_obra'),
+      equipamentos: lista('equipamentos'),
+      fotos: [],
+      responsaveis_presentes: [],
+      comentarios_internos: [],
+      fvs_preenchimentos: [],
+    } as unknown as RdoRegistro;
+
+    this.aplicarRegistro(registro);
+    this.rascunhoLocal.set(item);
+    const { fotos, videos } = this.fila.paraFormulario(item);
+    this.fotosSelecionadas.set(fotos);
+    this.videosSelecionados.set(videos);
+    this.carregando.set(false);
+  }
+
+  /** App: o RDO que estava aberto chegou ao servidor — passa a mostrar a versão de lá. */
+  private trocarPeloEnviado(id: string): void {
+    this.rascunhoLocal.set(null);
+    this.rascunhoVistoNaFila = false;
+    this.rdoApi.obter(id).subscribe({
+      next: (registro) => {
+        this.aplicarRegistro(registro);
+        this.erro.set(null);
+        this.aviso.set(`RDO enviado ao servidor — nº ${registro.numero}.`);
+      },
+      error: () => this.aviso.set('RDO enviado ao servidor.'),
+    });
   }
 
   /**
@@ -1025,8 +1132,16 @@ export class Rdo implements OnInit {
     const fotos = this.fotosSelecionadas();
     const videos = this.videosSelecionados();
     const ehNovo = this.ehNovo();
+
+    // App (09/10/2026): RDO novo — ou um que ainda está na fila do celular —
+    // é guardado primeiro no aparelho e a fila envia (com ou sem internet).
+    if (this.ehApp && (ehNovo || this.rascunhoLocal())) {
+      void this.guardarNoCelular(ehNovo ? this.idNovo : this.rdoId(), payload, fotos, videos);
+      return;
+    }
+
     const requisicao = ehNovo
-      ? this.rdoApi.criar({ ...payload, obra_id: this.obraId() }, fotos, videos)
+      ? this.rdoApi.criar({ ...payload, id: this.idNovo, obra_id: this.obraId() }, fotos, videos)
       : this.rdoApi.atualizar(this.rdoId(), payload, fotos, videos);
 
     requisicao.subscribe({
@@ -1046,6 +1161,74 @@ export class Rdo implements OnInit {
         this.erro.set(this.mensagemDeErro(e));
       },
     });
+  }
+
+  /**
+   * App: grava o RDO na fila do celular e já tenta enviar. Sem internet, ele
+   * fica guardado e a fila manda sozinha quando o sinal voltar.
+   */
+  private async guardarNoCelular(
+    id: string,
+    payload: Record<string, unknown>,
+    fotos: FotoSelecionada[],
+    videos: VideoSelecionado[],
+  ): Promise<void> {
+    try {
+      await this.fila.guardar({
+        id,
+        obraId: this.obraId(),
+        obraNome: this.preparo()?.obra?.obra_nome ?? null,
+        payload,
+        fotos,
+        videos,
+      });
+    } catch (e) {
+      this.salvando.set(false);
+      this.erro.set(e instanceof Error && e.message ? e.message : 'Não foi possível guardar o relatório no celular.');
+      return;
+    }
+
+    this.salvando.set(false);
+    this.aviso.set(
+      navigator.onLine
+        ? 'Relatório salvo no celular — enviando ao servidor…'
+        : 'Sem internet: o relatório ficou guardado no celular e vai ser enviado sozinho quando a internet voltar.',
+    );
+    void this.fila.enviarTudo();
+
+    if (this.ehNovo()) {
+      void this.router.navigate(['/obras', this.obraId(), 'rdo', id]);
+      return;
+    }
+
+    // Recarrega as fotos/vídeos com a identidade da fila (evita subir duas vezes o que já foi).
+    const item = await this.fila.obter(id);
+    if (item) {
+      this.rascunhoLocal.set(item);
+      const selecionados = this.fila.paraFormulario(item);
+      this.fotosSelecionadas.set(selecionados.fotos);
+      this.videosSelecionados.set(selecionados.videos);
+    }
+  }
+
+  /** App: apaga do celular um RDO que ainda não foi enviado. */
+  protected async excluirRascunhoLocal(): Promise<void> {
+    const local = this.rascunhoLocal();
+    if (!local) return;
+    const aviso = local.existeNoServidor
+      ? 'Tirar este RDO do celular? A parte que já chegou ao servidor continua lá.'
+      : 'Excluir este RDO do celular? Ele ainda não foi enviado ao servidor e vai ser perdido.';
+    if (!confirm(aviso)) return;
+
+    await this.fila.remover(local.id);
+    this.rascunhoLocal.set(null);
+    this.voltarParaLista();
+  }
+
+  /** App: "Tentar enviar de novo" de um RDO que o servidor recusou. */
+  protected tentarEnviarDeNovo(): void {
+    const local = this.rascunhoLocal();
+    if (local) void this.fila.tentarDeNovo(local.id);
   }
 
   /** Finalizar É assinar — e é o que dispara o aviso por e-mail ao contratante. */
@@ -1140,6 +1323,12 @@ export class Rdo implements OnInit {
    * invalid." em vez de dizer qual foto e por quê.
    */
   private mensagemDeErro(e: unknown): string {
+    if (e instanceof TimeoutError || (e instanceof HttpErrorResponse && e.status === 0)) {
+      return this.ehApp
+        ? 'Sem conexão com o servidor. RDO já enviado só pode ser alterado com internet.'
+        : 'Sem conexão com o servidor. Confira a internet e tente de novo.';
+    }
+
     const erro = e as { error?: { message?: string; mensagem?: string; errors?: Record<string, string[]> } };
 
     const primeiraMensagemDeCampo = erro?.error?.errors ? Object.values(erro.error.errors)[0]?.[0] : undefined;

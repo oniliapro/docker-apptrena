@@ -247,6 +247,9 @@ tr.linha-clicavel:hover td { background: var(--cor-fundo-alt); }
 
 .etiqueta-rascunho { background: var(--cor-alerta-bg); color: var(--cor-alerta); }
 .etiqueta-assinado { background: var(--cor-sucesso-bg); color: var(--cor-sucesso); text-transform: none; letter-spacing: 0; }
+/* App (09/10/2026): RDO guardado no celular, esperando internet (ou recusado pelo servidor). */
+.etiqueta-celular { background: var(--cor-alerta-bg); color: var(--cor-alerta); font-weight: 600; }
+.etiqueta-celular-erro { background: var(--cor-perigo-bg); color: var(--cor-perigo); font-weight: 600; }
 
 /* ---------- Link de acompanhamento do contratante ---------- */
 

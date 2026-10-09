@@ -97,6 +97,13 @@
   border: 1px solid var(--cor-sucesso);
 }
 
+/* App (09/10/2026): RDO guardado no celular, esperando internet para subir. */
+.alerta-celular {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  border: 1px solid var(--cor-alerta);
+}
+
 .dica {
   margin: 0 0 0.6rem;
   font-size: 0.78rem;
@@ -286,6 +293,89 @@ textarea { resize: vertical; }
   }
 
   select { font-size: 0.78rem; padding: 0.3rem 1.4rem 0.3rem 0.4rem; }
+}
+
+.opcao-clima {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+/*
+  Celular estreito (09/10/2026, app): a tabela de clima tinha 6 colunas e não
+  cabia — a página inteira passava a rolar de lado. Aqui cada turno vira um
+  bloco: o nome do turno, os quatro climas como botões (a célula inteira
+  marca o rádio) e a condição de trabalho embaixo.
+*/
+@media (max-width: 600px) {
+  .tabela-clima {
+    display: block;
+
+    thead { display: none; }
+    tbody { display: block; }
+
+    tr {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.35rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--cor-borda);
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    th[scope='row'] {
+      grid-column: 1 / -1;
+      padding: 0;
+      border: none;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 0;
+      border: none;
+    }
+
+    .opcao-clima {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.45rem 0.15rem;
+      border: 1px solid var(--cor-borda);
+      border-radius: 6px;
+      font-size: 0.72rem;
+      color: var(--cor-texto-suave);
+      text-align: center;
+
+      &::before {
+        content: attr(data-rotulo);
+        white-space: pre-line; /* símbolo numa linha, nome na outra — todos do mesmo jeito */
+        line-height: 1.25;
+      }
+
+      &:has(input:checked) {
+        border-color: var(--cor-primaria);
+        background: var(--cor-primaria-clara);
+        color: var(--cor-texto);
+        font-weight: 600;
+      }
+    }
+
+    td:last-child {
+      grid-column: 1 / -1;
+
+      &::before {
+        content: 'Condição de trabalho';
+        display: block;
+        margin-bottom: 0.2rem;
+        font-size: 0.7rem;
+        color: var(--cor-texto-suave);
+        text-align: left;
+      }
+
+      select { width: 100%; font-size: 16px; }
+    }
+  }
 }
 
 /* ---------- Linhas repetíveis ---------- */
@@ -706,6 +796,12 @@ video.miniatura-imagem {
 .etiqueta-rascunho {
   background: var(--cor-alerta-bg);
   color: var(--cor-alerta);
+}
+
+.etiqueta-celular {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-weight: 600;
 }
 
 .etiqueta-assinado {

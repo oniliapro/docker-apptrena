@@ -3334,3 +3334,37 @@ AppTrena/
   adaptação do RDO; (5) offline do RDO ainda não começou (precisa de um
   identificador único por lançamento, gerado no celular, para a API não
   duplicar quando o envio for repetido).
+
+- **09/10/2026 (tarde) — App: RDO sem internet, só o RDO no app e ícone da
+  ComTrena.** Decisões do Lucas: sem internet dá para CRIAR RDO novo (e
+  continuar editando os que ainda não subiram), com fotos E vídeos; o app
+  mostra só o RDO; o envio é automático com o app aberto. RDO já enviado
+  só se edita com internet; finalizar/assinar, FVS, PDF e link do
+  contratante continuam precisando de internet (e PDF/link ficam só no
+  site — no WebView o download não funciona e o link sairia com
+  `https://localhost`).
+
+  Como funciona (tudo no frontend, NENHUMA mudança na API nem deploy):
+  - `environment.app` (true só em `environment.mobile.ts`) troca as rotas por
+    `app.routes.app.ts` (só RDO, mesmas URLs do site) e a casca por
+    `layout/app-movel` (barra azul com "Sem internet" e "N aguardando envio").
+    O site não muda.
+  - `core/offline/cache-offline.interceptor.ts`: no app, toda consulta GET à
+    API que dá certo fica guardada no celular (IndexedDB, por usuário); sem
+    internet a tela recebe a última resposta guardada. A lista de RDOs
+    pré-carrega preparo, EAP e lista de cada obra para uso offline.
+  - `features/rdo/rdo-fila.service.ts`: salvar RDO novo no app grava primeiro
+    na fila do celular (com os arquivos) e depois envia. O id do RDO é gerado
+    no celular e vira o id definitivo (a API já aceitava `id` no store; a
+    chave primária impede duplicar). Se um envio cair sem resposta, antes de
+    reenviar confere `GET /rdo/{id}`. Servidor recusou (422 etc.) = item fica
+    "não enviado" com a mensagem, até corrigir e salvar de novo.
+  - No site também: o RDO novo passou a mandar o `id` e o envio com fotos/vídeos
+    não tem mais o tempo-limite de 15 s (o RDO chegava e a tela dizia erro).
+  - Celular estreito: a tabela de clima do RDO virou botões por turno (antes
+    a página inteira rolava de lado).
+  - Ícone/abertura: `frontend/assets/` (fontes + script) gerados com
+    `@capacitor/assets`; ver `frontend/assets/README.md`.
+  Testado com Playwright em tela de celular e API simulada: abrir sem
+  internet, criar RDO com foto sem internet, reabrir o app, editar o
+  rascunho, voltar a internet → 1 envio só, com a última versão.
