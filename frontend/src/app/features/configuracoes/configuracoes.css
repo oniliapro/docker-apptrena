@@ -1,0 +1,114 @@
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.55);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(980px, 96vw);
+  height: min(680px, 92vh);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+.modal-cabecalho button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+.modal-cabecalho button:hover {
+  color: var(--cor-perigo);
+}
+
+.modal-titulo {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.modal-corpo {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.abas-config {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-right: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+  overflow-y: auto;
+}
+
+.aba {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--raio-sm);
+  background: transparent;
+  color: var(--cor-texto);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.aba:hover:not(:disabled) {
+  background: var(--cor-superficie);
+}
+.aba.ativa {
+  background: var(--cor-primaria);
+  color: #fff;
+  font-weight: 600;
+}
+.aba:disabled {
+  color: var(--cor-texto-suave);
+  cursor: not-allowed;
+}
+
+.selo-em-breve {
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: var(--cor-fundo);
+  color: var(--cor-texto-suave);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+.painel-config {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}/*# sourceMappingURL=configuracoes.css.map */

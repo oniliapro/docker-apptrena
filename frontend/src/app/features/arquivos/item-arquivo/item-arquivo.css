@@ -14,6 +14,17 @@
 .item:hover {
   background: var(--cor-fundo-alt);
 }
+.item.item-selecionado {
+  background: var(--cor-fundo-alt);
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: -2px;
+}
+.item .caixa-selecao {
+  width: auto;
+  height: auto;
+  flex: none;
+  cursor: pointer;
+}
 
 .item-lista {
   gap: 10px;
@@ -45,6 +56,7 @@
 }
 
 .item-icone {
+  position: relative;
   flex-direction: column;
   gap: 6px;
   padding: 10px 8px;
@@ -63,6 +75,16 @@
   border-radius: var(--raio-md);
   background: var(--cor-fundo-alt);
   overflow: hidden;
+}
+.item-icone .caixa-selecao {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  opacity: 0;
+}
+.item-icone:hover .caixa-selecao, .item-icone.item-selecionado .caixa-selecao {
+  opacity: 1;
 }
 .item-icone .miniatura {
   width: 100%;

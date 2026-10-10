@@ -47,6 +47,7 @@
   align-items: center;
   height: 30px;
   padding: 0 14px;
+  border: none;
   border-radius: var(--raio-md);
   background: var(--cor-destaque);
   color: var(--cor-primaria-escura);
@@ -54,6 +55,7 @@
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 .botao-novo:hover {
   filter: brightness(1.05);
@@ -67,4 +69,122 @@
 }
 .link-medicoes:hover {
   text-decoration: underline;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo {
+  font-weight: 700;
+}
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+}
+
+.campo-largo {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .grade {
+    grid-template-columns: 1fr;
+  }
+  .campo-largo {
+    grid-column: auto;
+  }
+}
+.campo {
+  display: block;
+}
+.campo span {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 4px;
+}
+.campo span.obrigatorio::after {
+  content: " *";
+  color: var(--cor-perigo);
+}
+.campo input {
+  height: 30px;
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.erro-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--cor-perigo);
+}
+
+button.primario {
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--raio-md);
+  background: var(--cor-primaria);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primario:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+button.primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }/*# sourceMappingURL=empreitas.css.map */

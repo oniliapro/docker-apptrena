@@ -1,0 +1,376 @@
+@charset "UTF-8";
+/*
+  Lista de RDOs (F8, 22/09/2026) — o calendário É a lista: clicar numa data
+  filtra a tabela abaixo dele, clicar num RDO abre a edição (`rdo.ts`, rota
+  separada). Mesma linguagem visual de `rdo.scss`/`publico-rdo.scss` — sem
+  partial compartilhado ainda entre os três (ver o comentário de
+  `publico-rdo.scss`), classes duplicadas de propósito.
+*/
+:host {
+  display: block;
+  padding-bottom: 2rem;
+}
+
+.rdo-lista-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.rdo-lista-topo h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--cor-primaria);
+}
+
+.subtitulo {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.topo-acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.painel {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--sombra-sm);
+}
+.painel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--cor-primaria);
+}
+
+.painel.sem-preenchimento {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.alerta {
+  padding: 0.6rem 0.8rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.alerta-erro {
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  border: 1px solid var(--cor-perigo);
+}
+
+.alerta-ok {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  border: 1px solid var(--cor-sucesso);
+}
+
+.dica {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave);
+}
+
+.carregando, .vazio {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+input, select {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  /* 27/09/2026: sem `height: auto` aqui, o `height: 20px` global de
+     `input, select` (_base.scss, pensado pras tabelas densas do resto do
+     sistema) cortava o texto em cima/embaixo — mesmo bug do rdo.scss. */
+  height: auto;
+  padding: 0.4rem 0.5rem;
+}
+
+button {
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid transparent;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+}
+.botao-primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.botao-secundario {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-borda-forte);
+}
+
+.botao-remover {
+  background: none;
+  color: var(--cor-perigo);
+  border-color: transparent;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ---------- Calendário mensal — a própria lista ---------- */
+.calendario {
+  margin-bottom: 1.25rem;
+}
+
+.calendario-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.calendario-topo h2 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: capitalize;
+  color: var(--cor-primaria);
+}
+.calendario-topo button {
+  font-size: 1.3rem;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  background: var(--cor-borda);
+  border: 1px solid var(--cor-borda);
+}
+
+.cabecalho-dia {
+  background: var(--cor-fundo-alt);
+  padding: 0.35rem 0.2rem;
+  text-align: center;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+}
+
+/* Cada dia é um botão — clicar filtra a lista abaixo (ou limpa o filtro, se já estava selecionado). */
+.celula {
+  background: var(--cor-superficie);
+  min-height: 64px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  border-radius: 0;
+}
+.celula.fora {
+  background: var(--cor-fundo);
+}
+.celula.fora .numero {
+  opacity: 0.4;
+}
+.celula.hoje {
+  box-shadow: inset 0 0 0 2px var(--cor-primaria);
+}
+.celula.selecionada {
+  box-shadow: inset 0 0 0 2px var(--cor-aco);
+  background: var(--cor-primaria-clara);
+}
+.celula:hover {
+  background: var(--cor-fundo-alt);
+}
+
+.numero {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.com-registro .numero {
+  font-weight: 700;
+  color: var(--cor-sucesso);
+}
+
+.marca-dia {
+  display: inline-block;
+  background: var(--cor-sucesso);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.62rem;
+}
+.marca-dia.rascunho {
+  background: var(--cor-alerta);
+}
+
+.legenda {
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ponto {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--cor-sucesso);
+  display: inline-block;
+}
+
+.link-limpar {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--cor-primaria);
+  font-size: 0.72rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- Tabela de RDOs (filtrada pelo calendário) ---------- */
+.tabela-rdo {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.tabela-rdo th, .tabela-rdo td {
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cor-borda);
+}
+.tabela-rdo th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.centro {
+  text-align: center;
+}
+
+.mono {
+  font-family: var(--fonte-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.atenuado {
+  color: var(--cor-texto-suave);
+}
+
+tr.linha-clicavel {
+  cursor: pointer;
+}
+
+tr.linha-clicavel:hover td {
+  background: var(--cor-fundo-alt);
+}
+
+.acoes-linha button {
+  width: 26px;
+  padding: 0.15rem 0;
+  font-size: 0.8rem;
+}
+
+/* ---------- Etiquetas de status ---------- */
+.etiqueta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+
+.etiqueta-rascunho {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+
+.etiqueta-assinado {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---------- Link de acompanhamento do contratante ---------- */
+.link-item {
+  font-size: 0.78rem;
+}
+.link-item code {
+  font-family: var(--fonte);
+  font-size: 0.72rem;
+  background: var(--cor-fundo-alt);
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  word-break: break-all;
+  flex: 1;
+}
+.link-item.revogado {
+  opacity: 0.55;
+}
+
+.link-email {
+  color: var(--cor-texto-suave);
+}
+
+@media (max-width: 640px) {
+  .celula {
+    min-height: 48px;
+    padding: 0.2rem;
+  }
+  .marca-dia {
+    font-size: 0.56rem;
+  }
+  .cabecalho-dia {
+    font-size: 0.6rem;
+  }
+  .tabela-rdo {
+    font-size: 0.78rem;
+  }
+}/*# sourceMappingURL=rdo-lista.css.map */

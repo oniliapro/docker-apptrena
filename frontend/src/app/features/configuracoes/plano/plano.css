@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.titulo-secao {
+  margin: 22px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+.titulo-secao:first-child {
+  margin-top: 0;
+}
+
+.grade-plano {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 14px;
+}
+
+@media (max-width: 640px) {
+  .grade-plano {
+    grid-template-columns: 1fr;
+  }
+}
+.item-plano {
+  padding: 10px 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-fundo-alt);
+}
+.item-plano .rotulo {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 4px;
+}
+.item-plano .valor {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.botao-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  margin-top: 6px;
+  border-radius: var(--raio-md);
+  background: #25d366;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.botao-whatsapp:hover {
+  filter: brightness(1.05);
+}/*# sourceMappingURL=plano.css.map */

@@ -13,27 +13,12 @@
   gap: 10px;
 }
 
-.obra-nome {
-  flex: 0 1 auto;
-  min-width: 160px;
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 2px 4px;
+.nome-obra {
+  margin: 0;
   font-family: var(--fonte-titulo);
   font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.01em;
-}
-.obra-nome:hover {
-  border-color: var(--cor-borda);
-}
-.obra-nome:focus {
-  background: #fff;
-  border-color: var(--cor-borda);
-}
-.obra-nome:disabled {
-  background: transparent;
-  color: var(--cor-texto);
 }
 
 .espacador {
@@ -44,70 +29,13 @@
   font-size: 11px;
 }
 
-.etiqueta {
+.etiqueta-status {
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 10.5px;
   font-weight: 700;
   background: var(--cor-fundo-alt);
   color: var(--cor-texto-suave);
-}
-.etiqueta.confirmada {
-  background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
-}
-
-button.primario {
-  height: 28px;
-  padding: 0 12px;
-  border: none;
-  border-radius: var(--raio-md);
-  background: var(--cor-primaria);
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-button.primario:hover {
-  filter: brightness(1.08);
-}
-
-.grade-cabecalho {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px 14px;
-  margin-top: 12px;
-}
-
-.campo-largo {
-  grid-column: span 2;
-}
-
-@media (max-width: 900px) {
-  .grade-cabecalho {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-.campo {
-  display: block;
-}
-.campo span {
-  display: block;
-  font-family: var(--fonte-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--cor-texto-suave);
-  margin-bottom: 4px;
-}
-.campo input, .campo select {
-  height: 28px;
-  font-size: 12.5px;
-}
-.campo input:disabled, .campo select:disabled {
-  background: var(--cor-fundo-alt);
-  color: var(--cor-texto-suave);
-  cursor: not-allowed;
 }
 
 .abas {

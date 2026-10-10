@@ -1,0 +1,796 @@
+@charset "UTF-8";
+:host {
+  display: block;
+}
+
+.painel {
+  margin-bottom: 14px;
+}
+
+.painel.sem-preenchimento {
+  padding: 0;
+}
+
+.espaco-rolagem-final {
+  height: 32px;
+}
+
+.aviso-erro {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.aviso-info {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 11.5px;
+}
+
+.grade-cabecalho {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 12px;
+}
+
+.campo-largo {
+  grid-column: span 2;
+}
+
+@media (max-width: 900px) {
+  .grade-cabecalho {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.campo {
+  display: block;
+}
+.campo span {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 4px;
+}
+.campo input {
+  height: 26px;
+}
+
+.campo .valor-somente-leitura {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+  background: var(--cor-fundo-alt);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm, 4px);
+}
+
+.linha-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.linha-ferramentas + .linha-ferramentas {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cor-fundo-alt);
+}
+
+.espacador {
+  flex: 1;
+}
+
+.etiqueta {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+.etiqueta.confirmada {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+
+.rotulo-grupo {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  cursor: pointer;
+}
+.checagem-inline input {
+  width: auto;
+  height: auto;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabela-empreita {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabela-empreita th {
+  padding: 7px 5px;
+  text-align: center;
+}
+.tabela-empreita td {
+  padding: 3px 5px;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 12px;
+}
+.tabela-empreita input {
+  border: 1px solid transparent;
+  background: transparent;
+  height: 22px;
+  text-align: center;
+}
+.tabela-empreita input:hover {
+  border-color: var(--cor-borda);
+}
+.tabela-empreita input:focus {
+  background: #fff;
+}
+.tabela-empreita input.valor {
+  text-align: right;
+  font-family: var(--fonte-mono);
+  font-size: 11.5px;
+}
+
+.col-num {
+  width: 34px;
+}
+
+.col-desc {
+  min-width: 190px;
+}
+
+.col-tipo {
+  min-width: 110px;
+}
+
+.col-eap {
+  min-width: 170px;
+}
+
+.col-valor {
+  width: 100px;
+}
+
+.col-acoes {
+  width: 84px;
+}
+
+.grupo-contrato, .grupo-quantidades, .grupo-medicao, .grupo-ja-pago, .grupo-pagamento, .grupo-saldo-apos {
+  background: var(--cor-primaria-clara);
+}
+
+.celula-grupo {
+  min-width: 150px;
+  padding: 5px 8px !important;
+  vertical-align: top;
+  text-align: left;
+}
+
+.subcampo {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  gap: 6px;
+}
+
+.subcampo + .subcampo {
+  margin-top: 4px;
+}
+
+.destaque .rotulo-subcampo {
+  color: var(--cor-primaria);
+}
+
+.rotulo-subcampo {
+  flex: 0 0 68px;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.valor-subcampo {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  text-align: right;
+}
+
+.celula-grupo input.valor {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.indice {
+  font-family: var(--fonte-mono);
+  color: var(--cor-texto-suave);
+}
+
+.zebra td {
+  background: var(--cor-zebra);
+}
+
+.situacao-concluido td {
+  background: #e2f1e4;
+}
+
+.situacao-andamento td {
+  background: #fbf3d0;
+}
+
+.situacao-pagamento td {
+  background: #dcebf7;
+}
+
+.legenda-situacao {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  color: var(--cor-texto-suave);
+}
+
+.chave-situacao {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.chave-situacao.situacao-concluido {
+  background: #e2f1e4;
+}
+.chave-situacao.situacao-andamento {
+  background: #fbf3d0;
+}
+.chave-situacao.situacao-pagamento {
+  background: #dcebf7;
+}
+
+.vazio {
+  padding: 34px 16px;
+}
+
+.saldo-positivo {
+  color: var(--cor-aco);
+  font-weight: 700;
+}
+
+.saldo-negativo {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.campo-com-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.campo-com-toggle .alternar-unidade {
+  flex-shrink: 0;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  font-size: 8.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.campo-com-toggle .alternar-unidade:hover {
+  background: #fff;
+}
+
+.campo-com-toggle input.valor {
+  flex: 1;
+  min-width: 0;
+}
+
+.invalida td {
+  background: var(--cor-perigo-bg) !important;
+}
+.invalida td .celula-grupo input.valor {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.rotulo-rodape {
+  text-align: right;
+  font-weight: 700;
+}
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+  font-family: var(--fonte);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-texto);
+}
+
+.celula-grupo-rodape {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px !important;
+}
+
+.subcampo-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 22px;
+  gap: 8px;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+}
+.subcampo-rodape b {
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  text-transform: none;
+  color: var(--cor-texto);
+}
+.subcampo-rodape.destaque b {
+  font-size: 13px;
+  color: var(--cor-primaria);
+}
+
+.subcampo-rodape + .subcampo-rodape {
+  margin-top: 4px;
+}
+
+.grade-inferior {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grade-inferior {
+    grid-template-columns: 1fr;
+  }
+}
+.linha-resumo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+  font-size: 12.5px;
+}
+.linha-resumo b {
+  font-family: var(--fonte-mono);
+  font-size: 13px;
+}
+.linha-resumo.destaque {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cor-borda-forte);
+  border-bottom: none;
+}
+.linha-resumo.destaque b {
+  font-size: 15px;
+  color: var(--cor-primaria);
+}
+
+.nota {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--cor-borda);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.tabela-resumo {
+  width: 100%;
+}
+.tabela-resumo th, .tabela-resumo td {
+  padding: 5px 8px;
+  font-size: 11.5px;
+}
+.tabela-resumo tfoot th {
+  border-top: 2px solid var(--cor-borda-forte);
+}
+.tabela-resumo .acima {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.dica {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.dica kbd {
+  font-family: var(--fonte-mono);
+  font-size: 9.5px;
+  padding: 1px 4px;
+  border: 1px solid var(--cor-borda);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+}
+
+.indice-selecao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.indice-selecao input {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+
+.caixa-indice {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+
+.acoes-linha {
+  white-space: nowrap;
+}
+
+.acoes-linha-conteudo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.acoes-linha-conteudo button {
+  width: 22px;
+  padding: 2px 0;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.acoes-mover, .acoes-inserir-excluir {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acoes-inserir-excluir button:first-child {
+  background: #4a90d9;
+  border-color: #4a90d9;
+  color: #fff;
+}
+.acoes-inserir-excluir button:first-child:hover {
+  background: #3a7dc4;
+}
+.acoes-inserir-excluir button:last-child {
+  background: var(--cor-perigo);
+  border-color: var(--cor-perigo);
+  color: #fff;
+  font-size: 8px;
+}
+.acoes-inserir-excluir button:last-child:hover {
+  background: #a83a26;
+}
+
+/* Popup "PDF da empreita — o que mostrar" (25/09/2026).
+   Os estilos de modal são por componente (não há global) — sem este bloco o
+   popup renderizava solto no fim da página, sem fundo nem centralização, e
+   "não abria" pro usuário. Mesmo bloco de empreitas-obra.scss. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-estreito {
+  width: min(440px, 94vw);
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo {
+  font-weight: 700;
+}
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+.modal-rodape button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opcoes-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.titulo-opcoes-pdf {
+  margin-top: 6px;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--cor-texto-suave);
+}
+
+.colunas-pdf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 8px 0;
+}
+.colunas-pdf .checagem-inline {
+  font-size: 13px;
+}
+
+.opcao-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+.opcao-pdf .checagem-inline {
+  font-size: 13px;
+  font-weight: 600;
+}
+.opcao-pdf .pequeno {
+  margin-left: 22px;
+}
+
+input.valor.pagar-negativo {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 10mm 8mm;
+}
+.folha-rodape {
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+.grade-cabecalho {
+  gap: 4px 14px;
+}
+.grade-cabecalho .campo span:first-child {
+  font-size: 7.5px;
+  margin-bottom: 1px;
+}
+
+.valor-campo {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.grupo-contrato, .grupo-medicao, .grupo-ja-pago, .grupo-pagamento, .grupo-saldo-apos {
+  min-width: 0;
+}
+
+.tabela-empreita {
+  table-layout: fixed;
+}
+.tabela-empreita th {
+  padding: 3px 5px;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: normal;
+}
+.tabela-empreita td {
+  padding: 3px 5px;
+  font-size: 9px;
+}
+.tabela-empreita .col-num {
+  width: 22px;
+}
+.tabela-empreita .col-desc {
+  width: 11%;
+  min-width: 0;
+}
+.tabela-empreita .col-tipo {
+  width: 7%;
+  min-width: 0;
+}
+.tabela-empreita .col-eap {
+  width: 13%;
+  min-width: 0;
+}
+.tabela-empreita .celula-grupo {
+  min-width: 0;
+  padding: 3px 5px !important;
+}
+
+.rotulo-subcampo {
+  font-size: 7.5px;
+}
+
+.subcampo-rodape {
+  font-size: 8px;
+  gap: 4px;
+}
+
+.subcampo-rodape b {
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.valor-subcampo {
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+th, td {
+  overflow-wrap: break-word;
+}
+
+.descricao, .etapa {
+  text-align: left;
+  line-height: 1.3;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tr {
+  page-break-inside: avoid;
+}
+
+.grade-inferior {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 14px;
+}
+
+.grade-inferior > .painel:first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.grade-inferior > .painel:nth-child(2) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.painel-relatorio-pagamentos {
+  flex: 1 1 100%;
+}
+
+.tabela-resumo {
+  width: 100%;
+  table-layout: fixed;
+}
+.tabela-resumo th, .tabela-resumo td {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+.tabela-resumo th:first-child, .tabela-resumo td:first-child {
+  width: 40%;
+}
+
+.quebra-antes {
+  -moz-column-break-before: page;
+       break-before: page;
+}/*# sourceMappingURL=empreita-imprimir.css.map */

@@ -1,0 +1,435 @@
+@charset "UTF-8";
+/*
+  Página do contratante da obra.
+
+  Visual próprio, mais leve que o do sistema: quem abre não é usuário do
+  AppTrena, é o dono da obra abrindo um link no celular. Sem barra lateral,
+  sem menu, sem nada que sugira que há algo para editar.
+
+  O calendário segue o modelo do Google Calendário (pedido nº 15, 15/09/2026),
+  com os dias que têm relatório marcados em VERDE.
+*/
+:host {
+  display: block;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+  color: var(--cor-texto, #1f2724);
+}
+
+.topo {
+  padding: 0.5rem 0 1rem;
+  border-bottom: 2px solid var(--cor-primaria, #1b3a4b);
+  margin-bottom: 1.25rem;
+}
+.topo h1 {
+  margin: 0.15rem 0 0;
+  font-size: 1.35rem;
+  color: var(--cor-primaria, #1b3a4b);
+}
+
+.marca {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+.local {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+.aviso {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+.aviso-erro {
+  color: var(--cor-perigo, #c4462f);
+  background: var(--cor-perigo-bg, #fbeae6);
+  border-radius: 3px;
+}
+
+/* ---------- Calendário ---------- */
+.calendario {
+  background: var(--cor-superficie, #fff);
+  border: 1px solid var(--cor-borda, #dadcd5);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.calendario-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.calendario-topo h2 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: capitalize;
+  color: var(--cor-primaria, #1b3a4b);
+}
+.calendario-topo button {
+  font-size: 1.3rem;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--cor-borda, #dadcd5);
+  border-radius: 3px;
+  background: var(--cor-superficie, #fff);
+  color: var(--cor-primaria, #1b3a4b);
+  cursor: pointer;
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  background: var(--cor-borda, #dadcd5);
+  border: 1px solid var(--cor-borda, #dadcd5);
+}
+
+.cabecalho-dia {
+  background: var(--cor-fundo-alt, #eceee8);
+  padding: 0.35rem 0.2rem;
+  text-align: center;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+.celula {
+  background: var(--cor-superficie, #fff);
+  min-height: 72px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.celula.fora {
+  background: var(--cor-fundo, #f5f6f3);
+}
+.celula.fora .numero {
+  opacity: 0.4;
+}
+
+.numero {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave, #5b6560);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dia com relatório: verde, como pedido. */
+.com-registro .numero {
+  font-weight: 700;
+  color: var(--cor-sucesso, #4c7a54);
+}
+
+.marca-dia {
+  background: var(--cor-sucesso, #4c7a54);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-align: left;
+  min-height: 24px;
+}
+
+.legenda {
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave, #5b6560);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ponto {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--cor-sucesso, #4c7a54);
+  display: inline-block;
+}
+
+/* ---------- Detalhe ---------- */
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 47, 0.8);
+  display: grid;
+  place-items: start center;
+  padding: 1rem;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.modal {
+  position: relative;
+  background: var(--cor-superficie, #fff);
+  border-radius: 4px;
+  padding: 1.25rem;
+  max-width: 760px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.modal-fechar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 34px;
+  height: 34px;
+  font-size: 1.2rem;
+  line-height: 1;
+  border: 1px solid var(--cor-borda, #dadcd5);
+  border-radius: 3px;
+  background: var(--cor-superficie, #fff);
+  cursor: pointer;
+}
+
+.modal-topo {
+  border-bottom: 1px solid var(--cor-borda, #dadcd5);
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.modal-topo h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--cor-primaria, #1b3a4b);
+  padding-right: 2.5rem;
+}
+
+.modal-data {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave, #5b6560);
+  font-variant-numeric: tabular-nums;
+}
+
+.assinatura {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--cor-sucesso, #4c7a54);
+}
+
+.clima,
+.impacto {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+.bloco {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--cor-borda, #dadcd5);
+}
+.bloco h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave, #5b6560);
+}
+.bloco p {
+  margin: 0.25rem 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.chip {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt, #eceee8);
+  border: 1px solid var(--cor-borda, #dadcd5);
+}
+.chip.concluida {
+  background: var(--cor-sucesso-bg, #e4eee3);
+  color: var(--cor-sucesso, #4c7a54);
+  border-color: var(--cor-sucesso, #4c7a54);
+}
+
+.tarefa {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--cor-borda, #dadcd5);
+}
+.tarefa:last-child {
+  border-bottom: none;
+}
+
+.miniaturas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+
+.miniatura {
+  margin: 0;
+  width: 78px;
+  text-align: center;
+  cursor: pointer;
+}
+.miniatura figcaption {
+  margin-top: 0.2rem;
+  font-size: 0.66rem;
+  color: var(--cor-texto-suave, #5b6560);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.circulo {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--cor-borda-forte, #c9ccc4);
+}
+.circulo img, .circulo video {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+}
+
+/* Vídeo (F8, 22/09/2026) — ícone de "play" sobre a miniatura, já que o
+   <video> sem controles só mostra o primeiro quadro. */
+.icone-video {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.1rem;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.marcador {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: var(--cor-destaque, #e8a33d);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--cor-perigo, #c4462f);
+  pointer-events: none;
+}
+
+.marcador-grande {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.tabela th, .tabela td {
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--cor-borda, #dadcd5);
+}
+.tabela th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave, #5b6560);
+}
+.tabela .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ocorrencia {
+  margin: 0.35rem 0;
+}
+
+.meta {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+/* ---------- Foto ampliada ---------- */
+.foto-fundo {
+  place-items: center;
+}
+
+.foto-grande {
+  position: relative;
+  background: var(--cor-superficie, #fff);
+  border-radius: 4px;
+  padding: 1rem;
+  max-width: min(94vw, 900px);
+}
+
+.foto-quadro {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.foto-quadro img, .foto-quadro video {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+.foto-legenda {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+}
+
+.foto-nota {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave, #5b6560);
+}
+
+/* ---------- Celular ---------- */
+@media (max-width: 860px) {
+  :host {
+    padding: 0.75rem 0.75rem 3rem;
+  }
+  .celula {
+    min-height: 58px;
+    padding: 0.2rem;
+  }
+  .marca-dia {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.2rem;
+  }
+  .cabecalho-dia {
+    font-size: 0.6rem;
+  }
+  .modal {
+    padding: 1rem 0.85rem;
+  }
+  .tabela {
+    font-size: 0.78rem;
+  }
+}/*# sourceMappingURL=publico-rdo.css.map */

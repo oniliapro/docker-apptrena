@@ -75,6 +75,11 @@ table {
   text-decoration: underline;
 }
 
+.tabela-popup + .link-medicoes {
+  display: block;
+  margin-top: 10px;
+}
+
 .modal {
   position: fixed;
   inset: 0;

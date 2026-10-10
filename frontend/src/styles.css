@@ -26,9 +26,9 @@
   --raio-lg: 4px;
   --sombra-sm: 0 1px 2px rgba(18, 38, 47, 0.06), 0 4px 12px rgba(18, 38, 47, 0.05);
   --sombra-md: 0 2px 6px rgba(18, 38, 47, 0.08), 0 8px 20px rgba(18, 38, 47, 0.08);
-  --fonte: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  --fonte-titulo: 'Space Grotesk', 'Inter', sans-serif;
-  --fonte-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --fonte: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --fonte-titulo: var(--fonte);
+  --fonte-mono: var(--fonte);
 }
 
 * {
@@ -43,6 +43,7 @@ body {
   margin: 0;
   font-family: var(--fonte);
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--cor-texto);
   background: var(--cor-fundo);
   -webkit-font-smoothing: antialiased;
@@ -100,6 +101,7 @@ th.ordenavel:hover {
 .barra-ferramentas {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -110,6 +112,13 @@ th.ordenavel:hover {
 
 .espacador {
   flex: 1;
+}
+
+tr.linha-clicavel {
+  cursor: pointer;
+}
+tr.linha-clicavel:hover td {
+  background: var(--cor-fundo-alt);
 }
 
 .busca {
@@ -128,6 +137,10 @@ th.ordenavel:hover {
 .campo-data-filtro input[type=date] {
   width: auto;
   height: 28px;
+}
+
+textarea {
+  font-family: var(--fonte);
 }
 
 input, select {
@@ -232,7 +245,7 @@ button.perigo:hover {
 .alca-redimensionar {
   position: absolute;
   top: 0;
-  right: -3px;
+  right: 0;
   bottom: 0;
   width: 6px;
   cursor: col-resize;
@@ -246,11 +259,75 @@ button.perigo:hover {
 }
 
 .alca-redimensionar-esquerda {
-  left: -3px;
+  left: 0;
   right: auto;
 }
 
+.tabela-ajustavel th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tabela-ajustavel td {
+  overflow-wrap: anywhere;
+}
+.tabela-ajustavel input[type=checkbox] {
+  width: auto;
+}
+
+.barra-fixa {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 40;
+  background: var(--cor-fundo);
+  padding-bottom: 8px;
+}
+
+.envoltoria-fixa {
+  overflow: auto;
+  max-height: calc(100vh - var(--barra-fixa-fim, var(--barra-topo-altura)) - 12px);
+}
+
+table.cabecalho-fixo thead th,
+table[trenaRedimensionarColunas] thead th {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 5;
+  box-shadow: inset 0 -1px 0 var(--cor-borda-forte);
+}
+
+.envoltoria-fixa table.cabecalho-fixo thead th,
+.envoltoria-fixa table[trenaRedimensionarColunas] thead th,
+.modal-corpo table.cabecalho-fixo thead th,
+.modal-corpo table[trenaRedimensionarColunas] thead th {
+  top: -1px;
+}
+
+table.rodape-fixo tfoot td,
+table.rodape-fixo tfoot th {
+  position: sticky;
+  bottom: -1px;
+  z-index: 5;
+  background: var(--cor-fundo-alt);
+  box-shadow: inset 0 1px 0 var(--cor-borda-forte);
+}
+
+.envoltoria-tela-toda {
+  position: sticky;
+  top: var(--barra-topo-altura);
+  z-index: 10;
+  overflow: auto;
+  max-height: calc(100vh - var(--barra-topo-altura) - 12px);
+}
+
+.envoltoria-tela-toda table.cabecalho-fixo thead th,
+.envoltoria-tela-toda table[trenaRedimensionarColunas] thead th {
+  top: -1px;
+}
+
 @media print {
+  html, body {
+    background: #fff;
+  }
   .barra-lateral,
   .barra-topo,
   .abas,
@@ -269,4 +346,12 @@ button.perigo:hover {
     box-shadow: none !important;
     border: none !important;
   }
+  table.cabecalho-fixo thead th,
+  table[trenaRedimensionarColunas] thead th {
+    position: static !important;
+    box-shadow: none !important;
+  }
+}
+input.campo-formula {
+  box-shadow: inset 3px 0 0 var(--cor-aco);
 }/*# sourceMappingURL=styles.css.map */

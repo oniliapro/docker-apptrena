@@ -1,0 +1,178 @@
+:host {
+  display: block;
+}
+
+table {
+  table-layout: auto;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.cabecalho h1 {
+  margin: 0 0 2px;
+}
+
+.botao-novo {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--raio-md);
+  background: var(--cor-destaque);
+  color: var(--cor-primaria-escura);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.botao-novo:hover {
+  filter: brightness(1.05);
+}
+
+.mono {
+  font-family: var(--fonte-mono);
+  font-size: 11.5px;
+}
+
+.lista-empilhada {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+}
+.lista-empilhada div {
+  white-space: nowrap;
+}
+
+.link-contagem {
+  border: none;
+  background: none;
+  color: var(--cor-aco);
+  font-weight: 700;
+  font-family: var(--fonte-mono);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.link-contagem:hover {
+  color: var(--cor-primaria);
+}
+
+.link-medicoes {
+  border: none;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-aco);
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+}
+.link-medicoes:hover {
+  text-decoration: underline;
+}
+
+.tabela-popup + .link-medicoes {
+  display: block;
+  margin-top: 10px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-cartao.estreito {
+  width: min(560px, 94vw);
+  max-height: 80vh;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo {
+  font-weight: 700;
+}
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.tabela-popup {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabela-popup th, .tabela-popup td {
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+.tabela-popup th {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+}
+.tabela-popup .valor {
+  text-align: right;
+  font-family: var(--fonte-mono);
+}
+.tabela-popup .mono {
+  font-family: var(--fonte-mono);
+}
+.tabela-popup tbody tr:nth-child(odd) td {
+  background: #fafaf8;
+}
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+.etiqueta-status.pendente, .etiqueta-status.status-vencido {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+.etiqueta-status.status-encerrado {
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}/*# sourceMappingURL=contratos-equipamentos-obra.css.map */

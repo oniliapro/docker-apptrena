@@ -137,7 +137,7 @@ button:disabled {
 }
 
 .envoltoria.sem-preenchimento {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
 
@@ -213,7 +213,7 @@ button:disabled {
 }
 
 .col-num {
-  width: 36px;
+  width: 34px;
 }
 
 .col-desc {
@@ -314,6 +314,16 @@ button:disabled {
 .indice {
   font-family: var(--fonte-mono);
   color: var(--cor-texto-suave);
+}
+
+.col-numero {
+  width: 36px;
+}
+
+.numero-item {
+  font-family: var(--fonte-mono);
+  color: var(--cor-texto-suave);
+  font-size: 12px;
 }
 
 .zebra td {
@@ -878,4 +888,22 @@ tfoot tr:first-child th {
 }
 .alternar-unidade:hover {
   background: var(--cor-primaria-clara);
+}
+
+.indice-selecao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.indice-selecao input {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+
+.caixa-indice {
+  width: auto;
+  height: auto;
+  margin: 0;
 }/*# sourceMappingURL=mapa.css.map */

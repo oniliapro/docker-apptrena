@@ -332,4 +332,18 @@
 }
 .lista-mover button:hover {
   background: var(--cor-fundo-alt);
+}
+
+.celula-selecao {
+  width: 32px;
+  text-align: center;
+}
+
+.celula-selecao input {
+  width: auto;
+  height: auto;
+}
+
+.tabela-detalhes tr.item-selecionado td {
+  background: var(--cor-fundo-alt);
 }/*# sourceMappingURL=arquivos.css.map */

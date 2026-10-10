@@ -35,11 +35,81 @@ table {
   filter: brightness(1.05);
 }
 
+.barra-totais {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+.rotulo-totais {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+}
+
+.item-total b {
+  margin-left: 4px;
+}
+
+.grupo-total {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 170px;
+}
+.grupo-total .grupo-titulo {
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+}
+.grupo-total .linha-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.barra-totais {
+  align-items: flex-start;
+}
+
+.barra-totais > .item-total {
+  align-self: center;
+}
+
+.par-detalhe {
+  margin-left: 8px;
+  font-size: 11.5px;
+  color: var(--cor-texto-suave);
+}
+
+.barra-ferramentas {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
 .linha-clicavel {
   cursor: pointer;
 }
 .linha-clicavel:hover {
   background: var(--cor-fundo-alt);
+}
+
+.linha-clicavel.medicao-aberta td {
+  background: #fbf3d0;
+}
+
+.linha-clicavel.medicao-aberta:hover td {
+  background: #f6e9b0;
 }
 
 .modal {
@@ -68,6 +138,41 @@ table {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.modal-estreito {
+  width: min(480px, 94vw);
+}
+
+.modal-rodape button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opcoes-pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.aviso-atencao {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-size: 12px;
+}
+
+.aviso-erro {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg, #f6e3df);
+  color: var(--cor-perigo);
+  font-size: 12px;
 }
 
 .modal-cabecalho {
@@ -141,4 +246,173 @@ table {
   margin-top: 4px;
   font-size: 10.5px;
   color: var(--cor-perigo);
+}
+
+.valor-clicavel {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--cor-primaria);
+  cursor: pointer;
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+.valor-clicavel:hover {
+  color: var(--cor-primaria-escura);
+}
+
+.tabela-pagamentos-modal {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.tabela-pagamentos-modal th {
+  padding: 5px 8px;
+  text-align: left;
+  font-family: var(--fonte-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  background: var(--cor-fundo-alt);
+}
+.tabela-pagamentos-modal td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--cor-fundo-alt);
+}
+
+.etiqueta-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+.etiqueta-status.pendente {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+
+.checagem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  cursor: pointer;
+}
+.checagem-inline input {
+  width: auto;
+  height: auto;
+}
+
+.valor-detalhado {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.saldo-positivo {
+  color: var(--cor-aco);
+  font-weight: 700;
+}
+
+.saldo-negativo {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.celula-medicao {
+  min-width: 140px;
+}
+
+.linha-barra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.linha-barra + .linha-barra {
+  margin-top: 4px;
+}
+
+.rotulo-barra {
+  flex: 0 0 auto;
+  width: 68px;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  text-align: right;
+}
+
+.barra {
+  position: relative;
+  flex: 1 1 auto;
+  height: 18px;
+  background: var(--cor-fundo-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barra-compacta {
+  height: 14px;
+}
+
+.preenchimento-total, .preenchimento-acumulado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-total {
+  background: var(--cor-sucesso);
+  z-index: 1;
+}
+
+.preenchimento-acumulado {
+  background: var(--cor-aco);
+  z-index: 2;
+}
+
+.preenchimento-financeiro-total, .preenchimento-financeiro-pago {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-financeiro-total {
+  background: var(--cor-alerta);
+  z-index: 1;
+}
+
+.preenchimento-financeiro-pago {
+  background: var(--cor-sucesso);
+  z-index: 2;
+}
+
+.percentual {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  z-index: 3;
 }/*# sourceMappingURL=empreitas-obra.css.map */

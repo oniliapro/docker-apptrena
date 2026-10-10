@@ -121,6 +121,118 @@
   cursor: pointer;
 }
 
+.secao {
+  border-top: 1px dashed var(--cor-borda);
+  padding-top: 10px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+}
+
+.secao-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 8px;
+}
+.secao-titulo .acoes {
+  margin-top: 0;
+}
+
+.linha-repetida {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr auto;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.linha-repetida input, .linha-repetida select {
+  height: 26px;
+  font-size: 12px;
+}
+
+.bloco-repetido {
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.bloco-repetido textarea {
+  width: 100%;
+  margin: 6px 0;
+}
+.bloco-repetido .linha-campos {
+  margin-bottom: 0;
+}
+
+.campo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.campo-checkbox input {
+  margin: 0;
+}
+
+.campo-finalizar {
+  margin: 12px 0;
+  padding: 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-fundo-alt);
+}
+
+.bloco-detalhe {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.chip {
+  display: inline-block;
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin: 2px 4px 2px 0;
+  font-size: 11px;
+}
+
+.etiqueta {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-family: var(--fonte-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--cor-borda-forte);
+  color: var(--cor-texto-suave);
+}
+
+.etiqueta-ativo {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria);
+}
+
+.etiqueta-inativo {
+  border-color: var(--cor-borda-forte);
+}
+
+.cartao-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
 .modal {
   position: fixed;
   inset: 0;

@@ -25,6 +25,55 @@
   font-size: 11.5px;
 }
 
+.aviso-info {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 11.5px;
+}
+
+.lista-obras-copiar {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+}
+
+.item-obra-copiar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--cor-borda);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.item-obra-copiar:hover:not(:disabled) {
+  background: var(--cor-fundo-alt);
+}
+.item-obra-copiar:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+li:last-child .item-obra-copiar {
+  border-bottom: none;
+}
+
+.nome-obra-copiar {
+  font-weight: 600;
+}
+
 .grade-cabecalho {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -112,7 +161,7 @@
 }
 
 .envoltoria {
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
 
@@ -271,6 +320,27 @@
   color: var(--cor-texto);
 }
 
+.celula-saldo {
+  min-width: 92px;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.valor-saldo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+}
+
+.saldo-positivo {
+  color: var(--cor-aco);
+  font-weight: 700;
+}
+
+.saldo-negativo {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
 .celula-custo {
   min-width: 92px;
   text-align: right;
@@ -312,6 +382,10 @@
 
 .col-nivel {
   width: 56px;
+}
+
+.col-adicional {
+  width: 62px;
 }
 
 .col-eap {
@@ -412,6 +486,9 @@
 }
 .linha-grupo-fundo-escuro .valor-orc, .linha-grupo-fundo-escuro .valor-custo {
   color: #fff;
+}
+.linha-grupo-fundo-escuro .saldo-positivo {
+  color: var(--cor-destaque);
 }
 
 .linha-grupo-fundo-claro td {
@@ -536,6 +613,46 @@
 }
 .acoes-inserir-excluir button:last-child:hover {
   background: #a83a26;
+}
+
+.botao-fvs {
+  width: auto !important;
+  padding: 2px 6px !important;
+  font-size: 9px !important;
+  border: 1px solid var(--cor-borda-forte);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+.botao-fvs.com-vinculo {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  border-color: var(--cor-alerta);
+}
+
+.lista-fvs-modelos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lista-fvs-modelos label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.lista-fvs-modelos input[type=checkbox] {
+  width: auto;
+  height: auto;
+  flex: none;
+}
+
+.modal-cartao.estreito {
+  width: min(460px, 94vw);
 }
 
 .vazio {
@@ -836,4 +953,26 @@ tfoot th {
   border-bottom-width: 2px;
   border-radius: 3px;
   background: var(--cor-fundo-alt);
+}
+
+.col-selecao {
+  width: 34px;
+}
+
+input.celula-formula {
+  box-shadow: inset 3px 0 0 var(--cor-aco);
+}
+
+input.celula-erro {
+  background: var(--cor-perigo-bg);
+  border-color: var(--cor-perigo);
+}
+
+.aviso-formulas {
+  padding: 2px 8px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 11.5px;
+  cursor: help;
 }/*# sourceMappingURL=eap.css.map */

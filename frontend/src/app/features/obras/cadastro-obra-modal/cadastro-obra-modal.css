@@ -1,0 +1,163 @@
+:host {
+  display: block;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: relative;
+  width: min(720px, 94vw);
+  max-height: 88vh;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo {
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.acoes-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.etiqueta {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+.etiqueta.confirmada {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+
+.fechar {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  flex: 0 0 auto;
+}
+.fechar:hover {
+  color: var(--cor-perigo);
+}
+
+.modal-corpo {
+  padding: 16px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.subtitulo-secao {
+  margin: 18px 0 2px;
+  font-size: 0.95rem;
+  border-top: 1px solid var(--cor-borda);
+  padding-top: 14px;
+}
+
+.dica {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave, #666);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+}
+
+.campo-largo {
+  grid-column: span 2;
+}
+
+.campo-total {
+  grid-column: 1/-1;
+}
+
+@media (max-width: 640px) {
+  .grade {
+    grid-template-columns: 1fr;
+  }
+  .campo-largo, .campo-total {
+    grid-column: auto;
+  }
+}
+.campo {
+  display: block;
+}
+.campo span {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  margin-bottom: 4px;
+}
+.campo span.obrigatorio::after {
+  content: " *";
+  color: var(--cor-perigo);
+}
+.campo input, .campo select {
+  height: 30px;
+  font-size: 13px;
+  padding: 4px 8px;
+}
+.campo input.somente-leitura {
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+  font-family: var(--fonte-mono);
+  cursor: not-allowed;
+}
+
+.erro-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--cor-perigo);
+}/*# sourceMappingURL=cadastro-obra-modal.css.map */

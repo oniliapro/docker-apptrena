@@ -1,0 +1,16 @@
+:host {
+  display: block;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+app-empreita-resumo-bloco + app-empreita-resumo-bloco {
+  margin-top: 18px;
+}/*# sourceMappingURL=empreita-resumo-profissional-imprimir.css.map */

@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+.faixa-papel-timbrado {
+  display: block;
+  width: 100%;
+  max-height: 25mm;
+  -o-object-fit: cover;
+     object-fit: cover;
+  margin-bottom: 4mm;
+}
+
+.folha-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--cor-primaria);
+  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+}
+
+.identidade-empresa {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+}
+
+.logo-texto {
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+.logo-imagem {
+  display: block;
+  max-height: 12mm;
+  max-width: 40mm;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+.subtitulo {
+  font-size: 10.5px;
+  color: var(--cor-texto-suave);
+  margin-top: 2px;
+}
+
+.gerado-em {
+  font-size: 9.5px;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}/*# sourceMappingURL=cabecalho-impressao.css.map */

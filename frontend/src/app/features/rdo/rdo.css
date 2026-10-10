@@ -1,0 +1,925 @@
+@charset "UTF-8";
+/*
+  RDO — dois layouts no mesmo template (pedido de 08/09/2026: desktop e
+  celular como formatos distintos, não um responsivo que só encolhe).
+
+  Desktop: todas as seções abertas, lado a lado quando cabe. Quem lança do
+  escritório precisa ver o documento inteiro.
+
+  Celular (abaixo de $quebra-mobile): as seções viram acordeão, uma por vez,
+  com alvos de toque grandes. Quem está no canteiro preenche com uma mão só e
+  não pode rolar dez telas para achar um campo.
+*/
+:host {
+  display: block;
+  padding-bottom: 4rem;
+}
+
+.rdo-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.rdo-topo h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--cor-primaria);
+}
+
+.rdo-subtitulo {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.rdo-topo-acoes {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.botao-voltar {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+  cursor: pointer;
+}
+.botao-voltar:hover {
+  color: var(--cor-primaria);
+  text-decoration: underline;
+}
+
+.painel {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--sombra-sm);
+}
+.painel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--cor-primaria);
+}
+.painel h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.alerta {
+  padding: 0.6rem 0.8rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.alerta-erro {
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  border: 1px solid var(--cor-perigo);
+}
+
+.alerta-ok {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  border: 1px solid var(--cor-sucesso);
+}
+
+.dica {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave);
+}
+
+.carregando,
+.vazio {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+/* ---------- Seções (acordeão no celular) ---------- */
+.secao-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: default;
+  text-align: left;
+}
+.secao-cabecalho h2 {
+  margin: 0;
+}
+
+.secao-resumo {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.secao-corpo {
+  margin-top: 0.75rem;
+}
+
+/* ---------- Grades de campo ---------- */
+.grade-cabecalho,
+.grade-identificacao,
+.grade-dupla,
+.grade-tripla {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.grade-cabecalho {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.grade-identificacao {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.grade-dupla {
+  grid-template-columns: 1fr 1fr;
+}
+
+.grade-tripla {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.largo,
+.campo-largo {
+  grid-column: 1/-1;
+}
+
+.grade-cabecalho-leitura > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.grade-cabecalho-leitura > div span {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave, #666);
+}
+.grade-cabecalho-leitura > div strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
+.campo-largo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.5rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--cor-texto);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  /* 26/09/2026: padding vertical maior (o texto de alguns campos — sobretudo
+     select e number — estava saindo cortado em cima/embaixo) e padding-direito
+     maior no select, pra sobrar espaço da seta nativa sem tapar o texto.
+     27/09/2026: a causa real do corte era outra — o `height: 20px` global
+     de `input, select` (_base.scss, pensado pras tabelas densas do resto do
+     sistema) continuava valendo aqui por cima do padding maior, porque este
+     bloco nunca declarava `height` próprio. `height: auto` deixa a altura
+     seguir o padding + line-height de novo, em vez do valor fixo de 20px. */
+  height: auto;
+  padding: 0.5rem 0.6rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--cor-aco);
+  outline-offset: 1px;
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+
+select {
+  padding-right: 1.8rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.campo-qtde {
+  max-width: 84px;
+  padding-right: 0.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  /* Sem isso a caixa herdava o padding do input de texto (varredura de 26/09/2026) — ficava com uma área clicável bem maior que o quadrado visível. */
+}
+.checkbox input {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.clima {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin: 0.5rem 0;
+}
+.clima legend {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+  padding: 0 0.3rem;
+}
+
+/* Clima em tabela (26/09/2026): linha = condição, coluna = turno — um rádio
+   por célula, só uma condição marcada por turno (coluna). */
+.tabela-clima {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.tabela-clima th,
+.tabela-clima td {
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  border-bottom: 1px solid var(--cor-borda);
+}
+.tabela-clima th[scope=row] {
+  text-align: left;
+  font-weight: 400;
+  color: var(--cor-texto);
+}
+.tabela-clima thead th {
+  color: var(--cor-texto-suave);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom-width: 2px;
+}
+.tabela-clima tbody tr:last-child td,
+.tabela-clima tbody tr:last-child th {
+  border-bottom: none;
+}
+.tabela-clima input[type=radio] {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+.tabela-clima select {
+  font-size: 0.78rem;
+  padding: 0.3rem 1.4rem 0.3rem 0.4rem;
+}
+
+/* ---------- Linhas repetíveis ---------- */
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.bloco {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--cor-fundo);
+}
+
+.colunas-mao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.coluna-mao {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+}
+.coluna-mao app-autocomplete {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Equipamentos alugados (26/09/2026): linha manual tem 3 campos de texto + quantidade — quebra em 2 linhas nas colunas estreitas. */
+.linha-equip-alugado {
+  flex-wrap: wrap;
+}
+.linha-equip-alugado input[type=text] {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+.linha-equip-alugado .valor-contrato {
+  flex: 1 1 140px;
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave, #666);
+}
+.linha-equip-alugado .checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.linha-equip-alugado .checkbox input {
+  width: auto;
+}
+
+/* Pendências/ocorrências/observações GERAIS do dia (26/09/2026), na seção "Fotos e vídeos do dia". */
+.bloco-geral {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px dashed var(--cor-borda);
+}
+.bloco-geral h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+}
+
+/* Linha de mão de obra com profissional vinculado (F9): só mostra o rótulo, sem inputs (função/quantidade vêm do cadastro). */
+.profissional-linha {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.botao-manual {
+  flex: 1 1 auto;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+}
+
+/* Os dois botões da mão de obra (adicionar selecionado / lançamento manual), lado a lado. */
+.linha-botoes-mao {
+  display: flex;
+  gap: 0.4rem;
+}
+.linha-botoes-mao .botao-manual:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Botões ---------- */
+button {
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid transparent;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+}
+.botao-primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.botao-secundario {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-borda-forte);
+}
+
+.botao-adicionar {
+  background: none;
+  color: var(--cor-aco);
+  border: 1px dashed var(--cor-borda-forte);
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
+.botao-remover {
+  background: none;
+  color: var(--cor-perigo);
+  border-color: transparent;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.botao-foto {
+  display: inline-block;
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  width: auto;
+}
+
+.rdo-acoes {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ---------- Tarefas ---------- */
+.tarefa {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.6rem;
+  margin-bottom: 0.6rem;
+  background: var(--cor-fundo);
+}
+
+.tarefa-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tarefa-numero {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--cor-primaria);
+  color: #fff;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  /* Alinha com a 1ª linha do bloco ao lado, não com o bloco inteiro. */
+  margin-top: 0.15rem;
+}
+
+/* Descrição do serviço (26/09/2026: substitui "Nome da etapa" e "O que foi
+   executado nesta frente" — as duas viraram um campo só) + concluída/EAP
+   logo abaixo, na mesma tarefa (era a seção "Etapas", separada). */
+.tarefa-corpo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tarefa-vinculo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.tarefa-vinculo app-autocomplete {
+  flex: 1 1 220px;
+}
+
+.tarefa-observacoes-campo {
+  margin-top: 0.3rem;
+}
+.tarefa-observacoes-campo textarea {
+  width: 100%;
+}
+
+/* Pendências e ocorrências da tarefa (26/09/2026: substituem as seções
+   "Pendências" e "Ocorrências", separadas — cada tarefa pode gerar quantas
+   quiser, não só uma). */
+.tarefa-pendencia,
+.tarefa-ocorrencia {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--cor-borda);
+}
+
+.pendencia-campos,
+.ocorrencia-campos {
+  margin: 0.4rem 0 0.4rem 1.8rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-superficie);
+}
+
+.tarefa-fotos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding-left: 1.8rem;
+}
+
+/* ---------- Fotos: miniaturas circulares ---------- */
+.miniaturas,
+.galeria-edicao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.miniatura {
+  margin: 0;
+  width: 84px;
+  text-align: center;
+  cursor: pointer;
+}
+.miniatura figcaption {
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  color: var(--cor-texto-suave);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.miniatura-circulo {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--cor-borda-forte);
+}
+.miniatura-circulo img, .miniatura-circulo video {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+}
+
+/* Vídeo (F8, 22/09/2026) — ícone de "play" sobre a miniatura circular, já
+   que o <video> sem controles só mostra o primeiro quadro. */
+.icone-video {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.1rem;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.miniatura-edicao {
+  margin: 0;
+  width: 132px;
+}
+.miniatura-edicao figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+.miniatura-edicao input {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.35rem;
+}
+.miniatura-edicao .botao-remover {
+  font-size: 0.7rem;
+  align-self: flex-start;
+}
+
+/* Foto/vídeo JÁ salvo, mostrado junto dos recém-escolhidos ao editar
+   (22/09/2026, F8) — a miniatura abre o popup de ampliar em vez do
+   croqui/legenda-editável dos recém-escolhidos. */
+.miniatura-salva .miniatura-imagem {
+  cursor: pointer;
+}
+
+.legenda-salva {
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave);
+  word-break: break-word;
+}
+
+.miniatura-imagem {
+  position: relative;
+  width: 132px;
+  height: 100px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.miniatura-imagem img {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+}
+
+/* Vídeo (F8, 22/09/2026): a prévia é o próprio elemento `<video>` com
+   `.miniatura-imagem` — mesmo tamanho/moldura da foto, mas sem o cursor de
+   croqui (não existe marcação de ponto em vídeo) e com controles nativos. */
+video.miniatura-imagem {
+  width: 132px;
+  height: 100px;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+  cursor: auto;
+}
+
+.botao-video {
+  background: var(--cor-fundo-alt);
+}
+
+/* Croqui: ponto marcado sobre a foto. Posicionado em %, por isso acompanha
+   qualquer tamanho de exibição. */
+.marcador {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--cor-destaque);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--cor-perigo);
+  pointer-events: none;
+}
+
+.marcador-grande {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+}
+
+/* ---------- Popup da foto ---------- */
+.popup-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 47, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 60;
+}
+
+.popup {
+  position: relative;
+  background: var(--cor-superficie);
+  border-radius: 4px;
+  padding: 1rem;
+  max-width: min(92vw, 900px);
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.popup-imagem {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.popup-imagem img, .popup-imagem video {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+.popup-fechar {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+}
+
+.popup-legenda {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+}
+
+.popup-nota {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+/* ---------- Etiquetas de status (rascunho/assinado) — no topo do editor ---------- */
+.etiqueta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+
+.etiqueta-rascunho {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+}
+
+.etiqueta-assinado {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---------- Celular: acordeão ---------- */
+/* 860px = $quebra-mobile em styles/_tokens.scss. Literal aqui porque
+   nenhum componente do projeto importa o arquivo de tokens — todos usam só
+   as custom properties, e custom property não funciona dentro de @media. */
+@media (max-width: 860px) {
+  .rdo-topo {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rdo-topo-acoes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .grade-dupla,
+  .grade-tripla,
+  .colunas-mao {
+    grid-template-columns: 1fr;
+  }
+  /* A tabela de clima cabe em 4 colunas estreitas mesmo no celular — só encolhe a fonte. */
+  .tabela-clima {
+    font-size: 0.72rem;
+  }
+  /* Uma seção por vez: o corpo só aparece na que está aberta. */
+  .secao .secao-corpo {
+    display: none;
+  }
+  .secao.aberta .secao-corpo {
+    display: block;
+  }
+  .secao-cabecalho {
+    cursor: pointer;
+    padding: 0.2rem 0;
+    min-height: 44px; /* alvo de toque */
+  }
+  .secao-cabecalho::after {
+    content: "▾";
+    color: var(--cor-texto-suave);
+    margin-left: 0.5rem;
+  }
+  .secao.aberta .secao-cabecalho::after {
+    content: "▴";
+  }
+  /* Alvos maiores para quem está de luva, em pé, no canteiro. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.55rem 0.6rem;
+  } /* 16px evita zoom no iOS */
+  button {
+    min-height: 40px;
+  }
+  .botao-foto {
+    display: block;
+    text-align: center;
+    width: 100%;
+  }
+  .tarefa-fotos {
+    padding-left: 0;
+  }
+}
+/* ---------- Fichas de Verificação de Serviço (F10, 25/09/2026) ---------- */
+.secao-cabecalho-fixo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--cor-borda);
+}
+.secao-cabecalho-fixo h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ficha-fvs {
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  padding: 0.8rem;
+  margin: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ficha-fvs-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.etiqueta-status-fvs {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.etiqueta-status-fvs.status-pendente {
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+.etiqueta-status-fvs.status-aprovada {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+.etiqueta-status-fvs.status-reprovada {
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+}
+
+.ficha-fvs-item {
+  border-top: 1px solid var(--cor-borda);
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ficha-fvs-item-descricao {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ficha-fvs-resultados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ficha-fvs-resultados label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.ficha-fvs-resultados label.selecionado {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria-clara);
+}
+.ficha-fvs-resultados label input {
+  width: auto;
+}
+
+.ficha-fvs-fotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}/*# sourceMappingURL=rdo.css.map */

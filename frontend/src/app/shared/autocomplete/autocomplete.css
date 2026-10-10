@@ -1,0 +1,61 @@
+:host {
+  display: block;
+}
+
+input,
+textarea {
+  text-align: left;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 20px;
+  margin: 0;
+  padding: 1px 4px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--cor-texto);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+}
+
+textarea:disabled {
+  background: var(--cor-fundo-alt);
+  color: var(--cor-texto-suave);
+}
+
+.lista {
+  position: fixed;
+  z-index: 400;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+  overflow-y: auto;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: var(--raio-sm);
+  box-shadow: var(--sombra-md);
+  font-size: 12px;
+  text-align: left;
+}
+.lista li {
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: normal;
+  line-height: 1.3;
+}
+.lista li.ativa {
+  background: var(--cor-fundo-alt);
+}
+.lista li.selecionada {
+  font-weight: 600;
+}
+.lista li.vazia {
+  cursor: default;
+  color: var(--cor-texto-suave);
+}/*# sourceMappingURL=autocomplete.css.map */

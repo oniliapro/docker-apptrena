@@ -1,0 +1,378 @@
+:host {
+  display: block;
+}
+
+.painel-titulo {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.painel-titulo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.saldo-positivo {
+  color: var(--cor-aco);
+  font-weight: 700;
+}
+
+.saldo-negativo {
+  color: var(--cor-perigo);
+  font-weight: 700;
+}
+
+.tabela-relatorio-pagamentos {
+  table-layout: fixed;
+  margin-left: auto;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.tabela-relatorio-pagamentos th {
+  padding: 5px 6px;
+  text-align: center;
+  background: var(--cor-primaria-clara);
+  font-family: var(--fonte-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  font-weight: 600;
+}
+.tabela-relatorio-pagamentos td {
+  padding: 4px 6px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+}
+.tabela-relatorio-pagamentos tr:last-child td {
+  border-bottom: none;
+}
+
+.col-num {
+  width: 100px;
+}
+
+.col-data {
+  width: 90px;
+}
+
+.col-valor {
+  width: 240px;
+}
+
+.centro {
+  text-align: center;
+}
+
+.atenuado {
+  color: var(--cor-texto-suave);
+}
+
+.marca-pendente {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.celula-valor-pago {
+  padding: 4px 8px !important;
+}
+
+.linha-empilhada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+}
+.linha-empilhada + .linha-empilhada {
+  border-top: 1px dashed var(--cor-fundo-alt);
+}
+.linha-empilhada.destaque {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid var(--cor-borda-forte) !important;
+}
+
+.rotulo-empilhado {
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.valor-empilhado {
+  font-family: var(--fonte-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.destaque .valor-empilhado {
+  font-weight: 700;
+}
+
+.rotulo-rodape {
+  text-align: right;
+  font-weight: 700;
+}
+
+tfoot th {
+  background: var(--cor-fundo-alt);
+  border-top: 2px solid var(--cor-borda-forte);
+}
+
+.col-medicao {
+  width: 130px;
+}
+
+.celula-medicao {
+  min-width: 130px;
+}
+
+.barra {
+  position: relative;
+  height: 16px;
+  background: var(--cor-fundo-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barra-compacta {
+  height: 14px;
+}
+
+.preenchimento-total, .preenchimento-acumulado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.preenchimento-total {
+  background: var(--cor-sucesso);
+  z-index: 1;
+}
+
+.preenchimento-acumulado {
+  background: var(--cor-aco);
+  z-index: 2;
+}
+
+.percentual {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  z-index: 3;
+}
+
+.linha-clicavel {
+  cursor: pointer;
+}
+.linha-clicavel:hover {
+  background: var(--cor-fundo-alt);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.modal-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.modal-cartao {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(820px, 94vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: var(--cor-fundo-alt);
+}
+
+.modal-titulo {
+  font-weight: 700;
+}
+
+.modal-corpo {
+  padding: 14px;
+  overflow: auto;
+}
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.envoltoria {
+  overflow-x: auto;
+}
+
+.tabela-detalhe-snapshot {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.tabela-detalhe-snapshot th {
+  padding: 5px 8px;
+  text-align: left;
+  font-family: var(--fonte-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor-texto-suave);
+  background: var(--cor-fundo-alt);
+}
+.tabela-detalhe-snapshot td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--cor-fundo-alt);
+}
+
+.col-num {
+  width: 92px;
+}
+
+.col-beneficiado {
+  width: 150px;
+}
+
+.col-data {
+  width: 136px;
+}
+
+.col-pct {
+  width: 132px;
+}
+
+.col-acoes {
+  width: 128px;
+}
+
+.beneficiado {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.celula-datas .linha-empilhada, .celula-pct .linha-empilhada {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rotulo-empilhado {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+}
+
+.celula-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.celula-acoes button {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.linha-clicavel {
+  cursor: pointer;
+}
+
+.celula-pct .linha-empilhada {
+  align-items: center;
+}
+
+.celula-pct .barra {
+  flex: 1 1 auto;
+  margin-left: 6px;
+}
+
+.preenchimento-avanco {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--cor-destaque);
+  z-index: 1;
+}
+
+.linha-clicavel:hover td {
+  background: color-mix(in srgb, var(--cor-primaria) 5%, #fff);
+}
+
+.col-pct {
+  width: 190px;
+}
+
+.celula-pct .linha-empilhada, .celula-valor-pago .linha-empilhada, .celula-datas .linha-empilhada {
+  min-height: 24px;
+  box-sizing: border-box;
+}
+
+.barra-financeira .preenchimento-acumulado {
+  background: var(--cor-sucesso);
+}
+
+.tabela-relatorio-pagamentos td:not(.celula-pct):not(.celula-valor-pago) {
+  vertical-align: middle;
+}
+
+.celula-acoes {
+  justify-content: center;
+}
+
+.celula-pct .rotulo-empilhado {
+  flex: 0 0 62px;
+}
+
+.celula-pct .barra {
+  min-width: 110px;
+}/*# sourceMappingURL=empreita-relatorio-pagamentos.css.map */

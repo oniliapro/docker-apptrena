@@ -1,0 +1,178 @@
+:host {
+  display: block;
+}
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dica {
+  margin: 6px 0 16px;
+  font-size: 11.5px;
+  color: var(--cor-texto-suave);
+}
+
+.alerta {
+  padding: 8px 10px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
+}
+
+.alerta-erro {
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+}
+
+.carregando, .vazio {
+  padding: 16px 0;
+  text-align: center;
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.lista-modelos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lista-modelos li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linha-modelo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+  background: var(--cor-superficie);
+  cursor: pointer;
+}
+.linha-modelo:hover {
+  background: var(--cor-fundo-alt);
+}
+
+.nome-modelo {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qtde-itens {
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+}
+
+button {
+  font: inherit;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+  border-color: var(--cor-primaria);
+}
+.botao-primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.botao-secundario {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-borda-forte);
+}
+
+.botao-remover {
+  background: none;
+  color: var(--cor-perigo);
+  border-color: transparent;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.botao-adicionar {
+  background: none;
+  color: var(--cor-aco);
+  border: 1px dashed var(--cor-borda-forte);
+  width: 100%;
+  margin-top: 4px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.campo span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+.campo input {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+}
+.campo .obrigatorio::after {
+  content: " *";
+  color: var(--cor-perigo);
+}
+
+.itens-modelo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rotulo-itens {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.linha-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.linha-item input {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 3px;
+}
+
+.rodape-form {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}/*# sourceMappingURL=fvs-modelos.css.map */
