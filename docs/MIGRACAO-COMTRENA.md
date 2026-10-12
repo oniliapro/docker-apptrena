@@ -8,7 +8,9 @@ arquivos: a migração só muda o endereço. Complementa o checklist de
 
 - `comtrena.com.br` está na conta Hostinger da Onilia, ativo até 02/10/2028.
 - Registro `A @` apontava para o IP de domínio estacionado (`2.57.91.91`,
-  TTL 50). Precisa apontar para o IP da VPS (`187.77.59.52`).
+  TTL 50). **Feito em 12/10/2026:** agora aponta para o IP da VPS
+  (`187.77.59.52`, TTL 300). Para voltar atrás, devolver `2.57.91.91`
+  (a Hostinger só aceita TTL entre 60 e 86400).
 - `www` já é um CNAME para `comtrena.com.br`: não precisa mexer.
 - Registros de e-mail (MX, SPF, DKIM, DMARC) são da Hostinger: não mexer.
 - `trenadigital.com.br` NÃO está nessa conta (registrado em outro lugar).
