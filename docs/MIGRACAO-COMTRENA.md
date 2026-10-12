@@ -56,13 +56,13 @@ já estiver apontando para a VPS. Conferir: `dig +short comtrena.com.br`.
 
 ```
 APP_URL=https://comtrena.com.br
-PDF_FRONTEND_URL=https://comtrena.com.br
+PDF_FRONTEND_URL=https://comtrena.com.br/app
 PDF_API_URL=https://comtrena.com.br/api
 CORS_ALLOWED_ORIGINS=https://comtrena.com.br,https://www.comtrena.com.br,https://trenadigital.com.br
 ```
 
-(Se o `.env` já tiver `https://localhost,capacitor://localhost` no CORS, para o
-app, manter.) Depois:
+(O valor real de produção de `PDF_FRONTEND_URL` termina em `/app`. O CORS já
+tinha `https://localhost,capacitor://localhost`, para o app: manter.) Depois:
 
 ```bash
 docker exec controleobra-phpfpm php artisan config:cache
@@ -95,3 +95,18 @@ uma vez no endereço novo (a sessão do navegador é por domínio).
 DNS: devolver o `A @` para o valor antigo. nginx: restaurar o arquivo de
 `sites-available` (guardar uma cópia antes: `cp arquivo arquivo.bak`).
 `.env`: restaurar o valor antigo e rodar `php artisan config:cache`.
+
+## Feito em 12/10/2026 (conferido na VPS)
+
+- Snapshot da VPS criado no hPanel (20:23) e backup próprio em
+  `~/backup-pre-comtrena-20261012-2328` (banco, storage, os dois `.env`, nginx).
+- nginx: em vez de editar o arquivo do domínio antigo, foi criado
+  `/etc/nginx/sites-available/comtrena.conf` (link em `sites-enabled`), cópia
+  dos `location` de `trenadigital.conf`. Certificado próprio emitido com
+  `certbot --nginx -d comtrena.com.br -d www.comtrena.com.br` (vence 10/01/2027,
+  renovação automática). O arquivo do domínio antigo não foi tocado.
+- `controleobra-api/.env` atualizado e `config:cache` rodado.
+- Testes por curl: `/` = 200 e `/api/obras` = 401 (sem token) nos dois
+  domínios; preflight CORS = 204.
+- Pendente: login/obra/foto/PDF no navegador, redirecionar páginas do
+  domínio antigo, publicar o commit do rodapé/`apiUrl`.
