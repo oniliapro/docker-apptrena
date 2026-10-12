@@ -30,5 +30,5 @@ export const environment = {
    * RDO — ver `app.routes.app.ts` e `core/offline/`.
    */
   app: true,
-  apiUrl: 'https://trenadigital.com.br/api',
+  apiUrl: 'https://comtrena.com.br/api',
 };
