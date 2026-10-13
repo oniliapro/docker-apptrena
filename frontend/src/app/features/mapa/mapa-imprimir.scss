@@ -31,10 +31,26 @@
 .folha-cabecalho {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   border-bottom: 2px solid var(--cor-primaria);
   padding-bottom: 4mm;
   margin-bottom: 5mm;
+}
+
+// Canto superior direito (13/10/2026, pedido do Lucas: tirar "gerado com
+// ComTrena" de perto da assinatura da empresa e colocar a logomarca
+// completa do ComTrena aqui embaixo do "Gerado em", só no PDF — a tela
+// normal continua com o rodapé de assinatura de sempre, ver mapa.html).
+.info-geracao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.logomarca-comtrena-cabecalho {
+  height: 16px;
+  width: auto;
 }
 
 // Michroma (28/09/2026, manual de identidade) — título do documento

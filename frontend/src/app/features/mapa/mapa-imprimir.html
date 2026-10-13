@@ -10,14 +10,12 @@
         }
         <span class="nome-marca">{{ nomeEmpresa() }}</span>
       </div>
-      <span class="separador-assinatura">gerado com</span>
-      <div class="marca-sistema">
-        <img class="simbolo-sistema" src="marca/comtrena-simbolo-para-fundo-claro.svg" alt="" />
-        <span class="nome-marca">ComTrena</span>
-      </div>
     </div>
   </div>
-  <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm) }}</div>
+  <div class="info-geracao">
+    <div class="gerado-em">Gerado em {{ formatarDataHora(geradoEm) }}</div>
+    <img class="logomarca-comtrena-cabecalho" src="marca/comtrena-logomarca-para-fundo-claro.svg" alt="ComTrena" />
+  </div>
 </header>
 
 @if (store.carregando()) {
