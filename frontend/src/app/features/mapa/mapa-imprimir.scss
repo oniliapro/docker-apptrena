@@ -27,88 +27,15 @@
 }
 
 // ---- Cabeçalho/rodapé do documento — só existem na versão impressa
-// (a tela normal usa o AppShell pra isso, que aqui não existe). ----
-.folha-cabecalho {
-  display: flex;
-  justify-content: space-between;
-  // `flex-end` (não `flex-start`/`center`): alinha os RODAPÉS das duas
-  // colunas — a linha da assinatura da empresa (à esquerda, embaixo do
-  // título "Mapa de Cotação") com a logomarca do ComTrena (à direita,
-  // embaixo do "Gerado em"), que é a última linha dos dois lados — sem
-  // precisar calcular a altura do título pra bater certo (13/10/2026,
-  // pedido do Lucas: "ajustar o alinhamento da logo da empresa... com a
-  // logo do comtrena").
-  align-items: flex-end;
-  border-bottom: 2px solid var(--cor-primaria);
-  padding-bottom: 4mm;
-  margin-bottom: 5mm;
-}
-
-// Canto superior direito (13/10/2026, pedido do Lucas: tirar "gerado com
-// ComTrena" de perto da assinatura da empresa e colocar a logomarca
-// completa do ComTrena aqui embaixo do "Gerado em", só no PDF — a tela
-// normal continua com o rodapé de assinatura de sempre, ver mapa.html).
-.info-geracao {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-}
-
-.logomarca-comtrena-cabecalho {
-  height: 32px;
-  width: auto;
-}
-
-// Michroma (28/09/2026, manual de identidade) — título do documento
-// ("Mapa de Cotação"), caixa alta com espaçamento aberto.
-.logo-texto {
-  font-family: var(--fonte-documento-titulo);
-  font-size: 15px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--cor-primaria);
-}
-
-// Logo + nome da empresa maiores (13/10/2026, pedido do Lucas — igualar
-// a escala da logomarca do ComTrena ao lado, 32px) — só no PDF do Mapa;
-// override por cima do que `mapa.scss` define pra tela (14px/44px antes
-// daqui, 22px na tela normal). Sem logo cadastrada, cai pro monograma
-// de sempre (`.monograma-empresa`, mapa.scss) — aumentado junto, mesma
-// proporção, pra não ficar pequeno demais do lado do nome maior.
-.logo-marca-empresa {
-  height: 32px;
-  max-width: 90px;
-  object-fit: contain;
-  vertical-align: middle;
-}
-
-.monograma-empresa {
-  width: 32px;
-  height: 32px;
-  font-size: 15px;
-}
-
-.marca-empresa .nome-marca {
-  font-size: 16px;
-}
-
-// Assinatura da empresa (23/08/2026, pedido do Lucas) — trocou de lugar
-// com o texto "Mapa de Cotações": antes vivia dentro da tabela (célula
-// `.assinatura-documento`, ver mapa.scss/mapa-imprimir.html), agora é
-// aqui no cabeçalho da folha que ela aparece — mesmo bloco reaproveitado
-// (`.bloco-assinatura`/`.marca-empresa`/`.marca-sistema`, todos vindos de
-// mapa.scss via `@use`), só com uma margem pra ficar embaixo do título.
-.subtitulo-assinatura {
-  margin-top: 3px;
-}
-
-.gerado-em {
-  font-size: 9.5px;
-  color: var(--cor-texto-suave);
-  white-space: nowrap;
-}
-
+// (a tela normal usa o AppShell pra isso, que aqui não existe). 13/10/2026:
+// o cabeçalho próprio ("Mapa de Cotação" + assinatura da empresa +
+// logomarca do ComTrena, tudo construído à mão aqui) foi trocado pelo
+// `<app-cabecalho-impressao>` compartilhado (mesmo usado por EAP/
+// Empreita/Medição/Cronograma de Desembolso/Relatórios), a pedido do
+// Lucas — "aplique o mesmo padrão do PDF da EAP". Estilos específicos do
+// cabeçalho antigo (`.folha-cabecalho`, `.logo-texto`, `.info-geracao`,
+// `.logo-marca-empresa`/`.monograma-empresa`/`.nome-marca` aumentados,
+// `.gerado-em`…) saíram daqui — já vêm prontos do componente.
 .folha-rodape {
   margin-top: 6mm;
   padding-top: 3mm;
