@@ -1,11 +1,10 @@
 import { Component, HostListener, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { nomeDaEmpresa } from '../../core/models/api.models';
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
 import { SelecaoMultipla, confirmarExclusaoEmLote } from '../../shared/selecao-lista/selecao-lista';
-import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { AutoAlturaTextarea } from '../../shared/auto-altura-textarea/auto-altura-textarea';
 import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
@@ -66,7 +65,6 @@ export class Mapa implements OnInit {
   protected readonly store = inject(MapaStore);
   /** Fórmulas guardadas dos campos de valor (ver `formulas-guardadas.ts`). */
   private readonly formulas = inject(FormulasContexto);
-  private readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
@@ -75,14 +73,21 @@ export class Mapa implements OnInit {
   protected readonly erroPdf = signal<string | null>(null);
 
   /**
-   * "Assinatura" do documento — nome da empresa dona da conta, pra deixar
-   * claro de onde saiu o mapa quando impresso/exportado (17/08/2026,
-   * pedido do Lucas). Mesma fonte que a barra lateral usa (`AuthService`,
-   * já carregado no login/`/me` — não faz uma chamada nova à API).
+   * "Assinatura" do documento — nome/logo configurados em Configurações →
+   * Dados da empresa, pra deixar claro de onde saiu o mapa quando
+   * impresso/exportado (17/08/2026, pedido do Lucas). Antes usava o nome
+   * da CONTA (`AuthService`/`nomeDaEmpresa`, ex.: "Construtora", sem
+   * logo) em vez da identidade visual configurada — mesmo bug já corrigido
+   * no PDF (`mapa-imprimir.ts`, 28/08/2026); replicado aqui (13/10/2026).
    */
-  protected readonly nomeEmpresa = computed(() => nomeDaEmpresa(this.auth.usuario()) || 'Sua empresa');
-
+  private readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
+  protected readonly nomeEmpresa = computed(() => this.perfilEmpresa()?.nome || 'Sua empresa');
   protected readonly inicialEmpresa = computed(() => this.nomeEmpresa().charAt(0).toUpperCase());
+  /** `logoUrl` vem relativo (`/storage/...`) — ver `Empresa::getLogoUrlAttribute()`. */
+  protected readonly logoEmpresaUrl = computed(() => {
+    const caminho = this.perfilEmpresa()?.logoUrl;
+    return caminho ? this.api.baseStorage() + caminho : null;
+  });
 
   /**
    * Id da obra — vem do param `:id` da rota avó (/obras/:id), herdado
@@ -183,6 +188,10 @@ export class Mapa implements OnInit {
     this.api.obterEap(this.obraId()).subscribe({
       next: (payload) => this.itensEapMapa.set(extrairItensEapResumo(payload.eapItems)),
       error: () => this.itensEapMapa.set([]),
+    });
+    this.api.obterPerfilEmpresa().subscribe({
+      next: (perfil) => this.perfilEmpresa.set(perfil),
+      error: () => this.perfilEmpresa.set(null),
     });
   }
 

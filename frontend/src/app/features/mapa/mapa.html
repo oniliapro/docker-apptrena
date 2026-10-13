@@ -253,12 +253,16 @@
           <th colspan="7" class="assinatura-documento">
             <div class="bloco-assinatura">
               <div class="marca-empresa" [title]="nomeEmpresa()">
-                <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+                @if (logoEmpresaUrl(); as url) {
+                  <img class="logo-marca-empresa" [src]="url" [alt]="nomeEmpresa()" />
+                } @else {
+                  <span class="monograma-empresa">{{ inicialEmpresa() }}</span>
+                }
                 <span class="nome-marca">{{ nomeEmpresa() }}</span>
               </div>
               <span class="separador-assinatura">gerado com</span>
               <div class="marca-sistema">
-                <img class="simbolo-sistema" src="/marca/comtrena-simbolo-para-fundo-claro.svg" alt="" />
+                <img class="simbolo-sistema" src="marca/comtrena-simbolo-para-fundo-claro.svg" alt="" />
                 <span class="nome-marca">ComTrena</span>
               </div>
             </div>

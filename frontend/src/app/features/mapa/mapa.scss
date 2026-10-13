@@ -259,6 +259,16 @@ button:disabled {
   font-weight: 700;
 }
 
+/* Logomarca da empresa no lugar do monograma — só aparece quando a
+   empresa cadastrou uma logo em Configurações; sem ela, cai pro
+   monograma acima. Mesma ideia de `mapa-imprimir.scss`. */
+.logo-marca-empresa {
+  flex-shrink: 0;
+  height: 22px;
+  max-width: 70px;
+  object-fit: contain;
+}
+
 .simbolo-sistema {
   flex-shrink: 0;
   width: 12px;

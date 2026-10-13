@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
-import { PerfilEmpresa, nomeDaEmpresa } from '../../core/models/api.models';
+import { PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
@@ -50,7 +50,14 @@ export class MedicaoImprimir implements OnInit {
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
-  protected readonly nomeEmpresa = computed(() => nomeDaEmpresa(this.auth.usuario()) || 'Sua empresa');
+  /**
+   * (13/10/2026) `auth.usuario()` nunca é preenchido na sessão de
+   * impressão (autenticada só por token Sanctum de vida curta — ver
+   * construtor), então caía sempre em "Sua empresa" no PDF gerado.
+   * `perfilEmpresa` (buscado logo abaixo) é a fonte confiável aqui —
+   * mesmo bug já corrigido em `mapa-imprimir.ts` (28/08/2026).
+   */
+  protected readonly nomeEmpresa = computed(() => this.perfilEmpresa()?.nome || 'Sua empresa');
 
   protected valorOrcado(item: ItemEap, tipo: ChaveTipo): string {
     return formatarMoeda(this.store.orcadoDoItem(item.id, tipo));
