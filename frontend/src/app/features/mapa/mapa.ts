@@ -195,6 +195,16 @@ export class Mapa implements OnInit {
     });
   }
 
+  /**
+   * (13/10/2026, pedido do Lucas) Antes só existia "← Voltar para as abas"
+   * (`ObraDetalhe`, sempre pra grade de abas da obra) — faltava um jeito
+   * de voltar direto pra lista de Mapas sem passar por lá, mesmo padrão
+   * de `Medicao.voltar()`.
+   */
+  protected voltar(): void {
+    void this.router.navigate(['/obras', this.obraId(), 'mapas']);
+  }
+
   // ------------------------------------------------------------------
   // Gerar contrato de equipamento (01/10/2026, pedido do Lucas)
   // ------------------------------------------------------------------

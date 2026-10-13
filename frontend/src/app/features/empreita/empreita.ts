@@ -1,4 +1,5 @@
 import { Component, HostListener, OnInit, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { ApiService } from '../../core/services/api.service';
 import { BarraSelecao, AcaoLista } from '../../shared/barra-selecao/barra-selecao';
@@ -76,6 +77,7 @@ export class Empreita implements OnInit {
   private readonly formulas = inject(FormulasContexto);
   private readonly api = inject(ApiService);
   private readonly armazenamento = inject(ArmazenamentoService);
+  private readonly router = inject(Router);
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
   protected readonly tiposCusto = TIPOS_CUSTO;
@@ -194,6 +196,16 @@ export class Empreita implements OnInit {
     this.store.carregar(this.empreitaId(), this.obraId());
     this.formulas.definir('empreita.' + this.empreitaId());
     this.carregarEmpreiteiros();
+  }
+
+  /**
+   * (13/10/2026, pedido do Lucas) Antes só existia "← Voltar para as abas"
+   * (`ObraDetalhe`, sempre pra grade de abas da obra) — faltava um jeito
+   * de voltar direto pra lista de Empreitas sem passar por lá, mesmo
+   * padrão de `Medicao.voltar()`.
+   */
+  protected voltar(): void {
+    void this.router.navigate(['/obras', this.obraId(), 'empreitas']);
   }
 
   /**

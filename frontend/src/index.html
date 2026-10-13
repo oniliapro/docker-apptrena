@@ -17,7 +17,14 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Michroma&display=swap"
     rel="stylesheet" />
 </head>
-<body>
+<!-- 13/10/2026, pedido de um usuário: sublinhado vermelho de corretor
+     ortográfico (como o Word) em todo campo de texto. `spellcheck` é
+     herdado pelos campos filhos que não o definem explicitamente — liga
+     pra tudo de uma vez, sem precisar marcar cada <input>/<textarea> do
+     sistema. `lang="pt-BR"` (linha 2) já diz ao navegador qual dicionário
+     usar. Só isso por enquanto — a escolha de idioma nas Configurações
+     fica pra depois, se for pedida. -->
+<body spellcheck="true">
   <app-root></app-root>
 </body>
 </html>
