@@ -31,7 +31,14 @@
 .folha-cabecalho {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  // `flex-end` (não `flex-start`/`center`): alinha os RODAPÉS das duas
+  // colunas — a linha da assinatura da empresa (à esquerda, embaixo do
+  // título "Mapa de Cotação") com a logomarca do ComTrena (à direita,
+  // embaixo do "Gerado em"), que é a última linha dos dois lados — sem
+  // precisar calcular a altura do título pra bater certo (13/10/2026,
+  // pedido do Lucas: "ajustar o alinhamento da logo da empresa... com a
+  // logo do comtrena").
+  align-items: flex-end;
   border-bottom: 2px solid var(--cor-primaria);
   padding-bottom: 4mm;
   margin-bottom: 5mm;
@@ -63,14 +70,27 @@
   color: var(--cor-primaria);
 }
 
-// Logomarca da empresa no lugar do monograma (26/08/2026) — só aparece
-// quando a empresa cadastrou uma logo em Configurações; sem ela, cai pro
-// monograma de sempre (`.monograma-empresa`, definido em mapa.scss).
+// Logo + nome da empresa maiores (13/10/2026, pedido do Lucas — igualar
+// a escala da logomarca do ComTrena ao lado, 32px) — só no PDF do Mapa;
+// override por cima do que `mapa.scss` define pra tela (14px/44px antes
+// daqui, 22px na tela normal). Sem logo cadastrada, cai pro monograma
+// de sempre (`.monograma-empresa`, mapa.scss) — aumentado junto, mesma
+// proporção, pra não ficar pequeno demais do lado do nome maior.
 .logo-marca-empresa {
-  height: 14px;
-  max-width: 44px;
+  height: 32px;
+  max-width: 90px;
   object-fit: contain;
   vertical-align: middle;
+}
+
+.monograma-empresa {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+
+.marca-empresa .nome-marca {
+  font-size: 16px;
 }
 
 // Assinatura da empresa (23/08/2026, pedido do Lucas) — trocou de lugar

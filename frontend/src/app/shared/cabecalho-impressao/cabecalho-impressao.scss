@@ -11,7 +11,7 @@
 .folha-cabecalho {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 2px solid var(--cor-primaria);
   padding-bottom: 4mm;
   margin-bottom: 5mm;
@@ -54,4 +54,20 @@
   font-size: 9.5px;
   color: var(--cor-texto-suave);
   white-space: nowrap;
+}
+
+// Canto superior direito (13/10/2026, pedido do Lucas — mesma ideia já
+// aplicada no PDF do Mapa, `mapa-imprimir.scss`, replicada aqui porque
+// este componente é o cabeçalho compartilhado dos demais PDFs: EAP,
+// Empreita, Medição, Cronograma de Desembolso, Relatórios).
+.info-geracao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.logomarca-comtrena-cabecalho {
+  height: 32px;
+  width: auto;
 }
