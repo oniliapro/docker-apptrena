@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { PerfilEmpresa } from '../../core/models/api.models';
@@ -49,15 +49,6 @@ export class MedicaoImprimir implements OnInit {
   protected readonly recuo = (item: ItemEap) => recuoDoCodigoEap(item.eap);
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
-
-  /**
-   * (13/10/2026) `auth.usuario()` nunca é preenchido na sessão de
-   * impressão (autenticada só por token Sanctum de vida curta — ver
-   * construtor), então caía sempre em "Sua empresa" no PDF gerado.
-   * `perfilEmpresa` (buscado logo abaixo) é a fonte confiável aqui —
-   * mesmo bug já corrigido em `mapa-imprimir.ts` (28/08/2026).
-   */
-  protected readonly nomeEmpresa = computed(() => this.perfilEmpresa()?.nome || 'Sua empresa');
 
   protected valorOrcado(item: ItemEap, tipo: ChaveTipo): string {
     return formatarMoeda(this.store.orcadoDoItem(item.id, tipo));
