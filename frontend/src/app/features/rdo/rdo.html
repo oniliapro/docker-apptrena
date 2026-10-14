@@ -125,6 +125,13 @@
              "Condições de trabalho", com um menu suspenso por turno. -->
         <fieldset class="clima">
           <legend>Condições climáticas</legend>
+
+          <label class="opcao-sem-expediente">
+            <input type="checkbox" [checked]="semExpediente()"
+                   (change)="alternarSemExpediente($any($event.target).checked)">
+            S/ expediente (sem turno de trabalho hoje)
+          </label>
+
           <table class="tabela-clima">
             <thead>
               <tr>

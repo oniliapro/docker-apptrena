@@ -107,6 +107,32 @@ export class Rdo implements OnInit {
   protected readonly turnosClima = TURNOS_CLIMA;
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA;
 
+  /**
+   * "S/ expediente" (14/10/2026, pedido do Lucas) — dia sem turno de
+   * trabalho (feriado, parada total etc.): marcar deixa as 3 condições de
+   * trabalho em branco (`null`, já um valor válido no backend — só o
+   * formulário nunca tinha like oferecido um jeito de chegar nele, sempre
+   * nascia em "praticável") e desabilita os 3 selects. Não é salvo como
+   * campo à parte — é só um atalho de preenchimento; reabrir um RDO salvo
+   * com as 3 condições em branco já volta com a caixa marcada sozinha
+   * (ver `aplicarRegistro`).
+   */
+  protected readonly semExpediente = signal(false);
+
+  protected alternarSemExpediente(marcado: boolean): void {
+    this.semExpediente.set(marcado);
+    (['condicao_manha', 'condicao_tarde', 'condicao_noite'] as const).forEach((chave) => {
+      const controle = this.formulario.get(chave);
+      if (marcado) {
+        controle?.setValue(null);
+        controle?.disable();
+      } else {
+        controle?.enable();
+        controle?.setValue('praticavel');
+      }
+    });
+  }
+
   // F9 (24/09/2026): mão de obra por profissional do cadastro (Empreiteiros/
   // "Profissionais", F6 — ainda na ponte de storage, ver `Empreiteiro`) e
   // etapas ligadas a um item de verdade da EAP — mesmo jeito que
@@ -512,15 +538,26 @@ export class Rdo implements OnInit {
     this.videosSelecionados.set([]);
     this.limparArrays();
 
+    // "S/ expediente" (14/10/2026): as 3 condições vêm nulas do backend só
+    // quando o dia inteiro foi marcado assim (ver `alternarSemExpediente`)
+    // — qualquer outro caso (RDO salvo antes dessa opção existir) cai no
+    // default de sempre, "praticável".
+    const semExpedienteRegistro = !registro.condicao_manha && !registro.condicao_tarde && !registro.condicao_noite;
     this.formulario.patchValue({
       data: registro.data?.substring(0, 10) ?? hojeIso(),
       clima_manha: registro.clima_manha ?? 'claro',
       clima_tarde: registro.clima_tarde ?? 'claro',
       clima_noite: registro.clima_noite ?? 'claro',
-      condicao_manha: registro.condicao_manha ?? 'praticavel',
-      condicao_tarde: registro.condicao_tarde ?? 'praticavel',
-      condicao_noite: registro.condicao_noite ?? 'praticavel',
+      condicao_manha: registro.condicao_manha ?? (semExpedienteRegistro ? null : 'praticavel'),
+      condicao_tarde: registro.condicao_tarde ?? (semExpedienteRegistro ? null : 'praticavel'),
+      condicao_noite: registro.condicao_noite ?? (semExpedienteRegistro ? null : 'praticavel'),
       observacoes: registro.observacoes ?? '',
+    });
+    this.semExpediente.set(semExpedienteRegistro);
+    (['condicao_manha', 'condicao_tarde', 'condicao_noite'] as const).forEach((chave) => {
+      const controle = this.formulario.get(chave);
+      if (semExpedienteRegistro) controle?.disable();
+      else controle?.enable();
     });
 
     this.mesclarTarefasComEtapasEPendencias(registro);

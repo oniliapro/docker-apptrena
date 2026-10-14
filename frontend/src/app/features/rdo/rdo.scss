@@ -255,6 +255,19 @@ textarea { resize: vertical; }
   }
 }
 
+// "S/ expediente" (14/10/2026) — dia sem turno de trabalho; marcar deixa
+// as 3 condições de trabalho em branco (ver `Rdo.alternarSemExpediente`).
+.opcao-sem-expediente {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  input { width: auto; height: auto; margin: 0; }
+}
+
 /* Clima em tabela (26/09/2026): linha = condição, coluna = turno — um rádio
    por célula, só uma condição marcada por turno (coluna). */
 .tabela-clima {
