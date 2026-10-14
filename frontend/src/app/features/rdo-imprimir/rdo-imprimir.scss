@@ -33,44 +33,13 @@
 
 .folha { max-width: 190mm; margin: 0 auto; }
 
-/* ---------- Cabeçalho ---------- */
-
-.cabecalho {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 6mm;
-  padding-bottom: 2.5mm;
-  border-bottom: 1.2pt solid #1b3a4b;
-  margin-bottom: 3mm;
-}
-
-.empresa {
-  display: flex;
-  align-items: flex-start;
-  gap: 3mm;
-}
-
-.logo {
-  max-height: 14mm;
-  max-width: 34mm;
-  object-fit: contain;
-}
-
-.empresa-nome {
-  margin: 0;
-  font-size: 10.5pt;
-  font-weight: 700;
-  color: #1b3a4b;
-}
-
-.empresa-linha {
-  margin: 0.4mm 0 0;
-  font-size: 7.5pt;
-  color: #4a7a94;
-}
-
-.documento { text-align: right; }
+/* ---------- Cabeçalho ----------
+   (14/10/2026) Trocado pelo `app-cabecalho-impressao` compartilhado — mesmo
+   padrão dos outros PDFs (o cabeçalho próprio de antes duplicava nome/
+   endereço da empresa e ocupava espaço demais). `.documento-titulo`/
+   `.documento-numero` continuam aqui porque o cabeçalho de cada Ficha de
+   Verificação de Serviço anexada (`.cabecalho-anexo-fvs`, mais abaixo) ainda
+   usa as duas classes. */
 
 // Michroma (28/09/2026, manual de identidade) — já estava em caixa alta
 // com espaçamento aberto e a cor certa, só faltava a fonte.
@@ -90,14 +59,6 @@
   color: #1b3a4b;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
-}
-
-.documento-data {
-  margin: 0.3mm 0 0;
-  font-size: 9.5pt;
-  font-weight: 600;
-  color: #1b3a4b;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Identificação ---------- */
@@ -186,38 +147,36 @@
   font-weight: 600;
 }
 
-.tres-colunas {
+// Mão de obra / Equipamentos — duas colunas lado a lado (interna/externa,
+// próprios/alugados), 14/10/2026.
+.duas-colunas {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2mm;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2mm 6mm;
+
+  h3 {
+    margin: 0 0 0.8mm;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #4a7a94;
+  }
 }
 
-.etapas {
+// Texto corrido, uma linha abaixo da outra — não é grade (14/10/2026,
+// pedido do Lucas: "mais parecido com um texto explicativo do que uma
+// tabela em si"). Reaproveitada pra mão de obra, equipamentos, ocorrências
+// e pendências (dentro de cada tarefa e nas órfãs de registros antigos).
+.lista-texto {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1mm 4mm;
+  font-size: 8.5pt;
 
   li {
-    display: flex;
-    align-items: center;
-    gap: 1.2mm;
-    font-size: 8.5pt;
+    margin-bottom: 1mm;
+    break-inside: avoid;
   }
-
-  .concluida { color: #4c7a54; }
-}
-
-.caixa {
-  display: inline-grid;
-  place-items: center;
-  width: 3.2mm;
-  height: 3.2mm;
-  border: 0.6pt solid #4a7a94;
-  font-size: 7pt;
-  line-height: 1;
 }
 
 .lista-numerada {
@@ -226,9 +185,41 @@
   font-size: 8.5pt;
 
   li {
-    margin-bottom: 1.2mm;
+    margin-bottom: 2.5mm;
     break-inside: avoid;
   }
+}
+
+// Etapa + descrição de cada tarefa (14/10/2026) — etapa primeiro, pequena e
+// discreta (rótulo de referência); descrição é o texto principal da linha.
+.tarefa-etapa {
+  margin: 0 0 0.4mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a7a94;
+}
+
+.tarefa-descricao {
+  margin: 0;
+}
+
+// Ocorrências/pendências DENTRO de uma tarefa (14/10/2026) — bloco com
+// rótulo pequeno, pra não confundir com a descrição da tarefa logo acima.
+.bloco-secundario {
+  margin-top: 1.5mm;
+
+  .lista-texto { margin-top: 0.5mm; }
+}
+
+.bloco-titulo {
+  display: block;
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1b3a4b;
+  font-weight: 700;
 }
 
 .meta {
@@ -238,9 +229,33 @@
   margin-left: 1mm;
 }
 
+// Clima + condição de trabalho (praticável/impraticável) na mesma célula,
+// 14/10/2026.
+.meta-condicao {
+  display: block;
+  margin-top: 0.4mm;
+  font-size: 7.5pt;
+  font-weight: 400;
+  color: #4a7a94;
+  text-transform: none;
+}
+
 .observacao {
   margin: 1.2mm 0 0;
   font-size: 8.5pt;
+}
+
+// Aviso de vídeo (14/10/2026) — o PDF é estático, não toca vídeo; um aviso
+// só, no fim do documento, substitui a caixa "Vídeo anexado" que antes
+// aparecia espalhada em cada tarefa/no registro do dia.
+.observacao-video {
+  margin: 2mm 0;
+  padding: 1.5mm 2mm;
+  border: 0.6pt solid #a6c0c8;
+  background: #f0f1ed;
+  font-size: 8pt;
+  color: #4a7a94;
+  font-style: italic;
 }
 
 .vazio {
@@ -282,21 +297,6 @@
 }
 
 .fotos-dia .quadro { height: 32mm; }
-
-/* Vídeo (F8, 22/09/2026) — o PDF é estático, não toca vídeo: em vez da
-   imagem, um aviso de que existe uma mídia anexada só no sistema. */
-.quadro-video {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2pt;
-  background: #f0f1ed;
-  color: #4a7a94;
-}
-
-.icone-video-impressao { font-size: 12pt; }
-.video-rotulo { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* Croqui: o ponto que o engenheiro marcou sobre a foto. */
 .marcador {

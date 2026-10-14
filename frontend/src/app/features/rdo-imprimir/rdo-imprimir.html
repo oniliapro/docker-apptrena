@@ -6,26 +6,10 @@
 @if (rdo(); as r) {
   <article class="folha">
 
-    <!-- Cabeçalho: empresa + identificação do documento -->
-    <header class="cabecalho">
-      <div class="empresa">
-        @if (urlLogo(); as logo) {
-          <img class="logo" [src]="logo" alt="">
-        }
-        <div>
-          <p class="empresa-nome">{{ empresa()?.razaoSocial || empresa()?.nome || 'ComTrena' }}</p>
-          @if (empresa()?.endereco) { <p class="empresa-linha">{{ empresa()?.endereco }}</p> }
-          @if (empresa()?.emailContato) { <p class="empresa-linha">{{ empresa()?.emailContato }}</p> }
-          @if (empresa()?.cnpj) { <p class="empresa-linha">CNPJ {{ empresa()?.cnpj }}</p> }
-        </div>
-      </div>
-
-      <div class="documento">
-        <p class="documento-titulo">Relatório Diário de Obra</p>
-        <p class="documento-numero">Nº {{ numeroFormatado() }}</p>
-        <p class="documento-data">{{ r.data | date: 'dd/MM/yyyy' }}</p>
-      </div>
-    </header>
+    <app-cabecalho-impressao
+      [perfil]="empresa()"
+      [subtitulo]="'Relatório Diário de Obra - Nº ' + numeroFormatado() + ' (' + (r.data | date: 'dd/MM/yyyy') + ')'"
+      [geradoEm]="geradoEm" />
 
     <!-- Identificação da obra -->
     <section class="identificacao">
@@ -69,16 +53,25 @@
       </div>
     </section>
 
-    <!-- Clima por turno -->
+    <!-- Clima por turno — condição de trabalho (praticável/impraticável, 14/10/2026) junto do clima. -->
     <section class="secao">
       <h2>Condições climáticas</h2>
       <table class="tabela clima">
         <thead><tr><th>Manhã</th><th>Tarde</th><th>Noite</th></tr></thead>
         <tbody>
           <tr>
-            <td>{{ rotuloClima(r.clima_manha) }}</td>
-            <td>{{ rotuloClima(r.clima_tarde) }}</td>
-            <td>{{ rotuloClima(r.clima_noite) }}</td>
+            <td>
+              {{ rotuloClima(r.clima_manha) }}
+              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_manha) }}</span>
+            </td>
+            <td>
+              {{ rotuloClima(r.clima_tarde) }}
+              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_tarde) }}</span>
+            </td>
+            <td>
+              {{ rotuloClima(r.clima_noite) }}
+              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_noite) }}</span>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -87,92 +80,132 @@
       }
     </section>
 
-    <!-- Etapas -->
-    @if (r.etapas?.length) {
-      <section class="secao">
-        <h2>Etapas da obra</h2>
-        <ul class="etapas">
-          @for (e of r.etapas; track e.id) {
-            <li [class.concluida]="e.concluida">
-              <span class="caixa">{{ e.concluida ? '✓' : '' }}</span>{{ e.nome }}
-            </li>
-          }
-        </ul>
-      </section>
-    }
-
-    <!-- Mão de obra e equipamentos, nas três colunas do RDO -->
+    <!-- Mão de obra — texto corrido, não grade (14/10/2026, pedido do Lucas):
+         quando a linha vem de um profissional do cadastro, mostra o NOME
+         dele, não a função. -->
     <section class="secao">
-      <h2>Mão de obra e equipamentos</h2>
-      <div class="tres-colunas">
-        <table class="tabela">
-          <thead><tr><th colspan="2">Mão de obra interna</th></tr>
-                 <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
-          <tbody>
-            @for (m of maoDeObraDe('interno'); track m.id) {
-              <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
-            }
-            @for (vazio of preenchimento(maoDeObraDe('interno').length, 4); track vazio) {
-              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
-            }
-          </tbody>
-        </table>
-
-        <table class="tabela">
-          <thead><tr><th colspan="2">Mão de obra externa</th></tr>
-                 <tr><th>Função / cargo</th><th class="num">Qtde</th></tr></thead>
-          <tbody>
-            @for (m of maoDeObraDe('externo'); track m.id) {
-              <tr><td>{{ m.funcao }}</td><td class="num">{{ m.quantidade }}</td></tr>
-            }
-            @for (vazio of preenchimento(maoDeObraDe('externo').length, 4); track vazio) {
-              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
-            }
-          </tbody>
-        </table>
-
-        <table class="tabela">
-          <thead><tr><th colspan="2">Equipamentos</th></tr>
-                 <tr><th>Descrição</th><th class="num">Qtde</th></tr></thead>
-          <tbody>
-            @for (eq of r.equipamentos; track eq.id) {
-              <tr><td>{{ eq.descricao }}</td><td class="num">{{ eq.quantidade }}</td></tr>
-            }
-            @for (vazio of preenchimento((r.equipamentos ?? []).length, 4); track vazio) {
-              <tr class="vazia"><td>&nbsp;</td><td></td></tr>
-            }
-          </tbody>
-        </table>
+      <h2>Mão de obra</h2>
+      <div class="duas-colunas">
+        <div>
+          <h3>Interna</h3>
+          @if (maoDeObraDe('interno').length) {
+            <ul class="lista-texto">
+              @for (m of maoDeObraDe('interno'); track m.id) {
+                <li>{{ m.profissional_nome || m.funcao }} <span class="meta">Qtde: {{ m.quantidade }}</span></li>
+              }
+            </ul>
+          } @else {
+            <p class="vazio">Sem mão de obra interna registrada.</p>
+          }
+        </div>
+        <div>
+          <h3>Externa</h3>
+          @if (maoDeObraDe('externo').length) {
+            <ul class="lista-texto">
+              @for (m of maoDeObraDe('externo'); track m.id) {
+                <li>{{ m.profissional_nome || m.funcao }} <span class="meta">Qtde: {{ m.quantidade }}</span></li>
+              }
+            </ul>
+          } @else {
+            <p class="vazio">Sem mão de obra externa registrada.</p>
+          }
+        </div>
       </div>
     </section>
 
-    <!-- Tarefas -->
+    <!-- Equipamentos — próprios x alugados (14/10/2026, pedido do Lucas),
+         mesmo texto corrido da mão de obra; alugado mostra o contrato. -->
+    <section class="secao">
+      <h2>Equipamentos</h2>
+      <div class="duas-colunas">
+        <div>
+          <h3>Próprios</h3>
+          @if (equipamentosDe('proprio').length) {
+            <ul class="lista-texto">
+              @for (eq of equipamentosDe('proprio'); track eq.id) {
+                <li>{{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span></li>
+              }
+            </ul>
+          } @else {
+            <p class="vazio">Sem equipamentos próprios registrados.</p>
+          }
+        </div>
+        <div>
+          <h3>Alugados</h3>
+          @if (equipamentosDe('alugado').length) {
+            <ul class="lista-texto">
+              @for (eq of equipamentosDe('alugado'); track eq.id) {
+                <li>
+                  {{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span>
+                  @if (eq.contrato_referencia) { <span class="meta">Contrato: {{ eq.contrato_referencia }}.</span> }
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="vazio">Sem equipamentos alugados registrados.</p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Tarefas: etapa + descrição + ocorrências + pendências + fotos, nessa ordem
+         (14/10/2026, pedido do Lucas) — antes ocorrências/pendências eram seções
+         soltas no fim do documento, sem ligação visual com a tarefa que gerou. -->
     <section class="secao">
       <h2>Tarefas realizadas</h2>
       @if (r.tarefas?.length) {
         <ol class="lista-numerada">
-          @for (t of r.tarefas; track t.id) {
+          @for (t of r.tarefas; track t.id; let i = $index) {
             <li>
-              {{ t.descricao }}
+              @if (rotuloEtapaDaTarefa(i); as etapaLabel) {
+                <p class="tarefa-etapa">{{ etapaLabel }}</p>
+              }
+              <p class="tarefa-descricao">{{ t.descricao }}</p>
+
+              @if (ocorrenciasDaTarefa(t.id).length) {
+                <div class="bloco-secundario">
+                  <span class="bloco-titulo">Ocorrências</span>
+                  <ul class="lista-texto">
+                    @for (oc of ocorrenciasDaTarefa(t.id); track oc.id) {
+                      <li>
+                        <strong>{{ rotuloOcorrencia(oc.tipo) }}.</strong> {{ oc.descricao }}
+                        @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}.</span> }
+                        @if (oc.motivo) { <span class="meta">Motivo: {{ oc.motivo }}.</span> }
+                        @if (oc.danos_materiais) { <span class="meta">Danos: {{ oc.danos_materiais }}.</span> }
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+
+              @if (pendenciasDaTarefa(t.id).length) {
+                <div class="bloco-secundario">
+                  <span class="bloco-titulo">Pendências</span>
+                  <ul class="lista-texto">
+                    @for (p of pendenciasDaTarefa(t.id); track p.id) {
+                      <li>
+                        {{ p.descricao }}
+                        @if (p.responsavel) { <span class="meta">Responsável: {{ p.responsavel }}.</span> }
+                        @if (p.prazo) { <span class="meta">Prazo: {{ p.prazo | date: 'dd/MM/yyyy' }}.</span> }
+                        <span class="meta">Situação: {{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}.</span>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+
               @if (fotosDaTarefa(t.id).length) {
                 <div class="fotos-tarefa">
                   @for (foto of fotosDaTarefa(t.id); track foto.id) {
                     <figure>
-                      @if (foto.tipo === 'video') {
-                        <div class="quadro quadro-video">
-                          <span class="icone-video-impressao">▶</span>
-                          <span class="video-rotulo">Vídeo anexado</span>
-                        </div>
-                      } @else {
-                        <div class="quadro">
-                          <img [src]="urlMidia(foto)" alt="">
-                          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                            <span class="marcador"
-                                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                          }
-                        </div>
-                      }
+                      <div class="quadro">
+                        <img [src]="urlMidia(foto)" alt="">
+                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                          <span class="marcador"
+                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                        }
+                      </div>
                       @if (foto.legenda || foto.marcador_nota) {
                         <figcaption>{{ foto.legenda }}{{ foto.marcador_nota ? ' — ' + foto.marcador_nota : '' }}</figcaption>
                       }
@@ -188,12 +221,13 @@
       }
     </section>
 
-    <!-- Ocorrências -->
-    <section class="secao">
-      <h2>Ocorrências</h2>
-      @if (r.ocorrencias?.length) {
-        <ol class="lista-numerada">
-          @for (oc of r.ocorrencias; track oc.id) {
+    <!-- Ocorrências/pendências de registros antigos (antes de 26/09/2026), sem
+         vínculo com nenhuma tarefa — não existiriam mais com dados novos. -->
+    @if (ocorrenciasOrfas().length) {
+      <section class="secao">
+        <h2>Outras ocorrências</h2>
+        <ul class="lista-texto">
+          @for (oc of ocorrenciasOrfas(); track oc.id) {
             <li>
               <strong>{{ rotuloOcorrencia(oc.tipo) }}.</strong> {{ oc.descricao }}
               @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}.</span> }
@@ -201,28 +235,23 @@
               @if (oc.danos_materiais) { <span class="meta">Danos: {{ oc.danos_materiais }}.</span> }
             </li>
           }
-        </ol>
-      } @else {
-        <p class="vazio">Sem ocorrências registradas.</p>
-      }
-    </section>
+        </ul>
+      </section>
+    }
 
-    @if (r.pendencias?.length) {
+    @if (pendenciasOrfas().length) {
       <section class="secao">
-        <h2>Pendências</h2>
-        <table class="tabela">
-          <thead><tr><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Situação</th></tr></thead>
-          <tbody>
-            @for (p of r.pendencias; track p.id) {
-              <tr>
-                <td>{{ p.descricao }}</td>
-                <td>{{ p.responsavel || '—' }}</td>
-                <td>{{ p.prazo ? (p.prazo | date: 'dd/MM/yyyy') : '—' }}</td>
-                <td>{{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+        <h2>Outras pendências</h2>
+        <ul class="lista-texto">
+          @for (p of pendenciasOrfas(); track p.id) {
+            <li>
+              {{ p.descricao }}
+              @if (p.responsavel) { <span class="meta">Responsável: {{ p.responsavel }}.</span> }
+              @if (p.prazo) { <span class="meta">Prazo: {{ p.prazo | date: 'dd/MM/yyyy' }}.</span> }
+              <span class="meta">Situação: {{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}.</span>
+            </li>
+          }
+        </ul>
       </section>
     }
 
@@ -251,21 +280,14 @@
         <div class="fotos-dia">
           @for (foto of fotosDoDia(); track foto.id) {
             <figure>
-              @if (foto.tipo === 'video') {
-                <div class="quadro quadro-video">
-                  <span class="icone-video-impressao">▶</span>
-                  <span class="video-rotulo">Vídeo anexado</span>
-                </div>
-              } @else {
-                <div class="quadro">
-                  <img [src]="urlMidia(foto)" alt="">
-                  @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                    <span class="marcador"
-                          [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                          [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                  }
-                </div>
-              }
+              <div class="quadro">
+                <img [src]="urlMidia(foto)" alt="">
+                @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                  <span class="marcador"
+                        [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                        [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                }
+              </div>
               @if (foto.legenda) { <figcaption>{{ foto.legenda }}</figcaption> }
             </figure>
           }
@@ -278,6 +300,15 @@
         <h2>Observações</h2>
         <p class="observacao">{{ r.observacoes }}</p>
       </section>
+    }
+
+    <!-- O PDF é estático, não toca vídeo (14/10/2026, pedido do Lucas) — um
+         aviso único no fim do documento, no lugar da caixa "Vídeo anexado"
+         que aparecia espalhada em cada tarefa/no registro do dia. -->
+    @if (temVideo()) {
+      <p class="observacao-video">
+        Obs.: o relatório gerado possui um ou mais vídeos anexados que podem ser verificados na versão online.
+      </p>
     }
 
     <!--
