@@ -187,6 +187,11 @@ export class RdoImprimir implements OnInit {
     return CLIMAS.find((c) => c.valor === valor)?.rotulo ?? '—';
   }
 
+  /** Ícone no lugar do texto (14/10/2026, pedido do Lucas). */
+  protected simboloClima(valor: string | null | undefined): string {
+    return CLIMAS.find((c) => c.valor === valor)?.simbolo ?? '—';
+  }
+
   protected rotuloCondicao(valor: string | null | undefined): string {
     return CONDICOES_TRABALHO.find((c) => c.valor === valor)?.rotulo ?? '—';
   }

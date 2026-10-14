@@ -62,29 +62,29 @@
 }
 
 /* ---------- Identificação ---------- */
-
+// (14/10/2026, pedido do Lucas: "tá com muito destaque") Lista em duas
+// colunas, sem borda de tabela — rótulo e valor na MESMA linha, fonte
+// menor. Antes era uma grade 2fr/1fr/1fr com borda em volta de cada
+// célula, com rótulo/valor empilhados — o maior causador do "destaque"
+// que não deveria competir com o conteúdo do documento.
 .identificacao {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 0;
-  border: 0.6pt solid #a6c0c8;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 8mm;
   margin-bottom: 3mm;
 }
 
-.campo {
-  padding: 1.4mm 2mm;
-  border-right: 0.6pt solid #a6c0c8;
-  border-bottom: 0.6pt solid #a6c0c8;
-  min-height: 8mm;
-
-  /* A borda do container já fecha o retângulo à direita e embaixo; sem isto
-     a linha final fica com espessura dobrada. */
-  &:nth-child(3n) { border-right: none; }
-  &:nth-last-child(-n + 3) { border-bottom: none; }
+.campo-linha {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5mm;
+  padding: 0.6mm 0;
+  border-bottom: 0.4pt solid #d8e2e5;
 }
 
 .rotulo {
-  display: block;
+  flex-shrink: 0;
+  width: 26mm;
   font-size: 6.5pt;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -92,9 +92,7 @@
 }
 
 .valor {
-  display: block;
-  font-size: 9pt;
-  margin-top: 0.3mm;
+  font-size: 8pt;
 
   &.destaque { font-weight: 700; color: #1b3a4b; }
 }
@@ -142,25 +140,17 @@
   .vazia td { height: 5mm; }
 }
 
-.clima td {
-  text-align: center;
-  font-weight: 600;
-}
+// Subtítulo dentro de uma seção (Mão de obra: Interna/Externa; Equipamentos:
+// Próprios/Alugados) — cada lista agora fica uma abaixo da outra, não lado a
+// lado (14/10/2026, pedido do Lucas).
+.secao h3 {
+  margin: 2mm 0 0.8mm;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4a7a94;
 
-// Mão de obra / Equipamentos — duas colunas lado a lado (interna/externa,
-// próprios/alugados), 14/10/2026.
-.duas-colunas {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2mm 6mm;
-
-  h3 {
-    margin: 0 0 0.8mm;
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #4a7a94;
-  }
+  &:first-of-type { margin-top: 0; }
 }
 
 // Texto corrido, uma linha abaixo da outra — não é grade (14/10/2026,
@@ -229,16 +219,6 @@
   margin-left: 1mm;
 }
 
-// Clima + condição de trabalho (praticável/impraticável) na mesma célula,
-// 14/10/2026.
-.meta-condicao {
-  display: block;
-  margin-top: 0.4mm;
-  font-size: 7.5pt;
-  font-weight: 400;
-  color: #4a7a94;
-  text-transform: none;
-}
 
 .observacao {
   margin: 1.2mm 0 0;

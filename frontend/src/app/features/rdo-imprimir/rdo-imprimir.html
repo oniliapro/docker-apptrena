@@ -11,141 +11,121 @@
       [subtitulo]="'Relatório Diário de Obra - Nº ' + numeroFormatado() + ' (' + (r.data | date: 'dd/MM/yyyy') + ')'"
       [geradoEm]="geradoEm" />
 
-    <!-- Identificação da obra -->
+    <!-- Identificação da obra — lista (não tabela), rótulo e valor na mesma
+         linha, fonte menor (14/10/2026, pedido do Lucas: "tá com muito
+         destaque"). "Prazo" saiu (não pedido mais); "Início" virou "Início
+         da obra". -->
     <section class="identificacao">
-      <div class="campo largo">
-        <span class="rotulo">Obra</span>
-        <span class="valor">{{ r.obra?.obra_nome || '—' }}</span>
+      <div class="coluna-identificacao">
+        <div class="campo-linha">
+          <span class="rotulo">Obra</span>
+          <span class="valor">{{ r.obra?.obra_nome || '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">Endereço</span>
+          <span class="valor">{{ r.obra?.local_obra || '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">Contratante</span>
+          <span class="valor">{{ cabecalho()?.contratante_nome || r.obra?.cliente || '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">Responsável técnico</span>
+          <span class="valor">{{ cabecalho()?.responsavel_tecnico || '—' }}</span>
+        </div>
       </div>
-      <div class="campo">
-        <span class="rotulo">Contrato</span>
-        <span class="valor">{{ cabecalho()?.numero_contrato || '—' }}</span>
-      </div>
-      <div class="campo">
-        <span class="rotulo">Responsável técnico</span>
-        <span class="valor">{{ cabecalho()?.responsavel_tecnico || '—' }}</span>
-      </div>
-
-      <div class="campo largo">
-        <span class="rotulo">Endereço</span>
-        <span class="valor">{{ r.obra?.local_obra || '—' }}</span>
-      </div>
-      <div class="campo">
-        <span class="rotulo">Início</span>
-        <span class="valor">{{ cabecalho()?.data_inicio ? (cabecalho()?.data_inicio | date: 'dd/MM/yyyy') : '—' }}</span>
-      </div>
-      <div class="campo">
-        <span class="rotulo">Prazo</span>
-        <span class="valor">{{ cabecalho()?.prazo || '—' }}</span>
-      </div>
-
-      <div class="campo largo">
-        <span class="rotulo">Contratante</span>
-        <span class="valor">{{ cabecalho()?.contratante_nome || r.obra?.cliente || '—' }}</span>
-      </div>
-      <div class="campo">
-        <span class="rotulo">CREA</span>
-        <span class="valor">{{ cabecalho()?.crea || '—' }}</span>
-      </div>
-      <div class="campo">
-        <span class="rotulo">Nº da ART</span>
-        <span class="valor">{{ cabecalho()?.art || '—' }}</span>
+      <div class="coluna-identificacao">
+        <div class="campo-linha">
+          <span class="rotulo">Contrato</span>
+          <span class="valor">{{ cabecalho()?.numero_contrato || '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">Início da obra</span>
+          <span class="valor">{{ cabecalho()?.data_inicio ? (cabecalho()?.data_inicio | date: 'dd/MM/yyyy') : '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">Nº da ART</span>
+          <span class="valor">{{ cabecalho()?.art || '—' }}</span>
+        </div>
+        <div class="campo-linha">
+          <span class="rotulo">CREA</span>
+          <span class="valor">{{ cabecalho()?.crea || '—' }}</span>
+        </div>
       </div>
     </section>
 
-    <!-- Clima por turno — condição de trabalho (praticável/impraticável, 14/10/2026) junto do clima. -->
+    <!-- Clima por turno — texto corrido com ícone, uma linha por turno
+         (14/10/2026, pedido do Lucas), condição de trabalho (praticável/
+         impraticável) junto. -->
     <section class="secao">
       <h2>Condições climáticas</h2>
-      <table class="tabela clima">
-        <thead><tr><th>Manhã</th><th>Tarde</th><th>Noite</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>
-              {{ rotuloClima(r.clima_manha) }}
-              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_manha) }}</span>
-            </td>
-            <td>
-              {{ rotuloClima(r.clima_tarde) }}
-              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_tarde) }}</span>
-            </td>
-            <td>
-              {{ rotuloClima(r.clima_noite) }}
-              <span class="meta-condicao">{{ rotuloCondicao(r.condicao_noite) }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul class="lista-texto">
+        <li>Manhã: {{ simboloClima(r.clima_manha) }} <span class="meta">{{ rotuloCondicao(r.condicao_manha) }}</span></li>
+        <li>Tarde: {{ simboloClima(r.clima_tarde) }} <span class="meta">{{ rotuloCondicao(r.condicao_tarde) }}</span></li>
+        <li>Noite: {{ simboloClima(r.clima_noite) }} <span class="meta">{{ rotuloCondicao(r.condicao_noite) }}</span></li>
+      </ul>
       @if (r.impacto_cronograma) {
         <p class="observacao"><strong>Impacto no cronograma:</strong> {{ r.impacto_cronograma }}</p>
       }
     </section>
 
-    <!-- Mão de obra — texto corrido, não grade (14/10/2026, pedido do Lucas):
-         quando a linha vem de um profissional do cadastro, mostra o NOME
-         dele, não a função. -->
+    <!-- Mão de obra — texto corrido, uma lista abaixo da outra, não lado a
+         lado (14/10/2026, pedido do Lucas). Linha vinda do cadastro de
+         Profissionais mostra o NOME, sem quantidade (é sempre 1 pessoa);
+         lançamento manual mostra a quantidade digitada. -->
     <section class="secao">
       <h2>Mão de obra</h2>
-      <div class="duas-colunas">
-        <div>
-          <h3>Interna</h3>
-          @if (maoDeObraDe('interno').length) {
-            <ul class="lista-texto">
-              @for (m of maoDeObraDe('interno'); track m.id) {
-                <li>{{ m.profissional_nome || m.funcao }} <span class="meta">Qtde: {{ m.quantidade }}</span></li>
-              }
-            </ul>
-          } @else {
-            <p class="vazio">Sem mão de obra interna registrada.</p>
+      <h3>Interna</h3>
+      @if (maoDeObraDe('interno').length) {
+        <ul class="lista-texto">
+          @for (m of maoDeObraDe('interno'); track m.id) {
+            <li>{{ m.profissional_nome || m.funcao }}@if (!m.profissional_nome) { <span class="meta">Qtde: {{ m.quantidade }}</span> }</li>
           }
-        </div>
-        <div>
-          <h3>Externa</h3>
-          @if (maoDeObraDe('externo').length) {
-            <ul class="lista-texto">
-              @for (m of maoDeObraDe('externo'); track m.id) {
-                <li>{{ m.profissional_nome || m.funcao }} <span class="meta">Qtde: {{ m.quantidade }}</span></li>
-              }
-            </ul>
-          } @else {
-            <p class="vazio">Sem mão de obra externa registrada.</p>
+        </ul>
+      } @else {
+        <p class="vazio">Sem mão de obra interna registrada.</p>
+      }
+
+      <h3>Externa</h3>
+      @if (maoDeObraDe('externo').length) {
+        <ul class="lista-texto">
+          @for (m of maoDeObraDe('externo'); track m.id) {
+            <li>{{ m.profissional_nome || m.funcao }}@if (!m.profissional_nome) { <span class="meta">Qtde: {{ m.quantidade }}</span> }</li>
           }
-        </div>
-      </div>
+        </ul>
+      } @else {
+        <p class="vazio">Sem mão de obra externa registrada.</p>
+      }
     </section>
 
     <!-- Equipamentos — próprios x alugados (14/10/2026, pedido do Lucas),
-         mesmo texto corrido da mão de obra; alugado mostra o contrato. -->
+         também uma lista abaixo da outra; alugado mostra o contrato. -->
     <section class="secao">
       <h2>Equipamentos</h2>
-      <div class="duas-colunas">
-        <div>
-          <h3>Próprios</h3>
-          @if (equipamentosDe('proprio').length) {
-            <ul class="lista-texto">
-              @for (eq of equipamentosDe('proprio'); track eq.id) {
-                <li>{{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span></li>
-              }
-            </ul>
-          } @else {
-            <p class="vazio">Sem equipamentos próprios registrados.</p>
+      <h3>Próprios</h3>
+      @if (equipamentosDe('proprio').length) {
+        <ul class="lista-texto">
+          @for (eq of equipamentosDe('proprio'); track eq.id) {
+            <li>{{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span></li>
           }
-        </div>
-        <div>
-          <h3>Alugados</h3>
-          @if (equipamentosDe('alugado').length) {
-            <ul class="lista-texto">
-              @for (eq of equipamentosDe('alugado'); track eq.id) {
-                <li>
-                  {{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span>
-                  @if (eq.contrato_referencia) { <span class="meta">Contrato: {{ eq.contrato_referencia }}.</span> }
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="vazio">Sem equipamentos alugados registrados.</p>
+        </ul>
+      } @else {
+        <p class="vazio">Sem equipamentos próprios registrados.</p>
+      }
+
+      <h3>Alugados</h3>
+      @if (equipamentosDe('alugado').length) {
+        <ul class="lista-texto">
+          @for (eq of equipamentosDe('alugado'); track eq.id) {
+            <li>
+              {{ eq.descricao }} <span class="meta">Qtde: {{ eq.quantidade }}</span>
+              @if (eq.contrato_referencia) { <span class="meta">Contrato: {{ eq.contrato_referencia }}.</span> }
+            </li>
           }
-        </div>
-      </div>
+        </ul>
+      } @else {
+        <p class="vazio">Sem equipamentos alugados registrados.</p>
+      }
     </section>
 
     <!-- Tarefas: etapa + descrição + ocorrências + pendências + fotos, nessa ordem
@@ -164,7 +144,7 @@
 
               @if (ocorrenciasDaTarefa(t.id).length) {
                 <div class="bloco-secundario">
-                  <span class="bloco-titulo">Ocorrências</span>
+                  <span class="bloco-titulo">Ocorrências da tarefa</span>
                   <ul class="lista-texto">
                     @for (oc of ocorrenciasDaTarefa(t.id); track oc.id) {
                       <li>
@@ -180,7 +160,7 @@
 
               @if (pendenciasDaTarefa(t.id).length) {
                 <div class="bloco-secundario">
-                  <span class="bloco-titulo">Pendências</span>
+                  <span class="bloco-titulo">Pendências da tarefa</span>
                   <ul class="lista-texto">
                     @for (p of pendenciasDaTarefa(t.id); track p.id) {
                       <li>
