@@ -110,29 +110,37 @@ export class Rdo implements OnInit {
   protected readonly tiposOcorrencia = TIPOS_OCORRENCIA;
 
   /**
-   * "S/ expediente" (14/10/2026, pedido do Lucas) — dia sem turno de
-   * trabalho (feriado, parada total etc.): marcar deixa as 3 condições de
-   * trabalho em branco (`null`, já um valor válido no backend — só o
-   * formulário nunca tinha like oferecido um jeito de chegar nele, sempre
-   * nascia em "praticável") e desabilita os 3 selects. Não é salvo como
-   * campo à parte — é só um atalho de preenchimento; reabrir um RDO salvo
-   * com as 3 condições em branco já volta com a caixa marcada sozinha
-   * (ver `aplicarRegistro`).
+   * "S/ expediente" (14/10/2026, pedido do Lucas — corrigido no mesmo dia:
+   * a 1ª versão era uma caixa só pro dia inteiro; o pedido de verdade era
+   * POR TURNO, já que cada turno tem sua própria caixa na tabela de clima)
+   * — marcar um turno deixa o CLIMA e a CONDIÇÃO DE TRABALHO daquele turno
+   * em branco (`null`, já um valor válido no backend — só o formulário
+   * nunca oferecia um jeito de chegar nele) e desabilita o rádio de clima
+   * + o select de condição daquele turno. Não é salvo como campo à parte —
+   * reabrir um RDO salvo com os dois campos de um turno em branco já volta
+   * com a caixa daquele turno marcada sozinha (ver `aplicarRegistro`).
    */
-  protected readonly semExpediente = signal(false);
+  protected readonly semExpedientePorTurno = signal<Record<string, boolean>>({});
 
-  protected alternarSemExpediente(marcado: boolean): void {
-    this.semExpediente.set(marcado);
-    (['condicao_manha', 'condicao_tarde', 'condicao_noite'] as const).forEach((chave) => {
-      const controle = this.formulario.get(chave);
-      if (marcado) {
-        controle?.setValue(null);
-        controle?.disable();
-      } else {
-        controle?.enable();
-        controle?.setValue('praticavel');
-      }
-    });
+  protected turnoSemExpediente(chaveTurno: string): boolean {
+    return !!this.semExpedientePorTurno()[chaveTurno];
+  }
+
+  protected alternarSemExpedienteTurno(turno: (typeof TURNOS_CLIMA)[number], marcado: boolean): void {
+    this.semExpedientePorTurno.update((atual) => ({ ...atual, [turno.chave]: marcado }));
+    const climaControle = this.formulario.get(turno.controlClima);
+    const condicaoControle = this.formulario.get(turno.controlCondicao);
+    if (marcado) {
+      climaControle?.setValue(null);
+      climaControle?.disable();
+      condicaoControle?.setValue(null);
+      condicaoControle?.disable();
+    } else {
+      climaControle?.enable();
+      climaControle?.setValue('claro');
+      condicaoControle?.enable();
+      condicaoControle?.setValue('praticavel');
+    }
   }
 
   // F9 (24/09/2026): mão de obra por profissional do cadastro (Empreiteiros/
@@ -505,6 +513,15 @@ export class Rdo implements OnInit {
       condicao_noite: 'praticavel',
       observacoes: '',
     });
+    // `reset()` não reabilita sozinho um controle desabilitado à mão (ex.:
+    // "S/ expediente" marcado no RDO editado antes de criar este novo) —
+    // reforça aqui pra um "S/ expediente" de um RDO anterior não vazar pro
+    // próximo.
+    TURNOS_CLIMA.forEach((t) => {
+      this.formulario.get(t.controlClima)?.enable();
+      this.formulario.get(t.controlCondicao)?.enable();
+    });
+    this.semExpedientePorTurno.set({});
 
     this.limparArrays();
     this.formularioFvs.clear();
@@ -540,27 +557,36 @@ export class Rdo implements OnInit {
     this.videosSelecionados.set([]);
     this.limparArrays();
 
-    // "S/ expediente" (14/10/2026): as 3 condições vêm nulas do backend só
-    // quando o dia inteiro foi marcado assim (ver `alternarSemExpediente`)
-    // — qualquer outro caso (RDO salvo antes dessa opção existir) cai no
-    // default de sempre, "praticável".
-    const semExpedienteRegistro = !registro.condicao_manha && !registro.condicao_tarde && !registro.condicao_noite;
     this.formulario.patchValue({
       data: registro.data?.substring(0, 10) ?? hojeIso(),
-      clima_manha: registro.clima_manha ?? 'claro',
-      clima_tarde: registro.clima_tarde ?? 'claro',
-      clima_noite: registro.clima_noite ?? 'claro',
-      condicao_manha: registro.condicao_manha ?? (semExpedienteRegistro ? null : 'praticavel'),
-      condicao_tarde: registro.condicao_tarde ?? (semExpedienteRegistro ? null : 'praticavel'),
-      condicao_noite: registro.condicao_noite ?? (semExpedienteRegistro ? null : 'praticavel'),
       observacoes: registro.observacoes ?? '',
     });
-    this.semExpediente.set(semExpedienteRegistro);
-    (['condicao_manha', 'condicao_tarde', 'condicao_noite'] as const).forEach((chave) => {
-      const controle = this.formulario.get(chave);
-      if (semExpedienteRegistro) controle?.disable();
-      else controle?.enable();
+
+    // "S/ expediente" POR TURNO (14/10/2026): clima e condição vêm nulos do
+    // backend só quando aquele turno específico foi marcado assim (ver
+    // `alternarSemExpedienteTurno`) — qualquer outro caso (RDO salvo antes
+    // dessa opção existir) cai no default de sempre.
+    const semExpedientePorTurno: Record<string, boolean> = {};
+    const registroComoMapa = registro as unknown as Record<string, string | null>;
+    TURNOS_CLIMA.forEach((t) => {
+      const semExpedienteDoTurno = !registroComoMapa[t.controlClima] && !registroComoMapa[t.controlCondicao];
+      semExpedientePorTurno[t.chave] = semExpedienteDoTurno;
+
+      const climaControle = this.formulario.get(t.controlClima);
+      const condicaoControle = this.formulario.get(t.controlCondicao);
+      if (semExpedienteDoTurno) {
+        climaControle?.setValue(null);
+        climaControle?.disable();
+        condicaoControle?.setValue(null);
+        condicaoControle?.disable();
+      } else {
+        climaControle?.setValue(registroComoMapa[t.controlClima] ?? 'claro');
+        climaControle?.enable();
+        condicaoControle?.setValue(registroComoMapa[t.controlCondicao] ?? 'praticavel');
+        condicaoControle?.enable();
+      }
     });
+    this.semExpedientePorTurno.set(semExpedientePorTurno);
 
     this.mesclarTarefasComEtapasEPendencias(registro);
     registro.mao_de_obra?.forEach((m) =>

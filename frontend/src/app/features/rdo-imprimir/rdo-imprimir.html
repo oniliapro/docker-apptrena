@@ -79,7 +79,13 @@
       @if (maoDeObraDe('interno').length) {
         <ul class="lista-texto">
           @for (m of maoDeObraDe('interno'); track m.id) {
-            <li>{{ m.profissional_nome || m.funcao }}@if (!m.profissional_nome) { <span class="meta">Qtde: {{ m.quantidade }}</span> }</li>
+            <li>
+              @if (m.profissional_nome) {
+                {{ m.profissional_nome }} <span class="meta">(cadastrado)</span>
+              } @else {
+                {{ m.funcao }} <span class="meta">Qtde: {{ m.quantidade }} (s/ cadastro)</span>
+              }
+            </li>
           }
         </ul>
       } @else {
@@ -90,7 +96,13 @@
       @if (maoDeObraDe('externo').length) {
         <ul class="lista-texto">
           @for (m of maoDeObraDe('externo'); track m.id) {
-            <li>{{ m.profissional_nome || m.funcao }}@if (!m.profissional_nome) { <span class="meta">Qtde: {{ m.quantidade }}</span> }</li>
+            <li>
+              @if (m.profissional_nome) {
+                {{ m.profissional_nome }} <span class="meta">(cadastrado)</span>
+              } @else {
+                {{ m.funcao }} <span class="meta">Qtde: {{ m.quantidade }} (s/ cadastro)</span>
+              }
+            </li>
           }
         </ul>
       } @else {
@@ -178,14 +190,21 @@
                 <div class="fotos-tarefa">
                   @for (foto of fotosDaTarefa(t.id); track foto.id) {
                     <figure>
-                      <div class="quadro">
-                        <img [src]="urlMidia(foto)" alt="">
-                        @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                          <span class="marcador"
-                                [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                                [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                        }
-                      </div>
+                      @if (foto.tipo === 'video') {
+                        <div class="quadro quadro-video">
+                          <span class="icone-video-impressao">▶</span>
+                          <span class="video-rotulo">Vídeo anexado</span>
+                        </div>
+                      } @else {
+                        <div class="quadro">
+                          <img [src]="urlMidia(foto)" alt="">
+                          @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                            <span class="marcador"
+                                  [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                                  [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                          }
+                        </div>
+                      }
                       @if (foto.legenda || foto.marcador_nota) {
                         <figcaption>{{ foto.legenda }}{{ foto.marcador_nota ? ' — ' + foto.marcador_nota : '' }}</figcaption>
                       }
@@ -200,40 +219,6 @@
         <p class="vazio">Sem tarefas registradas.</p>
       }
     </section>
-
-    <!-- Ocorrências/pendências de registros antigos (antes de 26/09/2026), sem
-         vínculo com nenhuma tarefa — não existiriam mais com dados novos. -->
-    @if (ocorrenciasOrfas().length) {
-      <section class="secao">
-        <h2>Outras ocorrências</h2>
-        <ul class="lista-texto">
-          @for (oc of ocorrenciasOrfas(); track oc.id) {
-            <li>
-              <strong>{{ rotuloOcorrencia(oc.tipo) }}.</strong> {{ oc.descricao }}
-              @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}.</span> }
-              @if (oc.motivo) { <span class="meta">Motivo: {{ oc.motivo }}.</span> }
-              @if (oc.danos_materiais) { <span class="meta">Danos: {{ oc.danos_materiais }}.</span> }
-            </li>
-          }
-        </ul>
-      </section>
-    }
-
-    @if (pendenciasOrfas().length) {
-      <section class="secao">
-        <h2>Outras pendências</h2>
-        <ul class="lista-texto">
-          @for (p of pendenciasOrfas(); track p.id) {
-            <li>
-              {{ p.descricao }}
-              @if (p.responsavel) { <span class="meta">Responsável: {{ p.responsavel }}.</span> }
-              @if (p.prazo) { <span class="meta">Prazo: {{ p.prazo | date: 'dd/MM/yyyy' }}.</span> }
-              <span class="meta">Situação: {{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}.</span>
-            </li>
-          }
-        </ul>
-      </section>
-    }
 
     @if (r.responsaveis_presentes?.length) {
       <section class="secao">
@@ -254,41 +239,84 @@
       </section>
     }
 
-    @if (fotosDoDia().length) {
+    <!-- Registros gerais do dia (14/10/2026, pedido do Lucas) — um único
+         cabeçalho no lugar de 4 seções soltas ("Outras ocorrências",
+         "Outras pendências", "Registro fotográfico do dia", "Observações").
+         Ocorrências/pendências GERAIS = sem tarefa_id (tanto as lançadas
+         assim de propósito quanto as órfãs de registros salvos antes de
+         26/09/2026, quando toda ocorrência/pendência nascia solta). Mesmo
+         padrão de lista usado dentro de cada tarefa. -->
+    @if (ocorrenciasOrfas().length || pendenciasOrfas().length || fotosDoDia().length || r.observacoes) {
       <section class="secao">
-        <h2>Registro fotográfico do dia</h2>
-        <div class="fotos-dia">
-          @for (foto of fotosDoDia(); track foto.id) {
-            <figure>
-              <div class="quadro">
-                <img [src]="urlMidia(foto)" alt="">
-                @if (foto.marcador_x !== null && foto.marcador_y !== null) {
-                  <span class="marcador"
-                        [style.left.%]="(foto.marcador_x ?? 0) * 100"
-                        [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
-                }
-              </div>
-              @if (foto.legenda) { <figcaption>{{ foto.legenda }}</figcaption> }
-            </figure>
-          }
-        </div>
-      </section>
-    }
+        <h2>Registros gerais</h2>
 
-    @if (r.observacoes) {
-      <section class="secao">
-        <h2>Observações</h2>
-        <p class="observacao">{{ r.observacoes }}</p>
-      </section>
-    }
+        @if (ocorrenciasOrfas().length) {
+          <div class="bloco-secundario">
+            <span class="bloco-titulo">Ocorrências gerais do dia</span>
+            <ul class="lista-texto">
+              @for (oc of ocorrenciasOrfas(); track oc.id) {
+                <li>
+                  <strong>{{ rotuloOcorrencia(oc.tipo) }}.</strong> {{ oc.descricao }}
+                  @if (oc.responsavel) { <span class="meta">Responsável: {{ oc.responsavel }}.</span> }
+                  @if (oc.motivo) { <span class="meta">Motivo: {{ oc.motivo }}.</span> }
+                  @if (oc.danos_materiais) { <span class="meta">Danos: {{ oc.danos_materiais }}.</span> }
+                </li>
+              }
+            </ul>
+          </div>
+        }
 
-    <!-- O PDF é estático, não toca vídeo (14/10/2026, pedido do Lucas) — um
-         aviso único no fim do documento, no lugar da caixa "Vídeo anexado"
-         que aparecia espalhada em cada tarefa/no registro do dia. -->
-    @if (temVideo()) {
-      <p class="observacao-video">
-        Obs.: o relatório gerado possui um ou mais vídeos anexados que podem ser verificados na versão online.
-      </p>
+        @if (pendenciasOrfas().length) {
+          <div class="bloco-secundario">
+            <span class="bloco-titulo">Pendências gerais do dia</span>
+            <ul class="lista-texto">
+              @for (p of pendenciasOrfas(); track p.id) {
+                <li>
+                  {{ p.descricao }}
+                  @if (p.responsavel) { <span class="meta">Responsável: {{ p.responsavel }}.</span> }
+                  @if (p.prazo) { <span class="meta">Prazo: {{ p.prazo | date: 'dd/MM/yyyy' }}.</span> }
+                  <span class="meta">Situação: {{ p.status === 'concluida' ? 'Concluída' : 'Aberta' }}.</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (fotosDoDia().length) {
+          <div class="bloco-secundario">
+            <span class="bloco-titulo">Fotos do dia</span>
+            <div class="fotos-dia">
+              @for (foto of fotosDoDia(); track foto.id) {
+                <figure>
+                  @if (foto.tipo === 'video') {
+                    <div class="quadro quadro-video">
+                      <span class="icone-video-impressao">▶</span>
+                      <span class="video-rotulo">Vídeo anexado</span>
+                    </div>
+                  } @else {
+                    <div class="quadro">
+                      <img [src]="urlMidia(foto)" alt="">
+                      @if (foto.marcador_x !== null && foto.marcador_y !== null) {
+                        <span class="marcador"
+                              [style.left.%]="(foto.marcador_x ?? 0) * 100"
+                              [style.top.%]="(foto.marcador_y ?? 0) * 100"></span>
+                      }
+                    </div>
+                  }
+                  @if (foto.legenda) { <figcaption>{{ foto.legenda }}</figcaption> }
+                </figure>
+              }
+            </div>
+          </div>
+        }
+
+        @if (r.observacoes) {
+          <div class="bloco-secundario">
+            <span class="bloco-titulo">Observações do dia</span>
+            <p class="observacao">{{ r.observacoes }}</p>
+          </div>
+        }
+      </section>
     }
 
     <!--

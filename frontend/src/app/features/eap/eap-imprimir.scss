@@ -114,13 +114,20 @@
 // 26/09/2026: rótulo (REAL./ORÇ.) e valor ficam na MESMA linha — o rótulo pequeno e o valor
 // em 9px cabem na coluna; com o rótulo quebrando pra linha de cima cada linha da tabela ficava
 // com o dobro da altura (o PDF da EAP ganhava ~30% de páginas). 14/10/2026: esse ajuste só
-// tinha sido aplicado na EAP CONFIRMADA (`.celula-orc-real`) — a EAP aberta (`.celula-custo`/
-// `.celula-bdi-aplicado`, que usa grid em vez de flex pro rótulo) ficou de fora, daí o "Total"
-// de cada item saindo em duas linhas só nela (pedido do Lucas: "o padrão que quero pras duas é
-// o da EAP fechada"). Mesmo tratamento estendido pras duas.
-.tabela-eap .celula-orc-real .linha-real, .tabela-eap .celula-orc-real .linha-orc {
+// tinha sido aplicado na EAP CONFIRMADA (`.celula-orc-real`, que já era `display: flex`) — a
+// aberta (`.celula-custo`/`.celula-bdi-aplicado`) usa `display: grid` com coluna de rótulo de
+// largura FIXA (`eap.scss`, pensada pra tela) — só encolher a fonte do rótulo (1ª tentativa)
+// não bastava, porque a coluna continuava com a mesma largura em px e "Total"/"Unit." ainda
+// não cabiam, quebrando ("Tota"/"l"). Em vez de calcular uma largura de coluna nova, a correção
+// de verdade é trocar pra `display: flex` igual à EAP confirmada — mesmo mecanismo, sem coluna
+// de largura fixa, rótulo encolhe e o valor fica alinhado à direita igual Real./Orç.
+.tabela-eap .celula-orc-real .linha-real, .tabela-eap .celula-orc-real .linha-orc,
+.tabela-eap .celula-custo .linha-unit, .tabela-eap .celula-custo .linha-total,
+.tabela-eap .celula-bdi-aplicado .linha-bdi-aplicado {
+  display: flex;
   flex-wrap: nowrap;
   justify-content: flex-end;
+  align-items: baseline;
   gap: 3px;
 }
 .tabela-eap .celula-orc-real .rotulo-real,
@@ -139,11 +146,6 @@
 .valor-real, .valor-orc, .valor-custo {
   white-space: nowrap;
 }
-
-// 30px → 22px (14/10/2026): rótulo encolhido pra 6.5px (acima) cabe numa
-// coluna mais estreita — sobra mais espaço pro valor, mesma lógica do
-// ajuste da EAP confirmada.
-.linha-unit, .linha-total { grid-template-columns: 22px 1fr; }
 
 th, td { overflow-wrap: break-word; }
 

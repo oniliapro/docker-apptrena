@@ -108,24 +108,17 @@ export class RdoImprimir implements OnInit {
     return (this.rdo()?.equipamentos ?? []).filter((e) => e.categoria === categoria);
   }
 
-  /** Só fotos de verdade — vídeo nunca aparece inline no PDF, ver `temVideo()`. */
+  /**
+   * Fotos E vídeos juntos (14/10/2026: filtro "só foto" tirado de novo —
+   * vídeo volta a aparecer com ícone + legenda, pra quem lê o PDF saber do
+   * que se trata sem precisar abrir o sistema; ver `foto.tipo` no template).
+   */
   protected fotosDaTarefa(tarefaId: string): RdoFoto[] {
-    return (this.rdo()?.fotos ?? []).filter((f) => f.tarefa_id === tarefaId && f.tipo === 'foto');
+    return (this.rdo()?.fotos ?? []).filter((f) => f.tarefa_id === tarefaId);
   }
 
   protected fotosDoDia(): RdoFoto[] {
-    return (this.rdo()?.fotos ?? []).filter((f) => !f.tarefa_id && f.tipo === 'foto');
-  }
-
-  /**
-   * (14/10/2026) O PDF é estático — nunca tocou vídeo, só mostrava uma
-   * caixa "Vídeo anexado" no lugar de cada um. Virou um único aviso no fim
-   * do documento (pedido do Lucas), então as mídias de vídeo não entram
-   * mais em `fotosDaTarefa`/`fotosDoDia` — só precisamos saber SE existe
-   * pelo menos um, pra decidir se mostra o aviso.
-   */
-  protected temVideo(): boolean {
-    return (this.rdo()?.fotos ?? []).some((f) => f.tipo === 'video');
+    return (this.rdo()?.fotos ?? []).filter((f) => !f.tarefa_id);
   }
 
   protected ocorrenciasDaTarefa(tarefaId: string): RdoOcorrencia[] {

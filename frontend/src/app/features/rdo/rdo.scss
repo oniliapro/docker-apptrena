@@ -251,18 +251,6 @@ textarea { resize: vertical; }
   }
 }
 
-// "S/ expediente" (14/10/2026) — dia sem turno de trabalho; marcar deixa
-// as 3 condições de trabalho em branco (ver `Rdo.alternarSemExpediente`).
-.opcao-sem-expediente {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-
-  input { width: auto; height: auto; margin: 0; }
-}
 
 /* Clima em tabela (26/09/2026): linha = condição, coluna = turno — um rádio
    por célula, só uma condição marcada por turno (coluna). */
@@ -370,7 +358,10 @@ textarea { resize: vertical; }
       }
     }
 
-    td:last-child {
+    // Antes era `td:last-child` — parou de bater quando a célula "S/
+    // expediente" entrou depois dela (14/10/2026), então ganhou classe
+    // própria pra não depender de posição.
+    .celula-condicao {
       grid-column: 1 / -1;
 
       &::before {
@@ -383,6 +374,21 @@ textarea { resize: vertical; }
       }
 
       select { width: 100%; font-size: 16px; }
+    }
+
+    .celula-sem-expediente {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+
+      &::before {
+        content: 'S/ expediente';
+        font-size: 0.7rem;
+        color: var(--cor-texto-suave);
+      }
+
+      input { width: auto; height: auto; margin: 0; }
     }
   }
 }
@@ -622,6 +628,15 @@ button {
   min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
+
+  // `table[trenaRedimensionarColunas] thead th { position: sticky }` é
+  // GLOBAL (`_base.scss`), pensado pra tabela grande rolando dentro de uma
+  // `.envoltoria` com altura própria (Mapa/EAP/Empreita) — aqui a tabela é
+  // pequena e vive solta no meio de uma página de formulário comprida, sem
+  // contêiner de rolagem nenhum; o cabeçalho "grudado" ficava flutuando
+  // por cima do conteúdo ao rolar a página (14/10/2026, "o cabeçalho tá
+  // flutuando"). `position: static` desliga isso só aqui.
+  thead th { position: static; }
 
   th, td { padding: 3px 4px; font-size: 11px; vertical-align: top; }
   th { text-align: left; color: var(--cor-texto-suave); font-weight: 600; }

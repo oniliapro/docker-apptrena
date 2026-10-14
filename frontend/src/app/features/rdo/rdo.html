@@ -126,18 +126,13 @@
         <fieldset class="clima">
           <legend>Condições climáticas</legend>
 
-          <label class="opcao-sem-expediente">
-            <input type="checkbox" [checked]="semExpediente()"
-                   (change)="alternarSemExpediente($any($event.target).checked)">
-            S/ expediente (sem turno de trabalho hoje)
-          </label>
-
           <table class="tabela-clima">
             <thead>
               <tr>
                 <th></th>
                 @for (c of climas; track c.valor) { <th>{{ c.simbolo }} {{ c.rotulo }}</th> }
                 <th>Condições de trabalho</th>
+                <th>S/ expediente</th>
               </tr>
             </thead>
             <tbody>
@@ -154,12 +149,21 @@
                       </label>
                     </td>
                   }
-                  <td>
+                  <td class="celula-condicao">
                     <select [formControlName]="t.controlCondicao">
                       @for (cond of condicoesTrabalho; track cond.valor) {
                         <option [value]="cond.valor">{{ cond.rotulo }}</option>
                       }
                     </select>
+                  </td>
+                  <!-- "S/ expediente" POR TURNO (14/10/2026, corrigido no mesmo dia — a 1ª
+                       versão era uma caixa só pro dia inteiro): marcar deixa clima e condição
+                       DESSE turno em branco e desabilitados — não interessa qual era o clima
+                       se não teve expediente naquele turno. -->
+                  <td class="centro celula-sem-expediente">
+                    <input type="checkbox" [checked]="turnoSemExpediente(t.chave)"
+                           (change)="alternarSemExpedienteTurno(t, $any($event.target).checked)"
+                           [attr.aria-label]="'S/ expediente — ' + t.rotulo">
                   </td>
                 </tr>
               }

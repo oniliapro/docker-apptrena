@@ -201,7 +201,16 @@
                   </span>
                 </div>
               </td>
-              <td class="valor"><b>{{ moedaOuVazio(totalComBdi(i, item)) }}</b></td>
+              <!-- Mesmo padrão rótulo+valor das demais células da linha (14/10/2026) —
+                   antes era só o valor solto, sem o wrapper flex, o que descasava a
+                   altura desta célula das vizinhas e deixava a coluna "Total + BDI"
+                   com um vão em branco por cima, fora do alinhamento das outras. -->
+              <td class="celula-bdi-aplicado">
+                <div class="linha-bdi-aplicado">
+                  <span class="rotulo-custo">Total</span>
+                  <span class="valor-custo"><b>{{ moedaOuVazio(totalComBdi(i, item)) }}</b></span>
+                </div>
+              </td>
             }
           }
         </tr>
@@ -265,18 +274,42 @@
             </div>
           </th>
         } @else {
+          <!-- Mesmo padrão rótulo+valor das linhas do corpo (14/10/2026) — antes
+               era só o valor solto (`<th class="valor">`), sem o wrapper flex das
+               outras colunas, descasando a altura e desalinhando a linha TOTAIS
+               aqui embaixo. -->
           @if (store.ui().showUnit) {
             @if (store.mostrarColunasTipo()) {
               @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                <th class="valor">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</th>
+                <th class="celula-custo">
+                  <div class="linha-total">
+                    <span class="rotulo-custo">Total</span>
+                    <span class="valor-custo">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</span>
+                  </div>
+                </th>
               }
             }
-            <th class="valor">{{ formatarMoeda(store.cache().totalsDirect) }}</th>
+            <th class="celula-custo">
+              <div class="linha-total">
+                <span class="rotulo-custo">Total</span>
+                <span class="valor-custo"><b>{{ formatarMoeda(store.cache().totalsDirect) }}</b></span>
+              </div>
+            </th>
           }
 
           @if (store.ui().showBDI) {
-            <th class="valor">{{ formatarMoeda(store.cache().totalsBdi) }}</th>
-            <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
+            <th class="celula-bdi-aplicado">
+              <div class="linha-bdi-aplicado">
+                <span class="rotulo-custo">BDI</span>
+                <span class="valor-custo">{{ formatarMoeda(store.cache().totalsBdi) }}</span>
+              </div>
+            </th>
+            <th class="celula-bdi-aplicado">
+              <div class="linha-bdi-aplicado">
+                <span class="rotulo-custo">Total</span>
+                <span class="valor-custo"><b>{{ formatarMoeda(store.cache().totalsWithBdi) }}</b></span>
+              </div>
+            </th>
           }
         }
       </tr>

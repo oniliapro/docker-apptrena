@@ -84,7 +84,16 @@
 
 .rotulo {
   flex-shrink: 0;
-  width: 26mm;
+  // 26mm → 33mm (14/10/2026): "Responsável técnico" (o rótulo mais
+  // comprido) quebrava em 2 linhas — como as duas colunas da seção não são
+  // uma grade de verdade (cada `.coluna-identificacao` empilha os próprios
+  // campos, sem sincronizar altura de linha com a outra coluna), isso
+  // jogava o resto da coluna pra baixo, desalinhando com a linha
+  // correspondente da coluna vizinha (ex.: CREA ficava do lado de Início
+  // da obra, não de Responsável técnico). `white-space: nowrap` trava
+  // numa linha só — a largura já cobre o pior caso, não deveria vazar.
+  width: 33mm;
+  white-space: nowrap;
   font-size: 6.5pt;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -225,19 +234,6 @@
   font-size: 8.5pt;
 }
 
-// Aviso de vídeo (14/10/2026) — o PDF é estático, não toca vídeo; um aviso
-// só, no fim do documento, substitui a caixa "Vídeo anexado" que antes
-// aparecia espalhada em cada tarefa/no registro do dia.
-.observacao-video {
-  margin: 2mm 0;
-  padding: 1.5mm 2mm;
-  border: 0.6pt solid #a6c0c8;
-  background: #f0f1ed;
-  font-size: 8pt;
-  color: #4a7a94;
-  font-style: italic;
-}
-
 .vazio {
   margin: 0;
   font-size: 8.5pt;
@@ -277,6 +273,22 @@
 }
 
 .fotos-dia .quadro { height: 32mm; }
+
+/* Vídeo (14/10/2026, de volta: o PDF é estático, não toca vídeo, mas o
+   ícone + legenda deixam claro do que se trata, sem precisar abrir o
+   sistema pra conferir). */
+.quadro-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2pt;
+  background: #f0f1ed;
+  color: #4a7a94;
+}
+
+.icone-video-impressao { font-size: 12pt; }
+.video-rotulo { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* Croqui: o ponto que o engenheiro marcou sobre a foto. */
 .marcador {
