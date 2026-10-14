@@ -52,6 +52,14 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px 12px;
+
+  // (14/10/2026) Sem isso, os campos herdam a altura global apertada
+  // (`input, select { height: 20px }`, `_base.scss`) — texto some
+  // (padrão já visto no RDO/editor de contrato, ver memória) e o
+  // sublinhado vermelho do corretor ortográfico sai cortado embaixo,
+  // sem espaço pra desenhar. Mesmo valor já usado em `.grade-cabecalho`
+  // do Mapa (`mapa.scss`).
+  input, select { height: 26px; }
 }
 
 .campo-largo { grid-column: span 2; }

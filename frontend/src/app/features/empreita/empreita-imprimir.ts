@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { ChaveTipo, ItemEap, TIPOS_CUSTO } from '../eap/eap.models';
 import {
   COLUNAS_PDF_EMPREITA_TODAS,
@@ -29,7 +30,7 @@ import { ItemEmpreita, LinhaEmpreitaEstendida } from './empreita.models';
  */
 @Component({
   selector: 'app-empreita-imprimir',
-  imports: [EmpreitaRelatorioPagamentos, CabecalhoImpressao],
+  imports: [EmpreitaRelatorioPagamentos, CabecalhoImpressao, RodapeImpressao],
   providers: [EmpreitaStore],
   templateUrl: './empreita-imprimir.html',
   styleUrl: './empreita-imprimir.scss',

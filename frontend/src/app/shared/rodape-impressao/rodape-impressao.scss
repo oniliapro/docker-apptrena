@@ -1,0 +1,18 @@
+:host { display: block; }
+
+.folha-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid var(--cor-borda);
+  font-size: 8px;
+  color: var(--cor-texto-suave);
+}
+
+.logomarca-comtrena-rodape {
+  height: 14px;
+  width: auto;
+}

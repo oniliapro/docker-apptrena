@@ -27,14 +27,7 @@
 }
 
 // ---- Cabeçalho/rodapé do documento ----
-.folha-rodape {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// (14/10/2026) Rodapé padronizado — ver `app-rodape-impressao`.
 
 // Cabeçalho de identificação (Nº/Descrição/Empreiteiro/Data) — mesmo
 // tratamento do Mapa: sem caixa de input, só o valor, compacto.

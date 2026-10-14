@@ -35,15 +35,8 @@
 // Lucas — "aplique o mesmo padrão do PDF da EAP". Estilos específicos do
 // cabeçalho antigo (`.folha-cabecalho`, `.logo-texto`, `.info-geracao`,
 // `.logo-marca-empresa`/`.monograma-empresa`/`.nome-marca` aumentados,
-// `.gerado-em`…) saíram daqui — já vêm prontos do componente.
-.folha-rodape {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// `.gerado-em`…) saíram daqui — já vêm prontos do componente. 14/10/2026:
+// mesma ideia pro rodapé — ver `app-rodape-impressao`.
 
 // ---- Ajustes de papel sobre o que veio de mapa.scss ----
 

@@ -22,14 +22,9 @@
 }
 
 // ---- Cabeçalho/rodapé do documento ----
-.folha-rodape {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// (14/10/2026) Rodapé padronizado — ver `app-rodape-impressao`, componente
+// compartilhado (mesmo usado por EAP/Mapa/Empreita/Medição/Cronograma de
+// Desembolso/Relatórios); CSS próprio não vive mais aqui.
 
 // Resumo compacto (Obra/Situação/BDI) — substitui, na versão impressa, o
 // cabeçalho de identificação (já mostrado em obra-detalhe.html, fora

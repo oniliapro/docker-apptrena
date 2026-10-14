@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { Obra, PerfilEmpresa, PlanejamentoCronograma } from '../../core/models/api.models';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { EapStore } from '../eap/eap.store';
 import { ehDescendente } from '../eap/eap-engine';
 import { recuoDoCodigoEap } from '../eap/eap-normalize';
@@ -37,7 +38,7 @@ interface LinhaCronograma {
  */
 @Component({
   selector: 'app-cronograma-desembolso-imprimir',
-  imports: [CabecalhoImpressao],
+  imports: [CabecalhoImpressao, RodapeImpressao],
   providers: [EapStore, PagamentosStore],
   templateUrl: './cronograma-desembolso-imprimir.html',
   styleUrl: './cronograma-desembolso-imprimir.scss',

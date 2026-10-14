@@ -314,7 +314,10 @@
 
     <footer class="rodape">
       <span>{{ r.obra?.obra_nome }} — RDO nº {{ numeroFormatado() }} — {{ r.data | date: 'dd/MM/yyyy' }}</span>
-      <span>Gerado pelo ComTrena</span>
+      <span class="rodape-geracao">
+        Geração do documento
+        <img class="logomarca-comtrena-rodape" src="marca/comtrena-logomarca-para-fundo-claro.svg" alt="ComTrena" />
+      </span>
     </footer>
 
     <!--

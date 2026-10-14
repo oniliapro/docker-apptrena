@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { calcularCacheOrcado } from '../eap/eap-engine';
 import {
   aplicarNumeracaoAutomatica,
@@ -42,7 +43,7 @@ import { Pagamento } from '../pagamentos/pagamentos.models';
  */
 @Component({
   selector: 'app-relatorios-imprimir',
-  imports: [DecimalPipe, CabecalhoImpressao],
+  imports: [DecimalPipe, CabecalhoImpressao, RodapeImpressao],
   templateUrl: './relatorios-imprimir.html',
   styleUrl: './relatorios-imprimir.scss',
 })

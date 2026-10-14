@@ -356,11 +356,29 @@
 .rodape {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-top: 6mm;
   padding-top: 1.5mm;
   border-top: 0.6pt solid #a6c0c8;
   font-size: 6.8pt;
   color: #4a7a94;
+}
+
+// "Geração do documento" + logomarca do ComTrena (14/10/2026, mesmo
+// padrão aplicado nos demais PDFs — ver `app-rodape-impressao`). Inline
+// aqui, não o componente compartilhado: o rodapé do RDO já tem seu
+// próprio layout de 2 colunas (identificação da obra/RDO à esquerda),
+// e o componente compartilhado traz borda/margem pensadas pra ocupar o
+// rodapé inteiro sozinho.
+.rodape-geracao {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.logomarca-comtrena-rodape {
+  height: 10pt;
+  width: auto;
 }
 
 /* ---------- Fichas de Verificação de Serviço, anexadas (F10, 25/09/2026) ---------- */

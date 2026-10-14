@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { formatarPercentual } from '../pagamentos/pagamentos-calc';
 import { recuoDoCodigoEap } from '../eap/eap-normalize';
 import { EapStore } from '../eap/eap.store';
@@ -27,7 +28,7 @@ import { MedicaoStore } from './medicao.store';
  */
 @Component({
   selector: 'app-medicao-imprimir',
-  imports: [CabecalhoImpressao],
+  imports: [CabecalhoImpressao, RodapeImpressao],
   providers: [EapStore, MedicaoStore],
   templateUrl: './medicao-imprimir.html',
   styleUrl: './medicao-imprimir.scss',

@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { TIPOS_CUSTO } from '../eap/eap.models';
 import { formatarPercentual } from '../pagamentos/pagamentos-calc';
 import {
@@ -45,7 +46,7 @@ import { MapaStore } from './mapa.store';
  */
 @Component({
   selector: 'app-mapa-imprimir',
-  imports: [CabecalhoImpressao],
+  imports: [CabecalhoImpressao, RodapeImpressao],
   providers: [MapaStore],
   templateUrl: './mapa-imprimir.html',
   styleUrl: './mapa-imprimir.scss',

@@ -56,14 +56,7 @@
   }
 }
 
-.folha-rodape {
-  margin-top: 10mm;
-  padding-top: 4mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8.5px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// (14/10/2026) Rodapé padronizado — ver `app-rodape-impressao`.
 
 // ---- Ajustes de papel sobre o que veio de relatorios.scss ----
 // `table-layout: fixed` + larguras (mesma correção do mapa-imprimir.scss,

@@ -6,6 +6,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { CabecalhoImpressao } from '../../shared/cabecalho-impressao/cabecalho-impressao';
+import { RodapeImpressao } from '../../shared/rodape-impressao/rodape-impressao';
 import { expandirItensPagamento } from '../pagamentos/pagamentos-calc';
 import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { ehDescendente } from './eap-engine';
@@ -29,7 +30,7 @@ import { ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from './eap.models';
  */
 @Component({
   selector: 'app-eap-imprimir',
-  imports: [CabecalhoImpressao],
+  imports: [CabecalhoImpressao, RodapeImpressao],
   providers: [EapStore, PagamentosStore],
   templateUrl: './eap-imprimir.html',
   styleUrl: './eap-imprimir.scss',

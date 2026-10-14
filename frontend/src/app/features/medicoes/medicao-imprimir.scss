@@ -20,14 +20,7 @@
 }
 
 // ---- Cabeçalho/rodapé do documento ----
-.folha-rodape {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// (14/10/2026) Rodapé padronizado — ver `app-rodape-impressao`.
 
 // Michroma (28/09/2026, manual de identidade) — título do documento,
 // caixa alta com espaçamento aberto. A etiqueta de status dentro do

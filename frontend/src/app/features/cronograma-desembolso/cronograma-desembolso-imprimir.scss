@@ -23,15 +23,8 @@
 }
 
 // ---- Cabeçalho/rodapé do documento — só existem na versão impressa
-// (a tela normal usa o AppShell pra isso, que aqui não existe). ----
-.folha-rodape {
-  margin-top: 6mm;
-  padding-top: 3mm;
-  border-top: 1px solid var(--cor-borda);
-  font-size: 8px;
-  color: var(--cor-texto-suave);
-  text-align: center;
-}
+// (a tela normal usa o AppShell pra isso, que aqui não existe). 14/10/2026:
+// rodapé padronizado — ver `app-rodape-impressao`.
 
 // ---- Ajustes de papel sobre o que veio de cronograma-desembolso.scss ----
 
