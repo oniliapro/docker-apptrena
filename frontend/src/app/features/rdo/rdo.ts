@@ -10,6 +10,7 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { hojeIso } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
+import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
 import { Empreiteiro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
@@ -84,7 +85,7 @@ interface LinhaTarefaBruta {
  */
 @Component({
   selector: 'app-rdo',
-  imports: [ReactiveFormsModule, Autocomplete],
+  imports: [ReactiveFormsModule, Autocomplete, NavegacaoTabela],
   templateUrl: './rdo.html',
   styleUrl: './rdo.scss',
 })
@@ -560,14 +561,16 @@ export class Rdo implements OnInit {
       observacoes: registro.observacoes ?? '',
     });
 
-    // "S/ expediente" POR TURNO (14/10/2026): clima e condição vêm nulos do
-    // backend só quando aquele turno específico foi marcado assim (ver
-    // `alternarSemExpedienteTurno`) — qualquer outro caso (RDO salvo antes
-    // dessa opção existir) cai no default de sempre.
+    // "S/ expediente" POR TURNO (14/10/2026): o formulário sempre grava um
+    // clima — clima vazio só acontece quando o turno foi marcado assim (ver
+    // `alternarSemExpedienteTurno`). Basta o clima (não exige a condição
+    // vazia também): RDOs salvos enquanto o bug do FormData existia ficaram
+    // com o clima vazio mas a condição "praticável", e precisam voltar
+    // marcados.
     const semExpedientePorTurno: Record<string, boolean> = {};
     const registroComoMapa = registro as unknown as Record<string, string | null>;
     TURNOS_CLIMA.forEach((t) => {
-      const semExpedienteDoTurno = !registroComoMapa[t.controlClima] && !registroComoMapa[t.controlCondicao];
+      const semExpedienteDoTurno = !registroComoMapa[t.controlClima];
       semExpedientePorTurno[t.chave] = semExpedienteDoTurno;
 
       const climaControle = this.formulario.get(t.controlClima);

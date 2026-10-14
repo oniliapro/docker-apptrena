@@ -236,7 +236,10 @@
       }
 
       <tr>
-        <th [attr.colspan]="store.cabecalho().isConfirmed ? 4 : 5" class="rotulo-rodape">TOTAIS</th>
+        <!-- Sempre 4 (EAP, Descrição, Qtde, Un.). Era 5 na EAP aberta por causa
+             da coluna "Nível", removida do PDF em 14/10/2026 — o 5 sobrou e
+             empurrava todos os totais uma coluna pra direita. -->
+        <th colspan="4" class="rotulo-rodape">TOTAIS</th>
 
         @if (store.cabecalho().isConfirmed) {
           @if (store.mostrarColunasTipo()) {

@@ -14,6 +14,16 @@ import {
   VideoSelecionado,
 } from './rdo.models';
 
+/** Campos que podem ir `null` de propósito ("S/ expediente" no turno) — ver `montarCorpo`. */
+const CAMPOS_CLIMA_ANULAVEIS = [
+  'clima_manha',
+  'clima_tarde',
+  'clima_noite',
+  'condicao_manha',
+  'condicao_tarde',
+  'condicao_noite',
+] as const;
+
 /**
  * Acesso à API do módulo RDO.
  *
@@ -181,6 +191,17 @@ export class RdoService {
   ): FormData {
     const corpo = new FormData();
     this.anexar(corpo, payload);
+
+    // "S/ expediente" por turno: clima e condição do turno vão como null. Só
+    // que FormData não tem null e `anexar` pula valor vazio — a chave nem
+    // chegava no backend, que aí aplicava o padrão "praticável" na condição
+    // e a marcação se perdia ao salvar. String vazia vira null no Laravel
+    // (ConvertEmptyStringsToNull) COM a chave presente.
+    CAMPOS_CLIMA_ANULAVEIS.forEach((chave) => {
+      if (chave in payload && (payload[chave] === null || payload[chave] === '')) {
+        corpo.append(chave, '');
+      }
+    });
 
     fotos.forEach((foto, i) => {
       corpo.append(`fotos[${i}]`, foto.arquivo, foto.arquivo.name);

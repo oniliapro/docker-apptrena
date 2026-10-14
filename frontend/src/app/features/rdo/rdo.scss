@@ -604,14 +604,11 @@ button {
   border-top: 1px dashed var(--cor-borda);
 }
 
-// Lista de pendências/ocorrências (14/10/2026, pedido do Lucas: "mais
-// parecido com uma lista... uma linha pra cada"). 1ª versão usava uma
-// tabela com `trenaRedimensionarColunas` (mesma diretiva do Mapa/EAP) —
-// tirada no mesmo dia: a diretiva reconta as colunas toda vez que o
-// FormArray muda (inserir/mover/excluir linha), e ficou injetando uma
-// 2ª linha de cabeçalho solta no meio do conteúdo ("bug feio", confirmado
-// com print). Trocado por `<ul>`/`<li>` com marcador — sem redimensionar
-// coluna nenhuma, sem diretiva de tabela, só os botões de ação de sempre.
+// Pendências/ocorrências em tabela, uma linha por item (14/10/2026, pedido
+// do Lucas). SEM `trenaRedimensionarColunas`: a diretiva liga um cabeçalho
+// `position: sticky` (regra global em `_base.scss`, pensada pra tabela
+// grande com rolagem própria) que, numa tabela pequena no meio do
+// formulário, aparecia deslocado por cima das linhas. Larguras fixas aqui.
 .rotulo-lista {
   display: block;
   margin: 0.4rem 0 0.3rem 1.8rem;
@@ -621,54 +618,64 @@ button {
   color: var(--cor-texto-suave);
 }
 
-.lista-pontilhada {
+.tabela-lista {
+  width: calc(100% - 1.8rem);
   margin: 0 0 0.4rem 1.8rem;
-  padding-left: 1.1rem;
-  list-style: disc;
+  table-layout: fixed;
+  border-collapse: collapse;
 
-  li {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px dashed var(--cor-borda);
-
-    &:last-child { margin-bottom: 0; border-bottom: none; }
-  }
-}
-
-.item-lista-campos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  flex: 1;
-  min-width: 0;
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  thead th {
+    position: static;
+    padding: 3px 4px;
+    text-align: left;
     font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     color: var(--cor-texto-suave);
-    min-width: 90px;
+    background: var(--cor-fundo-alt);
+    border-bottom: 1px solid var(--cor-borda);
   }
 
-  .campo-largo { flex: 1 1 100%; }
+  td {
+    padding: 3px 4px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--cor-borda);
+  }
 
-  input, select { height: 22px; font-size: 11px; }
+  input, select { width: 100%; height: 24px; font-size: 11px; }
 
   textarea {
+    display: block;
     width: 100%;
-    min-height: 22px;
-    padding: 2px 4px;
-    border: 1px solid var(--cor-borda);
+    min-height: 24px;
+    padding: 3px 4px;
+    border: 1px solid var(--cor-borda-forte);
     border-radius: 3px;
     font: inherit;
     font-size: 11px;
     resize: vertical;
   }
+
+  // Coluna de ações: largura justa pros 2 pares de botões (↑↓ / +✖).
+  th:last-child, .celula-acoes { width: 54px; text-align: center; }
+}
+
+// Pendência: Descrição | Responsável | Prazo | Status | Ações
+.tabela-pendencias {
+  th:nth-child(1) { width: auto; }
+  th:nth-child(2) { width: 18%; }
+  th:nth-child(3) { width: 130px; }
+  th:nth-child(4) { width: 110px; }
+}
+
+// Ocorrência: Tipo | Descrição | Responsável | Motivo | Danos | Ações
+.tabela-ocorrencias {
+  th:nth-child(1) { width: 150px; }
+  th:nth-child(2) { width: auto; }
+  th:nth-child(3) { width: 15%; }
+  th:nth-child(4) { width: 15%; }
+  th:nth-child(5) { width: 15%; }
 }
 
 // Botões de ação por item (↑ ↓ + ✖) — mesmo padrão visual do Mapa/EAP
