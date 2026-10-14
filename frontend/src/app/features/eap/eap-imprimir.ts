@@ -50,6 +50,37 @@ export class EapImprimir implements OnInit {
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
 
+  /**
+   * Larguras do PDF (14/10/2026, pedido do Lucas): Descrição é a única
+   * coluna dinâmica; EAP/Qtde/Un. = 50px cada e toda coluna de valor
+   * (categorias, totais, BDI) = LARGURA_COLUNA_VALOR, igual pra todas —
+   * ver `eap-imprimir.scss`. Como a Descrição pega só o que sobra, uma EAP
+   * com muitas colunas de valor pode não deixar espaço nenhum pra ela;
+   * nesse caso a tabela inteira é reduzida (zoom) em vez de vazar da
+   * página ou esmagar a descrição.
+   */
+  private static readonly LARGURA_PAGINA_PX = 1062; // A4 paisagem (297mm) − 2×8mm de margem, a 96dpi
+  private static readonly LARGURA_FIXAS_PX = 150; // EAP + Qtde + Un.
+  private static readonly LARGURA_COLUNA_VALOR_PX = 124;
+  private static readonly LARGURA_MINIMA_DESCRICAO_PX = 200;
+
+  protected readonly zoomTabela = computed(() => {
+    const confirmada = this.store.cabecalho().isConfirmed;
+    const nTipos = this.store.mostrarColunasTipo() ? this.store.tiposVisiveis().length : 0;
+    let colunasValor: number;
+    if (confirmada) {
+      colunasValor = nTipos ? nTipos + 2 : 1;
+    } else {
+      const ui = this.store.ui();
+      colunasValor = (ui.showUnit ? nTipos + 1 : 0) + (ui.showBDI ? 2 : 0);
+    }
+    const necessario =
+      EapImprimir.LARGURA_FIXAS_PX +
+      colunasValor * EapImprimir.LARGURA_COLUNA_VALOR_PX +
+      EapImprimir.LARGURA_MINIMA_DESCRICAO_PX;
+    return necessario > EapImprimir.LARGURA_PAGINA_PX ? EapImprimir.LARGURA_PAGINA_PX / necessario : 1;
+  });
+
   protected readonly carregando = computed(
     () => this.store.carregando() || this.pagamentosStore.carregando(),
   );

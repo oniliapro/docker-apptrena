@@ -81,16 +81,20 @@
   // linhas com 16%; o código do item e a unidade ("DIÁRIA") também quebravam. Larguras
   // revistas: mais espaço pra descrição, código e unidade sempre numa linha só. Coluna
   // "Nível" removida do PDF (14/10/2026, pedido do Lucas) — só existia na EAP aberta.
-  // 21% → 26% (14/10/2026, pedido do Lucas, olhando o PDF de verdade):
-  // descrições longas de etapa ainda quebravam bastante, deixando a
-  // tabela com aparência desorganizada.
-  .col-eap { width: 50px; }
-  .col-descricao { width: 26%; min-width: 0; }
-  .col-qtde { width: 36px; }
-  .col-unid { width: 46px; }
-  // `.col-tipo` sem width própria — as colunas de categoria/total
-  // dividem entre si o que sobra, em partes iguais, por causa do fixed
-  // acima.
+  // 14/10/2026, pedido do Lucas: SÓ a descrição é dinâmica (sem `width` —
+  // `table-layout: fixed` entrega a ela tudo que as outras não usam, e é
+  // ela que define a altura de cada linha, por quebrar texto). Todas as
+  // outras têm largura fixa e igual entre si:
+  //  - EAP / Qtde / Un.: 50px cada;
+  //  - colunas de valor (cada categoria, Total, BDI, Total + BDI): 124px —
+  //    o mínimo pra caber "TOTAL" (6.5px) + "R$ 999.999.999,99" (9px,
+  //    negrito no total) numa linha, com o padding da célula. O maior
+  //    cabeçalho ("ADMINISTRAÇÃO", ~90px) cabe folgado nessa largura.
+  // Mexeu aqui? Ajusta também `LARGURA_*` em `eap-imprimir.ts` (zoom de
+  // segurança quando as colunas fixas não deixam espaço pra descrição).
+  .col-eap, .col-qtde, .col-unid { width: 50px; }
+  .col-descricao { min-width: 0; }
+  .col-tipo { width: 124px; }
 }
 
 .celula-descricao, .celula-orc-real, .celula-custo, .celula-bdi-aplicado {
