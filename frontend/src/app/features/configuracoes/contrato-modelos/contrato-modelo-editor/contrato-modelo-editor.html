@@ -1,7 +1,7 @@
 <div class="pagina-editor" [class.painel-aberto]="algumPainelAberto()">
   <header class="barra-topo-editor">
     <div class="identificacao">
-      <span class="rotulo-tipo">Modelo de contrato — {{ rotulosTipo[tipo()] }}</span>
+      <span class="rotulo-tipo">Modelo de documento — {{ rotulosTipo[tipo()] }}</span>
       <input type="text" class="campo-nome" [value]="nome()" (input)="nome.set($any($event.target).value)"
              placeholder="Nome do modelo (ex.: Contrato padrão de empreitada)">
     </div>
@@ -179,6 +179,18 @@
         <p class="dica-lista">
           Nenhum papel timbrado cadastrado ainda — suba a imagem em Configurações → Dados da empresa.
         </p>
+      }
+
+      @if (tipo() === 'proposta') {
+        <div class="campo-bloco">
+          <p class="dica-lista">
+            Coloque a variável <b>Tabela da EAP</b> (em "Inserir variável de: Proposta") no ponto do
+            texto onde a tabela deve aparecer. Abaixo fica o <b>padrão</b> dela — na hora de gerar a
+            proposta, a página da EAP deixa ajustar cada item antes de baixar o PDF.
+          </p>
+          <app-proposta-config [config]="configProposta()" [mostrarIncluirTabela]="false"
+                               (mudou)="configProposta.set($event)" />
+        </div>
       }
 
       @if (tipo() === 'empreita') {

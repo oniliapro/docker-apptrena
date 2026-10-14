@@ -28,10 +28,12 @@ class ContratoModelo extends Model
         'tamanho_papel', 'orientacao', 'cabecalho_html', 'rodape_html',
         'timbrado_modo', 'timbrado_ajuste', 'tag_anexo_id',
         'timbrado_largura_pct', 'timbrado_altura_pct', 'timbrado_manter_proporcao', 'timbrado_opacidade',
+        'config_proposta',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
+        'config_proposta' => 'array',
         'margem_superior_mm' => 'integer',
         'margem_direita_mm' => 'integer',
         'margem_inferior_mm' => 'integer',

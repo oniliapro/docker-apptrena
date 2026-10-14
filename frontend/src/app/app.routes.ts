@@ -279,6 +279,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
   },
   {
+    // Proposta gerada da página da EAP (14/10/2026) — mesma tela do
+    // contrato de obra, com a tabela da EAP injetada em `{{tabela_eap}}`.
+    path: 'imprimir/obras/:id/contratos/proposta',
+    data: { tipo: 'proposta' },
+    loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
+  },
+  {
     // Acompanhamento do contratante no RDO (17/09/2026) — o único diário
     // daqui pra frente (F8, 22/09/2026: a rota pública do Diário antigo,
     // `publico/diario/:token`, foi retirada daqui — os links antigos param
@@ -422,7 +429,7 @@ export const routes: Routes = [
         // `ContratoModelosConfig.novo/editar` — funciona igual acessada
         // direto (só sem o `window.close()` automático depois de salvar).
         path: 'contrato-modelos/novo',
-        data: { titulo: 'Novo modelo de contrato' },
+        data: { titulo: 'Novo modelo de documento' },
         loadComponent: () =>
           import('./features/configuracoes/contrato-modelos/contrato-modelo-editor/contrato-modelo-editor').then(
             (m) => m.ContratoModeloEditor,
@@ -430,7 +437,7 @@ export const routes: Routes = [
       },
       {
         path: 'contrato-modelos/:contratoModeloId',
-        data: { titulo: 'Editar modelo de contrato' },
+        data: { titulo: 'Editar modelo de documento' },
         loadComponent: () =>
           import('./features/configuracoes/contrato-modelos/contrato-modelo-editor/contrato-modelo-editor').then(
             (m) => m.ContratoModeloEditor,

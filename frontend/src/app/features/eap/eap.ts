@@ -32,6 +32,9 @@ import { exportarEapXlsx, RealizadoPorLinha } from './eap-exportar';
 import { analisarPlanilha, gerarModeloXlsx, ResultadoImportacao } from './eap-importar';
 import { criarVazioPorTipo, itensOcultosPorColapso, recuoDoCodigoEap } from './eap-normalize';
 import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
+import { PropostaConfig } from '../../shared/proposta-config/proposta-config';
+import { ConfigProposta, normalizarConfigProposta } from '../../shared/proposta-eap';
+import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { EapStore } from './eap.store';
 import {
   ChaveTipo,
@@ -56,7 +59,7 @@ import {
  */
 @Component({
   selector: 'app-eap',
-  imports: [DecimalPipe, NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, EditarPagamentoModal],
+  imports: [DecimalPipe, NavegacaoTabela, RedimensionarColunas, AutoAlturaTextarea, BarraSelecao, EditarPagamentoModal, PropostaConfig],
   providers: [EapStore, PagamentosStore],
   templateUrl: './eap.html',
   styleUrl: './eap.scss',
@@ -592,6 +595,84 @@ export class Eap implements OnInit {
       error: () => {
         this.erroPdf.set('Não foi possível gerar o PDF. Tente novamente em alguns segundos.');
         this.gerandoPdf.set(false);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Gerar proposta (14/10/2026, pedido do Lucas) — o texto vem de um
+  // "modelo de documento" do tipo proposta (Configurações); a tabela da
+  // EAP entra onde o modelo tem `{{tabela_eap}}`. O modal parte do padrão
+  // da tabela salvo no modelo escolhido e deixa ajustar só pra esta geração.
+  // ------------------------------------------------------------------
+  protected readonly mostrarModalProposta = signal(false);
+  protected readonly modelosProposta = signal<ContratoModelo[]>([]);
+  protected readonly carregandoModelosProposta = signal(false);
+  protected readonly modeloPropostaId = signal('');
+  protected readonly configProposta = signal<ConfigProposta>(normalizarConfigProposta(null));
+  protected readonly gerandoProposta = signal(false);
+  protected readonly erroProposta = signal<string | null>(null);
+
+  protected abrirModalProposta(): void {
+    this.erroProposta.set(null);
+    this.modeloPropostaId.set('');
+    this.mostrarModalProposta.set(true);
+    this.carregandoModelosProposta.set(true);
+
+    this.api.listarContratoModelos('proposta').subscribe({
+      next: (lista) => {
+        const ativos = lista.filter((m) => m.ativo !== false);
+        this.modelosProposta.set(ativos);
+        this.carregandoModelosProposta.set(false);
+        // Um modelo só: já vem escolhido, é o caso mais comum.
+        if (ativos.length === 1) this.escolherModeloProposta(ativos[0].id);
+      },
+      error: () => {
+        this.erroProposta.set('Não foi possível carregar os modelos de proposta.');
+        this.carregandoModelosProposta.set(false);
+      },
+    });
+  }
+
+  protected fecharModalProposta(): void {
+    if (this.gerandoProposta()) return;
+    this.mostrarModalProposta.set(false);
+  }
+
+  protected escolherModeloProposta(id: string): void {
+    this.modeloPropostaId.set(id);
+    const modelo = this.modelosProposta().find((m) => m.id === id);
+    this.configProposta.set(normalizarConfigProposta(modelo?.config_proposta));
+  }
+
+  protected gerarProposta(): void {
+    const modeloId = this.modeloPropostaId();
+    if (!modeloId) {
+      this.erroProposta.set('Escolha um modelo de proposta.');
+      return;
+    }
+
+    this.erroProposta.set(null);
+    this.gerandoProposta.set(true);
+
+    this.api.baixarPropostaPdf(this.obraId(), modeloId, this.configProposta()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivoPdf(
+          'Proposta',
+          [this.store.cabecalho().mapNumber, this.store.cabecalho().obraNome],
+          this.obraId(),
+        );
+        link.click();
+        URL.revokeObjectURL(url);
+        this.gerandoProposta.set(false);
+        this.mostrarModalProposta.set(false);
+      },
+      error: () => {
+        this.erroProposta.set('Não foi possível gerar a proposta. Tente novamente em alguns segundos.');
+        this.gerandoProposta.set(false);
       },
     });
   }

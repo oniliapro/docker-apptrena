@@ -1014,3 +1014,17 @@ input.celula-erro {
   font-size: 11.5px;
   cursor: help;
 }
+
+// ---- Modal: gerar proposta (14/10/2026) ----
+.modal-proposta { width: min(520px, 94vw); }
+
+.campo-proposta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+  font-size: 12px;
+
+  span { font-size: 11px; color: var(--cor-texto-suave); }
+  select { height: 28px; }
+}

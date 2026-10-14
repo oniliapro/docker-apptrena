@@ -1,4 +1,6 @@
-export type TipoContratoModelo = 'empreita' | 'obra';
+import type { ConfigProposta } from '../../../shared/proposta-eap';
+
+export type TipoContratoModelo = 'empreita' | 'obra' | 'proposta';
 export type TamanhoPapelContrato = 'a4' | 'carta' | 'oficio';
 export type OrientacaoContrato = 'retrato' | 'paisagem';
 
@@ -50,6 +52,8 @@ export interface ContratoModelo {
   timbrado_opacidade: number;
   /** Tag pra anexar automaticamente o PDF gerado em massa da lista de Empreitas (30/09/2026) — sem ela, esse modelo não pode ser usado na geração em lote. */
   tag_anexo_id: string | null;
+  /** Só `tipo === 'proposta'` (14/10/2026): padrão da tabela da EAP — ver `shared/proposta-eap.ts`. */
+  config_proposta: ConfigProposta | null;
 }
 
 /** Resposta de `ApiService.gerarContratosEmLote` (30/09/2026) — ver `ContratoPdfController::gerarEAnexarEmLote`. */
@@ -82,6 +86,12 @@ export const VARIAVEIS_CONTRATO_MODELO: Record<TipoContratoModelo, readonly stri
     'responsavel', 'responsavel_tecnico', 'crea', 'art',
     'cliente', 'data',
   ],
+  proposta: [
+    'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
+    'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
+    'responsavel', 'responsavel_tecnico', 'crea', 'art',
+    'cliente', 'data', 'tabela_eap',
+  ],
 };
 
 /**
@@ -99,7 +109,7 @@ export const VARIAVEIS_PAGINA_CONTRATO_MODELO: readonly string[] = ['pagina', 't
  * como botões"). Usada só pela UI do editor — `VARIAVEIS_CONTRATO_MODELO`
  * continua sendo a lista "achatada" que o backend valida/documenta.
  */
-export type ObjetoVariavelContrato = 'empresa' | 'obra' | 'cliente' | 'empreiteiro' | 'empreita' | 'geral';
+export type ObjetoVariavelContrato = 'empresa' | 'obra' | 'cliente' | 'empreiteiro' | 'empreita' | 'proposta' | 'geral';
 
 export interface VariavelContrato {
   chave: string;
@@ -112,6 +122,7 @@ export const ROTULOS_OBJETO_VARIAVEL: Record<ObjetoVariavelContrato, string> = {
   cliente: 'Cliente',
   empreiteiro: 'Empreiteiro',
   empreita: 'Empreita',
+  proposta: 'Proposta',
   geral: 'Geral',
 };
 
@@ -143,6 +154,8 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
     { chave: 'descricao_empreita', rotulo: 'Descrição' },
     { chave: 'valor', rotulo: 'Valor do contrato' },
   ],
+  /** `tabela_eap` é um BLOCO (a tabela da EAP inteira), não um texto — ver `shared/proposta-eap.ts`. */
+  proposta: [{ chave: 'tabela_eap', rotulo: 'Tabela da EAP' }],
   geral: [{ chave: 'data', rotulo: 'Data de emissão' }],
 };
 
@@ -150,11 +163,13 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
 export const OBJETOS_POR_TIPO: Record<TipoContratoModelo, readonly ObjetoVariavelContrato[]> = {
   empreita: ['empresa', 'obra', 'cliente', 'empreiteiro', 'empreita', 'geral'],
   obra: ['empresa', 'obra', 'cliente', 'geral'],
+  proposta: ['empresa', 'obra', 'cliente', 'proposta', 'geral'],
 };
 
 export const ROTULOS_TIPO_CONTRATO_MODELO: Record<TipoContratoModelo, string> = {
   empreita: 'Empreita',
-  obra: 'Obra / proposta',
+  obra: 'Contrato de obra',
+  proposta: 'Proposta',
 };
 
 export const ROTULOS_TAMANHO_PAPEL: Record<TamanhoPapelContrato, string> = {

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, inject, input, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { forkJoin } from 'rxjs';
@@ -9,8 +9,10 @@ import { AuthService } from '../../core/services/auth.service';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { gerarCssEstilos } from '../../shared/contrato-estilo-css';
 import { preencherModeloContrato } from '../../shared/contrato-modelo-render';
+import { ConfigProposta, LinhaPropostaEap, montarTabelaPropostaEap, normalizarConfigProposta } from '../../shared/proposta-eap';
 import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { ResumoContratoEmpreita } from '../empreita/empreita.models';
+import { EapStore } from '../eap/eap.store';
 
 /**
  * Versão "para imprimir" do contrato de uma Empreita ou de uma Obra/
@@ -27,6 +29,9 @@ import { ResumoContratoEmpreita } from '../empreita/empreita.models';
   selector: 'app-contrato-imprimir',
   templateUrl: './contrato-imprimir.html',
   styleUrl: './contrato-imprimir.scss',
+  // Só a proposta lê a EAP (tabela em `{{tabela_eap}}`) — contrato de
+  // empreita/obra nunca chama `carregar()` nele.
+  providers: [EapStore],
   // O Angular só anexa o atributo `_ngcontent-*` (que o CSS com escopo do
   // componente depende pra casar os seletores) em elementos que ELE MESMO
   // compilou do template — conteúdo inserido via `[innerHTML]` fica de
@@ -47,7 +52,63 @@ export class ContratoImprimir implements OnInit, OnDestroy {
 
   readonly obraId = input.required<string>({ alias: 'id' });
   readonly empreitaId = input<string>('');
-  readonly tipo = input.required<'empreita' | 'obra'>();
+  readonly tipo = input.required<'empreita' | 'obra' | 'proposta'>();
+
+  private readonly eap = inject(EapStore);
+
+  /**
+   * Proposta (14/10/2026): o corpo só fica pronto quando o modelo/dados
+   * (`contextoProposta`) E a EAP (`EapStore`, carregada à parte) chegaram —
+   * por isso um `effect`, não um `forkJoin`: a EAP vive num store de
+   * signals, não num Observable.
+   */
+  private readonly contextoProposta = signal<{
+    modelo: ContratoModelo;
+    variaveis: Record<string, string>;
+    config: ConfigProposta;
+  } | null>(null);
+
+  private readonly montarProposta = effect(() => {
+    const contexto = this.contextoProposta();
+    if (!contexto || this.eap.carregando()) return;
+
+    const erroEap = this.eap.erro();
+    const tabela = erroEap
+      ? '<p><em>Não foi possível carregar a EAP desta obra.</em></p>'
+      : contexto.config.incluir_tabela
+        ? montarTabelaPropostaEap(this.linhasDaEap(), contexto.config)
+        : '';
+
+    const corpo = preencherModeloContrato(contexto.modelo.conteudo, contexto.variaveis);
+    const temMarcador = /\{\{\s*tabela_eap\s*\}\}/.test(corpo);
+    const html = temMarcador
+      ? corpo.replace(/\{\{\s*tabela_eap\s*\}\}/g, () => tabela)
+      : corpo + tabela; // modelo sem `{{tabela_eap}}`: a tabela vai no fim do documento
+
+    this.conteudoPreenchido.set(this.sanitizer.bypassSecurityTrustHtml(html));
+    this.carregando.set(false);
+  });
+
+  /** Uma linha por item da EAP (aberta), com unitário e total JÁ com BDI — o que o cliente vê numa proposta. */
+  private linhasDaEap(): LinhaPropostaEap[] {
+    const itens = this.eap.itens();
+    const cache = this.eap.cache();
+
+    return itens.map((item, i) => {
+      const total = item.isGroup ? this.eap.totaisDoGrupo(i).totalWithBdi : cache.totalWithBdi[i];
+      const qtde = Number(item.qtde) || 0;
+      return {
+        nivel: item.nivel,
+        isGroup: item.isGroup,
+        eap: item.eap,
+        desc: item.desc,
+        qtde,
+        unid: item.unid ?? '',
+        unitario: !item.isGroup && qtde > 0 ? total / qtde : 0,
+        total,
+      };
+    });
+  }
 
   protected readonly geradoEm = new Date().toISOString();
   protected readonly perfilEmpresa = signal<PerfilEmpresa | null>(null);
@@ -133,9 +194,55 @@ export class ContratoImprimir implements OnInit, OnDestroy {
 
     if (this.tipo() === 'empreita') {
       this.carregarEmpreita(modeloId);
+    } else if (this.tipo() === 'proposta') {
+      this.carregarProposta(modeloId);
     } else {
       this.carregarObra(modeloId);
     }
+  }
+
+  private carregarProposta(modeloId: string): void {
+    forkJoin({
+      perfil: this.api.obterPerfilEmpresa(),
+      obra: this.api.obterObra(this.obraId()),
+      modelos: this.api.listarContratoModelos('proposta'),
+      estilos: this.api.listarContratoEstilos(),
+    }).subscribe({
+      next: ({ perfil, obra, modelos, estilos }) => {
+        this.perfilEmpresa.set(perfil);
+        this.folhaEstilos.textContent = gerarCssEstilos(estilos);
+
+        const modelo = modelos.find((m) => m.id === modeloId);
+        if (!modelo) {
+          this.erro.set('Modelo de proposta não encontrado.');
+          this.carregando.set(false);
+          return;
+        }
+
+        const variaveis = this.variaveisComuns(obra);
+        variaveis['responsavel'] = String(obra.responsavel ?? '');
+
+        // Ajuste desta geração (`?config=` JSON, vindo do modal "Gerar
+        // proposta") sobrepõe o padrão do modelo; sem ele vale o do modelo.
+        let bruto: unknown = modelo.config_proposta;
+        const ajuste = this.route.snapshot.queryParamMap.get('config');
+        if (ajuste) {
+          try {
+            bruto = JSON.parse(ajuste);
+          } catch {
+            /* config ilegível: fica o padrão do modelo */
+          }
+        }
+
+        this.modeloAtual.set(modelo);
+        this.eap.carregar(this.obraId());
+        this.contextoProposta.set({ modelo, variaveis, config: normalizarConfigProposta(bruto) });
+      },
+      error: () => {
+        this.erro.set('Não foi possível carregar os dados da proposta.');
+        this.carregando.set(false);
+      },
+    });
   }
 
   ngOnDestroy(): void {

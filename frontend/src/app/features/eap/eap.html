@@ -62,6 +62,10 @@
               title="Gera e baixa o PDF da EAP">
         {{ gerandoPdf() ? 'Gerando PDF…' : '⭳ Baixar PDF' }}
       </button>
+      <button type="button" [disabled]="!store.itens().length" (click)="abrirModalProposta()"
+              title="Gera uma proposta em PDF a partir de um modelo de documento, com a tabela da EAP">
+        📄 Gerar proposta
+      </button>
       <button type="button" [disabled]="!store.itens().length || exportandoXlsx()" (click)="exportarXlsx()"
               title="Exporta os itens e os totais calculados (Direto, BDI, Total c/ BDI) para uma planilha Excel">
         {{ exportandoXlsx() ? 'Exportando…' : '📊 Exportar Excel' }}
@@ -897,6 +901,60 @@
       (salvar)="salvarPagamentoDoPopup($event)"
       (excluir)="excluirPagamentoDoEditor($event)"
     (fechar)="fecharEditorDePagamento()" />
+  }
+
+  <!-- ============ Modal: gerar proposta (14/10/2026) ============ -->
+  @if (mostrarModalProposta()) {
+    <div class="modal">
+      <div class="modal-fundo" (fecharModal)="fecharModalProposta()"></div>
+
+      <div class="modal-cartao modal-proposta">
+        <div class="modal-cabecalho">
+          <div class="modal-cabecalho-titulos">
+            <span class="modal-titulo">Gerar proposta</span>
+          </div>
+          <button type="button" (click)="fecharModalProposta()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
+        </div>
+
+        <div class="modal-corpo">
+          <label class="campo-proposta">
+            <span>Modelo de proposta</span>
+            <select [value]="modeloPropostaId()" (change)="escolherModeloProposta($any($event.target).value)">
+              <option value="">Escolha um modelo…</option>
+              @for (modelo of modelosProposta(); track modelo.id) {
+                <option [value]="modelo.id">{{ modelo.nome }}</option>
+              }
+            </select>
+          </label>
+
+          @if (carregandoModelosProposta()) {
+            <p class="atenuado pequeno">Carregando modelos…</p>
+          } @else if (!modelosProposta().length) {
+            <p class="atenuado pequeno">
+              Nenhum modelo de proposta cadastrado ainda — crie um em Configurações → Modelos de documentos → Proposta.
+            </p>
+          }
+
+          @if (modeloPropostaId()) {
+            <p class="atenuado pequeno">
+              Os campos abaixo começam com o padrão do modelo — o que mudar aqui vale só para esta proposta.
+            </p>
+            <app-proposta-config [config]="configProposta()" (mudou)="configProposta.set($event)" />
+          }
+
+          @if (erroProposta(); as mensagemProposta) {
+            <div class="aviso-erro">{{ mensagemProposta }}</div>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" [disabled]="gerandoProposta()" (click)="fecharModalProposta()">Cancelar</button>
+          <button type="button" class="primario" [disabled]="gerandoProposta() || !modeloPropostaId()" (click)="gerarProposta()">
+            {{ gerandoProposta() ? 'Gerando…' : 'Gerar PDF' }}
+          </button>
+        </div>
+      </div>
+    </div>
   }
 
   <!-- ============ Modal: importar Excel ============ -->

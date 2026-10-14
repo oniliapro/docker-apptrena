@@ -7,6 +7,8 @@ import { ApiService } from '../../../../core/services/api.service';
 import { Tag } from '../../tags/tags.models';
 import { formatarDataHora } from '../../../../core/utils/formato';
 import { gerarCssEstilos } from '../../../../shared/contrato-estilo-css';
+import { PropostaConfig } from '../../../../shared/proposta-config/proposta-config';
+import { ConfigProposta, normalizarConfigProposta } from '../../../../shared/proposta-eap';
 import {
   CaixaTextoEstilo,
   ContratoEstilo,
@@ -115,6 +117,7 @@ function mmParaPx(mm: number): number {
  */
 @Component({
   selector: 'app-contrato-modelo-editor',
+  imports: [PropostaConfig],
   templateUrl: './contrato-modelo-editor.html',
   styleUrl: './contrato-modelo-editor.scss',
 })
@@ -201,6 +204,8 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
 
   /** Tag pra anexar automaticamente o PDF gerado em massa (30/09/2026) — ver geração em lote na lista de Empreitas. */
   protected readonly tagAnexoId = signal<string>('');
+  /** Padrão da tabela da EAP — só `tipo === 'proposta'` (14/10/2026). */
+  protected readonly configProposta = signal<ConfigProposta>(normalizarConfigProposta(null));
   protected readonly tags = signal<Tag[]>([]);
 
   /**
@@ -647,7 +652,13 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     const caminho = this.perfilEmpresa()?.papelTimbradoUrl;
     return caminho ? this.api.baseStorage() + caminho : null;
   });
-  protected readonly subtituloDocumento = computed(() => (this.tipo() === 'empreita' ? 'Contrato de empreitada' : 'Contrato de obra'));
+  protected readonly subtituloDocumento = computed(() => {
+    switch (this.tipo()) {
+      case 'empreita': return 'Contrato de empreitada';
+      case 'proposta': return 'Proposta comercial';
+      default: return 'Contrato de obra';
+    }
+  });
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly geradoEmExemplo = new Date().toISOString();
 
@@ -709,7 +720,7 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       this.contratoModeloId.set(id);
       this.carregar(id);
     } else {
-      const tipo: TipoContratoModelo = tipoDaQuery === 'obra' ? 'obra' : 'empreita';
+      const tipo: TipoContratoModelo = tipoDaQuery === 'obra' || tipoDaQuery === 'proposta' ? tipoDaQuery : 'empreita';
       this.tipo.set(tipo);
     }
   }
@@ -739,6 +750,7 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
         this.timbradoManterProporcao.set(modelo.timbrado_manter_proporcao ?? true);
         this.timbradoOpacidade.set(modelo.timbrado_opacidade ?? 100);
         this.tagAnexoId.set(modelo.tag_anexo_id ?? '');
+        this.configProposta.set(normalizarConfigProposta(modelo.config_proposta));
         this.areaCabecalho.nativeElement.innerHTML = modelo.cabecalho_html ?? '';
         this.areaRodape.nativeElement.innerHTML = modelo.rodape_html ?? '';
 
@@ -1294,6 +1306,7 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       timbrado_manter_proporcao: this.timbradoManterProporcao(),
       timbrado_opacidade: this.timbradoOpacidade(),
       tag_anexo_id: this.tagAnexoId() || null,
+      config_proposta: this.tipo() === 'proposta' ? this.configProposta() : null,
     };
     const idAtual = this.contratoModeloId();
     const requisicao = idAtual ? this.api.atualizarContratoModelo(idAtual, dados) : this.api.criarContratoModelo(dados);

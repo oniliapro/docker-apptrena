@@ -3,12 +3,14 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ApiService } from '../../../core/services/api.service';
 import { ContratoModelo, ROTULOS_TIPO_CONTRATO_MODELO, TipoContratoModelo } from './contrato-modelo.models';
 
-const TIPOS: readonly TipoContratoModelo[] = ['empreita', 'obra'];
+const TIPOS: readonly TipoContratoModelo[] = ['empreita', 'obra', 'proposta'];
 
 /**
- * Aba "Modelos de contrato" do popup de Configurações (28/09/2026, itens
- * 8/9) — lista dos modelos reaproveitáveis de contrato de Empreita e de
- * Obra/proposta, mesmo espírito de Materiais/Profissionais/Modelos de FVS.
+ * Aba "Modelos de documentos" do popup de Configurações (28/09/2026, itens
+ * 8/9; renomeada de "Modelos de contrato" em 14/10/2026, quando ganhou o
+ * tipo Proposta) — lista dos modelos reaproveitáveis de contrato de
+ * Empreita, contrato de Obra e Proposta (gerada da EAP), mesmo espírito de
+ * Materiais/Profissionais/Modelos de FVS.
  *
  * 29/09/2026, pedido do Lucas ("a edição ficou muito simples, quero algo
  * mais parecido com o Word, numa janela própria"): editar/criar não é

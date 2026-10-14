@@ -155,6 +155,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permissaoModulo:desembolso,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/contrato/pdf', [ContratoPdfController::class, 'obra'])
         ->middleware('permissaoObra:ver');
+    // Proposta gerada da EAP (14/10/2026) — mesma regra do contrato de obra.
+    Route::get('obras/{obra}/proposta/pdf', [ContratoPdfController::class, 'proposta'])
+        ->middleware('permissaoObra:ver');
     Route::get('obras/{obra}/relatorio/pdf', [RelatorioPdfController::class, 'relatorioObra'])
         ->middleware(['permissaoModulo:relatorios,usar', 'permissaoObra:ver']);
     Route::get('obras/{obra}/cronograma/planejamentos', [CronogramaPlanejamentoController::class, 'index'])

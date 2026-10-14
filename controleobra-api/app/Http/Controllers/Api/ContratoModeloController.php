@@ -39,6 +39,23 @@ class ContratoModeloController extends Controller
             'responsavel', 'responsavel_tecnico', 'crea', 'art',
             'cliente', 'data',
         ],
+        // 14/10/2026 — proposta gerada a partir da EAP. `tabela_eap` é um
+        // BLOCO (a tabela inteira), não um texto: só vale no corpo do
+        // documento, não em cabeçalho/rodapé.
+        'proposta' => [
+            'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
+            'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
+            'responsavel', 'responsavel_tecnico', 'crea', 'art',
+            'cliente', 'data', 'tabela_eap',
+        ],
+    ];
+
+    /** Padrão da tabela da EAP na proposta — `config_proposta` só aceita estas chaves. */
+    public const CONFIG_PROPOSTA_CORES = [
+        'cabecalho_fundo', 'cabecalho_texto',
+        'nivel1_fundo', 'nivel1_texto', 'nivel2_fundo', 'nivel2_texto',
+        'nivel3_fundo', 'nivel3_texto', 'nivel4_fundo', 'nivel4_texto',
+        'item_fundo', 'item_texto', 'zebra_fundo',
     ];
 
     /**
@@ -80,10 +97,32 @@ class ContratoModeloController extends Controller
         return response()->noContent();
     }
 
+    /** Regras de `config_proposta` — também usadas pelo ContratoPdfController (ajuste feito na hora de gerar). */
+    public static function regrasConfigProposta(string $prefixo): array
+    {
+        $regras = [
+            $prefixo => 'nullable|array',
+            "{$prefixo}.incluir_tabela" => 'nullable|boolean',
+            "{$prefixo}.mostrar_unitario" => 'nullable|boolean',
+            "{$prefixo}.mostrar_total" => 'nullable|boolean',
+            "{$prefixo}.nivel_maximo" => 'nullable|integer|min:1|max:4',
+            "{$prefixo}.cores" => 'nullable|array',
+        ];
+
+        foreach (self::CONFIG_PROPOSTA_CORES as $chave) {
+            // Só `#rgb`/`#rrggbb` — a cor entra num atributo `style` do HTML
+            // da tabela, então nada além de hex passa (sem injeção de CSS).
+            $regras["{$prefixo}.cores.{$chave}"] = ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/'];
+        }
+
+        return $regras;
+    }
+
     private function validar(Request $request): array
     {
         return $request->validate([
-            'tipo' => ['required', Rule::in(['empreita', 'obra'])],
+            ...self::regrasConfigProposta('config_proposta'),
+            'tipo' => ['required', Rule::in(['empreita', 'obra', 'proposta'])],
             'nome' => 'required|string|max:150',
             'conteudo' => 'required|string',
             'ativo' => 'nullable|boolean',

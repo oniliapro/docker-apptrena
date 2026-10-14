@@ -1,0 +1,54 @@
+<div class="bloco">
+  <span class="rotulo-bloco">Tabela da EAP</span>
+
+  @if (mostrarIncluirTabela()) {
+    <label class="checagem">
+      <input type="checkbox" [checked]="config().incluir_tabela"
+             (change)="alterarBooleano('incluir_tabela', $any($event.target).checked)">
+      Incluir a tabela da EAP na proposta
+    </label>
+  }
+
+  <div class="grupo" [class.desligado]="!config().incluir_tabela">
+    <label class="checagem">
+      <input type="checkbox" [checked]="config().mostrar_unitario"
+             (change)="alterarBooleano('mostrar_unitario', $any($event.target).checked)">
+      Mostrar valor unitário (com BDI)
+    </label>
+    <label class="checagem">
+      <input type="checkbox" [checked]="config().mostrar_total"
+             (change)="alterarBooleano('mostrar_total', $any($event.target).checked)">
+      Mostrar valor total (com BDI)
+    </label>
+
+    <label class="campo">
+      <span>Nível visível da EAP</span>
+      <select [value]="config().nivel_maximo" (change)="alterarNivel($any($event.target).value)">
+        @for (nivel of niveis; track nivel) {
+          <option [value]="nivel" [selected]="nivel === config().nivel_maximo">{{ rotuloNivel(nivel) }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="cores">
+      <div class="cores-topo">
+        <span class="rotulo-bloco">Cores da tabela</span>
+        <button type="button" class="link" (click)="restaurarCores()">Restaurar padrão</button>
+      </div>
+      <div class="cores-cabecalho"><span></span><span>Fundo</span><span>Texto</span></div>
+      @for (par of paresDeCor; track par.fundo) {
+        <div class="cor-linha">
+          <span class="cor-rotulo">{{ par.rotulo }}</span>
+          <input type="color" [value]="valorCor(par.fundo)" [attr.aria-label]="par.rotulo + ' — fundo'"
+                 (input)="alterarCor(par.fundo, $any($event.target).value)">
+          @if (par.texto; as chaveTexto) {
+            <input type="color" [value]="valorCor(chaveTexto)" [attr.aria-label]="par.rotulo + ' — texto'"
+                   (input)="alterarCor(chaveTexto, $any($event.target).value)">
+          } @else {
+            <span></span>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

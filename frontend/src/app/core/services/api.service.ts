@@ -509,6 +509,18 @@ export class ApiService {
   }
 
   /**
+   * GET /obras/{obra}/proposta/pdf (14/10/2026) — proposta gerada da EAP.
+   * `config` ajusta, só nesta geração, o padrão da tabela salvo no modelo.
+   */
+  baixarPropostaPdf(obraId: string, modeloId: string, config: unknown): Observable<Blob> {
+    return this.http.get(`${this.base}/obras/${obraId}/proposta/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: { modelo_id: modeloId, config: JSON.stringify(config) },
+    });
+  }
+
+  /**
    * CRUD de modelos de contrato (28/09/2026, itens 8/9, Configurações) —
    * fica aqui (não num serviço próprio como `FvsService`/`RdoService`) de
    * propósito: `ContratoImprimir` (a tela que o PDF acima imprime) também

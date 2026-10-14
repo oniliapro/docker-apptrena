@@ -83,7 +83,7 @@ class ContratoPdfController extends Controller
         if (!$modelo->tag_anexo_id) {
             return response()->json([
                 'message' => 'Este modelo de contrato não tem uma tag de anexo configurada — '
-                    . 'defina em Configurações → Modelos de contrato antes de gerar em lote.',
+                    . 'defina em Configurações → Modelos de documentos antes de gerar em lote.',
             ], 422);
         }
         $tag = Tag::findOrFail($modelo->tag_anexo_id);
@@ -178,6 +178,55 @@ class ContratoPdfController extends Controller
         $pdf = $this->gerar($request, $caminho, $modeloId, $variaveis);
 
         $nomeArquivo = str($obra->obra_nome ?: $obra->id)->slug() . '-contrato.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$nomeArquivo}\"",
+        ]);
+    }
+
+    /**
+     * Proposta gerada a partir da EAP (14/10/2026). Mesmo mecanismo do
+     * contrato de obra — a diferença é a tabela da EAP injetada onde o
+     * modelo tem `{{tabela_eap}}`, montada pela tela de impressão com os
+     * dados da EAP da obra. `config` (JSON) ajusta, só nesta geração, o
+     * padrão salvo no modelo: o que a tabela mostra, até qual nível e as
+     * cores (ver `ContratoModeloController::regrasConfigProposta`).
+     */
+    public function proposta(Request $request, Obra $obra)
+    {
+        $modeloId = (string) $request->query('modelo_id', '');
+        if ($modeloId === '') {
+            return response()->json(['message' => 'Escolha um modelo de proposta.'], 422);
+        }
+
+        $config = null;
+        $brutoConfig = $request->query('config');
+        if (is_string($brutoConfig) && $brutoConfig !== '') {
+            $decodificado = json_decode($brutoConfig, true);
+            if (!is_array($decodificado)) {
+                return response()->json(['message' => 'Configuração da proposta inválida.'], 422);
+            }
+
+            $config = validator(
+                ['config' => $decodificado],
+                ContratoModeloController::regrasConfigProposta('config'),
+            )->validate()['config'] ?? null;
+        }
+
+        $caminho = "obras/{$obra->id}/contratos/proposta";
+        $variaveis = array_merge($this->variaveisComuns($obra, $request->user()->empresa), [
+            'responsavel' => (string) $obra->responsavel,
+        ]);
+        $pdf = $this->gerar(
+            $request,
+            $caminho,
+            $modeloId,
+            $variaveis,
+            $config !== null ? ['config' => json_encode($config, JSON_UNESCAPED_UNICODE)] : [],
+        );
+
+        $nomeArquivo = str($obra->obra_nome ?: $obra->id)->slug() . '-proposta.pdf';
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -384,7 +433,8 @@ class ContratoPdfController extends Controller
         };
     }
 
-    private function gerar(Request $request, string $caminhoImpressao, string $modeloId, array $variaveis): string
+    /** `$consultaExtra`: parâmetros a mais na URL da tela de impressão (ex.: `config` da proposta). */
+    private function gerar(Request $request, string $caminhoImpressao, string $modeloId, array $variaveis, array $consultaExtra = []): string
     {
         $user = $request->user();
         $modelo = ContratoModelo::findOrFail($modeloId);
@@ -402,8 +452,15 @@ class ContratoPdfController extends Controller
             . '?token=' . urlencode($tokenTemporario->plainTextToken)
             . '&apiUrl=' . urlencode($baseApi)
             . '&modeloId=' . urlencode($modeloId);
+        foreach ($consultaExtra as $chave => $valor) {
+            $url .= '&' . urlencode((string) $chave) . '=' . urlencode((string) $valor);
+        }
 
-        $subtitulo = str_contains($caminhoImpressao, '/contratos/obra') ? 'Contrato de obra' : 'Contrato de empreitada';
+        $subtitulo = match (true) {
+            str_contains($caminhoImpressao, '/contratos/proposta') => 'Proposta comercial',
+            str_contains($caminhoImpressao, '/contratos/obra') => 'Contrato de obra',
+            default => 'Contrato de empreitada',
+        };
 
         try {
             // 30/09/2026: cabeçalho e rodapé passaram a ser medidos de
