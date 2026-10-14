@@ -150,6 +150,19 @@
   white-space: nowrap;
 }
 
+// "Resumo por categoria" no fim da EAP aberta (14/10/2026) — no lugar do
+// rodapé TOTAIS que repetia em todas as páginas. Mesma tabela da tela, mas
+// à esquerda e sem a largura/margem automática do `.painel-resumo`; nunca
+// parte entre duas páginas.
+.painel-resumo-final {
+  width: 544px;
+  max-width: 100%;
+  margin-top: 8mm;
+  break-inside: avoid;
+
+  .tabela-resumo { width: 100%; }
+}
+
 th, td { overflow-wrap: break-word; }
 
 // Código do item (1.10.2) e unidade nunca quebram.

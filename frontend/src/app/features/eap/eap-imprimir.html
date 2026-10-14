@@ -221,6 +221,11 @@
       }
     </tbody>
 
+    <!-- Rodapé (S/ DEFINIÇÃO + TOTAIS) só na EAP confirmada. Na aberta ele
+         repetia em TODAS as páginas (tfoot de tabela vira rodapé de cada
+         página impressa) — no lugar vai a tabela "Resumo por categoria" uma
+         vez só, no fim do documento (14/10/2026, pedido do Lucas). -->
+    @if (store.cabecalho().isConfirmed) {
     <tfoot>
       @if (store.cabecalho().isConfirmed) {
         <tr>
@@ -276,49 +281,52 @@
               <span class="valor-orc"><b>{{ formatarMoeda(totalOrcado()) }}</b></span>
             </div>
           </th>
-        } @else {
-          <!-- Mesmo padrão rótulo+valor das linhas do corpo (14/10/2026) — antes
-               era só o valor solto (`<th class="valor">`), sem o wrapper flex das
-               outras colunas, descasando a altura e desalinhando a linha TOTAIS
-               aqui embaixo. -->
-          @if (store.ui().showUnit) {
-            @if (store.mostrarColunasTipo()) {
-              @for (tipo of store.tiposVisiveis(); track tipo.chave) {
-                <th class="celula-custo">
-                  <div class="linha-total">
-                    <span class="rotulo-custo">Total</span>
-                    <span class="valor-custo">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</span>
-                  </div>
-                </th>
-              }
-            }
-            <th class="celula-custo">
-              <div class="linha-total">
-                <span class="rotulo-custo">Total</span>
-                <span class="valor-custo"><b>{{ formatarMoeda(store.cache().totalsDirect) }}</b></span>
-              </div>
-            </th>
-          }
-
-          @if (store.ui().showBDI) {
-            <th class="celula-bdi-aplicado">
-              <div class="linha-bdi-aplicado">
-                <span class="rotulo-custo">BDI</span>
-                <span class="valor-custo">{{ formatarMoeda(store.cache().totalsBdi) }}</span>
-              </div>
-            </th>
-            <th class="celula-bdi-aplicado">
-              <div class="linha-bdi-aplicado">
-                <span class="rotulo-custo">Total</span>
-                <span class="valor-custo"><b>{{ formatarMoeda(store.cache().totalsWithBdi) }}</b></span>
-              </div>
-            </th>
-          }
         }
       </tr>
     </tfoot>
+    }
   </table>
 </div>
+
+@if (!store.cabecalho().isConfirmed) {
+  <!-- Resumo por categoria — mesma tabela da tela da EAP (eap.html), uma vez
+       só no fim do documento. `.painel-resumo` traz `margin-left: auto` e
+       largura fixa pensados pra tela (colada na borda direita, ao lado do
+       painel de BDI) — no papel fica à esquerda, largura natural. -->
+  <div class="painel painel-resumo-final">
+    <div class="painel-titulo">Resumo por categoria</div>
+    <table class="tabela-resumo">
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th class="valor">Custo direto</th>
+          <th class="valor">BDI</th>
+          <th class="valor">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tipo of tipos; track tipo.chave) {
+          <tr>
+            <td>{{ tipo.rotulo }}</td>
+            <td class="valor">{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave]) }}</td>
+            <td class="valor">{{ formatarMoeda(store.cache().totalsBdiByType[tipo.chave]) }}</td>
+            <td class="valor">
+              <b>{{ formatarMoeda(store.cache().totalsDirectByType[tipo.chave] + store.cache().totalsBdiByType[tipo.chave]) }}</b>
+            </td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <th class="valor">{{ formatarMoeda(store.cache().totalsDirect) }}</th>
+          <th class="valor">{{ formatarMoeda(store.cache().totalsBdi) }}</th>
+          <th class="valor">{{ formatarMoeda(store.cache().totalsWithBdi) }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+}
 
 }
 
