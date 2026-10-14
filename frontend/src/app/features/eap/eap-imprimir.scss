@@ -79,8 +79,8 @@
 
   // 26/09/2026: a descrição (etapa da EAP) é o texto mais longo da folha e quebrava em 4-5
   // linhas com 16%; o código do item e a unidade ("DIÁRIA") também quebravam. Larguras
-  // revistas: mais espaço pra descrição, código e unidade sempre numa linha só.
-  .col-nivel { width: 26px; }
+  // revistas: mais espaço pra descrição, código e unidade sempre numa linha só. Coluna
+  // "Nível" removida do PDF (14/10/2026, pedido do Lucas) — só existia na EAP aberta.
   .col-eap { width: 50px; }
   .col-descricao { width: 21%; min-width: 0; }
   .col-qtde { width: 36px; }
@@ -113,20 +113,37 @@
 
 // 26/09/2026: rótulo (REAL./ORÇ.) e valor ficam na MESMA linha — o rótulo pequeno e o valor
 // em 9px cabem na coluna; com o rótulo quebrando pra linha de cima cada linha da tabela ficava
-// com o dobro da altura (o PDF da EAP ganhava ~30% de páginas).
+// com o dobro da altura (o PDF da EAP ganhava ~30% de páginas). 14/10/2026: esse ajuste só
+// tinha sido aplicado na EAP CONFIRMADA (`.celula-orc-real`) — a EAP aberta (`.celula-custo`/
+// `.celula-bdi-aplicado`, que usa grid em vez de flex pro rótulo) ficou de fora, daí o "Total"
+// de cada item saindo em duas linhas só nela (pedido do Lucas: "o padrão que quero pras duas é
+// o da EAP fechada"). Mesmo tratamento estendido pras duas.
 .tabela-eap .celula-orc-real .linha-real, .tabela-eap .celula-orc-real .linha-orc {
   flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 3px;
 }
-.tabela-eap .celula-orc-real .rotulo-real, .tabela-eap .celula-orc-real .rotulo-orc { font-size: 6.5px; }
-.tabela-eap .celula-orc-real .valor-orc, .tabela-eap .celula-orc-real .valor-orc b { font-size: 9px; white-space: nowrap; }
+.tabela-eap .celula-orc-real .rotulo-real,
+.tabela-eap .celula-orc-real .rotulo-orc,
+.tabela-eap .celula-custo .rotulo-custo,
+.tabela-eap .celula-bdi-aplicado .rotulo-custo {
+  font-size: 6.5px;
+}
+.tabela-eap .celula-orc-real .valor-orc, .tabela-eap .celula-orc-real .valor-orc b,
+.tabela-eap .celula-custo .valor-custo, .tabela-eap .celula-custo .valor-custo b,
+.tabela-eap .celula-bdi-aplicado .valor-custo {
+  font-size: 9px;
+  white-space: nowrap;
+}
 
 .valor-real, .valor-orc, .valor-custo {
   white-space: nowrap;
 }
 
-.linha-unit, .linha-total { grid-template-columns: 30px 1fr; }
+// 30px → 22px (14/10/2026): rótulo encolhido pra 6.5px (acima) cabe numa
+// coluna mais estreita — sobra mais espaço pro valor, mesma lógica do
+// ajuste da EAP confirmada.
+.linha-unit, .linha-total { grid-template-columns: 22px 1fr; }
 
 th, td { overflow-wrap: break-word; }
 

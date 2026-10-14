@@ -31,9 +31,6 @@
          nas 5 colunas fixas e `colspan` no bloco de totais, então as
          larguras vêm do `<colgroup>`, não das células. -->
     <colgroup>
-      @if (!store.cabecalho().isConfirmed) {
-        <col class="col-nivel" />
-      }
       <col class="col-eap" />
       <col class="col-descricao" />
       <col class="col-qtde" />
@@ -63,9 +60,6 @@
     </colgroup>
     <thead>
       <tr>
-        @if (!store.cabecalho().isConfirmed) {
-          <th rowspan="2" class="col-nivel">Nível</th>
-        }
         <th rowspan="2" class="col-eap">EAP</th>
         <th rowspan="2" class="col-descricao">Descrição</th>
         <th rowspan="2" class="col-qtde">Qtde</th>
@@ -125,9 +119,6 @@
             [class.linha-grupo-nivel-2]="item.isGroup && item.nivel === 2"
             [class.linha-grupo-nivel-3]="item.isGroup && item.nivel === 3"
             [class.linha-grupo-nivel-4]="item.isGroup && item.nivel >= 4">
-          @if (!store.cabecalho().isConfirmed) {
-            <td class="centro">{{ item.nivel }}</td>
-          }
           <td class="centro indice">{{ item.eap }}</td>
           <td class="celula-descricao">
             <span class="descricao" [style.padding-left.px]="recuo(item) * 12">{{ item.desc || '—' }}</span>
