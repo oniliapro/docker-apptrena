@@ -81,8 +81,11 @@
   // linhas com 16%; o código do item e a unidade ("DIÁRIA") também quebravam. Larguras
   // revistas: mais espaço pra descrição, código e unidade sempre numa linha só. Coluna
   // "Nível" removida do PDF (14/10/2026, pedido do Lucas) — só existia na EAP aberta.
+  // 21% → 26% (14/10/2026, pedido do Lucas, olhando o PDF de verdade):
+  // descrições longas de etapa ainda quebravam bastante, deixando a
+  // tabela com aparência desorganizada.
   .col-eap { width: 50px; }
-  .col-descricao { width: 21%; min-width: 0; }
+  .col-descricao { width: 26%; min-width: 0; }
   .col-qtde { width: 36px; }
   .col-unid { width: 46px; }
   // `.col-tipo` sem width própria — as colunas de categoria/total

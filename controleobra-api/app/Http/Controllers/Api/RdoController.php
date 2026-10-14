@@ -182,9 +182,13 @@ class RdoController extends Controller
                 'clima_manha' => $data['clima_manha'] ?? null,
                 'clima_tarde' => $data['clima_tarde'] ?? null,
                 'clima_noite' => $data['clima_noite'] ?? null,
-                'condicao_manha' => $data['condicao_manha'] ?? 'praticavel',
-                'condicao_tarde' => $data['condicao_tarde'] ?? 'praticavel',
-                'condicao_noite' => $data['condicao_noite'] ?? 'praticavel',
+                // 14/10/2026: NÃO usar `?? 'praticavel'` aqui — `??` trata "null
+                // explícito" igual a "chave ausente", e o frontend manda null de
+                // propósito quando o turno está marcado "S/ expediente". Usar o
+                // fallback apagava essa marcação sempre que salvava de novo.
+                'condicao_manha' => array_key_exists('condicao_manha', $data) ? $data['condicao_manha'] : 'praticavel',
+                'condicao_tarde' => array_key_exists('condicao_tarde', $data) ? $data['condicao_tarde'] : 'praticavel',
+                'condicao_noite' => array_key_exists('condicao_noite', $data) ? $data['condicao_noite'] : 'praticavel',
                 'impacto_cronograma' => $data['impacto_cronograma'] ?? null,
                 'observacoes' => $data['observacoes'] ?? null,
                 'status' => RdoRegistro::STATUS_RASCUNHO,
@@ -219,9 +223,11 @@ class RdoController extends Controller
                 'clima_manha' => $data['clima_manha'] ?? null,
                 'clima_tarde' => $data['clima_tarde'] ?? null,
                 'clima_noite' => $data['clima_noite'] ?? null,
-                'condicao_manha' => $data['condicao_manha'] ?? 'praticavel',
-                'condicao_tarde' => $data['condicao_tarde'] ?? 'praticavel',
-                'condicao_noite' => $data['condicao_noite'] ?? 'praticavel',
+                // 14/10/2026: ver comentário em store() — `??` apagava o "S/
+                // expediente" (null explícito) de volta pro padrão antigo.
+                'condicao_manha' => array_key_exists('condicao_manha', $data) ? $data['condicao_manha'] : 'praticavel',
+                'condicao_tarde' => array_key_exists('condicao_tarde', $data) ? $data['condicao_tarde'] : 'praticavel',
+                'condicao_noite' => array_key_exists('condicao_noite', $data) ? $data['condicao_noite'] : 'praticavel',
                 'impacto_cronograma' => $data['impacto_cronograma'] ?? null,
                 'observacoes' => $data['observacoes'] ?? null,
             ]);

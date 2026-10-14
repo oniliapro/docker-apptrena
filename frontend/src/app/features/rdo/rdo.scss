@@ -604,11 +604,14 @@ button {
   border-top: 1px dashed var(--cor-borda);
 }
 
-// Lista de pendências/ocorrências em linhas de tabela (14/10/2026, pedido
-// do Lucas: "mais parecido com uma lista... uma linha pra cada", com
-// colunas redimensionáveis e os mesmos botões de ação (subir/descer/
-// inserir/excluir) já usados no Mapa/EAP — ver `.acoes-linha` abaixo,
-// reaproveitado de `eap.scss`.
+// Lista de pendências/ocorrências (14/10/2026, pedido do Lucas: "mais
+// parecido com uma lista... uma linha pra cada"). 1ª versão usava uma
+// tabela com `trenaRedimensionarColunas` (mesma diretiva do Mapa/EAP) —
+// tirada no mesmo dia: a diretiva reconta as colunas toda vez que o
+// FormArray muda (inserir/mover/excluir linha), e ficou injetando uma
+// 2ª linha de cabeçalho solta no meio do conteúdo ("bug feio", confirmado
+// com print). Trocado por `<ul>`/`<li>` com marcador — sem redimensionar
+// coluna nenhuma, sem diretiva de tabela, só os botões de ação de sempre.
 .rotulo-lista {
   display: block;
   margin: 0.4rem 0 0.3rem 1.8rem;
@@ -618,29 +621,41 @@ button {
   color: var(--cor-texto-suave);
 }
 
-.envoltoria-tabela-pequena {
+.lista-pontilhada {
   margin: 0 0 0.4rem 1.8rem;
-  overflow-x: auto;
+  padding-left: 1.1rem;
+  list-style: disc;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px dashed var(--cor-borda);
+
+    &:last-child { margin-bottom: 0; border-bottom: none; }
+  }
 }
 
-.tabela-lista {
-  width: 100%;
+.item-lista-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
   min-width: 0;
-  table-layout: fixed;
-  border-collapse: collapse;
 
-  // `table[trenaRedimensionarColunas] thead th { position: sticky }` é
-  // GLOBAL (`_base.scss`), pensado pra tabela grande rolando dentro de uma
-  // `.envoltoria` com altura própria (Mapa/EAP/Empreita) — aqui a tabela é
-  // pequena e vive solta no meio de uma página de formulário comprida, sem
-  // contêiner de rolagem nenhum; o cabeçalho "grudado" ficava flutuando
-  // por cima do conteúdo ao rolar a página (14/10/2026, "o cabeçalho tá
-  // flutuando"). `position: static` desliga isso só aqui.
-  thead th { position: static; }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+    color: var(--cor-texto-suave);
+    min-width: 90px;
+  }
 
-  th, td { padding: 3px 4px; font-size: 11px; vertical-align: top; }
-  th { text-align: left; color: var(--cor-texto-suave); font-weight: 600; }
-  td { border-top: 1px solid var(--cor-borda); }
+  .campo-largo { flex: 1 1 100%; }
 
   input, select { height: 22px; font-size: 11px; }
 
@@ -654,16 +669,10 @@ button {
     font-size: 11px;
     resize: vertical;
   }
-
-  .col-descricao-lista { width: 28%; }
-  .col-estreita-lista { width: 13%; }
-  .col-acoes-lista { width: 48px; }
 }
 
-// Botões de ação por linha (↑ ↓ + ✖) — mesmo padrão visual do Mapa/EAP
-// (`eap.scss`), reaproveitado aqui pras tabelas de pendência/ocorrência.
-.acoes-linha { white-space: nowrap; }
-
+// Botões de ação por item (↑ ↓ + ✖) — mesmo padrão visual do Mapa/EAP
+// (`eap.scss`), reaproveitado aqui pra cada `<li>` de pendência/ocorrência.
 .acoes-linha-conteudo {
   display: inline-flex;
   align-items: center;

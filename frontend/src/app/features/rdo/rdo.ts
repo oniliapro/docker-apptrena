@@ -10,8 +10,6 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { hojeIso } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
-import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
-import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { Empreiteiro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
@@ -86,7 +84,7 @@ interface LinhaTarefaBruta {
  */
 @Component({
   selector: 'app-rdo',
-  imports: [ReactiveFormsModule, Autocomplete, NavegacaoTabela, RedimensionarColunas],
+  imports: [ReactiveFormsModule, Autocomplete],
   templateUrl: './rdo.html',
   styleUrl: './rdo.scss',
 })
