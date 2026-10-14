@@ -352,45 +352,103 @@
             </div>
 
             <div class="tarefa-pendencia" formArrayName="pendencias">
-              @for (pend of pendenciasDaTarefa(i).controls; track pend; let j = $index) {
-                <div class="pendencia-campos" [formGroupName]="j">
-                  <label class="campo-largo">
-                    <span>Descrição da pendência</span>
-                    <textarea formControlName="descricao" rows="2" placeholder="O que ficou pendente"></textarea>
-                  </label>
-                  <div class="grade-tripla">
-                    <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
-                    <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
-                    <label>
-                      <span>Status</span>
-                      <select formControlName="status">
-                        <option value="aberta">Aberta</option>
-                        <option value="concluida">Concluída</option>
-                      </select>
-                    </label>
-                  </div>
-                  <button type="button" class="botao-remover" (click)="removerPendenciaDaTarefa(i, j)">Remover pendência</button>
+              <span class="rotulo-lista">Pendências da tarefa</span>
+              @if (pendenciasDaTarefa(i).length) {
+                <div class="envoltoria-tabela-pequena">
+                  <table class="tabela-lista"
+                         trenaNavegacaoTabela
+                         trenaRedimensionarColunas
+                         (inserirLinha)="inserirPendenciaNaTarefaAbaixo(i, $event)"
+                         (removerLinha)="removerPendenciaDaTarefa(i, $event)">
+                    <thead>
+                      <tr>
+                        <th class="col-descricao-lista">Descrição</th>
+                        <th class="col-estreita-lista">Responsável</th>
+                        <th class="col-estreita-lista">Prazo</th>
+                        <th class="col-estreita-lista">Status</th>
+                        <th class="col-acoes-lista">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (pend of pendenciasDaTarefa(i).controls; track pend; let j = $index) {
+                        <tr [formGroupName]="j">
+                          <td><textarea formControlName="descricao" rows="1" placeholder="O que ficou pendente"></textarea></td>
+                          <td><input type="text" formControlName="responsavel"></td>
+                          <td><input type="date" formControlName="prazo"></td>
+                          <td>
+                            <select formControlName="status">
+                              <option value="aberta">Aberta</option>
+                              <option value="concluida">Concluída</option>
+                            </select>
+                          </td>
+                          <td class="centro acoes-linha">
+                            <div class="acoes-linha-conteudo">
+                              <div class="acoes-mover">
+                                <button type="button" title="Subir" (click)="moverPendenciaNaTarefa(i, j, -1)">↑</button>
+                                <button type="button" title="Descer" (click)="moverPendenciaNaTarefa(i, j, 1)">↓</button>
+                              </div>
+                              <div class="acoes-inserir-excluir">
+                                <button type="button" title="Inserir pendência logo abaixo" (click)="inserirPendenciaNaTarefaAbaixo(i, j)">+</button>
+                                <button type="button" title="Excluir pendência" (click)="removerPendenciaDaTarefa(i, j)">✖</button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
                 </div>
               }
               <button type="button" class="botao-adicionar" (click)="adicionarPendenciaNaTarefa(i)">+ Pendência</button>
             </div>
 
             <div class="tarefa-ocorrencia" formArrayName="ocorrencias">
-              @for (oc of ocorrenciasDaTarefa(i).controls; track oc; let j = $index) {
-                <div class="ocorrencia-campos" [formGroupName]="j">
-                  <div class="grade-dupla">
-                    <label>
-                      <span>Tipo de ocorrência</span>
-                      <select formControlName="tipo">
-                        @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
-                      </select>
-                    </label>
-                    <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
-                  </div>
-                  <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
-                  <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
-                  <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
-                  <button type="button" class="botao-remover" (click)="removerOcorrenciaDaTarefa(i, j)">Remover ocorrência</button>
+              <span class="rotulo-lista">Ocorrências da tarefa</span>
+              @if (ocorrenciasDaTarefa(i).length) {
+                <div class="envoltoria-tabela-pequena">
+                  <table class="tabela-lista"
+                         trenaNavegacaoTabela
+                         trenaRedimensionarColunas
+                         (inserirLinha)="inserirOcorrenciaNaTarefaAbaixo(i, $event)"
+                         (removerLinha)="removerOcorrenciaDaTarefa(i, $event)">
+                    <thead>
+                      <tr>
+                        <th class="col-estreita-lista">Tipo</th>
+                        <th class="col-descricao-lista">Descrição</th>
+                        <th class="col-estreita-lista">Responsável</th>
+                        <th class="col-estreita-lista">Motivo</th>
+                        <th class="col-estreita-lista">Danos materiais</th>
+                        <th class="col-acoes-lista">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (oc of ocorrenciasDaTarefa(i).controls; track oc; let j = $index) {
+                        <tr [formGroupName]="j">
+                          <td>
+                            <select formControlName="tipo">
+                              @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
+                            </select>
+                          </td>
+                          <td><textarea formControlName="descricao" rows="1"></textarea></td>
+                          <td><input type="text" formControlName="responsavel"></td>
+                          <td><input type="text" formControlName="motivo"></td>
+                          <td><input type="text" formControlName="danos_materiais"></td>
+                          <td class="centro acoes-linha">
+                            <div class="acoes-linha-conteudo">
+                              <div class="acoes-mover">
+                                <button type="button" title="Subir" (click)="moverOcorrenciaNaTarefa(i, j, -1)">↑</button>
+                                <button type="button" title="Descer" (click)="moverOcorrenciaNaTarefa(i, j, 1)">↓</button>
+                              </div>
+                              <div class="acoes-inserir-excluir">
+                                <button type="button" title="Inserir ocorrência logo abaixo" (click)="inserirOcorrenciaNaTarefaAbaixo(i, j)">+</button>
+                                <button type="button" title="Excluir ocorrência" (click)="removerOcorrenciaDaTarefa(i, j)">✖</button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
                 </div>
               }
               <button type="button" class="botao-adicionar" (click)="adicionarOcorrenciaNaTarefa(i)">+ Ocorrência</button>
@@ -555,24 +613,50 @@
              vínculo com nenhuma tarefa, mesma ideia das mídias acima. -->
         <div class="bloco-geral" formArrayName="pendencias_gerais">
           <h3>Pendências gerais do dia</h3>
-          @for (pend of pendenciasGerais().controls; track pend; let i = $index) {
-            <div class="pendencia-campos" [formGroupName]="i">
-              <label class="campo-largo">
-                <span>Descrição da pendência</span>
-                <textarea formControlName="descricao" rows="2"></textarea>
-              </label>
-              <div class="grade-tripla">
-                <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
-                <label><span>Prazo</span><input type="date" formControlName="prazo"></label>
-                <label>
-                  <span>Status</span>
-                  <select formControlName="status">
-                    <option value="aberta">Aberta</option>
-                    <option value="concluida">Concluída</option>
-                  </select>
-                </label>
-              </div>
-              <button type="button" class="botao-remover" (click)="removerPendenciaGeral(i)">Remover pendência</button>
+          @if (pendenciasGerais().length) {
+            <div class="envoltoria-tabela-pequena">
+              <table class="tabela-lista"
+                     trenaNavegacaoTabela
+                     trenaRedimensionarColunas
+                     (inserirLinha)="inserirPendenciaGeralAbaixo($event)"
+                     (removerLinha)="removerPendenciaGeral($event)">
+                <thead>
+                  <tr>
+                    <th class="col-descricao-lista">Descrição</th>
+                    <th class="col-estreita-lista">Responsável</th>
+                    <th class="col-estreita-lista">Prazo</th>
+                    <th class="col-estreita-lista">Status</th>
+                    <th class="col-acoes-lista">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (pend of pendenciasGerais().controls; track pend; let i = $index) {
+                    <tr [formGroupName]="i">
+                      <td><textarea formControlName="descricao" rows="1"></textarea></td>
+                      <td><input type="text" formControlName="responsavel"></td>
+                      <td><input type="date" formControlName="prazo"></td>
+                      <td>
+                        <select formControlName="status">
+                          <option value="aberta">Aberta</option>
+                          <option value="concluida">Concluída</option>
+                        </select>
+                      </td>
+                      <td class="centro acoes-linha">
+                        <div class="acoes-linha-conteudo">
+                          <div class="acoes-mover">
+                            <button type="button" title="Subir" (click)="moverPendenciaGeral(i, -1)">↑</button>
+                            <button type="button" title="Descer" (click)="moverPendenciaGeral(i, 1)">↓</button>
+                          </div>
+                          <div class="acoes-inserir-excluir">
+                            <button type="button" title="Inserir pendência logo abaixo" (click)="inserirPendenciaGeralAbaixo(i)">+</button>
+                            <button type="button" title="Excluir pendência" (click)="removerPendenciaGeral(i)">✖</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
           }
           <button type="button" class="botao-adicionar" (click)="adicionarPendenciaGeral()">+ Pendência geral</button>
@@ -580,21 +664,51 @@
 
         <div class="bloco-geral" formArrayName="ocorrencias_gerais">
           <h3>Ocorrências gerais do dia</h3>
-          @for (oc of ocorrenciasGerais().controls; track oc; let i = $index) {
-            <div class="ocorrencia-campos" [formGroupName]="i">
-              <div class="grade-dupla">
-                <label>
-                  <span>Tipo de ocorrência</span>
-                  <select formControlName="tipo">
-                    @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
-                  </select>
-                </label>
-                <label><span>Responsável</span><input type="text" formControlName="responsavel"></label>
-              </div>
-              <label class="campo-largo"><span>Descrição</span><textarea formControlName="descricao" rows="2"></textarea></label>
-              <label class="campo-largo"><span>Motivo</span><input type="text" formControlName="motivo"></label>
-              <label class="campo-largo"><span>Danos materiais</span><input type="text" formControlName="danos_materiais"></label>
-              <button type="button" class="botao-remover" (click)="removerOcorrenciaGeral(i)">Remover ocorrência</button>
+          @if (ocorrenciasGerais().length) {
+            <div class="envoltoria-tabela-pequena">
+              <table class="tabela-lista"
+                     trenaNavegacaoTabela
+                     trenaRedimensionarColunas
+                     (inserirLinha)="inserirOcorrenciaGeralAbaixo($event)"
+                     (removerLinha)="removerOcorrenciaGeral($event)">
+                <thead>
+                  <tr>
+                    <th class="col-estreita-lista">Tipo</th>
+                    <th class="col-descricao-lista">Descrição</th>
+                    <th class="col-estreita-lista">Responsável</th>
+                    <th class="col-estreita-lista">Motivo</th>
+                    <th class="col-estreita-lista">Danos materiais</th>
+                    <th class="col-acoes-lista">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (oc of ocorrenciasGerais().controls; track oc; let i = $index) {
+                    <tr [formGroupName]="i">
+                      <td>
+                        <select formControlName="tipo">
+                          @for (t of tiposOcorrencia; track t.valor) { <option [value]="t.valor">{{ t.rotulo }}</option> }
+                        </select>
+                      </td>
+                      <td><textarea formControlName="descricao" rows="1"></textarea></td>
+                      <td><input type="text" formControlName="responsavel"></td>
+                      <td><input type="text" formControlName="motivo"></td>
+                      <td><input type="text" formControlName="danos_materiais"></td>
+                      <td class="centro acoes-linha">
+                        <div class="acoes-linha-conteudo">
+                          <div class="acoes-mover">
+                            <button type="button" title="Subir" (click)="moverOcorrenciaGeral(i, -1)">↑</button>
+                            <button type="button" title="Descer" (click)="moverOcorrenciaGeral(i, 1)">↓</button>
+                          </div>
+                          <div class="acoes-inserir-excluir">
+                            <button type="button" title="Inserir ocorrência logo abaixo" (click)="inserirOcorrenciaGeralAbaixo(i)">+</button>
+                            <button type="button" title="Excluir ocorrência" (click)="removerOcorrenciaGeral(i)">✖</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
           }
           <button type="button" class="botao-adicionar" (click)="adicionarOcorrenciaGeral()">+ Ocorrência geral</button>

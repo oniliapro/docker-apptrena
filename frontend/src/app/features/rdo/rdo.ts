@@ -10,6 +10,8 @@ import { ArmazenamentoService } from '../../core/services/armazenamento.service'
 import { hojeIso } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
+import { NavegacaoTabela } from '../../shared/navegacao-tabela/navegacao-tabela';
+import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { Empreiteiro } from '../cadastros/cadastros.models';
 import { CHAVE_EMPREITEIROS, normalizarEmpreiteiro } from '../cadastros/empreiteiros/empreiteiros';
 import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
@@ -84,7 +86,7 @@ interface LinhaTarefaBruta {
  */
 @Component({
   selector: 'app-rdo',
-  imports: [ReactiveFormsModule, Autocomplete],
+  imports: [ReactiveFormsModule, Autocomplete, NavegacaoTabela, RedimensionarColunas],
   templateUrl: './rdo.html',
   styleUrl: './rdo.scss',
 })
@@ -837,6 +839,16 @@ export class Rdo implements OnInit {
     this.pendenciasDaTarefa(i).removeAt(j);
   }
 
+  /** Igual ao "+" do Mapa/EAP (14/10/2026) — insere logo abaixo da linha `j` (-1 = no final). */
+  protected inserirPendenciaNaTarefaAbaixo(i: number, j: number): void {
+    const array = this.pendenciasDaTarefa(i);
+    array.insert(j < 0 ? array.length : j + 1, this.grupoPendencia());
+  }
+
+  protected moverPendenciaNaTarefa(i: number, j: number, delta: number): void {
+    this.moverControleEmArray(this.pendenciasDaTarefa(i), j, delta);
+  }
+
   protected ocorrenciasDaTarefa(i: number): FormArray {
     return this.grupo('tarefas', i).get('ocorrencias') as FormArray;
   }
@@ -847,6 +859,15 @@ export class Rdo implements OnInit {
 
   protected removerOcorrenciaDaTarefa(i: number, j: number): void {
     this.ocorrenciasDaTarefa(i).removeAt(j);
+  }
+
+  protected inserirOcorrenciaNaTarefaAbaixo(i: number, j: number): void {
+    const array = this.ocorrenciasDaTarefa(i);
+    array.insert(j < 0 ? array.length : j + 1, this.grupoOcorrencia());
+  }
+
+  protected moverOcorrenciaNaTarefa(i: number, j: number, delta: number): void {
+    this.moverControleEmArray(this.ocorrenciasDaTarefa(i), j, delta);
   }
 
   /** Pendências/ocorrências GERAIS do dia (26/09/2026) — sem tarefa, mostradas em "Fotos e vídeos do dia". */
@@ -862,6 +883,15 @@ export class Rdo implements OnInit {
     this.pendenciasGerais().removeAt(i);
   }
 
+  protected inserirPendenciaGeralAbaixo(i: number): void {
+    const array = this.pendenciasGerais();
+    array.insert(i < 0 ? array.length : i + 1, this.grupoPendencia());
+  }
+
+  protected moverPendenciaGeral(i: number, delta: number): void {
+    this.moverControleEmArray(this.pendenciasGerais(), i, delta);
+  }
+
   protected ocorrenciasGerais(): FormArray {
     return this.arr('ocorrencias_gerais');
   }
@@ -872,6 +902,24 @@ export class Rdo implements OnInit {
 
   protected removerOcorrenciaGeral(i: number): void {
     this.ocorrenciasGerais().removeAt(i);
+  }
+
+  protected inserirOcorrenciaGeralAbaixo(i: number): void {
+    const array = this.ocorrenciasGerais();
+    array.insert(i < 0 ? array.length : i + 1, this.grupoOcorrencia());
+  }
+
+  protected moverOcorrenciaGeral(i: number, delta: number): void {
+    this.moverControleEmArray(this.ocorrenciasGerais(), i, delta);
+  }
+
+  /** Reordena um controle dentro do FormArray — mesma ideia de `EapStore.moverItem` (14/10/2026). */
+  private moverControleEmArray(array: FormArray, indice: number, delta: number): void {
+    const novoIndice = indice + delta;
+    if (novoIndice < 0 || novoIndice >= array.length) return;
+    const controle = array.at(indice);
+    array.removeAt(indice);
+    array.insert(novoIndice, controle);
   }
 
   protected remover(nome: string, i: number): void {
