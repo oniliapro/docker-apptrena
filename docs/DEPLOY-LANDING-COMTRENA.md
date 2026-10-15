@@ -32,30 +32,12 @@ publicação abaixo). O app antigo continua respondendo tudo que não é a landi
 (`/html/login.html` etc.): nada que já funciona deixa de funcionar.
 
 ```bash
-sudo cp /etc/nginx/sites-available/comtrena.conf ~/comtrena.conf.bak
-sudo python3 - <<'EOF'
-p = '/etc/nginx/sites-available/comtrena.conf'
-s = open(p).read()
-marca = "    location / {\n        proxy_pass http://127.0.0.1:8080;"
-assert s.count(marca) == 1, "bloco 'location /' nao encontrado exatamente uma vez"
-novo = """    # Landing page (raiz do dominio) — arquivos em /var/www/comtrena-landing
-    location = / {
-        root /var/www/comtrena-landing;
-        try_files /index.html =404;
-    }
-    location ~ ^/(marca/|favicon\.svg$|favicon\.ico$|apple-touch-icon\.png$|robots\.txt$|sitemap\.xml$) {
-        root /var/www/comtrena-landing;
-        try_files $uri =404;
-    }
-
-"""
-open(p, 'w').write(s.replace(marca, novo + marca))
-EOF
-sudo nginx -t && sudo systemctl reload nginx
+sudo bash ~/docker-apptrena/landing/aplicar-nginx.sh
 ```
 
-Se o `nginx -t` reclamar, volte o backup:
-`sudo cp ~/comtrena.conf.bak /etc/nginx/sites-available/comtrena.conf && sudo systemctl reload nginx`.
+O script guarda uma cópia, acrescenta as regras, testa (`nginx -t`) e só então recarrega; se o teste falhar, devolve a cópia sozinho.
+
+Para desfazer manualmente: copie de volta o arquivo `/root/comtrena.conf.bak-...` que o script informa e rode `sudo systemctl reload nginx`.
 
 ## 3. `.env` de produção (`controleobra-api/.env`)
 
