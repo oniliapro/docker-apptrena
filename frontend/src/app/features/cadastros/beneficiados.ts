@@ -132,16 +132,18 @@ export class Beneficiados {
   private cadastrar(nome: string, tipo: TipoBeneficiado): Observable<boolean> {
     const fornecedor = tipo === 'fornecedor';
     const chave = fornecedor ? CHAVE_FORNECEDORES : CHAVE_EMPREITEIROS;
-    const prefixo = fornecedor ? 'FORN' : 'EMP';
+    // Profissional = `PRO-` (era `EMP-`, que virou o prefixo das empreitas) — 4 dígitos, 15/10/2026.
+    const prefixo = fornecedor ? 'FORN' : 'PRO';
+    const lido = fornecedor ? 'FORN' : '(?:PRO|EMP)';
 
     return this.armazenamento.ler(chave).pipe(
       switchMap((bruto) => {
         const lista = lerLista(bruto);
         const maior = lista.reduce<number>((max, registro) => {
-          const combinacao = new RegExp(`^${prefixo}-(\\d+)$`).exec(String(registro['codigo'] ?? '').trim());
+          const combinacao = new RegExp(`^${lido}-(\\d+)$`).exec(String(registro['codigo'] ?? '').trim());
           return combinacao && Number(combinacao[1]) > max ? Number(combinacao[1]) : max;
         }, 0);
-        const codigo = `${prefixo}-${String(maior + 1).padStart(3, '0')}`;
+        const codigo = `${prefixo}-${String(maior + 1).padStart(4, '0')}`;
 
         const novo: Record<string, unknown> = fornecedor
           ? {

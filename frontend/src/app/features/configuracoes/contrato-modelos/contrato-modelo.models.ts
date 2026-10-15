@@ -87,18 +87,23 @@ export const VARIAVEIS_CONTRATO_MODELO: Record<TipoContratoModelo, readonly stri
     'cliente', 'empreiteiro', 'descricao_empreita', 'numero_empreita', 'valor', 'data',
     'servicos_previstos', 'servicos_adicionais', 'servicos_todos',
     'total_servicos_previstos', 'total_servicos_adicionais', 'total_servicos',
+    'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
+    'tipo_empreiteiro', 'cpf_cnpj_empreiteiro', 'endereco_empreiteiro',
+    'previsao_conclusao',
   ],
   obra: [
     'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
     'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
     'responsavel', 'responsavel_tecnico', 'crea', 'art',
     'cliente', 'data',
+    'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
   ],
   proposta: [
     'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
     'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
     'responsavel', 'responsavel_tecnico', 'crea', 'art',
     'cliente', 'data', 'tabela_eap',
+    'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
     'custo_material', 'bdi_material', 'bdi_pct_material', 'total_material',
     'custo_mao_de_obra', 'bdi_mao_de_obra', 'bdi_pct_mao_de_obra', 'total_mao_de_obra',
     'custo_equipamento', 'bdi_equipamento', 'bdi_pct_equipamento', 'total_equipamento',
@@ -193,11 +198,23 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
     { chave: 'crea', rotulo: 'CREA' },
     { chave: 'art', rotulo: 'ART' },
   ],
-  cliente: [{ chave: 'cliente', rotulo: 'Nome' }],
-  empreiteiro: [{ chave: 'empreiteiro', rotulo: 'Nome' }],
+  // Tipo/documento/endereço vêm do CADASTRO (casado pelo nome) — montados no navegador, só no corpo.
+  cliente: [
+    { chave: 'cliente', rotulo: 'Nome' },
+    { chave: 'tipo_cliente', rotulo: 'Tipo (pessoa física/jurídica)', soCorpo: true },
+    { chave: 'cpf_cnpj_cliente', rotulo: 'CPF/CNPJ', soCorpo: true },
+    { chave: 'endereco_cliente', rotulo: 'Endereço', soCorpo: true },
+  ],
+  empreiteiro: [
+    { chave: 'empreiteiro', rotulo: 'Nome' },
+    { chave: 'tipo_empreiteiro', rotulo: 'Tipo (pessoa física/jurídica)', soCorpo: true },
+    { chave: 'cpf_cnpj_empreiteiro', rotulo: 'CPF/CNPJ', soCorpo: true },
+    { chave: 'endereco_empreiteiro', rotulo: 'Endereço', soCorpo: true },
+  ],
   empreita: [
     { chave: 'numero_empreita', rotulo: 'Número' },
     { chave: 'descricao_empreita', rotulo: 'Descrição' },
+    { chave: 'previsao_conclusao', rotulo: 'Previsão de conclusão', soCorpo: true },
     // Soma calculada no navegador (relatório de pagamentos) — ver `ContratoPdfController::variaveisComuns`.
     { chave: 'valor', rotulo: 'Valor do contrato', soCorpo: true },
     // 15/10/2026 — serviços da empreita filtrados por "adicional" da EAP. As

@@ -41,6 +41,12 @@
                [value]="store.cabecalho().data"
                (change)="editarCabecalho('data', $event)" />
       </label>
+      <label class="campo">
+        <span>Previsão de conclusão</span>
+        <input type="date" [disabled]="store.travada()"
+               [value]="store.cabecalho().previsaoConclusao"
+               (change)="editarCabecalho('previsaoConclusao', $event)" />
+      </label>
     </div>
   </div>
 

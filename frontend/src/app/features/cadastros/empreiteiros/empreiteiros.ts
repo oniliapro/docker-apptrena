@@ -48,6 +48,7 @@ export function normalizarEmpreiteiro(bruto: Record<string, unknown>): Empreitei
     documento: apenasDigitos(bruto['documento']),
     telefone: apenasDigitos(bruto['telefone']),
     email: String(bruto['email'] ?? ''),
+    endereco: String(bruto['endereco'] ?? ''),
     especialidade: String(bruto['especialidade'] ?? ''),
     valorDiaria: Math.max(0, Number(bruto['valorDiaria']) || 0),
     // Cadastros antigos não têm o campo: eram terceirizados (empreiteiros), então "externo".
@@ -145,6 +146,7 @@ export class Empreiteiros implements OnInit {
     vinculo: ['externo' as VinculoProfissional],
     telefone: [''],
     email: ['', [Validators.email]],
+    endereco: [''],
     observacoes: [''],
     dadosRecebimento: this.fb.array<ReturnType<typeof this.novoControleRecebimento>>([]),
   });
@@ -169,11 +171,14 @@ export class Empreiteiros implements OnInit {
    */
   private proximoCodigo(): string {
     const maior = this.store.registros().reduce((max, empreiteiro) => {
-      const combinacao = /^EMP-(\d+)$/.exec(empreiteiro.codigo?.trim() ?? '');
+      // `EMP-` ainda é lido por segurança (aba aberta antes da migration gravou código antigo).
+      const combinacao = /^(?:PRO|EMP)-(\d+)$/.exec(empreiteiro.codigo?.trim() ?? '');
       const numero = combinacao ? Number(combinacao[1]) : 0;
       return numero > max ? numero : max;
     }, 0);
-    return `EMP-${String(maior + 1).padStart(3, '0')}`;
+    // Prefixo PRO- e 4 dígitos desde 15/10/2026 (pedido do Lucas): `EMP-` passou a ser da
+    // numeração das empreitas (EMP-0001, por obra).
+    return `PRO-${String(maior + 1).padStart(4, '0')}`;
   }
 
   // ------------------------------------------------------------------
@@ -235,6 +240,7 @@ export class Empreiteiros implements OnInit {
       vinculo: registro.vinculo,
       telefone: formatarTelefone(registro.telefone),
       email: registro.email,
+      endereco: registro.endereco,
       observacoes: registro.observacoes,
     });
     this.abaAtiva.set('geral');
@@ -313,6 +319,7 @@ export class Empreiteiros implements OnInit {
       documento: apenasDigitos(valores.documento),
       telefone: apenasDigitos(valores.telefone),
       email: valores.email.trim(),
+      endereco: valores.endereco.trim(),
       especialidade: valores.especialidade.trim(),
       valorDiaria: parsearBR(valores.valorDiaria),
       vinculo: valores.vinculo,

@@ -36,12 +36,18 @@ class ContratoModeloController extends Controller
             // x adicionais), calculados pela tela de impressão. Só no corpo.
             'servicos_previstos', 'servicos_adicionais', 'servicos_todos',
             'total_servicos_previstos', 'total_servicos_adicionais', 'total_servicos',
+            // 15/10/2026 — dados do cliente e do empreiteiro (vêm dos cadastros,
+            // casados pelo NOME) e a previsão de conclusão da empreita.
+            'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
+            'tipo_empreiteiro', 'cpf_cnpj_empreiteiro', 'endereco_empreiteiro',
+            'previsao_conclusao',
         ],
         'obra' => [
             'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
             'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
             'responsavel', 'responsavel_tecnico', 'crea', 'art',
             'cliente', 'data',
+            'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
         ],
         // 14/10/2026 — proposta gerada a partir da EAP. `tabela_eap` é um
         // BLOCO (a tabela inteira), não um texto: só vale no corpo do
@@ -53,6 +59,7 @@ class ContratoModeloController extends Controller
             'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
             'responsavel', 'responsavel_tecnico', 'crea', 'art',
             'cliente', 'data', 'tabela_eap',
+            'tipo_cliente', 'cpf_cnpj_cliente', 'endereco_cliente',
             'custo_material', 'bdi_material', 'bdi_pct_material', 'total_material',
             'custo_mao_de_obra', 'bdi_mao_de_obra', 'bdi_pct_mao_de_obra', 'total_mao_de_obra',
             'custo_equipamento', 'bdi_equipamento', 'bdi_pct_equipamento', 'total_equipamento',

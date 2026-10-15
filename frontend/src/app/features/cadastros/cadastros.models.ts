@@ -84,13 +84,15 @@ export type VinculoProfissional = 'interno' | 'externo';
 /** Empreiteiro que executa serviços. */
 export interface Empreiteiro {
   id: string;
-  /** Código interno, ex.: "EMP-014" — gerado pelo sistema, não digitado. */
+  /** Código interno, ex.: "PRO-0014" — gerado pelo sistema, não digitado. */
   codigo: string;
   nome: string;
   tipo: TipoPessoa;
   documento: string;
   telefone: string;
   email: string;
+  /** Endereço completo (15/10/2026) — vai no contrato de empreita (`{{endereco_empreiteiro}}`). */
+  endereco: string;
   /** Função/especialidade: alvenaria, elétrica, pintura… (no RDO e nas diárias é a "função"). */
   especialidade: string;
   /** Valor da diária (F6, 22/09/2026) — base das diárias; meia diária = 50%. */

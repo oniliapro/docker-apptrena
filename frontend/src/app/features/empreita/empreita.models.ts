@@ -60,6 +60,8 @@ export interface CabecalhoEmpreita {
   obraNumber: string;
   empreiteiro: string;
   data: string;
+  /** Previsão de conclusão (15/10/2026, pedido do Lucas) — `{{previsao_conclusao}}` do contrato. `AAAA-MM-DD` ou vazio. */
+  previsaoConclusao: string;
   /**
    * Confirmada/em edição (25/08/2026, pedido do Lucas) — mesmo padrão já
    * usado na EAP (`CabecalhoObra.isConfirmed`/`confirmedAt`). Em edição,

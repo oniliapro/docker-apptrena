@@ -21,11 +21,12 @@ class Empreita extends Model
         'total_pago', 'atualizado_em', 'is_confirmed', 'confirmed_at',
         'pagamento_iniciado', 'pagamento_iniciado_at', 'medicao_habilitada',
         'contrato_assinado', 'contrato_assinado_em', 'contrato_agenda_evento_id',
-        'medicao80_alertada',
+        'medicao80_alertada', 'previsao_conclusao',
     ];
 
     protected $casts = [
         'medicao_date' => 'date',
+        'previsao_conclusao' => 'date',
         'atualizado_em' => 'datetime',
         'total_empreita' => 'float',
         'total_pago' => 'float',

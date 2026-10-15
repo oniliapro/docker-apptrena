@@ -135,6 +135,7 @@ class EmpreitaController extends Controller
             'empreiteiro' => 'nullable|string|max:120',
             'descricao_empreita' => 'nullable|string',
             'medicao_date' => 'nullable|date',
+            'previsao_conclusao' => 'nullable|date',
             'competencia' => 'nullable|string|max:30',
             'obs' => 'nullable|string',
             'is_confirmed' => 'nullable|boolean',
@@ -149,11 +150,17 @@ class EmpreitaController extends Controller
             // 03/09/2026, pedido do Lucas: numeração e nº da obra deixam de
             // ser digitados à mão — `obra_number` sempre reflete
             // `Obra.map_number` (mesmo padrão de Mapa/Pagamentos/
-            // Recebimentos) e `numero_empreita` vira `OBR-{map_number}-
-            // EMP-{sequencial por obra}`, os dois travados pra sempre (o
-            // que vier de `$data` pra esses 2 campos é ignorado). Só
-            // calculados na CRIAÇÃO — numa atualização, os valores já
-            // gravados na empreita são preservados como estão.
+            // Recebimentos), os dois travados pra sempre (o que vier de
+            // `$data` pra esses 2 campos é ignorado). Só calculados na
+            // CRIAÇÃO — numa atualização, os valores já gravados na
+            // empreita são preservados como estão.
+            //
+            // 15/10/2026, pedido do Lucas: `numero_empreita` passou a ser só
+            // `EMP-0001`, com a sequência POR OBRA (antes `OBR-{map_number}-
+            // EMP-001` — como `map_number` já é "OBR-011", saía
+            // "OBR-OBR-011-EMP-001"). O próximo número é o MAIOR já usado na
+            // obra + 1 (não `count()+1`: excluir uma empreita do meio fazia o
+            // contador repetir um número que ainda existia).
             $souCriacao = !$empreita->exists;
             $obraId = $data['obra_id'] ?? $empreita->obra_id;
 
@@ -162,10 +169,13 @@ class EmpreitaController extends Controller
                 $codigoObra = $obra ? trim((string) $obra->map_number) : '';
                 if ($codigoObra === '') $codigoObra = 'SN';
 
-                $sequencial = Empreita::where('obra_id', $obraId)->count() + 1;
+                $maior = Empreita::where('obra_id', $obraId)
+                    ->pluck('numero_empreita')
+                    ->map(fn ($numero) => preg_match('/(\d+)\s*$/', (string) $numero, $m) ? (int) $m[1] : 0)
+                    ->max() ?? 0;
 
                 $obraNumber = $codigoObra;
-                $numeroEmpreita = sprintf('OBR-%s-EMP-%03d', $codigoObra, $sequencial);
+                $numeroEmpreita = sprintf('EMP-%04d', $maior + 1);
             } else {
                 $obraNumber = $empreita->obra_number;
                 $numeroEmpreita = $empreita->numero_empreita;
@@ -178,6 +188,10 @@ class EmpreitaController extends Controller
                 'empreiteiro' => $data['empreiteiro'] ?? '',
                 'descricao_empreita' => $data['descricao_empreita'] ?? '',
                 'medicao_date' => $data['medicao_date'] ?? null,
+                // Só muda quando o campo vem na requisição (15/10/2026) — quem não manda não apaga.
+                'previsao_conclusao' => array_key_exists('previsao_conclusao', $data)
+                    ? ($data['previsao_conclusao'] ?: null)
+                    : $empreita->previsao_conclusao,
                 'competencia' => $data['competencia'] ?? '',
                 'obs' => $data['obs'] ?? '',
                 'is_confirmed' => $data['is_confirmed'] ?? false,

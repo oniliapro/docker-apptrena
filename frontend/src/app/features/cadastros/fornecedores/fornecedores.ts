@@ -181,7 +181,7 @@ export class Fornecedores implements OnInit {
       const numero = combinacao ? Number(combinacao[1]) : 0;
       return numero > max ? numero : max;
     }, 0);
-    return `FORN-${String(maior + 1).padStart(3, '0')}`;
+    return `FORN-${String(maior + 1).padStart(4, '0')}`; // 4 dígitos desde 15/10/2026
   }
 
   // ------------------------------------------------------------------

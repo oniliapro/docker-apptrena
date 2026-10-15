@@ -186,7 +186,9 @@ export class Obras implements OnInit {
       const numero = combinacao ? Number(combinacao[1]) : 0;
       return numero > max ? numero : max;
     }, 0);
-    return `OBR-${String(maior + 1).padStart(3, '0')}`;
+    // 4 dígitos desde 15/10/2026 (pedido do Lucas: um zero a mais à esquerda); os
+    // códigos antigos ("OBR-011") são convertidos pela migration `renumerar_obras_e_empreitas`.
+    return `OBR-${String(maior + 1).padStart(4, '0')}`;
   }
 
   protected mudarFiltro(evento: Event): void {

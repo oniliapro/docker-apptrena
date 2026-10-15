@@ -1173,29 +1173,41 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
 
   private htmlAssinaturas(opcao: string): string {
     const tipo = this.tipo();
-    let pessoas: Array<[string, string]>;
+
+    // [nome, papel, documento] — o documento aparece como "CPF/CNPJ: …" logo abaixo do nome
+    // (15/10/2026, pedido do Lucas). O CONTRATANTE é sempre o CLIENTE DA OBRA, nunca a empresa
+    // (antes, no contrato de empreita, o contratante saía como a empresa).
+    const cliente: [string, string, string] = ['{{cliente}}', 'CONTRATANTE', '{{cpf_cnpj_cliente}}'];
+    const empresa = (papel: string): [string, string, string] => ['{{empresa_nome}}', papel, '{{empresa_cnpj}}'];
+
+    let pessoas: Array<[string, string, string]>;
     if (opcao === 'testemunhas') {
-      pessoas = [['Testemunha 1', 'CPF:'], ['Testemunha 2', 'CPF:']];
+      pessoas = [['Testemunha 1', '', 'CPF:'], ['Testemunha 2', '', 'CPF:']];
     } else if (opcao === '1') {
-      pessoas = [['{{empresa_nome}}', tipo === 'proposta' ? 'PROPONENTE' : tipo === 'empreita' ? 'CONTRATANTE' : 'CONTRATADA']];
+      pessoas = [tipo === 'proposta' ? empresa('PROPONENTE') : cliente];
     } else if (tipo === 'empreita') {
-      pessoas = [['{{empresa_nome}}', 'CONTRATANTE'], ['{{empreiteiro}}', 'CONTRATADO']];
+      pessoas = [cliente, ['{{empreiteiro}}', 'CONTRATADO', '{{cpf_cnpj_empreiteiro}}']];
     } else if (tipo === 'proposta') {
-      pessoas = [['{{cliente}}', 'DE ACORDO — CLIENTE'], ['{{empresa_nome}}', 'PROPONENTE']];
+      pessoas = [['{{cliente}}', 'DE ACORDO — CLIENTE', '{{cpf_cnpj_cliente}}'], empresa('PROPONENTE')];
     } else {
-      pessoas = [['{{cliente}}', 'CONTRATANTE'], ['{{empresa_nome}}', 'CONTRATADA']];
+      pessoas = [cliente, empresa('CONTRATADA')];
     }
 
     // `border:none`/`background` explícitos: o `td`/`table` global do app (`_base.scss`) põe borda
     // e fundo em toda tabela — inclusive aqui e na tela de impressão do PDF.
     const largura = pessoas.length === 1 ? 'width:60%; margin:12mm auto 4mm;' : 'width:100%; margin:12mm 0 4mm;';
     const celulas = pessoas
-      .map(
-        ([nome, papel]) =>
+      .map(([nome, papel, documento]) => {
+        // Testemunha já traz o rótulo ("CPF:") pronto; as demais ganham "CPF/CNPJ: <valor>".
+        const linhaDocumento = documento.startsWith('{{') ? `CPF/CNPJ: ${documento}` : documento;
+        return (
           `<td style="width:${100 / pessoas.length}%; border:none; padding:0 6mm; vertical-align:top; text-align:center;">` +
           `<div style="border-top:1px solid #333; padding-top:1.5mm;">${nome}</div>` +
-          `<div style="font-size:9pt; color:#555;">${papel}</div></td>`,
-      )
+          `<div style="font-size:9pt;">${linhaDocumento}</div>` +
+          (papel ? `<div style="font-size:9pt; color:#555;">${papel}</div>` : '') +
+          '</td>'
+        );
+      })
       .join('');
     return (
       `<table class="bloco-assinaturas" style="${largura} border-collapse:collapse; background:transparent; break-inside:avoid; page-break-inside:avoid;">` +

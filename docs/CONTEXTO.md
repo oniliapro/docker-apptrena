@@ -3447,3 +3447,37 @@ AppTrena/
     como adicional (mesma convenção da mensagem de pagamento). Valor do
     serviço = Empreiteiro + Reserva, igual à variável `valor` — os totais
     fecham com ela. Serve também pra montar um modelo de aditivo.
+- 15/10/2026 (2): contrato de empreita — dados do cliente/empreiteiro,
+  previsão de conclusão e NOVA NUMERAÇÃO. **Tem 2 migrations, uma delas de
+  DADOS (fazer backup do banco antes):**
+  - `..._000100_add_previsao_conclusao_a_empreitas`: coluna `previsao_conclusao`
+    (date) na empreita; campo "Previsão de conclusão" na página da empreita;
+    variável `{{previsao_conclusao}}`.
+  - `..._000200_renumerar_obras_e_empreitas` (dados, sem volta — restaurar o
+    backup): obra `OBR-011` → `OBR-0011` (4 dígitos); empreita
+    `OBR-OBR-011-EMP-001` → `EMP-0001`, sequência POR OBRA (mantém a sequência
+    que a empreita já tinha na obra; repetida/ilegível recebe o próximo livre).
+    Acompanham: `obra_number` das tabelas que têm (empreitas, pagamentos,
+    recebimentos…) e `mapas.codigo` ("MAPA-OBR-011-02" → "MAPA-OBR-0011-02").
+    Idempotente. Testada num MySQL descartável com dados de exemplo.
+  - Gerador novo: obra `OBR-NNNN` (frontend, `obras.ts`) e empreita
+    `EMP-NNNN` (backend, `EmpreitaController`: maior número da obra + 1 — antes
+    `count()+1`, que repetia número depois de excluir uma do meio).
+  - **Códigos dos cadastros** (migration de dados `..._000300_renumerar_
+    codigos_dos_cadastros`): `CLI-014` → `CLI-0014`, `RESP-014` →
+    `RESP-0014`, `FORN-014` → `FORN-0014` e o cadastro de empreiteiros
+    (profissionais) troca `EMP-014` por `PRO-0014` (`EMP-` passou a ser das
+    empreitas). Eles moram em JSON na tabela `app_storage` (um por empresa);
+    a troca é feita no TEXTO do JSON, só no valor do campo do código
+    (`identificacao`/`codigo`) — o resto do registro não é reescrito.
+    Idempotente. Os geradores do frontend (clientes, responsáveis,
+    fornecedores, empreiteiros e `beneficiados.ts`) geram 4 dígitos. PG-/RC-
+    já tinham 4.
+  - Variáveis novas: `tipo_cliente`/`cpf_cnpj_cliente`/`endereco_cliente`
+    (contrato de empreita, de obra e proposta) e `tipo_empreiteiro`/
+    `cpf_cnpj_empreiteiro`/`endereco_empreiteiro` (empreita). Vêm dos
+    CADASTROS (ponte `/api/storage`) casados pelo NOME (sem diferenciar
+    maiúscula/acento) — sem cadastro com o nome, saem vazias. Só no corpo.
+    O cadastro de Empreiteiros ganhou o campo **Endereço**.
+  - Assinatura: o CONTRATANTE é o cliente da obra (era a empresa, no contrato
+    de empreita); CPF/CNPJ abaixo de cada nome.

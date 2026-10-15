@@ -1,11 +1,12 @@
 import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { forkJoin } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 
 import { EapPayload, Empreita, Obra, PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { formatarDocumento } from '../../core/utils/documento';
 import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { gerarCssEstilos } from '../../shared/contrato-estilo-css';
 import {
@@ -22,6 +23,7 @@ import {
   normalizarConfigProposta,
   variaveisPropostaEap,
 } from '../../shared/proposta-eap';
+import { CHAVE_EMPREITEIROS } from '../cadastros/empreiteiros/empreiteiros';
 import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { ResumoContratoEmpreita } from '../empreita/empreita.models';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
@@ -255,10 +257,11 @@ export class ContratoImprimir implements OnInit, OnDestroy {
     forkJoin({
       perfil: this.api.obterPerfilEmpresa(),
       obra: this.api.obterObra(this.obraId()),
+      clientes: this.lerCadastro('controleObra.clientes.v1'),
       modelos: this.api.listarContratoModelos('proposta'),
       estilos: this.api.listarContratoEstilos(),
     }).subscribe({
-      next: ({ perfil, obra, modelos, estilos }) => {
+      next: ({ perfil, obra, clientes, modelos, estilos }) => {
         this.perfilEmpresa.set(perfil);
         this.folhaEstilos.textContent = gerarCssEstilos(estilos);
 
@@ -271,6 +274,7 @@ export class ContratoImprimir implements OnInit, OnDestroy {
 
         const variaveis = this.variaveisComuns(obra);
         variaveis['responsavel'] = String(obra.responsavel ?? '');
+        Object.assign(variaveis, this.variaveisPessoa('cliente', obra.cliente, clientes));
 
         // Ajuste desta geração (`?config=` JSON, vindo do modal "Gerar
         // proposta") sobrepõe o padrão do modelo; sem ele vale o do modelo.
@@ -309,10 +313,12 @@ export class ContratoImprimir implements OnInit, OnDestroy {
       resumo: this.api.obterResumoContratoEmpreitas(this.obraId()),
       // Precisa do "adicional" de cada etapa (15/10/2026) pras listas de serviços previstos x adicionais.
       eap: this.api.obterEap(this.obraId()),
+      clientes: this.lerCadastro('controleObra.clientes.v1'),
+      empreiteiros: this.lerCadastro(CHAVE_EMPREITEIROS),
       modelos: this.api.listarContratoModelos('empreita'),
       estilos: this.api.listarContratoEstilos(),
     }).subscribe({
-      next: ({ perfil, obra, empreita, resumo, eap, modelos, estilos }) => {
+      next: ({ perfil, obra, empreita, resumo, eap, clientes, empreiteiros, modelos, estilos }) => {
         this.perfilEmpresa.set(perfil);
         this.folhaEstilos.textContent = gerarCssEstilos(estilos);
 
@@ -331,6 +337,13 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         // Numérica (14/10/2026): aparece igual (R$ …) e entra em fórmula — `{{=TEXTO(valor)}}` é o valor por extenso.
         variaveis['valor'] = { numero: valor, formato: 'moeda' };
         Object.assign(variaveis, this.variaveisServicosEmpreita(empreita, eap));
+        Object.assign(
+          variaveis,
+          this.variaveisPessoa('cliente', obra.cliente, clientes),
+          this.variaveisPessoa('empreiteiro', empreita['empreiteiro'], empreiteiros),
+        );
+        // `AAAA-MM-DD` (sem hora) → dd/mm/aaaa; vazio quando a empreita não tem previsão.
+        variaveis['previsao_conclusao'] = formatarData(String(empreita['previsao_conclusao'] ?? '').slice(0, 10));
 
         this.modeloAtual.set(modelo);
         // Estilos PRÓPRIOS do modelo (15/10/2026); modelo antigo ainda sem cópia usa os da empresa.
@@ -351,10 +364,11 @@ export class ContratoImprimir implements OnInit, OnDestroy {
     forkJoin({
       perfil: this.api.obterPerfilEmpresa(),
       obra: this.api.obterObra(this.obraId()),
+      clientes: this.lerCadastro('controleObra.clientes.v1'),
       modelos: this.api.listarContratoModelos('obra'),
       estilos: this.api.listarContratoEstilos(),
     }).subscribe({
-      next: ({ perfil, obra, modelos, estilos }) => {
+      next: ({ perfil, obra, clientes, modelos, estilos }) => {
         this.perfilEmpresa.set(perfil);
         this.folhaEstilos.textContent = gerarCssEstilos(estilos);
 
@@ -368,6 +382,7 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         const variaveis = this.variaveisComuns(obra);
         variaveis['responsavel'] = String(obra.responsavel ?? '');
         variaveis['local_obra'] = String(obra.local_obra ?? '');
+        Object.assign(variaveis, this.variaveisPessoa('cliente', obra.cliente, clientes));
 
         this.modeloAtual.set(modelo);
         // Estilos PRÓPRIOS do modelo (15/10/2026); modelo antigo ainda sem cópia usa os da empresa.
@@ -382,6 +397,49 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         this.carregando.set(false);
       },
     });
+  }
+
+  // ---- Cliente e empreiteiro (15/10/2026, pedido do Lucas) -----------------
+  // Tipo (pessoa física/jurídica), CPF/CNPJ e endereço vêm dos CADASTROS, que
+  // ainda moram na ponte chave-valor (`/api/storage`, ver `CadastroStore`) e
+  // se ligam à obra/empreita só pelo NOME (`Obra.cliente`, `Empreita.
+  // empreiteiro` são texto). Por isso o casamento é por nome, sem diferenciar
+  // maiúscula/acento; sem cadastro com esse nome, as três variáveis saem vazias.
+
+  /** Lista de um cadastro; falha de leitura vira lista vazia (o contrato sai, só sem esses dados). */
+  private lerCadastro(chave: string): Observable<Array<Record<string, unknown>>> {
+    return this.api.lerChave(chave).pipe(
+      map(({ value }) => {
+        try {
+          const dados: unknown = value ? JSON.parse(value) : [];
+          return Array.isArray(dados) ? (dados as Array<Record<string, unknown>>) : [];
+        } catch {
+          return [];
+        }
+      }),
+      catchError(() => of([] as Array<Record<string, unknown>>)),
+    );
+  }
+
+  private nomeParaComparar(nome: unknown): string {
+    return String(nome ?? '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  private variaveisPessoa(papel: 'cliente' | 'empreiteiro', nome: unknown, cadastro: Array<Record<string, unknown>>): VariaveisModelo {
+    const alvo = this.nomeParaComparar(nome);
+    const registro = alvo ? cadastro.find((r) => this.nomeParaComparar(r['nome']) === alvo) : undefined;
+    const tipo = String(registro?.['tipo'] ?? '').toUpperCase();
+
+    return {
+      [`tipo_${papel}`]: registro ? (tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física') : '',
+      [`cpf_cnpj_${papel}`]: registro ? formatarDocumento(registro['documento']) : '',
+      [`endereco_${papel}`]: String(registro?.['endereco'] ?? ''),
+    };
   }
 
   /**
