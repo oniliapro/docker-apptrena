@@ -129,7 +129,7 @@ AppTrena/
      marcador `{{tabela_verificacao}}`, não como tabela (diferente da proposta).
   8. **Landing** em `landing/` (HTML estático) + nginx/`/app/` em
      `docs/DEPLOY-LANDING-COMTRENA.md`. O e-mail de contato da landing
-     (`contato@comtrena.com.br`) é PROVISÓRIO — confirmar.
+     é provisoriamente o do Lucas (eng.lucasaugusto.sa@gmail.com) — trocar depois.
 - **REGRA (09/10/2026, decisão do Lucas): o app ComTrena NÃO PODE ser
   publicado na Play Store (nem na App Store) antes da migração do domínio
   para comtrena.com.br** — ou seja, enquanto o `apiUrl` de

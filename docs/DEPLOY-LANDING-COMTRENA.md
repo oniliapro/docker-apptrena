@@ -133,7 +133,7 @@ sudo rsync -a --delete ~/docker-apptrena/landing/ /var/www/comtrena-landing/
 ## 5. Criar o administrador do painel de planos (uma vez)
 
 ```bash
-docker exec -it controleobra-phpfpm php artisan plataforma:criar-admin SEU@EMAIL "Seu Nome"
+docker exec -it controleobra-phpfpm php artisan plataforma:criar-admin eng.lucasaugusto.sa@gmail.com "Lucas Augusto"
 ```
 
 Pede uma senha (mínimo 12 caracteres). Depois abra
@@ -142,7 +142,7 @@ chave mostrada no aplicativo autenticador (Google Authenticator, Authy…): é a
 verificação em duas etapas. Celular perdido:
 
 ```bash
-docker exec -it controleobra-phpfpm php artisan plataforma:criar-admin SEU@EMAIL --redefinir-2fa
+docker exec -it controleobra-phpfpm php artisan plataforma:criar-admin eng.lucasaugusto.sa@gmail.com --redefinir-2fa
 ```
 
 ## 6. Conferir
