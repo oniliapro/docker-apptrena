@@ -27,6 +27,8 @@ export class PropostaConfig {
   readonly config = input.required<ConfigProposta>();
   /** O modelo não decide "incluir ou não" por si — isso é escolha de cada geração. */
   readonly mostrarIncluirTabela = input(true);
+  /** Cores só no modelo (14/10/2026, pedido do Lucas: "quero configurar as cores da tabela dentro do modelo") — o modal de gerar não mostra. */
+  readonly mostrarCores = input(true);
   readonly mudou = output<ConfigProposta>();
 
   protected readonly niveis = NIVEIS_EAP_PROPOSTA;

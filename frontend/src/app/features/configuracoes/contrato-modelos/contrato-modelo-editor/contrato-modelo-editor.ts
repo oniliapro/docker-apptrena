@@ -1,5 +1,16 @@
 import { Location } from '@angular/common';
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  WritableSignal,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { PerfilEmpresa } from '../../../../core/models/api.models';
@@ -8,7 +19,13 @@ import { Tag } from '../../tags/tags.models';
 import { formatarDataHora } from '../../../../core/utils/formato';
 import { gerarCssEstilos } from '../../../../shared/contrato-estilo-css';
 import { PropostaConfig } from '../../../../shared/proposta-config/proposta-config';
-import { ConfigProposta, normalizarConfigProposta } from '../../../../shared/proposta-eap';
+import {
+  CATEGORIAS_EXEMPLO_PROPOSTA,
+  ConfigProposta,
+  linhasExemploPropostaEap,
+  montarTabelaPropostaEap,
+  normalizarConfigProposta,
+} from '../../../../shared/proposta-eap';
 import {
   CaixaTextoEstilo,
   ContratoEstilo,
@@ -94,6 +111,88 @@ function mmParaPx(mm: number): number {
 }
 
 /**
+ * Espaçamento entre linhas igual ao do Word (14/10/2026, pedido do Lucas):
+ * "1,0" é o espaçamento simples do Word, que em altura de linha CSS é ~1,2 ×
+ * o tamanho da fonte — cada opção é esse simples multiplicado. Gravado como
+ * `line-height` no próprio bloco (vai igual pro PDF).
+ */
+const ALTURA_LINHA_SIMPLES = 1.2;
+export const OPCOES_ENTRELINHA: readonly number[] = [1, 1.15, 1.5, 2, 2.5, 3];
+
+/** Lado maior de uma imagem inserida no documento — maior que isso é reduzida antes de entrar (o arquivo vai embutido no modelo). */
+const LADO_MAXIMO_IMAGEM_PX = 1600;
+
+/**
+ * Cabeçalho/rodapé com conteúdo próprio de verdade — mesma regra de
+ * `ContratoPdfController::htmlTemConteudo` (o `contenteditable` deixa `<br>`
+ * sobrando depois de apagar tudo, e isso não pode virar uma linha a mais).
+ */
+function temConteudoProprio(el: HTMLElement): boolean {
+  if (el.querySelector('img, hr, table')) return true;
+  return (el.textContent ?? '').replace(/ /g, ' ').trim() !== '';
+}
+
+function lerComoDataUrl(arquivo: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result));
+    leitor.onerror = () => reject(leitor.error);
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+function carregarImagem(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const imagem = new Image();
+    imagem.onload = () => resolve(imagem);
+    imagem.onerror = () => reject(new Error('imagem inválida'));
+    imagem.src = src;
+  });
+}
+
+/**
+ * Lê a imagem escolhida e, se for grande, reduz antes de embutir no modelo
+ * (ela fica DENTRO do HTML do modelo, que vai inteiro a cada salvamento).
+ * SVG vai como está (vetor, já é leve); foto continua JPEG; PNG/GIF/WebP
+ * continuam PNG (mantém transparência de logo) a não ser que fique pesado.
+ */
+async function prepararImagem(arquivo: File): Promise<{ src: string; larguraPx: number }> {
+  const original = await lerComoDataUrl(arquivo);
+  const imagem = await carregarImagem(original);
+  const maior = Math.max(imagem.naturalWidth, imagem.naturalHeight);
+  if (arquivo.type === 'image/svg+xml' || (maior <= LADO_MAXIMO_IMAGEM_PX && arquivo.size <= 600_000)) {
+    return { src: original, larguraPx: imagem.naturalWidth };
+  }
+
+  const escala = Math.min(1, LADO_MAXIMO_IMAGEM_PX / maior);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(imagem.naturalWidth * escala));
+  canvas.height = Math.max(1, Math.round(imagem.naturalHeight * escala));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { src: original, larguraPx: imagem.naturalWidth };
+
+  if (arquivo.type !== 'image/jpeg') {
+    ctx.drawImage(imagem, 0, 0, canvas.width, canvas.height);
+    const png = canvas.toDataURL('image/png');
+    if (png.length <= 1_500_000) return { src: png, larguraPx: canvas.width };
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(imagem, 0, 0, canvas.width, canvas.height);
+  return { src: canvas.toDataURL('image/jpeg', 0.85), larguraPx: canvas.width };
+}
+
+/** Largura do conteúdo do bloco que contém a imagem — a referência do `width: X%` dela (no editor e no PDF). */
+function larguraDisponivelPara(imagem: HTMLElement): number {
+  let bloco = imagem.parentElement;
+  while (bloco && getComputedStyle(bloco).display.startsWith('inline')) bloco = bloco.parentElement;
+  if (!bloco) return 0;
+  const estilo = getComputedStyle(bloco);
+  return bloco.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+}
+
+/**
  * Editor de um modelo de contrato (29/09/2026, pedido do Lucas: "algo mais
  * parecido com o Word"). Reformulado a fundo em 30/09/2026 (segunda leva de
  * pedidos, depois de testar de verdade):
@@ -175,21 +274,59 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
    * sobre QUALQUER UMA das três áreas, a que estiver focada.
    */
   protected readonly areaFocada = signal<AreaEditavel>('corpo');
+  /** O elemento editável que recebeu o foco por último — pode ser um CLONE de cabeçalho/rodapé de outra folha (ver `criarCloneCabecalhoOuRodape`). */
+  private elementoEmFoco: HTMLElement | null = null;
 
-  protected aoFocarArea(area: AreaEditavel): void {
+  protected aoFocarArea(area: AreaEditavel, elemento?: HTMLElement): void {
     this.areaFocada.set(area);
+    this.elementoEmFoco = elemento ?? null;
+
+    // Cabeçalho/rodapé sem texto próprio: some com o `<br>` que sobrou de
+    // edições anteriores (escondido pela classe `vazio`) — o cursor cai na
+    // área limpa e a primeira letra digitada não ganha uma linha vazia junto.
+    if (area !== 'corpo') {
+      const alvo = elemento ?? (area === 'cabecalho' ? this.areaCabecalho : this.areaRodape).nativeElement;
+      if (!temConteudoProprio(alvo) && alvo.innerHTML !== '') alvo.innerHTML = '';
+    }
   }
 
-  private elementoDaAreaFocada(): HTMLDivElement {
+  private elementoDaAreaFocada(): HTMLElement {
+    if (this.elementoEmFoco?.isConnected) return this.elementoEmFoco;
     return { corpo: this.area, cabecalho: this.areaCabecalho, rodape: this.areaRodape }[this.areaFocada()].nativeElement;
   }
 
   protected readonly objetoVariavel = signal<ObjetoVariavelContrato | ''>('');
 
   protected readonly variaveisDisponiveis = computed(() => {
-    const comPaginacao = this.areaFocada() !== 'corpo';
-    return this.variaveisDoObjeto(this.objetoVariavel(), comPaginacao);
+    const noCorpo = this.areaFocada() === 'corpo';
+    return this.variaveisDoObjeto(this.objetoVariavel(), !noCorpo).filter((v) => noCorpo || !v.soCorpo);
   });
+
+  /** Variáveis com `grupo` viram um menu (são muitas — totais da EAP por categoria); as demais continuam botões. */
+  protected readonly variaveisSoltas = computed(() => this.variaveisDisponiveis().filter((v) => !v.grupo));
+  protected readonly gruposDeVariaveis = computed(() => {
+    const grupos = new Map<string, VariavelContrato[]>();
+    for (const v of this.variaveisDisponiveis()) {
+      if (v.grupo) grupos.set(v.grupo, [...(grupos.get(v.grupo) ?? []), v]);
+    }
+    return [...grupos].map(([nome, variaveis]) => ({ nome, variaveis }));
+  });
+
+  protected readonly opcoesEntrelinha = OPCOES_ENTRELINHA;
+  protected readonly ajudaFormulaAberta = signal(false);
+  /** Ficam no TS porque `{{` escrito no template (até como entidade HTML) vira interpolação do Angular. */
+  protected readonly tituloBotaoFormula = 'Inserir fórmula com variáveis — ex.: {{=total_material+total_mao_de_obra}} (só no corpo do documento)';
+  protected readonly exemplosFormula = {
+    abre: '{{=',
+    fecha: '}}',
+    soma: '{{=total_material+total_mao_de_obra}}',
+    texto: '{{=TEXTO(total_geral)}}',
+    bdi: '{{=custo_material*bdi_pct_material}}',
+  };
+
+  protected rotuloEntrelinha(valor: number): string {
+    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  }
 
   // ---- Configuração de página (29/09/2026; margens verticais
   // redesenhadas em 30/09/2026 — ver `alturaCabecalhoPx`/`alturaUtilPaginaPx`
@@ -339,10 +476,32 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   protected readonly alturaCabecalhoPx = signal(0);
   protected readonly alturaRodapePx = signal(0);
 
+  /**
+   * 14/10/2026: mesma regra de `ContratoPdfController::medirAlturaHtmlMm` —
+   * altura de verdade (`getBoundingClientRect`, fracionária) arredondada PRA
+   * CIMA. A caixa canônica fica com essa altura exata (`min-height`) e os
+   * clones das outras folhas também (`height`), pra todo cabeçalho/rodapé
+   * ter o mesmo número inteiro de px e cada folha cair certinho no bloco de
+   * fundo (`.folha-bloco`, posicionado por conta, não pelo fluxo).
+   */
   private medirCabecalhoERodape(): void {
-    if (this.caixaCabecalho?.nativeElement) this.alturaCabecalhoPx.set(this.caixaCabecalho.nativeElement.offsetHeight);
-    if (this.caixaRodape?.nativeElement) this.alturaRodapePx.set(this.caixaRodape.nativeElement.offsetHeight);
+    const medir = (caixa: HTMLElement | undefined, alvo: WritableSignal<number>) => {
+      if (!caixa) return;
+      caixa.style.minHeight = '';
+      const altura = Math.ceil(caixa.getBoundingClientRect().height);
+      caixa.style.minHeight = `${altura}px`;
+      alvo.set(altura);
+    };
+    medir(this.caixaCabecalho?.nativeElement, this.alturaCabecalhoPx);
+    medir(this.caixaRodape?.nativeElement, this.alturaRodapePx);
   }
+
+  /** Quantas folhas o documento ocupa agora — cada uma vira um bloco branco de tamanho fixo atrás do texto (`.folha-bloco`). */
+  protected readonly totalFolhas = signal(1);
+  protected readonly indicesFolhas = computed(() => Array.from({ length: this.totalFolhas() }, (_, i) => i));
+  /** Distância do topo de uma folha até o topo da seguinte (folha + vão). */
+  protected readonly passoFolhaPx = computed(() => this.alturaFolhaPx() + GAP_PAGINA_PX);
+  protected readonly alturaTotalFolhasPx = computed(() => this.totalFolhas() * this.passoFolhaPx() - GAP_PAGINA_PX);
 
   /**
    * Altura útil do corpo de UMA página impressa (30/09/2026, redesenhado —
@@ -398,61 +557,106 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     clone.removeAttribute('id');
     clone.classList.add('clone-pagina');
     clone.setAttribute('contenteditable', 'false');
+    // Mesma altura inteira da canônica (ver `medirCabecalhoERodape`).
+    clone.style.minHeight = '';
+    clone.style.height = `${tipo === 'cabecalho' ? this.alturaCabecalhoPx() : this.alturaRodapePx()}px`;
 
     const editavel = clone.querySelector<HTMLElement>('.area-editavel-sincronizada');
     if (editavel) {
       editavel.setAttribute('contenteditable', 'true');
       editavel.addEventListener('input', () => this.sincronizarDeClone(tipo, editavel));
+      // 14/10/2026: com a folha como bloco, o rodapé canônico mora na ÚLTIMA
+      // folha — o da folha 1 (o primeiro que se clica) é um clone. A barra
+      // de formatação precisa agir NELE, não pular pro canônico.
+      editavel.addEventListener('focus', () => this.aoFocarArea(tipo, editavel));
+      editavel.addEventListener('paste', (evento) => this.aoColar(evento));
+      editavel.addEventListener('keydown', (evento) => this.aoTeclarNaArea(evento));
+      editavel.addEventListener('mousedown', (evento) => this.aoClicarNaArea(evento));
     }
     return clone;
   }
 
-  /** Bloco digitado num CLONE (não no canônico da página 1) vira a nova fonte de verdade — propaga pro canônico; os outros clones pegam essa mudança no próximo recálculo (debounced, mesmo gatilho de sempre). */
+  /** Bloco digitado num CLONE (não no canônico) vira a nova fonte de verdade — propaga pro canônico; os outros clones pegam essa mudança no próximo recálculo (debounced, mesmo gatilho de sempre). */
   private sincronizarDeClone(tipo: 'cabecalho' | 'rodape', origemEditavel: HTMLElement): void {
     const canonico = tipo === 'cabecalho' ? this.areaCabecalho.nativeElement : this.areaRodape.nativeElement;
     if (canonico.innerHTML !== origemEditavel.innerHTML) canonico.innerHTML = origemEditavel.innerHTML;
+    this.atualizarEstadoVazio(canonico);
+    this.atualizarEstadoVazio(origemEditavel);
     this.agendarRecalculoQuebras();
   }
 
   /**
-   * Monta o "vão entre folhas": branco até o fim da página atual + o
-   * clone do rodapé dela + o respiro visual + (se houver próxima página)
-   * o clone do cabeçalho da folha seguinte. Devolve também a altura TOTAL
-   * do espaçador — o chamador precisa dela pra saber onde a próxima
-   * página realmente começa (ver bug corrigido em `recalcularQuebrasPagina`
-   * logo abaixo: o `limite` da próxima página precisa somar essa altura
-   * inteira, não só `alturaUtilPaginaPx`, senão o cálculo acha que sobrou
-   * MENOS espaço do que tem de verdade e quebra página cedo demais —
-   * compondo a cada página, isso gerava CENTENAS de quebras falsas num
-   * documento real de só 3 páginas).
+   * Cabeçalho/rodapé sem texto próprio (14/10/2026, pedido do Lucas:
+   * cabeçalho MÍNIMO) — a classe `vazio` tira o `<br>` que sobra no
+   * `contenteditable` e o recuo de 2mm do texto, pra caixa ficar só com as
+   * folgas, igual ao PDF (`ContratoPdfController::htmlTemConteudo`).
    */
-  private criarEspacadorQuebra(alturaBrancoPx: number, comProximaPagina: boolean): { elemento: HTMLElement; alturaTotal: number } {
+  protected atualizarEstadoVazio(editavel: HTMLElement): void {
+    editavel.classList.toggle('vazio', !temConteudoProprio(editavel));
+  }
+
+  protected aoDigitarCabecalhoOuRodape(evento: Event): void {
+    this.atualizarEstadoVazio(evento.target as HTMLElement);
+    this.agendarRecalculoQuebras();
+  }
+
+  /**
+   * Monta a passagem de uma folha pra outra: branco até o fim do corpo da
+   * folha atual + o clone do rodapé dela + o vão entre as folhas + o clone do
+   * cabeçalho da seguinte. A altura do branco NÃO vem pronta: quem chama
+   * insere o espaçador e mede onde ele caiu de verdade (ver `inserirQuebra`
+   * em `recalcularQuebrasPagina`). Sem próxima página é só o branco (fim do
+   * documento — o rodapé que vem logo depois é o canônico).
+   */
+  private criarEspacadorQuebra(comProximaPagina: boolean): { elemento: HTMLElement; branco: HTMLElement } {
     const espacador = document.createElement('div');
     espacador.className = 'quebra-pagina';
     espacador.contentEditable = 'false';
-    espacador.style.marginLeft = `-${this.mmParaPxPublico(this.margemEsquerda())}px`;
-    espacador.style.marginRight = `-${this.mmParaPxPublico(this.margemDireita())}px`;
+    espacador.style.marginLeft = `-${mmParaPx(this.margemEsquerda())}px`;
+    espacador.style.marginRight = `-${mmParaPx(this.margemDireita())}px`;
 
-    const alturaBranco = Math.max(0, alturaBrancoPx);
     const branco = document.createElement('div');
-    branco.style.height = `${alturaBranco}px`;
+    branco.className = 'branco-fim-folha';
     espacador.appendChild(branco);
 
-    espacador.appendChild(this.criarCloneCabecalhoOuRodape('rodape'));
-    const alturaRodape = this.alturaRodapePx();
-
-    const vao = document.createElement('div');
-    vao.className = 'vao-entre-folhas';
-    vao.style.height = `${GAP_PAGINA_PX}px`;
-    espacador.appendChild(vao);
-
-    let alturaCabecalho = 0;
     if (comProximaPagina) {
+      espacador.appendChild(this.criarCloneCabecalhoOuRodape('rodape'));
+      const vao = document.createElement('div');
+      vao.className = 'vao-entre-folhas';
+      vao.style.height = `${GAP_PAGINA_PX}px`;
+      espacador.appendChild(vao);
       espacador.appendChild(this.criarCloneCabecalhoOuRodape('cabecalho'));
-      alturaCabecalho = this.alturaCabecalhoPx();
     }
 
-    return { elemento: espacador, alturaTotal: alturaBranco + alturaRodape + GAP_PAGINA_PX + alturaCabecalho };
+    return { elemento: espacador, branco };
+  }
+
+  /**
+   * Depois de um bloco gigante que atravessou o fim de uma folha: empurra
+   * `antesDe` até o começo do corpo da folha seguinte (`topoCorpo`, medido
+   * a partir do topo da área), desenhando o cabeçalho-clone dela quando
+   * ainda sobra lugar pra ele (o rodapé da folha atravessada fica por baixo
+   * do bloco — não tem onde desenhar).
+   */
+  private inserirEmpurraoAteFolha(area: HTMLElement, antesDe: Element, topoCorpo: number): void {
+    const empurrao = document.createElement('div');
+    empurrao.className = 'quebra-pagina';
+    empurrao.contentEditable = 'false';
+    empurrao.style.marginLeft = `-${mmParaPx(this.margemEsquerda())}px`;
+    empurrao.style.marginRight = `-${mmParaPx(this.margemDireita())}px`;
+    const branco = document.createElement('div');
+    branco.className = 'branco-fim-folha';
+    empurrao.appendChild(branco);
+    area.insertBefore(empurrao, antesDe);
+
+    const inicio = empurrao.offsetTop;
+    const antesDoCabecalho = topoCorpo - this.alturaCabecalhoPx() - inicio;
+    if (antesDoCabecalho >= 0) {
+      branco.style.height = `${antesDoCabecalho}px`;
+      empurrao.appendChild(this.criarCloneCabecalhoOuRodape('cabecalho'));
+    } else {
+      branco.style.height = `${Math.max(0, topoCorpo - inicio)}px`;
+    }
   }
 
   /**
@@ -544,6 +748,18 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
    * `.quebra-pagina` removido antes de virar HTML, porque a altura de
    * página pode mudar (papel/orientação/margem) e é tudo recalculado do
    * zero sempre, aqui e na tela de impressão.
+   *
+   * 14/10/2026 — cada folha virou um BLOCO de tamanho fixo (pedido do
+   * Lucas: "tratar ela como um bloco, com altura e largura fixa conforme
+   * definido no tamanho do papel"). As folhas brancas (`.folha-bloco`) são
+   * desenhadas atrás do texto, cada uma no lugar CALCULADO (`folha ×
+   * passoFolhaPx`) — e o corpo da folha `n` vai, em coordenadas da área de
+   * edição, de `n × passo` até `n × passo + alturaUtil`. Cada espaçador é
+   * inserido e só DEPOIS recebe a altura do branco, medindo onde ele caiu de
+   * verdade: o rodapé-clone sempre começa exatamente no fim do corpo da
+   * folha (antes a conta somava alturas e a diferença de margem entre
+   * blocos ia acumulando). Fim do documento: o rodapé canônico (logo depois
+   * da área) cai na base da última folha.
    */
   private recalcularQuebrasPagina(): void {
     const area = this.area?.nativeElement;
@@ -555,22 +771,68 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       return;
     }
 
-    this.medirCabecalhoERodape();
     area.querySelectorAll(':scope > .quebra-pagina').forEach((el) => el.remove());
+    this.atualizarEstadoVazio(this.areaCabecalho.nativeElement);
+    this.atualizarEstadoVazio(this.areaRodape.nativeElement);
+    this.medirCabecalhoERodape();
 
     const alturaUtil = this.alturaUtilPaginaPx();
-    if (!(alturaUtil > 100)) return; // cabeçalho/rodapé maiores que a folha ou coisa do tipo — não tenta paginar
+    const passo = this.passoFolhaPx();
+    // Documento vazio/curto: a área já ocupa o corpo inteiro da 1ª folha
+    // (rodapé na base dela) sem precisar de espaçador — um espaçador sozinho
+    // numa área vazia "rouba" o clique de quem vai começar a digitar.
+    area.style.minHeight = `${Math.max(0, alturaUtil)}px`;
+    if (!(alturaUtil > 100)) {
+      this.totalFolhas.set(1);
+      return; // cabeçalho/rodapé maiores que a folha ou coisa do tipo — não tenta paginar
+    }
 
-    let limite = alturaUtil;
+    let pagina = 0;
+    let limite = alturaUtil; // fim do corpo da folha atual, a partir do topo da área
+
+    const inserirQuebra = (antesDe: Element | null, comProximaPagina: boolean, forcada = false) => {
+      const { elemento, branco } = this.criarEspacadorQuebra(comProximaPagina);
+      // quebra manual: o bloco seguinte mantém a margem de cima (ver `.forcada` no SCSS)
+      if (forcada) elemento.classList.add('forcada');
+      area.insertBefore(elemento, antesDe);
+      let falta = limite - elemento.offsetTop;
+      if (falta < 0) {
+        // Só a margem de baixo do bloco anterior passou do fim do corpo (no
+        // PDF essa margem some na quebra de página) — sobe o espaçador por
+        // cima dela, pro rodapé-clone não descer do lugar.
+        const anterior = elemento.previousElementSibling;
+        const margem = anterior ? parseFloat(getComputedStyle(anterior).marginBottom) || 0 : 0;
+        if (-falta <= margem + 0.5) {
+          elemento.style.marginTop = `${falta}px`;
+          falta = 0;
+        }
+      }
+      branco.style.height = `${Math.max(0, falta)}px`;
+    };
+
     let filho = area.firstElementChild as HTMLElement | null;
     let seguranca = 0;
 
-    while (filho && seguranca < 500) {
+    while (filho && seguranca < 2000) {
       seguranca++;
 
-      if (filho.offsetTop >= limite) {
-        // já está em alguma página mais adiante (um bloco grande antes empurrou tudo) — avança o limite até alcançar.
-        limite += alturaUtil * Math.ceil((filho.offsetTop - limite + 1) / alturaUtil);
+      // Bloco gigante logo antes (mais alto que uma folha inteira, não dá
+      // pra dividir — fica onde está, como o PDF também parte ele no meio):
+      // ele terminou além do corpo desta folha. Realinha a contagem na folha
+      // onde ele termina; se acabou no meio do rodapé/vão/cabeçalho, empurra
+      // este bloco pro começo do corpo da folha seguinte. (Um bloco que só
+      // COMEÇA depois do limite por causa da margem do anterior não cai
+      // aqui — é uma quebra normal, logo abaixo.)
+      const anterior = filho.previousElementSibling as HTMLElement | null;
+      if (anterior && !anterior.classList.contains('quebra-pagina') && anterior.offsetTop + anterior.offsetHeight > limite) {
+        const fim = anterior.offsetTop + anterior.offsetHeight;
+        let folha = Math.floor(fim / passo);
+        if (fim - folha * passo > alturaUtil) {
+          folha++;
+          this.inserirEmpurraoAteFolha(area, filho, folha * passo);
+        }
+        pagina = folha;
+        limite = folha * passo + alturaUtil;
       }
 
       if (filho.hasAttribute('data-quebra-manual')) {
@@ -579,18 +841,17 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
         // resto do loop, que só quebra quando o conteúdo realmente não
         // cabe). O marcador em si fica no lugar (é conteúdo de verdade,
         // salvo no modelo) — só o espaçador visual entra DEPOIS dele.
-        const alvoAntesDaInsercao = filho.offsetTop;
-        const { elemento, alturaTotal } = this.criarEspacadorQuebra(limite - alvoAntesDaInsercao, true);
         const proximoReal = filho.nextElementSibling as HTMLElement | null;
-        area.insertBefore(elemento, proximoReal);
-        limite = alvoAntesDaInsercao + alturaTotal + alturaUtil;
+        inserirQuebra(proximoReal, true, true);
+        pagina++;
+        limite = pagina * passo + alturaUtil;
         filho = proximoReal;
         continue;
       }
 
       const altura = filho.offsetHeight;
 
-      if (filho.offsetTop < limite && filho.offsetTop + altura > limite) {
+      if (filho.offsetTop + altura > limite) {
         const continuacao = this.tentarDividirLista(filho, limite);
         if (!continuacao && altura > alturaUtil) {
           // bloco indivisível (não é lista, ou só tem 1 item) maior que
@@ -599,43 +860,23 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
           continue;
         }
         const alvo = continuacao ?? filho;
-        const alvoAntesDaInsercao = alvo.offsetTop;
-        const { elemento, alturaTotal } = this.criarEspacadorQuebra(limite - alvoAntesDaInsercao, true);
-        area.insertBefore(elemento, alvo);
-        // A próxima página começa logo depois do espaçador inteiro (branco
-        // + rodapé + vão + cabeçalho), não só `alturaUtil` à frente do
-        // `limite` antigo — ver comentário em `criarEspacadorQuebra`.
-        limite = alvoAntesDaInsercao + alturaTotal + alturaUtil;
+        inserirQuebra(alvo, true);
+        pagina++;
+        limite = pagina * passo + alturaUtil;
         filho = alvo;
         continue; // reprocessa o item que ficou no começo da nova página — pode estourar de novo (lista longa, 3+ páginas).
       }
       filho = filho.nextElementSibling as HTMLElement | null;
     }
 
-    // Preenche o resto da ÚLTIMA página sempre, mesmo sem ter estourado
-    // nenhuma vez (documento curto) — acha onde o conteúdo de verdade
-    // (não-espaçador) termina, e completa até a altura real da folha.
-    //
-    // Exceção: documento VAZIO (nenhum conteúdo real ainda) não recebe
-    // nenhum espaçador — bug achado testando de verdade: com a área
-    // inteira ocupada só por um `<div contenteditable="false">` (sem
-    // NENHUM texto real pra clicar), o clique pra começar a digitar não
-    // acha onde pôr o cursor e as primeiras teclas digitadas simplesmente
-    // somem. A folha em branco "de verdade" só aparece a partir do
-    // primeiro caractere digitado — a partir daí sempre existe pelo menos
-    // um bloco real pra ancorar o cursor, e o espaçador (que vem DEPOIS
-    // dele) nunca mais atrapalha.
-    let ultimoConteudo: HTMLElement | null = null;
-    for (let c = area.lastElementChild as HTMLElement | null; c; c = c.previousElementSibling as HTMLElement | null) {
-      if (!c.classList.contains('quebra-pagina')) {
-        ultimoConteudo = c;
-        break;
-      }
-    }
-    if (!ultimoConteudo) return;
+    // Completa a ÚLTIMA folha até o fim do corpo — o rodapé canônico (logo
+    // depois da área) cai na base dela. Documento vazio não precisa (ver
+    // `min-height` da área acima).
+    const temConteudo = Array.from(area.children).some((c) => !c.classList.contains('quebra-pagina'));
+    if (temConteudo) inserirQuebra(null, false);
 
-    const fimConteudo = ultimoConteudo.offsetTop + ultimoConteudo.offsetHeight;
-    area.appendChild(this.criarEspacadorQuebra(limite - fimConteudo, false).elemento);
+    this.totalFolhas.set(pagina + 1);
+    this.reposicionarMolduraImagem();
   }
 
   // ---- Prévia do que o sistema desenha sozinho no PDF (30/09/2026,
@@ -648,6 +889,13 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     const caminho = this.perfilEmpresa()?.logoUrl;
     return caminho ? this.api.baseStorage() + caminho : null;
   });
+  /** Mesmo nome que o cabeçalho dos outros PDFs (`CabecalhoImpressao`) e o do contrato (`ContratoPdfController::construirCabecalhoPdf`) mostram. */
+  protected readonly nomeEmpresaCabecalho = computed(() => {
+    const perfil = this.perfilEmpresa();
+    return perfil?.nome || perfil?.razaoSocial || 'ComTrena';
+  });
+  /** Logomarca do ComTrena no canto direito do cabeçalho (14/10/2026) — mesmo arquivo de `CabecalhoImpressao`. */
+  protected readonly logoComtrenaUrl = 'marca/comtrena-logomarca-para-fundo-claro.svg';
   protected readonly papelTimbradoUrl = computed(() => {
     const caminho = this.perfilEmpresa()?.papelTimbradoUrl;
     return caminho ? this.api.baseStorage() + caminho : null;
@@ -694,7 +942,9 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   protected readonly salvandoEstilo = signal(false);
   protected readonly erroEstilo = signal<string | null>(null);
 
-  protected readonly algumPainelAberto = computed(() => this.painelPaginaAberto() || this.painelEstilosAberto());
+  protected readonly algumPainelAberto = computed(
+    () => this.painelPaginaAberto() || this.painelEstilosAberto() || this.painelTabelaAberto(),
+  );
 
   /** Recalcula a separação de páginas sempre que algo que muda a altura útil de cada folha muda (papel, orientação, margens) — inclusive via os campos numéricos do painel "Página", não só o arraste na régua. */
   private readonly efeitoRecalcularQuebras = effect(() => {
@@ -737,7 +987,9 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
         }
         this.tipo.set(modelo.tipo);
         this.nome.set(modelo.nome);
+        this.configProposta.set(normalizarConfigProposta(modelo.config_proposta));
         this.area.nativeElement.innerHTML = modelo.conteudo;
+        if (modelo.tipo === 'proposta') this.converterMarcadoresEmPrevia(this.area.nativeElement);
 
         this.margemDireita.set(modelo.margem_direita_mm);
         this.margemEsquerda.set(modelo.margem_esquerda_mm);
@@ -750,9 +1002,10 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
         this.timbradoManterProporcao.set(modelo.timbrado_manter_proporcao ?? true);
         this.timbradoOpacidade.set(modelo.timbrado_opacidade ?? 100);
         this.tagAnexoId.set(modelo.tag_anexo_id ?? '');
-        this.configProposta.set(normalizarConfigProposta(modelo.config_proposta));
         this.areaCabecalho.nativeElement.innerHTML = modelo.cabecalho_html ?? '';
         this.areaRodape.nativeElement.innerHTML = modelo.rodape_html ?? '';
+        this.atualizarEstadoVazio(this.areaCabecalho.nativeElement);
+        this.atualizarEstadoVazio(this.areaRodape.nativeElement);
 
         this.carregando.set(false);
         queueMicrotask(() => this.recalcularQuebrasPagina());
@@ -801,7 +1054,364 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   }
 
   protected inserirVariavelFocada(chave: string): void {
-    this.executarComando(this.elementoDaAreaFocada(), 'insertText', `{{${chave}}}`);
+    const raiz = this.elementoDaAreaFocada();
+    if (chave === 'tabela_eap') {
+      if (this.areaFocada() === 'corpo') this.inserirPreviaTabela();
+      return;
+    }
+    // Cursor dentro de uma fórmula ainda aberta (`{{=` sem `}}` depois):
+    // entra só o NOME da variável, que é o que a conta espera (`{{=a+b}}`).
+    this.executarComando(raiz, 'insertText', this.dentroDeFormula(raiz) ? chave : `{{${chave}}}`);
+  }
+
+  /** Variável escolhida no menu de grupos (totais da EAP por categoria). */
+  protected inserirVariavelDoMenu(evento: Event): void {
+    const alvo = evento.target as HTMLSelectElement;
+    const chave = alvo.value;
+    alvo.value = '';
+    if (chave) this.inserirVariavelFocada(chave);
+  }
+
+  private dentroDeFormula(raiz: HTMLElement): boolean {
+    const selecao = window.getSelection();
+    if (!selecao || !selecao.rangeCount) return false;
+    const range = selecao.getRangeAt(0);
+    if (!raiz.contains(range.startContainer)) return false;
+    const antes = document.createRange();
+    antes.setStart(raiz, 0);
+    antes.setEnd(range.startContainer, range.startOffset);
+    const texto = antes.toString();
+    const abertura = texto.lastIndexOf('{{=');
+    return abertura >= 0 && texto.indexOf('}}', abertura) < 0;
+  }
+
+  // ------------------------------------------------------------------
+  // Fórmulas `{{=...}}` (14/10/2026, pedido do Lucas) — calculadas só na
+  // geração do PDF (`preencherModeloContrato`, `shared/contrato-modelo-
+  // render.ts`). Só no CORPO: cabeçalho/rodapé são montados no servidor,
+  // que não calcula fórmula.
+  // ------------------------------------------------------------------
+  protected inserirFormula(): void {
+    if (this.areaFocada() !== 'corpo') return;
+    this.executarComando(this.area.nativeElement, 'insertText', '{{=}}');
+    // cursor entre o "=" e o "}}" — o próximo clique numa variável já entra dentro da fórmula
+    const selecao = window.getSelection();
+    const range = selecao?.rangeCount ? selecao.getRangeAt(0) : null;
+    if (selecao && range && range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset >= 2) {
+      const dentro = document.createRange();
+      dentro.setStart(range.startContainer, range.startOffset - 2);
+      dentro.collapse(true);
+      selecao.removeAllRanges();
+      selecao.addRange(dentro);
+    }
+  }
+
+  protected alternarAjudaFormula(): void {
+    this.ajudaFormulaAberta.update((v) => !v);
+  }
+
+  // ------------------------------------------------------------------
+  // Espaçamento entre linhas "igual no Word" (14/10/2026) — `line-height`
+  // inline em cada bloco da seleção (ver `ALTURA_LINHA_SIMPLES`).
+  // ------------------------------------------------------------------
+  protected aplicarEntrelinha(evento: Event): void {
+    const alvo = evento.target as HTMLSelectElement;
+    const valor = alvo.value;
+    alvo.value = '';
+    if (!valor) return;
+
+    const raiz = this.elementoDaAreaFocada();
+    raiz.focus();
+    for (const bloco of this.blocosDaSelecao(raiz)) {
+      if (valor === 'padrao') bloco.style.removeProperty('line-height');
+      else bloco.style.lineHeight = String(Math.round(Number(valor) * ALTURA_LINHA_SIMPLES * 1000) / 1000);
+    }
+    // mesmo caminho de uma digitação: recalcula as folhas e, se for um
+    // clone de cabeçalho/rodapé, sincroniza com o canônico.
+    raiz.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  /** Blocos de texto que a seleção atual cruza (ou o bloco do cursor) — só os da própria área editável, nunca espaçador/prévia. */
+  private blocosDaSelecao(raiz: HTMLElement): HTMLElement[] {
+    const selecao = window.getSelection();
+    if (!selecao || !selecao.rangeCount || !raiz.contains(selecao.getRangeAt(0).commonAncestorContainer)) return [];
+
+    // Texto solto direto na área (sem bloco em volta): cria o parágrafo antes.
+    if (!this.blocoAtualEm(raiz)) document.execCommand('formatBlock', false, 'P');
+    const range = selecao.getRangeAt(0);
+    const doCursor = this.blocoAtualEm(raiz);
+    if (range.collapsed) return doCursor ? [doCursor] : [];
+
+    const seletor = 'p, div, h1, h2, h3, h4, h5, h6, blockquote, li';
+    const blocos = Array.from(raiz.querySelectorAll<HTMLElement>(seletor)).filter(
+      (el) => range.intersectsNode(el) && el.closest('[contenteditable]') === raiz && !el.querySelector(seletor),
+    );
+    return blocos.length ? blocos : doCursor ? [doCursor] : [];
+  }
+
+  // ------------------------------------------------------------------
+  // Linha de assinatura (14/10/2026) — tabela sem borda com estilos inline
+  // (sai igual no PDF), nunca partida entre duas folhas.
+  // ------------------------------------------------------------------
+  protected inserirAssinatura(evento: Event): void {
+    const alvo = evento.target as HTMLSelectElement;
+    const opcao = alvo.value;
+    alvo.value = '';
+    if (!opcao || this.areaFocada() !== 'corpo') return;
+    this.executarComando(this.area.nativeElement, 'insertHTML', this.htmlAssinaturas(opcao));
+    this.agendarRecalculoQuebras();
+  }
+
+  private htmlAssinaturas(opcao: string): string {
+    const tipo = this.tipo();
+    let pessoas: Array<[string, string]>;
+    if (opcao === 'testemunhas') {
+      pessoas = [['Testemunha 1', 'CPF:'], ['Testemunha 2', 'CPF:']];
+    } else if (opcao === '1') {
+      pessoas = [['{{empresa_nome}}', tipo === 'proposta' ? 'PROPONENTE' : tipo === 'empreita' ? 'CONTRATANTE' : 'CONTRATADA']];
+    } else if (tipo === 'empreita') {
+      pessoas = [['{{empresa_nome}}', 'CONTRATANTE'], ['{{empreiteiro}}', 'CONTRATADO']];
+    } else if (tipo === 'proposta') {
+      pessoas = [['{{cliente}}', 'DE ACORDO — CLIENTE'], ['{{empresa_nome}}', 'PROPONENTE']];
+    } else {
+      pessoas = [['{{cliente}}', 'CONTRATANTE'], ['{{empresa_nome}}', 'CONTRATADA']];
+    }
+
+    // `border:none`/`background` explícitos: o `td`/`table` global do app (`_base.scss`) põe borda
+    // e fundo em toda tabela — inclusive aqui e na tela de impressão do PDF.
+    const largura = pessoas.length === 1 ? 'width:60%; margin:12mm auto 4mm;' : 'width:100%; margin:12mm 0 4mm;';
+    const celulas = pessoas
+      .map(
+        ([nome, papel]) =>
+          `<td style="width:${100 / pessoas.length}%; border:none; padding:0 6mm; vertical-align:top; text-align:center;">` +
+          `<div style="border-top:1px solid #333; padding-top:1.5mm;">${nome}</div>` +
+          `<div style="font-size:9pt; color:#555;">${papel}</div></td>`,
+      )
+      .join('');
+    return (
+      `<table class="bloco-assinaturas" style="${largura} border-collapse:collapse; background:transparent; break-inside:avoid; page-break-inside:avoid;">` +
+      `<tbody><tr>${celulas}</tr></tbody></table><p><br></p>`
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Imagem no documento (14/10/2026, pedido do Lucas: "a imagem é
+  // redimensionável"). Vai EMBUTIDA no HTML do modelo (data URL) — é o que
+  // funciona igual no corpo, no cabeçalho/rodapé do PDF (que não baixa nada
+  // por URL) e no editor. Largura em % da coluna de texto, a mesma no PDF.
+  // ------------------------------------------------------------------
+  @ViewChild('entradaImagem') private readonly entradaImagem!: ElementRef<HTMLInputElement>;
+  private rangeAntesDaImagem: Range | null = null;
+
+  protected escolherImagem(): void {
+    const selecao = window.getSelection();
+    const raiz = this.elementoDaAreaFocada();
+    this.rangeAntesDaImagem =
+      selecao?.rangeCount && raiz.contains(selecao.getRangeAt(0).startContainer) ? selecao.getRangeAt(0).cloneRange() : null;
+    this.entradaImagem.nativeElement.value = '';
+    this.entradaImagem.nativeElement.click();
+  }
+
+  protected aoEscolherImagem(evento: Event): void {
+    const arquivo = (evento.target as HTMLInputElement).files?.[0];
+    if (!arquivo) return;
+    if (!arquivo.type.startsWith('image/')) {
+      this.erro.set('Escolha um arquivo de imagem (PNG, JPG, GIF, WebP ou SVG).');
+      return;
+    }
+    prepararImagem(arquivo)
+      .then(({ src, larguraPx }) => this.inserirImagem(src, larguraPx))
+      .catch(() => this.erro.set('Não foi possível ler essa imagem.'));
+  }
+
+  private inserirImagem(src: string, larguraPx: number): void {
+    const raiz = this.elementoDaAreaFocada();
+    raiz.focus();
+    const selecao = window.getSelection();
+    if (this.rangeAntesDaImagem && raiz.contains(this.rangeAntesDaImagem.startContainer)) {
+      selecao?.removeAllRanges();
+      selecao?.addRange(this.rangeAntesDaImagem);
+    }
+    const estilo = getComputedStyle(raiz);
+    const larguraUtil = raiz.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+    const pct = larguraPx > 0 && larguraUtil > 0 ? Math.min(100, Math.max(5, Math.round((larguraPx / larguraUtil) * 100))) : 50;
+    document.execCommand('insertHTML', false, `<img src="${src}" alt="" style="width:${pct}%; height:auto;">`);
+    raiz.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  /** Moldura com alças desenhada por cima da imagem selecionada (o Chrome não tem alça nativa de redimensionar em `contenteditable`). */
+  protected readonly molduraImagem = signal<{ top: number; left: number; width: number; height: number; pct: number } | null>(null);
+  private imagemSelecionada: HTMLImageElement | null = null;
+
+  protected aoClicarNaArea(evento: MouseEvent): void {
+    const alvo = evento.target as HTMLElement;
+    if (alvo instanceof HTMLImageElement && alvo.closest('[contenteditable]')?.getAttribute('contenteditable') === 'true') {
+      this.imagemSelecionada = alvo;
+      this.reposicionarMolduraImagem();
+      return;
+    }
+    this.limparSelecaoImagem();
+    if (alvo.closest('.bloco-tabela-eap')) this.abrirPainelTabela();
+  }
+
+  protected aoTeclarNaArea(evento: KeyboardEvent): void {
+    const imagem = this.imagemSelecionada;
+    if (!imagem) return;
+    if (evento.key === 'Delete' || evento.key === 'Backspace') {
+      evento.preventDefault();
+      this.excluirImagemSelecionada();
+    } else if (!['Shift', 'Control', 'Alt', 'Meta'].includes(evento.key)) {
+      this.limparSelecaoImagem();
+    }
+  }
+
+  protected excluirImagemSelecionada(): void {
+    const imagem = this.imagemSelecionada;
+    if (!imagem) return;
+    const raiz = imagem.closest<HTMLElement>('[contenteditable="true"]');
+    imagem.remove();
+    this.limparSelecaoImagem();
+    raiz?.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  private limparSelecaoImagem(): void {
+    this.imagemSelecionada = null;
+    this.molduraImagem.set(null);
+  }
+
+  private reposicionarMolduraImagem(): void {
+    const imagem = this.imagemSelecionada;
+    if (!imagem?.isConnected || !this.paginaEl) {
+      this.limparSelecaoImagem();
+      return;
+    }
+    const base = this.paginaEl.nativeElement.getBoundingClientRect();
+    const r = imagem.getBoundingClientRect();
+    const disponivel = larguraDisponivelPara(imagem);
+    this.molduraImagem.set({
+      top: r.top - base.top,
+      left: r.left - base.left,
+      width: r.width,
+      height: r.height,
+      pct: Math.round(parseFloat(imagem.style.width) || (disponivel ? (r.width / disponivel) * 100 : 100)),
+    });
+  }
+
+  /** Arrastar uma alça: largura em % da coluna de texto (a altura acompanha, mantendo a proporção). */
+  protected iniciarRedimensionarImagem(evento: MouseEvent, lado: 'esquerda' | 'direita'): void {
+    evento.preventDefault();
+    evento.stopPropagation();
+    const imagem = this.imagemSelecionada;
+    if (!imagem) return;
+
+    const inicioX = evento.clientX;
+    const larguraInicial = imagem.getBoundingClientRect().width;
+    const disponivel = larguraDisponivelPara(imagem) || larguraInicial;
+    const sinal = lado === 'esquerda' ? -1 : 1;
+
+    const mover = (e: MouseEvent) => {
+      const largura = Math.max(16, Math.min(disponivel, larguraInicial + sinal * (e.clientX - inicioX)));
+      imagem.style.width = `${Math.round((largura / disponivel) * 1000) / 10}%`;
+      imagem.style.height = 'auto';
+      this.reposicionarMolduraImagem();
+    };
+    const soltar = () => {
+      window.removeEventListener('mousemove', mover);
+      window.removeEventListener('mouseup', soltar);
+      imagem.closest<HTMLElement>('[contenteditable="true"]')?.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    window.addEventListener('mousemove', mover);
+    window.addEventListener('mouseup', soltar);
+  }
+
+  // ------------------------------------------------------------------
+  // Tabela da EAP na proposta (14/10/2026, pedido do Lucas: "quero
+  // configurar as cores da tabela dentro do modelo") — no lugar de
+  // `{{tabela_eap}}` o editor mostra a tabela DE VERDADE (mesma função do
+  // PDF, `montarTabelaPropostaEap`) com dados de exemplo, já com as cores/
+  // colunas/níveis escolhidos. Ao salvar volta a ser `{{tabela_eap}}`.
+  // ------------------------------------------------------------------
+  protected readonly painelTabelaAberto = signal(false);
+
+  private htmlPreviaTabela(config: ConfigProposta): string {
+    return montarTabelaPropostaEap(linhasExemploPropostaEap(), config, CATEGORIAS_EXEMPLO_PROPOSTA);
+  }
+
+  private criarBlocoPreviaTabela(): HTMLElement {
+    const bloco = document.createElement('div');
+    bloco.className = 'bloco-tabela-eap';
+    bloco.contentEditable = 'false';
+    bloco.dataset['variavelBloco'] = 'tabela_eap';
+    bloco.title = 'Tabela da EAP — prévia com dados de exemplo. Clique para escolher colunas, níveis e cores.';
+    bloco.innerHTML =
+      '<span class="etiqueta-bloco-variavel">Tabela da EAP · prévia com dados de exemplo</span>' +
+      `<div class="conteudo-bloco-variavel">${this.htmlPreviaTabela(this.configProposta())}</div>`;
+    return bloco;
+  }
+
+  private inserirPreviaTabela(): void {
+    const raiz = this.area.nativeElement;
+    raiz.focus();
+    const selecao = window.getSelection();
+    const range = selecao?.rangeCount ? selecao.getRangeAt(0) : null;
+    const bloco = range && raiz.contains(range.startContainer) ? this.blocoDireto(range.startContainer) : null;
+
+    const previa = this.criarBlocoPreviaTabela();
+    if (bloco && !bloco.classList.contains('quebra-pagina')) {
+      if (temConteudoProprio(bloco)) bloco.after(previa);
+      else bloco.replaceWith(previa);
+    } else {
+      raiz.appendChild(previa);
+    }
+    const depois = document.createElement('p');
+    depois.innerHTML = '<br>';
+    previa.after(depois);
+
+    const novo = document.createRange();
+    novo.setStart(depois, 0);
+    novo.collapse(true);
+    selecao?.removeAllRanges();
+    selecao?.addRange(novo);
+    this.agendarRecalculoQuebras();
+  }
+
+  /** `<p>{{tabela_eap}}</p>` gravado → bloco de prévia (ao abrir o modelo). */
+  private converterMarcadoresEmPrevia(raiz: HTMLElement): void {
+    Array.from(raiz.querySelectorAll<HTMLElement>('p, div, h1, h2, h3, h4, h5, h6'))
+      .filter((el) => /^\s*\{\{\s*tabela_eap\s*\}\}\s*$/.test(el.textContent ?? '') && !el.querySelector('p, div'))
+      .forEach((el) => el.replaceWith(this.criarBlocoPreviaTabela()));
+  }
+
+  /** Bloco de prévia → `<p>{{tabela_eap}}</p>` (ao salvar). */
+  private converterPreviasEmMarcadores(raiz: HTMLElement): void {
+    raiz.querySelectorAll('[data-variavel-bloco="tabela_eap"]').forEach((el) => {
+      const marcador = document.createElement('p');
+      marcador.textContent = '{{tabela_eap}}';
+      el.replaceWith(marcador);
+    });
+  }
+
+  private readonly efeitoPreviaTabela = effect(() => {
+    const config = this.configProposta();
+    if (this.tipo() !== 'proposta') return;
+    queueMicrotask(() => {
+      const area = this.area?.nativeElement;
+      if (!area) return;
+      area.querySelectorAll('.bloco-tabela-eap .conteudo-bloco-variavel').forEach((el) => {
+        el.innerHTML = this.htmlPreviaTabela(config);
+      });
+      this.agendarRecalculoQuebras();
+    });
+  });
+
+  protected abrirPainelTabela(): void {
+    this.painelPaginaAberto.set(false);
+    this.painelEstilosAberto.set(false);
+    this.painelTabelaAberto.set(true);
+  }
+
+  protected fecharPainelTabela(): void {
+    this.painelTabelaAberto.set(false);
   }
 
   // ------------------------------------------------------------------
@@ -815,6 +1425,18 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   // ------------------------------------------------------------------
   protected aoColar(evento: ClipboardEvent): void {
     evento.preventDefault();
+
+    // Imagem copiada (print da tela, imagem do navegador) — mesmo caminho do botão "Imagem".
+    const arquivoImagem = Array.from(evento.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+    if (arquivoImagem) {
+      const selecao = window.getSelection();
+      this.rangeAntesDaImagem = selecao?.rangeCount ? selecao.getRangeAt(0).cloneRange() : null;
+      prepararImagem(arquivoImagem)
+        .then(({ src, larguraPx }) => this.inserirImagem(src, larguraPx))
+        .catch(() => this.erro.set('Não foi possível colar essa imagem.'));
+      return;
+    }
+
     const html = evento.clipboardData?.getData('text/html');
 
     if (!html) {
@@ -1108,6 +1730,11 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   // ------------------------------------------------------------------
   protected alternarPainelPagina(): void {
     this.painelPaginaAberto.update((v) => !v);
+    // os painéis ocupam o mesmo lugar (lateral direita) — um de cada vez
+    if (this.painelPaginaAberto()) {
+      this.painelEstilosAberto.set(false);
+      this.painelTabelaAberto.set(false);
+    }
   }
 
   protected confirmarPagina(): void {
@@ -1176,7 +1803,11 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
 
   protected alternarPainelEstilos(): void {
     this.painelEstilosAberto.update((v) => !v);
-    if (this.painelEstilosAberto()) this.estiloForm.set(estiloFormVazio());
+    if (this.painelEstilosAberto()) {
+      this.estiloForm.set(estiloFormVazio());
+      this.painelPaginaAberto.set(false);
+      this.painelTabelaAberto.set(false);
+    }
   }
 
   protected editarEstilo(estilo: ContratoEstilo): void {
@@ -1281,6 +1912,7 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     const clone = this.area.nativeElement.cloneNode(true) as HTMLElement;
     clone.querySelectorAll('.quebra-pagina').forEach((el) => el.remove());
     this.mesclarListasDivididas(clone);
+    this.converterPreviasEmMarcadores(clone);
     const conteudo = clone.innerHTML.trim();
     if (!conteudo) {
       this.erro.set('O contrato está vazio.');
@@ -1299,8 +1931,10 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       margem_rodape_mm: this.margemRodape(),
       tamanho_papel: this.tamanhoPapel(),
       orientacao: this.orientacao(),
-      cabecalho_html: this.areaCabecalho.nativeElement.innerHTML.trim() || null,
-      rodape_html: this.areaRodape.nativeElement.innerHTML.trim() || null,
+      // Só o `<br>` que o contenteditable deixa depois de apagar tudo não é
+      // conteúdo — vai `null`, e o PDF sai com o cabeçalho/rodapé mínimo.
+      cabecalho_html: temConteudoProprio(this.areaCabecalho.nativeElement) ? this.areaCabecalho.nativeElement.innerHTML.trim() : null,
+      rodape_html: temConteudoProprio(this.areaRodape.nativeElement) ? this.areaRodape.nativeElement.innerHTML.trim() : null,
       timbrado_largura_pct: this.timbradoLarguraPct(),
       timbrado_altura_pct: this.timbradoManterProporcao() ? null : this.timbradoAlturaPct(),
       timbrado_manter_proporcao: this.timbradoManterProporcao(),

@@ -62,9 +62,26 @@
     <button type="button" title="Diminuir nível da lista" (click)="formatar('outdent')">⇤</button>
     <span class="separador-barra"></span>
 
-    <button type="button" title="Alinhar à esquerda" (click)="formatar('justifyLeft')">⇤</button>
-    <button type="button" title="Centralizar" (click)="formatar('justifyCenter')">⇔</button>
-    <button type="button" title="Justificar" (click)="formatar('justifyFull')">☰</button>
+    <button type="button" title="Alinhar à esquerda" (click)="formatar('justifyLeft')">
+      <svg class="icone-alinhar" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3h14M1 6.5h9M1 10h14M1 13.5h9" /></svg>
+    </button>
+    <button type="button" title="Centralizar" (click)="formatar('justifyCenter')">
+      <svg class="icone-alinhar" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3h14M3.5 6.5h9M1 10h14M3.5 13.5h9" /></svg>
+    </button>
+    <button type="button" title="Alinhar à direita" (click)="formatar('justifyRight')">
+      <svg class="icone-alinhar" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3h14M6 6.5h9M1 10h14M6 13.5h9" /></svg>
+    </button>
+    <button type="button" title="Justificar" (click)="formatar('justifyFull')">
+      <svg class="icone-alinhar" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3h14M1 6.5h14M1 10h14M1 13.5h14" /></svg>
+    </button>
+    <select class="select-ferramenta" title="Espaçamento entre linhas (igual ao Word) — vale para os parágrafos selecionados"
+            (change)="aplicarEntrelinha($event)">
+      <option value="" disabled selected>↕ Entrelinhas</option>
+      @for (valor of opcoesEntrelinha; track valor) {
+        <option [value]="valor">{{ rotuloEntrelinha(valor) }}</option>
+      }
+      <option value="padrao">Padrão do documento</option>
+    </select>
     <span class="separador-barra"></span>
 
     <div class="menu-colunas" title="Layout de colunas (corpo do texto, selecione o trecho antes)">
@@ -77,9 +94,21 @@
 
     <button type="button" title="Inserir quebra de página manual na posição do cursor (corpo do contrato)"
             [disabled]="areaFocada() !== 'corpo'" (click)="inserirQuebraManual()">⤓ Quebra de página</button>
+    <select class="select-ferramenta" title="Inserir linha de assinatura (corpo do documento)"
+            [disabled]="areaFocada() !== 'corpo'" (change)="inserirAssinatura($event)">
+      <option value="" disabled selected>✍ Assinatura</option>
+      <option value="1">1 assinatura</option>
+      <option value="2">2 assinaturas lado a lado</option>
+      <option value="testemunhas">2 testemunhas</option>
+    </select>
+    <button type="button" title="Inserir imagem — depois clique nela pra redimensionar pelas alças" (click)="escolherImagem()">🖼 Imagem</button>
+    <input #entradaImagem type="file" accept="image/*" hidden (change)="aoEscolherImagem($event)">
     <span class="separador-barra"></span>
 
     <button type="button" title="Margens, tamanho do papel, cabeçalho e rodapé" (click)="alternarPainelPagina()">⚙ Página</button>
+    @if (tipo() === 'proposta') {
+      <button type="button" title="Colunas, níveis e cores da tabela da EAP" (click)="abrirPainelTabela()">▦ Tabela da EAP</button>
+    }
     <span class="separador-barra"></span>
 
     <div class="menu-variaveis">
@@ -90,11 +119,50 @@
           <option [value]="objeto">{{ rotulosObjetoVariavel[objeto] }}</option>
         }
       </select>
-      @for (v of variaveisDisponiveis(); track v.chave) {
+      @for (v of variaveisSoltas(); track v.chave) {
         <button type="button" class="chip-variavel" (click)="inserirVariavelFocada(v.chave)">{{ v.rotulo }}</button>
       }
+      @if (gruposDeVariaveis().length) {
+        <select class="select-objeto-variavel" title="Totais e BDI da EAP da obra (calculados na hora de gerar)"
+                (change)="inserirVariavelDoMenu($event)">
+          <option value="" disabled selected>Valores da EAP…</option>
+          @for (grupo of gruposDeVariaveis(); track grupo.nome) {
+            <optgroup [label]="grupo.nome">
+              @for (v of grupo.variaveis; track v.chave) {
+                <option [value]="v.chave">{{ v.rotulo }} — {{ grupo.nome }}</option>
+              }
+            </optgroup>
+          }
+        </select>
+      }
+      <button type="button" class="chip-formula" [title]="tituloBotaoFormula" [disabled]="areaFocada() !== 'corpo'"
+              (click)="inserirFormula()">ƒx Fórmula</button>
+      <button type="button" class="botao-ajuda" title="Como usar fórmulas" [class.ativo]="ajudaFormulaAberta()"
+              (click)="alternarAjudaFormula()">?</button>
     </div>
   </div>
+
+  @if (ajudaFormulaAberta()) {
+    <!-- Os exemplos com chaves vêm de `exemplosFormula` (TS): chave crua no template vira interpolação do Angular. -->
+    <div class="ajuda-formula">
+      <div class="ajuda-formula-topo">
+        <strong>Fórmulas com variáveis</strong>
+      </div>
+      <p>
+        Escreva a conta entre <code>{{ exemplosFormula.abre }}</code> e <code>{{ exemplosFormula.fecha }}</code> usando o
+        nome das variáveis — ex.: <code>{{ exemplosFormula.soma }}</code>. Com o cursor dentro da fórmula, clicar numa
+        variável da barra insere só o nome dela.
+      </p>
+      <ul>
+        <li>Operadores <code>+ - * / ^</code>, parênteses, vírgula decimal (<code>0,5</code>) e <code>10%</code> (= 0,1).</li>
+        <li>O resultado sai no mesmo formato das variáveis quando todas têm o mesmo (ex.: duas em moeda → moeda); misturando formatos, sai como número.</li>
+        <li><code>TEXTO(...)</code> escreve um valor em reais por extenso — <code>{{ exemplosFormula.texto }}</code> → "quinze mil quinhentos e quarenta e dois reais e setenta e cinco centavos" (arredonda nos centavos).</li>
+        <li><code>MOEDA(...)</code>, <code>NUMERO(...)</code> e <code>PERCENTUAL(...)</code> forçam o formato; <code>ARREDONDAR(x; 2)</code>, <code>SOMA(a; b)</code>, <code>MIN</code>, <code>MAX</code> e <code>MEDIA</code> também funcionam (argumentos separados por <code>;</code>).</li>
+        <li>BDI em % entra na conta como fração: <code>{{ exemplosFormula.bdi }}</code> dá o BDI em reais.</li>
+        <li>Fórmulas só funcionam no corpo do documento (o cabeçalho/rodapé do PDF é montado no servidor). Uma fórmula com erro sai em vermelho no PDF.</li>
+      </ul>
+    </div>
+  }
 
   <!-- Painel "Configurações da página". -->
   <aside class="painel-lateral" [class.aberto]="painelPaginaAberto()">
@@ -183,13 +251,9 @@
 
       @if (tipo() === 'proposta') {
         <div class="campo-bloco">
-          <p class="dica-lista">
-            Coloque a variável <b>Tabela da EAP</b> (em "Inserir variável de: Proposta") no ponto do
-            texto onde a tabela deve aparecer. Abaixo fica o <b>padrão</b> dela — na hora de gerar a
-            proposta, a página da EAP deixa ajustar cada item antes de baixar o PDF.
-          </p>
-          <app-proposta-config [config]="configProposta()" [mostrarIncluirTabela]="false"
-                               (mudou)="configProposta.set($event)" />
+          <span class="rotulo-bloco">Tabela da EAP</span>
+          <p class="dica-lista">Colunas, níveis e cores da tabela ficam no painel próprio dela.</p>
+          <button type="button" class="botao-secundario" (click)="abrirPainelTabela()">▦ Configurar a tabela da EAP</button>
         </div>
       }
 
@@ -214,6 +278,28 @@
       <div class="acoes-form-estilo">
         <button type="button" class="primario" (click)="confirmarPagina()">Aplicar</button>
       </div>
+    </div>
+  </aside>
+
+  <!-- Painel "Tabela da EAP" (só proposta, 14/10/2026) — mexer aqui atualiza na hora a prévia da tabela no documento. -->
+  <aside class="painel-lateral" [class.aberto]="painelTabelaAberto()">
+    <div class="painel-cabecalho">
+      <strong>Tabela da EAP</strong>
+      <button type="button" class="fechar" (click)="fecharPainelTabela()">✖</button>
+    </div>
+    <div class="painel-corpo">
+      <p class="dica-lista">
+        Coloque a tabela no texto com <b>Inserir variável de: Proposta → Tabela da EAP</b>. As colunas de
+        valor são as categorias marcadas na EAP de cada obra (a prévia usa Material e Mão de obra) mais
+        a coluna Total; com unitário e total ligados, os dois valores aparecem empilhados na mesma
+        célula. Valores com BDI.
+      </p>
+      <app-proposta-config [config]="configProposta()" [mostrarIncluirTabela]="false"
+                           (mudou)="configProposta.set($event)" />
+      <p class="dica-lista">
+        As cores ficam só no modelo. Na hora de gerar a proposta, a página da EAP ainda deixa trocar
+        unitário/total e o nível só para aquela geração.
+      </p>
     </div>
   </aside>
 
@@ -400,59 +486,97 @@
              (mousedown)="iniciarArrasteMargem('rodape', $event)"></div>
       </div>
 
-    <div #paginaEl class="pagina-simulada" [style.width.px]="larguraFolhaPx()">
+    <div #paginaEl class="pagina-simulada" [style.width.px]="larguraFolhaPx()" [style.min-height.px]="alturaTotalFolhasPx()">
 
-      <!-- Papel timbrado como fundo — div PRÓPRIA (não direto no estilo
-           da página), porque `opacity` precisa valer só pra imagem, sem
-           desbotar o texto do contrato junto (30/09/2026, pedido do
-           Lucas: "aplicar transparência na imagem"). -->
-      @if (estiloTimbradoFundo(); as timbrado) {
-        <div class="timbrado-fundo-editor" [style.background-image]="timbrado.backgroundImage"
-             [style.background-size]="timbrado.backgroundSize" [style.opacity]="timbrado.opacity"></div>
-      }
+      <!-- Folhas de verdade (14/10/2026, pedido do Lucas: "tratar a folha
+           como um bloco, com altura e largura fixa conforme o tamanho do
+           papel"): um bloco branco por página, no lugar CALCULADO (folha ×
+           passo), atrás do texto — o texto (cabeçalho + corpo + rodapé, num
+           fluxo só) é distribuído pelos espaçadores de
+           `recalcularQuebrasPagina` pra cair exatamente dentro deles. As
+           linhas tracejadas marcam o limite do cabeçalho/rodapé e as
+           margens laterais; o papel timbrado fica onde o PDF de verdade
+           põe (a área do corpo: `position: fixed` na impressão não passa
+           das margens da página). -->
+      <div class="camada-folhas" aria-hidden="true">
+        @for (folha of indicesFolhas(); track folha) {
+          <div class="folha-bloco" [style.top.px]="folha * passoFolhaPx()" [style.height.px]="alturaFolhaPx()">
+            @if (estiloTimbradoFundo(); as timbrado) {
+              <div class="timbrado-fundo-editor" [style.top.px]="alturaCabecalhoPx()" [style.bottom.px]="alturaRodapePx()"
+                   [style.left.px]="mmParaPxPublico(margemEsquerda())" [style.right.px]="mmParaPxPublico(margemDireita())"
+                   [style.background-image]="timbrado.backgroundImage" [style.background-size]="timbrado.backgroundSize"
+                   [style.opacity]="timbrado.opacity"></div>
+            }
+            <div class="guia guia-horizontal" [style.top.px]="alturaCabecalhoPx()"></div>
+            <div class="guia guia-horizontal" [style.top.px]="alturaFolhaPx() - alturaRodapePx()"></div>
+            <div class="guia guia-vertical" [style.left.px]="mmParaPxPublico(margemEsquerda())"></div>
+            <div class="guia guia-vertical" [style.left.px]="larguraFolhaPx() - mmParaPxPublico(margemDireita())"></div>
+          </div>
+        }
+      </div>
 
       <!-- Caixa do CABEÇALHO — prévia dos itens predefinidos (logo, nome
-           da empresa, subtítulo, "Gerado em...") + texto próprio do
-           usuário, juntos (30/09/2026, pedido do Lucas: "inclua os itens
-           predefinidos dentro do cabeçalho... o cabeçalho deve ter o
-           tamanho mínimo pra caber esses itens"). Repete em TODA página
-           do PDF de verdade (`ContratoPdfController::construirCabecalhoPdf`)
-           — aqui no editor, a página 1 é esta caixa (a única realmente
-           canônica); as demais páginas mostram um CLONE dela
-           (`criarCloneCabecalhoOuRodape`, dentro de cada `.quebra-pagina`)
-           — editar em qualquer uma sincroniza com as outras. A parte
-           predefinida nunca é editável (vem do Perfil da empresa); só
-           `.area-editavel-sincronizada` é. -->
-      <div #caixaCabecalho class="caixa-cabecalho" [style.padding-top.px]="mmParaPxPublico(margemCabecalho())"
+           da empresa, subtítulo, "Gerado em" + logomarca do ComTrena) +
+           texto próprio do usuário, juntos. MESMA geometria do cabeçalho
+           de verdade do PDF (`ContratoPdfController::construirCabecalhoPdf`
+           — fonte, entrelinha, folgas, tudo em mm/pt): sem texto próprio,
+           a folga abaixo da linha é igual à de cima (cabeçalho mínimo).
+           Esta é a da folha 1 (a canônica); as demais folhas mostram um
+           CLONE dela (`criarCloneCabecalhoOuRodape`) — editar em qualquer
+           uma sincroniza com as outras. Só `.area-editavel-sincronizada`
+           é editável; a parte predefinida vem do Perfil da empresa. -->
+      <div #caixaCabecalho class="caixa-cabecalho caixa-pagina" [style.padding-top.mm]="margemCabecalho()"
            [style.padding-left.px]="mmParaPxPublico(margemEsquerda())" [style.padding-right.px]="mmParaPxPublico(margemDireita())">
         <div class="previa-sistema" [title]="'Gerado automaticamente pelo sistema — edite em Configurações → Dados da empresa'">
           <div class="previa-cabecalho-sistema">
             <div class="previa-identidade">
               @if (logoUrl(); as url) {
-                <img class="previa-logo" [src]="url" [alt]="perfilEmpresa()?.nome || 'Logomarca'">
+                <img class="previa-logo" [src]="url" [alt]="nomeEmpresaCabecalho()" (load)="agendarRecalculoQuebras()">
               }
-              <div>
-                <div class="previa-nome-empresa">{{ perfilEmpresa()?.nome || 'ComTrena' }}</div>
+              <div class="previa-textos">
+                <div class="previa-nome-empresa">{{ nomeEmpresaCabecalho() }}</div>
                 <div class="previa-subtitulo">{{ subtituloDocumento() }}</div>
               </div>
             </div>
-            <div class="previa-data">Gerado em {{ formatarDataHora(geradoEmExemplo) }}</div>
+            <div class="previa-geracao">
+              <div class="previa-data">Gerado em {{ formatarDataHora(geradoEmExemplo) }}</div>
+              <img class="previa-logo-comtrena" [src]="logoComtrenaUrl" alt="ComTrena" (load)="agendarRecalculoQuebras()">
+            </div>
           </div>
         </div>
-        <div #areaCabecalho class="area-editavel-sincronizada" contenteditable="true" spellcheck="true"
-             (focus)="aoFocarArea('cabecalho')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"></div>
+        <div #areaCabecalho class="area-editavel-sincronizada vazio" contenteditable="true" spellcheck="true"
+             [style.--folga]="margemCabecalho() + 'mm'"
+             (focus)="aoFocarArea('cabecalho')" (paste)="aoColar($event)" (input)="aoDigitarCabecalhoOuRodape($event)"
+             (keydown)="aoTeclarNaArea($event)" (mousedown)="aoClicarNaArea($event)"></div>
       </div>
 
       <div #area class="area-edicao" contenteditable="true" spellcheck="true"
            (focus)="aoFocarArea('corpo')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"
+           (keydown)="aoTeclarNaArea($event)" (mousedown)="aoClicarNaArea($event)"
            [style.padding]="paddingFolha()"></div>
 
-      <!-- Caixa do RODAPÉ da página 1 — mesma ideia do cabeçalho acima, sem os itens predefinidos (só o texto próprio do usuário). -->
-      <div #caixaRodape class="caixa-rodape" [style.padding-bottom.px]="mmParaPxPublico(margemRodape())"
+      <!-- Caixa do RODAPÉ — mesma ideia do cabeçalho, sem itens predefinidos. Mora na base da ÚLTIMA folha (as outras mostram um clone). -->
+      <div #caixaRodape class="caixa-rodape caixa-pagina"
            [style.padding-left.px]="mmParaPxPublico(margemEsquerda())" [style.padding-right.px]="mmParaPxPublico(margemDireita())">
-        <div #areaRodape class="area-editavel-sincronizada" contenteditable="true" spellcheck="true"
-             (focus)="aoFocarArea('rodape')" (paste)="aoColar($event)" (input)="agendarRecalculoQuebras()"></div>
+        <div #areaRodape class="area-editavel-sincronizada vazio" contenteditable="true" spellcheck="true"
+             [style.--folga]="margemRodape() + 'mm'"
+             (focus)="aoFocarArea('rodape')" (paste)="aoColar($event)" (input)="aoDigitarCabecalhoOuRodape($event)"
+             (keydown)="aoTeclarNaArea($event)" (mousedown)="aoClicarNaArea($event)"></div>
       </div>
+
+      <!-- Moldura de redimensionar a imagem clicada (14/10/2026) — o Chrome não tem alça nativa em `contenteditable`. -->
+      @if (molduraImagem(); as moldura) {
+        <div class="moldura-imagem" [style.top.px]="moldura.top" [style.left.px]="moldura.left"
+             [style.width.px]="moldura.width" [style.height.px]="moldura.height">
+          <span class="alca-imagem alca-esquerda" title="Arraste pra redimensionar" (mousedown)="iniciarRedimensionarImagem($event, 'esquerda')"></span>
+          <span class="alca-imagem alca-direita" title="Arraste pra redimensionar" (mousedown)="iniciarRedimensionarImagem($event, 'direita')"></span>
+          <span class="alca-imagem alca-canto" title="Arraste pra redimensionar" (mousedown)="iniciarRedimensionarImagem($event, 'direita')"></span>
+          <span class="rotulo-imagem">
+            {{ moldura.pct }}% da largura
+            <button type="button" title="Excluir a imagem (Delete)" (mousedown)="$event.preventDefault()" (click)="excluirImagemSelecionada()">✖</button>
+          </span>
+        </div>
+      }
 
     </div>
     </div>

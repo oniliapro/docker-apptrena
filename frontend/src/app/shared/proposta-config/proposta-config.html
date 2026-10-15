@@ -30,25 +30,27 @@
       </select>
     </label>
 
-    <div class="cores">
-      <div class="cores-topo">
-        <span class="rotulo-bloco">Cores da tabela</span>
-        <button type="button" class="link" (click)="restaurarCores()">Restaurar padrão</button>
-      </div>
-      <div class="cores-cabecalho"><span></span><span>Fundo</span><span>Texto</span></div>
-      @for (par of paresDeCor; track par.fundo) {
-        <div class="cor-linha">
-          <span class="cor-rotulo">{{ par.rotulo }}</span>
-          <input type="color" [value]="valorCor(par.fundo)" [attr.aria-label]="par.rotulo + ' — fundo'"
-                 (input)="alterarCor(par.fundo, $any($event.target).value)">
-          @if (par.texto; as chaveTexto) {
-            <input type="color" [value]="valorCor(chaveTexto)" [attr.aria-label]="par.rotulo + ' — texto'"
-                   (input)="alterarCor(chaveTexto, $any($event.target).value)">
-          } @else {
-            <span></span>
-          }
+    @if (mostrarCores()) {
+      <div class="cores">
+        <div class="cores-topo">
+          <span class="rotulo-bloco">Cores da tabela</span>
+          <button type="button" class="link" (click)="restaurarCores()">Restaurar padrão</button>
         </div>
-      }
-    </div>
+        <div class="cores-cabecalho"><span></span><span>Fundo</span><span>Texto</span></div>
+        @for (par of paresDeCor; track par.fundo) {
+          <div class="cor-linha">
+            <span class="cor-rotulo">{{ par.rotulo }}</span>
+            <input type="color" [value]="valorCor(par.fundo)" [attr.aria-label]="par.rotulo + ' — fundo'"
+                   (input)="alterarCor(par.fundo, $any($event.target).value)">
+            @if (par.texto; as chaveTexto) {
+              <input type="color" [value]="valorCor(chaveTexto)" [attr.aria-label]="par.rotulo + ' — texto'"
+                     (input)="alterarCor(chaveTexto, $any($event.target).value)">
+            } @else {
+              <span></span>
+            }
+          </div>
+        }
+      </div>
+    }
   </div>
 </div>

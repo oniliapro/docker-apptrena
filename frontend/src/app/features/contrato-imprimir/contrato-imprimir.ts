@@ -6,12 +6,20 @@ import { forkJoin } from 'rxjs';
 import { Empreita, Obra, PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { formatarData } from '../../core/utils/formato';
 import { gerarCssEstilos } from '../../shared/contrato-estilo-css';
-import { preencherModeloContrato } from '../../shared/contrato-modelo-render';
-import { ConfigProposta, LinhaPropostaEap, montarTabelaPropostaEap, normalizarConfigProposta } from '../../shared/proposta-eap';
+import { VariaveisModelo, preencherModeloContrato } from '../../shared/contrato-modelo-render';
+import {
+  CategoriaProposta,
+  ConfigProposta,
+  LinhaPropostaEap,
+  montarTabelaPropostaEap,
+  normalizarConfigProposta,
+  variaveisPropostaEap,
+} from '../../shared/proposta-eap';
 import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
 import { ResumoContratoEmpreita } from '../empreita/empreita.models';
+import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { EapStore } from '../eap/eap.store';
 
 /**
@@ -64,7 +72,7 @@ export class ContratoImprimir implements OnInit, OnDestroy {
    */
   private readonly contextoProposta = signal<{
     modelo: ContratoModelo;
-    variaveis: Record<string, string>;
+    variaveis: VariaveisModelo;
     config: ConfigProposta;
   } | null>(null);
 
@@ -73,30 +81,65 @@ export class ContratoImprimir implements OnInit, OnDestroy {
     if (!contexto || this.eap.carregando()) return;
 
     const erroEap = this.eap.erro();
+    const cache = this.eap.cache();
+
+    // Colunas de valor = as categorias marcadas na EAP (14/10/2026, pedido do
+    // Lucas: "a tabela deve aparecer as mesmas categorias marcadas") — o
+    // estado da tela da EAP (`ui`) é gravado junto com ela.
+    const categorias: CategoriaProposta[] = this.eap.mostrarColunasTipo()
+      ? this.eap.tiposVisiveis().map((t) => ({ chave: t.chave, rotulo: t.rotulo }))
+      : [];
+    const totalPorCategoria: Partial<Record<ChaveTipo, number>> = {};
+    for (const tipo of TIPOS_CUSTO) {
+      totalPorCategoria[tipo.chave] = (cache.totalsDirectByType[tipo.chave] ?? 0) + (cache.totalsBdiByType[tipo.chave] ?? 0);
+    }
+
     const tabela = erroEap
       ? '<p><em>Não foi possível carregar a EAP desta obra.</em></p>'
       : contexto.config.incluir_tabela
-        ? montarTabelaPropostaEap(this.linhasDaEap(), contexto.config)
+        ? montarTabelaPropostaEap(this.linhasDaEap(), contexto.config, categorias, {
+            porCategoria: totalPorCategoria,
+            total: cache.totalsWithBdi,
+          })
         : '';
 
-    const corpo = preencherModeloContrato(contexto.modelo.conteudo, contexto.variaveis);
-    const temMarcador = /\{\{\s*tabela_eap\s*\}\}/.test(corpo);
-    const html = temMarcador
-      ? corpo.replace(/\{\{\s*tabela_eap\s*\}\}/g, () => tabela)
+    // Totais/BDI por categoria (14/10/2026) — numéricos, entram em fórmula `{{=...}}`.
+    const variaveis: VariaveisModelo = { ...contexto.variaveis, ...(erroEap ? {} : variaveisPropostaEap(cache)) };
+    const corpo = preencherModeloContrato(contexto.modelo.conteudo, variaveis);
+
+    // O editor grava a tabela como um parágrafo só com o marcador
+    // (`<p>{{tabela_eap}}</p>`) — o parágrafo INTEIRO vira a tabela: tabela
+    // dentro de `<p>` não é HTML válido, o navegador fecharia o `<p>` e
+    // sobraria um parágrafo vazio a mais (com margem) que o editor não mostra.
+    const marcador = () => /<p\b[^>]*>\s*\{\{\s*tabela_eap\s*\}\}\s*<\/p>|\{\{\s*tabela_eap\s*\}\}/g;
+    const html = marcador().test(corpo)
+      ? corpo.replace(marcador(), () => tabela)
       : corpo + tabela; // modelo sem `{{tabela_eap}}`: a tabela vai no fim do documento
 
     this.conteudoPreenchido.set(this.sanitizer.bypassSecurityTrustHtml(html));
     this.carregando.set(false);
   });
 
-  /** Uma linha por item da EAP (aberta), com unitário e total JÁ com BDI — o que o cliente vê numa proposta. */
+  /** Uma linha por item da EAP (aberta), com valores JÁ com BDI — o que o cliente vê numa proposta — no total e por categoria. */
   private linhasDaEap(): LinhaPropostaEap[] {
     const itens = this.eap.itens();
     const cache = this.eap.cache();
 
     return itens.map((item, i) => {
-      const total = item.isGroup ? this.eap.totaisDoGrupo(i).totalWithBdi : cache.totalWithBdi[i];
+      const grupo = item.isGroup ? this.eap.totaisDoGrupo(i) : null;
       const qtde = Number(item.qtde) || 0;
+      const total = grupo ? grupo.totalWithBdi : (cache.totalWithBdi[i] ?? 0);
+
+      const unitarioPorCategoria: Partial<Record<ChaveTipo, number>> = {};
+      const totalPorCategoria: Partial<Record<ChaveTipo, number>> = {};
+      for (const tipo of TIPOS_CUSTO) {
+        const direto = grupo ? grupo.directByType[tipo.chave] : cache.directByType[i]?.[tipo.chave];
+        const bdi = grupo ? grupo.bdiByType[tipo.chave] : cache.bdiByType[i]?.[tipo.chave];
+        const totalTipo = (direto ?? 0) + (bdi ?? 0);
+        totalPorCategoria[tipo.chave] = totalTipo;
+        if (!grupo && qtde > 0) unitarioPorCategoria[tipo.chave] = totalTipo / qtde;
+      }
+
       return {
         nivel: item.nivel,
         isGroup: item.isGroup,
@@ -104,7 +147,9 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         desc: item.desc,
         qtde,
         unid: item.unid ?? '',
-        unitario: !item.isGroup && qtde > 0 ? total / qtde : 0,
+        unitarioPorCategoria,
+        totalPorCategoria,
+        unitario: !grupo && qtde > 0 ? total / qtde : 0,
         total,
       };
     });
@@ -274,7 +319,8 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         variaveis['empreiteiro'] = String(empreita['empreiteiro'] ?? '');
         variaveis['descricao_empreita'] = String(empreita['descricao_empreita'] ?? '');
         variaveis['numero_empreita'] = String(empreita['numero_empreita'] ?? '');
-        variaveis['valor'] = formatarMoeda(valor);
+        // Numérica (14/10/2026): aparece igual (R$ …) e entra em fórmula — `{{=TEXTO(valor)}}` é o valor por extenso.
+        variaveis['valor'] = { numero: valor, formato: 'moeda' };
 
         this.modeloAtual.set(modelo);
         this.conteudoPreenchido.set(
@@ -346,7 +392,7 @@ export class ContratoImprimir implements OnInit, OnDestroy {
    * contexto diferente (TS aqui no corpo; PHP lá no cabeçalho/rodapé,
    * fora do DOM da página).
    */
-  private variaveisComuns(obra: Obra): Record<string, string> {
+  private variaveisComuns(obra: Obra): VariaveisModelo {
     const perfil = this.perfilEmpresa();
     return {
       empresa_nome: perfil?.razaoSocial || perfil?.nome || '',
@@ -359,7 +405,11 @@ export class ContratoImprimir implements OnInit, OnDestroy {
       numero_contrato: obra.numero_contrato || '',
       local_obra: obra.local_obra || '',
       periodo: obra.periodo || '',
-      prazo_meses: obra.prazo_meses !== null && obra.prazo_meses !== undefined ? String(obra.prazo_meses) : '',
+      // numérico quando preenchido — também entra em fórmula (14/10/2026)
+      prazo_meses:
+        obra.prazo_meses !== null && obra.prazo_meses !== undefined && Number.isFinite(Number(obra.prazo_meses))
+          ? { numero: Number(obra.prazo_meses), formato: 'numero' }
+          : '',
       data_base: obra.data_base ? formatarData(obra.data_base) : '',
       responsavel_tecnico: obra.responsavel_tecnico || '',
       crea: obra.crea || '',

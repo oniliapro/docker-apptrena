@@ -612,6 +612,10 @@ export class Eap implements OnInit {
   protected readonly configProposta = signal<ConfigProposta>(normalizarConfigProposta(null));
   protected readonly gerandoProposta = signal(false);
   protected readonly erroProposta = signal<string | null>(null);
+  /** As colunas de categoria da tabela da proposta são as mesmas marcadas na EAP (a tela de impressão lê o mesmo estado gravado). */
+  protected readonly rotulosCategoriasProposta = computed(() =>
+    this.store.tiposVisiveis().map((t) => t.rotulo).join(', '),
+  );
 
   protected abrirModalProposta(): void {
     this.erroProposta.set(null);

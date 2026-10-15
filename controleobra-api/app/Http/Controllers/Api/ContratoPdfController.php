@@ -270,9 +270,7 @@ class ContratoPdfController extends Controller
     }
 
     /**
-     * Substitui `{{chave}}` (valores escapados) e `{{pagina}}`/
-     * `{{total_paginas}}` (numeração real do Puppeteer), e envolve o
-     * resultado num `<div>` com fonte explícita — sem isso o texto saía
+     * Fonte explícita do cabeçalho/rodapé — sem isso o texto saía
      * "ridiculamente pequeno" (achado pelo Lucas, 30/09/2026): o
      * `headerTemplate`/`footerTemplate` do Puppeteer roda num contexto
      * ISOLADO, sem acesso a nenhum CSS da página nem do editor (nem
@@ -280,8 +278,43 @@ class ContratoPdfController extends Controller
      * próprio Chromium, a menos que o HTML em si já traga o tamanho.
      * `width:100%` também é necessário pro Puppeteer esticar o conteúdo
      * pela largura da página (comportamento documentado dele).
+     *
+     * 14/10/2026: toda a geometria do cabeçalho/rodapé (fonte, entrelinha
+     * fixa, margens, bloco predefinido) é ESPELHADA no editor
+     * (`contrato-modelo-editor.scss`: `.caixa-pagina`, `.previa-*` e
+     * `.area-editavel-sincronizada`) — mexeu num número aqui, mexe lá
+     * também: é essa igualdade que faz cada folha da edição terminar no
+     * mesmo ponto do PDF. Entrelinha fixa (1.4) de
+     * propósito: a fonte do servidor (Linux) não é a mesma do navegador do
+     * usuário, mas com a altura de linha fixa a altura do cabeçalho não
+     * muda com a fonte.
      */
     private const FONTE_PAGINA = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+
+    /** Logomarca do ComTrena no canto superior direito (mesmo padrão de `CabecalhoImpressao` dos outros PDFs) — cópia de `frontend/public/marca/`. */
+    private const ARQUIVO_LOGOMARCA_COMTRENA = 'marca/comtrena-logomarca-para-fundo-claro.svg';
+
+    /**
+     * O Chromium coloca o `headerTemplate`/`footerTemplate` dentro de um
+     * `#header`/`#footer` próprio, com ~20px de preenchimento (medido em
+     * 14/10/2026 num PDF de teste: o cabeçalho começava 5,3mm abaixo da
+     * borda e o rodapé terminava 5,3mm acima dela) — o texto do cabeçalho
+     * escorregava pra dentro do corpo. Era isso que a antiga folga de 4mm
+     * tentava cobrir. Zerando esse preenchimento (o `<style>` do template
+     * vale pro documento inteiro do cabeçalho), a caixa vai de 0 até a
+     * altura medida, exatamente — sem depender da versão do Chromium.
+     *
+     * Também zera a margem de parágrafo/título/lista do texto próprio
+     * (`.conteudo-proprio`) — o editor faz o mesmo (`contrato-modelo-
+     * editor.scss`, `.area-editavel-sincronizada`), pra caixa ter a mesma
+     * altura nos dois lados.
+     */
+    private const ESTILO_ZERA_TEMPLATE = '<style>#header,#footer{padding:0!important;}'
+        . 'html,body{margin:0!important;padding:0!important;}'
+        . '.conteudo-proprio p,.conteudo-proprio h1,.conteudo-proprio h2,.conteudo-proprio h3,.conteudo-proprio h4,'
+        . '.conteudo-proprio h5,.conteudo-proprio h6,.conteudo-proprio blockquote,.conteudo-proprio ul,.conteudo-proprio ol{margin:0;}'
+        . '.conteudo-proprio ul,.conteudo-proprio ol{padding-left:6mm;}'
+        . '.conteudo-proprio img{max-width:100%;height:auto;}</style>';
 
     /** Substitui `{{chave}}`/`{{pagina}}`/`{{total_paginas}}` — extraído de `prepararHtmlPagina` (30/09/2026) pra poder combinar o texto do usuário com o bloco de itens predefinidos ANTES de envolver tudo numa única `<div>` só (`construirCabecalhoPdf`). */
     private function substituirVariaveis(string $html, array $variaveis): string
@@ -297,19 +330,97 @@ class ContratoPdfController extends Controller
     }
 
     /**
-     * `$distanciaMm`: `margem_cabecalho_mm`/`margem_rodape_mm` — distância
-     * da borda da folha até o texto (igual ao "Do topo"/"Do rodapé" do
-     * Word). Usado só pro RODAPÉ agora — o cabeçalho passou a ser montado
-     * por `construirCabecalhoPdf()` (30/09/2026), que já embute o próprio
-     * preenchimento junto com os itens predefinidos.
+     * Caixa externa comum do cabeçalho e do rodapé: fonte/entrelinha fixas
+     * e as MESMAS margens laterais do corpo (`margem_esquerda_mm`/
+     * `margem_direita_mm` do modelo — era 15mm fixo até 14/10/2026, e o
+     * cabeçalho não acompanhava quem mudava a margem no editor).
      */
-    private function prepararHtmlPagina(?string $html, array $variaveis, string $posicao, int $distanciaMm): string
+    private function estiloCaixaPagina(ContratoModelo $modelo): string
     {
-        $miolo = $this->substituirVariaveis($html ?: '', $variaveis);
-        $preenchimento = $posicao === 'cabecalho' ? "padding-top:{$distanciaMm}mm;" : "padding-bottom:{$distanciaMm}mm;";
+        return 'width:100%; box-sizing:border-box; margin:0; font-family:' . self::FONTE_PAGINA . '; '
+            . 'font-size:9.5pt; line-height:1.4; color:#333; '
+            . "padding-left:{$modelo->margem_esquerda_mm}mm; padding-right:{$modelo->margem_direita_mm}mm; "
+            . '-webkit-print-color-adjust:exact; print-color-adjust:exact;';
+    }
 
-        return '<div style="width:100%; font-family:' . self::FONTE_PAGINA . "; font-size:9.5pt; color:#333; padding-left:15mm; padding-right:15mm; {$preenchimento} box-sizing:border-box;\">"
-            . $miolo . '</div>';
+    /**
+     * Cabeçalho/rodapé "vazio" de verdade (14/10/2026): o `contenteditable`
+     * do editor costuma deixar um `<br>` ou `<div><br></div>` sobrando depois
+     * de apagar tudo, e isso não pode virar uma linha em branco a mais no
+     * PDF — é o que garante o cabeçalho MÍNIMO quando não há texto próprio
+     * (pedido do Lucas). Imagem, linha e tabela contam como conteúdo mesmo
+     * sem texto. Mesma regra de `temConteudoProprio` no editor.
+     */
+    private function htmlTemConteudo(?string $html): bool
+    {
+        if ($html === null || trim($html) === '') {
+            return false;
+        }
+        if (preg_match('/<(img|hr|table)\b/i', $html)) {
+            return true;
+        }
+        $texto = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(str_replace("\u{00A0}", ' ', $texto)) !== '';
+    }
+
+    /**
+     * Imagem do disco `public` (logo da empresa) EMBUTIDA em base64 —
+     * 14/10/2026, bug relatado pelo Lucas ("a imagem do cabeçalho deu
+     * erro"): o `headerTemplate` do Puppeteer não baixa NADA por URL (roda
+     * isolado, fora da página), então a `<img src="http://nginx/storage/...">`
+     * de antes saía quebrada em toda página. Embutida, não depende de rede.
+     */
+    private function imagemDoStorageComoDataUri(?string $caminho): ?string
+    {
+        if (!$caminho) {
+            return null;
+        }
+
+        try {
+            $disco = Storage::disk('public');
+            if (!$disco->exists($caminho)) {
+                return null;
+            }
+            $conteudo = (string) $disco->get($caminho);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $mime = match (strtolower(pathinfo($caminho, PATHINFO_EXTENSION))) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => null,
+        };
+
+        return $conteudo !== '' && $mime ? "data:{$mime};base64," . base64_encode($conteudo) : null;
+    }
+
+    private function logomarcaComtrenaDataUri(): ?string
+    {
+        $arquivo = resource_path(self::ARQUIVO_LOGOMARCA_COMTRENA);
+
+        return is_file($arquivo) ? 'data:image/svg+xml;base64,' . base64_encode((string) file_get_contents($arquivo)) : null;
+    }
+
+    /**
+     * Rodapé de verdade do PDF. `margem_rodape_mm` é a distância da borda
+     * de baixo da folha até o texto (igual ao "Do rodapé" do Word); o texto
+     * próprio (se houver) fica 2mm abaixo da linha tracejada do editor.
+     */
+    private function construirRodapePdf(ContratoModelo $modelo, array $variaveis): string
+    {
+        $personalizado = $this->htmlTemConteudo($modelo->rodape_html)
+            ? '<div class="conteudo-proprio" style="padding-top:2mm;">'
+                . $this->substituirVariaveis((string) $modelo->rodape_html, $variaveis) . '</div>'
+            : '';
+
+        return self::ESTILO_ZERA_TEMPLATE
+            . '<div style="' . $this->estiloCaixaPagina($modelo) . " padding-bottom:{$modelo->margem_rodape_mm}mm;\">"
+            . $personalizado . '</div>';
     }
 
     /**
@@ -322,33 +433,52 @@ class ContratoPdfController extends Controller
      * `headerHtml()`/`headerTemplate` de verdade do Puppeteer, repetem em
      * TODA página automaticamente, junto com o texto de cabeçalho que o
      * usuário escreveu no modelo (se houver).
+     *
+     * 14/10/2026 (pedido do Lucas): mesmo padrão dos outros PDFs
+     * (`CabecalhoImpressao`) — "Gerado em" + logomarca do ComTrena no canto
+     * direito — e cabeçalho MÍNIMO: sem texto próprio, a distância da linha
+     * horizontal até o fim do cabeçalho (onde o corpo começa) é igual à
+     * distância da borda da folha até o topo do cabeçalho
+     * (`margem_cabecalho_mm`, as duas). Com texto próprio, ele entra entre
+     * a linha e essa mesma folga.
      */
     private function construirCabecalhoPdf(ContratoModelo $modelo, array $variaveis, \App\Models\Empresa $empresa, string $subtitulo): string
     {
-        $baseStorage = rtrim((string) preg_replace('#/api/?$#', '', (string) config('pdf.api_url')), '/');
-        $logoUrl = $empresa->logo_url ? $baseStorage . $empresa->logo_url : null;
-        $nomeEmpresa = (string) ($empresa->razao_social ?: $empresa->nome ?: 'ComTrena');
+        $nomeEmpresa = (string) ($empresa->nome ?: $empresa->razao_social ?: 'ComTrena');
         $geradoEm = now()->format('d/m/Y H:i');
 
-        $logoHtml = $logoUrl
-            ? '<img src="' . htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8')
-                . '" style="display:block; max-height:12mm; max-width:40mm; object-fit:contain;" alt="Logo">'
+        $logoEmpresa = $this->imagemDoStorageComoDataUri($empresa->logo_path);
+        $logoEmpresaHtml = $logoEmpresa
+            ? '<img src="' . $logoEmpresa . '" style="display:block; max-height:12mm; max-width:40mm; object-fit:contain;" alt="">'
+            : '';
+        $logoComtrena = $this->logomarcaComtrenaDataUri();
+        $logoComtrenaHtml = $logoComtrena
+            ? '<img src="' . $logoComtrena . '" style="display:block; height:8.5mm; width:auto;" alt="ComTrena">'
             : '';
 
-        $predefinido = '<div style="display:flex; justify-content:space-between; align-items:center; '
-            . 'border-bottom:2px solid #1b3a4b; padding-bottom:3mm; margin-bottom:3mm;">'
-            . '<div style="display:flex; align-items:center; gap:3mm;">' . $logoHtml
-            . '<div><div style="font-size:13pt; font-weight:700; color:#1b3a4b; line-height:1.2;">'
+        $predefinido = '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4mm; '
+            . 'border-bottom:2px solid #1b3a4b; padding-bottom:3mm;">'
+            . '<div style="display:flex; align-items:center; gap:3mm; min-width:0;">' . $logoEmpresaHtml
+            . '<div style="min-width:0;">'
+            . '<div style="font-size:13pt; font-weight:700; color:#1b3a4b; line-height:1.2;">'
             . htmlspecialchars($nomeEmpresa, ENT_QUOTES, 'UTF-8') . '</div>'
-            . '<div style="font-size:7.5pt; text-transform:uppercase; letter-spacing:0.08em; color:#666; margin-top:2px;">'
-            . htmlspecialchars($subtitulo, ENT_QUOTES, 'UTF-8') . '</div></div></div>'
-            . '<div style="font-size:7.5pt; color:#666; white-space:nowrap;">Gerado em ' . $geradoEm . '</div>'
+            . '<div style="font-size:7.5pt; text-transform:uppercase; letter-spacing:0.08em; color:#666; line-height:1.2; margin-top:0.8mm;">'
+            . htmlspecialchars($subtitulo, ENT_QUOTES, 'UTF-8') . '</div>'
+            . '</div></div>'
+            . '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.8mm; flex-shrink:0;">'
+            . '<div style="font-size:7.5pt; color:#666; white-space:nowrap; line-height:1.2;">Gerado em ' . $geradoEm . '</div>'
+            . $logoComtrenaHtml
+            . '</div>'
             . '</div>';
 
-        $personalizado = $modelo->cabecalho_html ? $this->substituirVariaveis($modelo->cabecalho_html, $variaveis) : '';
+        $personalizado = $this->htmlTemConteudo($modelo->cabecalho_html)
+            ? '<div class="conteudo-proprio" style="padding-top:2mm;">'
+                . $this->substituirVariaveis((string) $modelo->cabecalho_html, $variaveis) . '</div>'
+            : '';
 
-        return '<div style="width:100%; font-family:' . self::FONTE_PAGINA
-            . "; font-size:9.5pt; color:#333; padding-left:15mm; padding-right:15mm; padding-top:{$modelo->margem_cabecalho_mm}mm; box-sizing:border-box;\">"
+        return self::ESTILO_ZERA_TEMPLATE
+            . '<div style="' . $this->estiloCaixaPagina($modelo)
+            . " padding-top:{$modelo->margem_cabecalho_mm}mm; padding-bottom:{$modelo->margem_cabecalho_mm}mm;\">"
             . $predefinido . $personalizado . '</div>';
     }
 
@@ -362,8 +492,8 @@ class ContratoPdfController extends Controller
      * rodapé"). O `headerTemplate`/`footerTemplate` do Puppeteer não
      * ajusta a margem sozinho pro conteúdo — precisa vir pronta ANTES de
      * gerar o PDF de verdade, por isso esta é uma chamada separada ao
-     * Chromium, só pra medir (`document.body.scrollHeight`), antes da
-     * chamada que gera o PDF de verdade com a margem já certa.
+     * Chromium, só pra medir, antes da chamada que gera o PDF de verdade
+     * com a margem já certa.
      *
      * Três correções feitas testando o PDF de verdade (não só a medição
      * isolada) — o texto do corpo saía sobrepondo o cabeçalho mesmo com
@@ -388,14 +518,24 @@ class ContratoPdfController extends Controller
      *    num mecanismo interno do Chromium diferente de uma página
      *    normal (`Page.printToPDF`, não uma navegação comum) — a altura
      *    renderizada ali pode não bater 100% com a mesma HTML medida
-     *    como página normal aqui. Por segurança, soma uma folga
-     *    (`FOLGA_MEDICAO_MM`) por cima do que foi medido — melhor sobrar
-     *    um pouco de espaço em branco do que arriscar o corpo invadir o
-     *    cabeçalho de novo.
+     *    como página normal aqui. Por segurança, somava uma folga de 4mm
+     *    por cima do que foi medido.
+     *
+     * 14/10/2026: a folga de 4mm SAIU — o editor não somava nada parecido,
+     * então cada folha do PDF tinha 4mm a menos de corpo que a da edição
+     * (quebra de página fora de lugar) e o cabeçalho mínimo pedido pelo
+     * Lucas (folga abaixo da linha = folga acima) ficava 4mm maior no PDF.
+     * A parte de baixo do cabeçalho agora é sempre a própria folga em
+     * branco (`padding-bottom` = `margem_cabecalho_mm`), então uma diferença
+     * de 1px entre a medição e o `headerTemplate` cai em espaço vazio, nunca
+     * em texto. O deslocamento de verdade que existia (preenchimento interno
+     * do `#header`/`#footer` do Chromium) é zerado por `ESTILO_ZERA_TEMPLATE`.
+     * Mede a `<div>` do cabeçalho (não o `<body>`, que agora começa com o
+     * `<style>`) com `getBoundingClientRect` arredondado PRA CIMA (o
+     * `scrollHeight` arredonda pra baixo) — mesma regra do editor
+     * (`medirCabecalhoERodape`).
      */
-    private const FOLGA_MEDICAO_MM = 4.0;
-
-    private function medirAlturaHtmlMm(string $html, float $larguraMm): float
+    private function medirAlturaHtmlMm(string $html, float $larguraMm): ?float
     {
         $larguraPx = (int) round($larguraMm * 96 / 25.4);
         $documento = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;">' . $html . '</body></html>';
@@ -407,19 +547,22 @@ class ContratoPdfController extends Controller
                 ->setNodeEnv(['HOME' => '/tmp'])
                 ->windowSize($larguraPx, 2000)
                 ->waitUntilNetworkIdle()
+                // Logos embutidas em base64 passam fácil do limite de 128KB
+                // de UM argumento de linha de comando no Linux — opções por
+                // arquivo em vez de argumento.
+                ->writeOptionsToFile()
                 ->timeout(15);
 
-            $resultado = trim((string) $browsershot->evaluate('document.body.scrollHeight'), "\" \n\r\t");
+            $resultado = trim((string) $browsershot->evaluate(
+                "(function () { var caixa = document.body.querySelector(':scope > div');"
+                . ' return caixa ? Math.ceil(caixa.getBoundingClientRect().height) : 0; })()'
+            ), "\" \n\r\t");
             $alturaPx = is_numeric($resultado) ? (float) $resultado : null;
         } catch (\Throwable) {
             $alturaPx = null;
         }
 
-        // Sem conseguir medir (erro/timeout), cai pra uma altura conservadora
-        // — melhor um cabeçalho com mais respiro do que arriscar cortar.
-        $alturaMm = $alturaPx !== null ? ($alturaPx / 96 * 25.4) : 26.0;
-
-        return $alturaMm + self::FOLGA_MEDICAO_MM;
+        return $alturaPx !== null && $alturaPx > 0 ? $alturaPx / 96 * 25.4 : null;
     }
 
     private function aplicarTamanhoPapel(Browsershot $browsershot, string $tamanho): Browsershot
@@ -481,18 +624,25 @@ class ContratoPdfController extends Controller
             $larguraMm = $modelo->orientacao === 'paisagem' ? $alturaBase : $larguraBase;
 
             $htmlCabecalho = $this->construirCabecalhoPdf($modelo, $variaveis, $empresa, $subtitulo);
-            $htmlRodape = $this->prepararHtmlPagina($modelo->rodape_html, $variaveis, 'rodape', $modelo->margem_rodape_mm);
+            $htmlRodape = $this->construirRodapePdf($modelo, $variaveis);
 
-            $margemSuperiorFinal = $this->medirAlturaHtmlMm($htmlCabecalho, $larguraMm);
-            $margemInferiorFinal = $modelo->rodape_html
-                ? $this->medirAlturaHtmlMm($htmlRodape, $larguraMm)
-                : (float) $modelo->margem_rodape_mm;
+            // Sem conseguir medir (erro/timeout), cai pra uma altura
+            // conservadora — melhor um cabeçalho com mais respiro do que
+            // arriscar o corpo invadir o texto dele.
+            $margemSuperiorFinal = $this->medirAlturaHtmlMm($htmlCabecalho, $larguraMm)
+                ?? (2 * $modelo->margem_cabecalho_mm + 24.0);
+            // Rodapé sem texto próprio = só a folga; arredondada pra cima em
+            // px inteiro, igual à medição (e ao editor).
+            $margemInferiorFinal = $this->htmlTemConteudo($modelo->rodape_html)
+                ? ($this->medirAlturaHtmlMm($htmlRodape, $larguraMm) ?? ($modelo->margem_rodape_mm + 14.0))
+                : ceil($modelo->margem_rodape_mm * 96 / 25.4) / 96 * 25.4;
 
             $browsershot = Browsershot::url($url)
                 ->setChromePath((string) config('pdf.chrome_path'))
                 ->noSandbox()
                 ->setNodeEnv(['HOME' => '/tmp'])
                 ->waitUntilNetworkIdle()
+                ->writeOptionsToFile()
                 ->margins($margemSuperiorFinal, $modelo->margem_direita_mm, $margemInferiorFinal, $modelo->margem_esquerda_mm)
                 ->landscape($modelo->orientacao === 'paisagem')
                 ->showBackground()

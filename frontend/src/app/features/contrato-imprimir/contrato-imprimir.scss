@@ -104,6 +104,21 @@ app-contrato-imprimir {
   ul, ol { margin: 0 0 4mm; padding-left: 6mm; }
   b, strong { font-weight: 700; }
 
+  // Imagem inserida no editor (14/10/2026) — largura em % da coluna vem
+  // inline do próprio modelo; igual ao editor, nunca passa da coluna.
+  img { max-width: 100%; height: auto; }
+
+  // Folha do PDF = folha do editor (14/10/2026). O editor só quebra a folha
+  // ENTRE blocos (parágrafo, título, item de lista), nunca no meio de um; o
+  // Chromium, sozinho, parte o parágrafo no meio — achado gerando o PDF de
+  // teste: a folha 2 do PDF começava no meio da cláusula 7 e a do editor na
+  // cláusula 8. Cláusula de contrato inteira na mesma folha também é o que
+  // se espera do documento.
+  p, h1, h2, h3, h4, h5, h6, li, blockquote, .colunas {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .colunas { column-gap: 8mm; margin: 0 0 4mm; }
   .colunas-2 { column-count: 2; }
   .colunas-3 { column-count: 3; }

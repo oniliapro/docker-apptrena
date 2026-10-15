@@ -938,8 +938,17 @@
           @if (modeloPropostaId()) {
             <p class="atenuado pequeno">
               Os campos abaixo começam com o padrão do modelo — o que mudar aqui vale só para esta proposta.
+              As cores da tabela vêm do modelo.
             </p>
-            <app-proposta-config [config]="configProposta()" (mudou)="configProposta.set($event)" />
+            <app-proposta-config [config]="configProposta()" [mostrarCores]="false" (mudou)="configProposta.set($event)" />
+            <p class="atenuado pequeno">
+              Colunas por categoria:
+              @if (store.mostrarColunasTipo()) {
+                <b>{{ rotulosCategoriasProposta() }}</b> (as marcadas aqui na EAP) + Total.
+              } @else {
+                nenhuma — a EAP está sem as colunas de categoria; a tabela sai só com o Total.
+              }
+            </p>
           }
 
           @if (erroProposta(); as mensagemProposta) {

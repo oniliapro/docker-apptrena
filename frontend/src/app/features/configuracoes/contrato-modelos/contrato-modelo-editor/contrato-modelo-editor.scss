@@ -170,6 +170,83 @@ button.primario {
   button { min-width: 26px; }
 }
 
+// Ícones de alinhamento (14/10/2026) — os caracteres soltos de antes (⇤ ⇔ ☰)
+// repetiam o ⇤ do "diminuir nível" da lista e não diziam nada.
+.icone-alinhar {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+// Selects da barra (entrelinhas, assinatura) — idem `.select-estilo`.
+.select-ferramenta {
+  width: auto;
+  height: auto;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 6px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+}
+
+.barra-formatacao .chip-formula {
+  font-family: var(--fonte-mono);
+  font-size: 11.5px;
+  border: 1px dashed var(--cor-borda-forte);
+}
+
+.barra-formatacao .botao-ajuda {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: 50%;
+  font-weight: 700;
+
+  &.ativo { background: var(--cor-primaria-clara); }
+}
+
+.ajuda-formula {
+  margin: -8px 0 16px;
+  padding: 10px 14px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
+
+  p { margin: 4px 0; }
+  ul { margin: 4px 0 0; padding-left: 18px; }
+  li { margin-bottom: 2px; }
+
+  code {
+    font-family: var(--fonte-mono);
+    font-size: 11.5px;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: #eef2f3;
+  }
+}
+
+.botao-secundario {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie);
+  cursor: pointer;
+
+  &:hover { background: var(--cor-fundo-alt); }
+}
+
 // ---- Painéis laterais ("Configurações da página" / "Meus estilos") —
 // sempre presentes no DOM (só `translateX` some por CSS), pra não perder o
 // que já foi digitado no cabeçalho/rodapé (contenteditable) toda vez que o
@@ -364,61 +441,90 @@ button.primario {
   justify-content: center;
 }
 
-// A "folha" propriamente dita (30/09/2026: passou a envolver cabeçalho +
-// corpo + rodapé juntos, não só o corpo — antes cabeçalho/rodapé ficavam
-// escondidos num painel à parte, pedido do Lucas foi exatamente poder VER
-// os três juntos, como no Word). Largura vem do TS (`[style.width.px]`,
-// calculada do tamanho do papel/orientação — ver `larguraFolhaPx`); altura
-// é automática (soma cabeçalho + corpo + rodapé, que cresce com o texto).
+// O "papel" (30/09/2026: envolve cabeçalho + corpo + rodapé juntos, como no
+// Word). 14/10/2026: virou só o TRILHO do texto — transparente; o branco de
+// cada folha é um bloco de tamanho fixo atrás dele (`.folha-bloco`, pedido
+// do Lucas: "tratar a folha como um bloco, com altura e largura fixa"). O
+// vão entre as folhas mostra o fundo do editor. Sem `overflow: hidden`: a
+// moldura de redimensionar imagem pode passar da borda.
 .pagina-simulada {
   position: relative;
-  background: var(--cor-superficie);
-  box-shadow: var(--sombra-md);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
-// Papel timbrado como fundo — camada PRÓPRIA, atrás de tudo (30/09/2026,
-// redesenho: "tire a faixa no topo, centralizar, transparência,
-// redimensionar mantendo ou não a proporção") — precisa ser separada do
-// conteúdo porque `opacity` aqui só pode valer pra imagem, nunca pro
-// texto do contrato por cima.
-.timbrado-fundo-editor {
+.camada-folhas {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
+}
+
+.folha-bloco {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-md);
+  overflow: hidden;
+}
+
+// Linhas tracejadas: limite do cabeçalho e do rodapé (horizontais) e as
+// margens esquerda/direita (verticais) — só elas marcam as áreas, sem fundo
+// colorido em nada (14/10/2026, pedido do Lucas: a faixa azul-clara acima
+// do rodapé era o fundo do espaçador entre folhas).
+.guia {
+  position: absolute;
+  pointer-events: none;
+}
+
+.guia-horizontal {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed var(--cor-borda-forte);
+}
+
+.guia-vertical {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--cor-borda-forte);
+}
+
+// Papel timbrado como fundo — camada PRÓPRIA (`opacity` só pra imagem, nunca
+// pro texto). 14/10/2026: na área do CORPO de cada folha (entre cabeçalho e
+// rodapé, dentro das margens; posição vem do template) — é onde o PDF de
+// verdade põe: `position: fixed` na impressão fica preso às margens da
+// página (testado: nem deslocamento negativo passa delas).
+.timbrado-fundo-editor {
+  position: absolute;
   background-repeat: no-repeat;
   background-position: center;
   pointer-events: none;
 }
 
-// Caixa do cabeçalho/rodapé — prévia dos itens predefinidos (logo/nome/
-// data) + texto próprio do usuário, repetida em toda folha (30/09/2026,
-// substitui `.faixa-pagina`/`.rotulo-faixa` de antes — agora cabeçalho E
-// rodapé aparecem em CADA página, não só uma vez). Fundo branco igual ao
-// resto da folha (pedido do Lucas, 30/09/2026: era cinza/`--cor-fundo-alt`
-// e ficava "difícil de ver esses itens" contra o papel) — o limite da
-// área agora é marcado por uma linha tracejada (abaixo do cabeçalho,
-// acima do rodapé) em vez de diferença de cor de fundo.
-.caixa-cabecalho,
-.caixa-rodape {
+// Caixa do cabeçalho/rodapé (e os clones dela nas outras folhas) —
+// transparente: o branco é o da folha. ESPELHA a caixa do PDF
+// (`ContratoPdfController::estiloCaixaPagina`): mesma pilha de fontes,
+// 9,5pt e entrelinha FIXA (1,4), pra altura do cabeçalho não depender da
+// fonte instalada. Mexeu aqui, mexe lá.
+.caixa-pagina {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  background: var(--cor-superficie);
-
-  &:focus-within { background: var(--cor-primaria-clara); }
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.4;
+  color: #333;
 }
 
-.caixa-cabecalho { border-bottom: 1px dashed var(--cor-borda); }
-.caixa-rodape { border-top: 1px dashed var(--cor-borda); }
-
-// Prévia do que o `CabecalhoImpressao`/`ContratoPdfController::
-// construirCabecalhoPdf` desenha sozinho no PDF de verdade (30/09/2026,
-// pedido do Lucas: "elementos aparecem no PDF mas não na minha
-// visualização... logo, título com nome da empresa, papel timbrado,
-// data de geração") — só leitura, dentro de `.caixa-cabecalho`.
+// Prévia do que o PDF desenha sozinho no cabeçalho
+// (`ContratoPdfController::construirCabecalhoPdf`) — MESMAS medidas, em
+// mm/pt, e o mesmo padrão dos outros PDFs (`CabecalhoImpressao`): logo +
+// nome + subtítulo à esquerda, "Gerado em" + logomarca do ComTrena à
+// direita. Só leitura (vem do Perfil da empresa).
 .previa-sistema {
   user-select: none;
   cursor: default;
@@ -427,56 +533,97 @@ button.primario {
 .previa-cabecalho-sistema {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--cor-primaria);
-  padding-bottom: 10px;
-  margin-bottom: 12px;
+  align-items: flex-start;
+  gap: 4mm;
+  border-bottom: 2px solid #1b3a4b;
+  padding-bottom: 3mm;
 }
 
 .previa-identidade {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 3mm;
+  min-width: 0;
 }
+
+.previa-textos { min-width: 0; }
 
 .previa-logo {
   display: block;
-  max-height: 30px;
-  max-width: 100px;
+  max-height: 12mm;
+  max-width: 40mm;
   object-fit: contain;
 }
 
 .previa-nome-empresa {
-  font-family: var(--fonte-titulo);
-  font-size: 16px;
+  font-size: 13pt;
   font-weight: 700;
-  color: var(--cor-primaria);
+  color: #1b3a4b;
+  line-height: 1.2;
 }
 
 .previa-subtitulo {
-  font-size: 10px;
+  font-size: 7.5pt;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--cor-texto-suave);
+  color: #666;
+  line-height: 1.2;
+  margin-top: 0.8mm;
+}
+
+.previa-geracao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.8mm;
+  flex-shrink: 0;
 }
 
 .previa-data {
-  font-size: 11px;
-  color: var(--cor-texto-suave);
+  font-size: 7.5pt;
+  color: #666;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
-// Área de verdade editável dentro da caixa de cabeçalho/rodapé
-// (30/09/2026, substitui `.area-mini`) — tanto a canônica (página 1)
-// quanto a ilha editável dentro de cada CLONE (`.clone-pagina`, ver
-// `criarCloneCabecalhoOuRodape` no `.ts`) usam esta mesma classe.
+.previa-logo-comtrena {
+  display: block;
+  height: 8.5mm;
+  width: auto;
+}
+
+// Área de verdade editável dentro da caixa de cabeçalho/rodapé — tanto a
+// canônica quanto a ilha editável dentro de cada CLONE (`.clone-pagina`).
+// A folga de baixo (`margem_cabecalho_mm`/`margem_rodape_mm`) é o
+// `padding-bottom` dela (vem do template) — assim a faixa da folga é
+// clicável pra começar a escrever. Texto próprio fica 2mm abaixo da linha
+// (igual ao PDF); SEM texto próprio (`.vazio`), a caixa fica só com as
+// folgas — o cabeçalho mínimo.
 .area-editavel-sincronizada {
-  min-height: 20px;
-  padding: 4px 0;
-  font-size: 12px;
+  box-sizing: border-box;
+  padding-top: 2mm;
+  // `--folga` (template): margem do cabeçalho/rodapé até a borda da folha
+  padding-bottom: var(--folga, 0);
   outline: none;
 
   :focus-visible { outline: none; }
+
+  // Vazia: a caixa tem EXATAMENTE a folga de altura (o cabeçalho mínimo —
+  // achado medindo: o Chrome dá a um `contenteditable` vazio uma linha
+  // implícita de ~18px e o cabeçalho "mínimo" saía 139px no editor x 121px
+  // no PDF). Essa linha fica DENTRO da folga (o `padding-bottom` encolhe
+  // pra caber ela) — é nela que o cursor cai ao clicar na faixa vazia; sem
+  // ela (1ª tentativa, `height: 0`), o clique não achava onde pôr o cursor e
+  // o texto digitado ia parar em outra área.
+  &.vazio {
+    height: var(--folga, 0);
+    padding-top: 0;
+    padding-bottom: max(0px, calc(var(--folga, 0px) - 1.4em));
+    overflow: visible;
+  }
+  // o `<br>` que sobra depois de apagar tudo não pode virar uma linha a mais
+  // (ao receber o foco, o editor ainda limpa a área vazia de vez — `aoFocarArea`)
+  &.vazio > * { display: none; }
 }
 
 .area-edicao {
@@ -680,54 +827,92 @@ $largura-regua: 20px;
     font-style: italic;
   }
 
-  // Separação de páginas DE VERDADE (30/09/2026, pedido do Lucas: "deixe
-  // a separação de páginas evidente, criando as folhas mesmo separadas
-  // por um vazio entre elas") — substitui a antiga linha-guia aproximada.
-  // Precisa estar DENTRO deste bloco `::ng-deep` pelo mesmo motivo do
-  // comentário lá em cima: `<div>` criado via `document.createElement`
-  // em `recalcularQuebrasPagina()` (ver `.ts`), não pelo template, então
-  // nunca carrega `_ngcontent-*` — um seletor `.quebra-pagina` fora do
-  // `::ng-deep` simplesmente nunca bate nele (achado do mesmo jeito que
-  // o bug do `<style>`: a classe aplicava mas o fundo saía transparente,
-  // só as bordas finas apareciam). Sangra até a borda da folha
-  // (`margin-left/right` negativos, setados via JS por dependerem da
-  // margem atual) pra parecer o vão de verdade entre duas folhas
-  // empilhadas, com uma sombra leve simulando a borda de cada uma.
+  // Separação de páginas DE VERDADE (30/09/2026) — espaçador criado via
+  // `document.createElement` em `recalcularQuebrasPagina()` (por isso aqui,
+  // dentro do `::ng-deep`): branco até o fim do corpo da folha + rodapé-clone
+  // + vão + cabeçalho-clone. Sangra até a borda da folha (`margin-left/
+  // right` negativos, setados via JS). 14/10/2026: TRANSPARENTE — o branco
+  // é o da folha (`.folha-bloco`) e o vão mostra o fundo do editor; antes o
+  // espaçador inteiro era pintado de `--cor-fundo-alt`, e a parte em branco
+  // do fim de cada folha aparecia como uma faixa azul-clara acima do rodapé
+  // (relatado pelo Lucas).
   .quebra-pagina {
     display: block;
-    background: var(--cor-fundo-alt);
-    border-top: 1px solid var(--cor-borda);
-    border-bottom: 1px solid var(--cor-borda);
-    box-shadow:
-      inset 0 6px 6px -6px rgba(0, 0, 0, 0.35),
-      inset 0 -6px 6px -6px rgba(0, 0, 0, 0.35);
+    user-select: none;
   }
+
+  // Na quebra AUTOMÁTICA o Chromium descarta a margem de cima do bloco que
+  // abre a folha nova (regra de fragmentação do CSS: margem encostada numa
+  // quebra não forçada some) — o editor faz igual, senão um título que cai
+  // no começo da folha empurra tudo uns milímetros e a próxima quebra sai em
+  // outro lugar. Na quebra MANUAL (forçada) a margem continua, nos dois.
+  .quebra-pagina:not(.forcada) + * { margin-top: 0 !important; }
 
   // Quebra de página MANUAL (01/10/2026, `inserirQuebraManual`) — ao
   // contrário do `.quebra-pagina` (espaçador automático, nunca salvo),
   // este É conteúdo salvo de verdade; o rótulo deixa claro que foi o
-  // usuário quem decidiu quebrar ali, distinto do vão automático que vem
-  // logo depois dele.
+  // usuário quem decidiu quebrar ali. 14/10/2026: só o tracejado, sem
+  // fundo colorido (no PDF ele some).
   .quebra-manual {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     margin: 6px 0;
-    padding: 3px 0;
-    font-size: 11px;
+    padding: 2px 0;
+    font-size: 10.5px;
     font-weight: 600;
-    color: var(--cor-primaria);
-    background: var(--cor-primaria-clara);
-    border: 1px dashed var(--cor-primaria);
-    border-radius: 4px;
+    color: var(--cor-texto-suave);
+    border-top: 1px dashed var(--cor-borda-forte);
+    border-bottom: 1px dashed var(--cor-borda-forte);
     user-select: none;
     cursor: default;
 
     &::selection { background: var(--cor-primaria); color: #fff; }
   }
 
-  p { margin: 0 0 15.12px; }
+  // Imagem inserida (14/10/2026) — largura em % da coluna (inline, vem do
+  // arraste das alças); nunca passa da coluna. Igual em `contrato-imprimir`.
+  // As logos da prévia do cabeçalho ficam de fora: o cabeçalho-clone das
+  // outras folhas mora dentro desta área, e este seletor (mais específico)
+  // passava por cima do tamanho delas.
+  img:not(.previa-logo):not(.previa-logo-comtrena) {
+    max-width: 100%;
+    height: auto;
+    cursor: pointer;
+  }
+
+  // Prévia da tabela da EAP no lugar de `{{tabela_eap}}` (proposta) — não
+  // editável; clique abre o painel da tabela. A etiqueta flutua por cima
+  // (absoluta) pra não ocupar altura que o PDF não vai ter.
+  .bloco-tabela-eap {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover { outline: 1px dashed var(--cor-primaria); outline-offset: 2px; }
+  }
+
+  .etiqueta-bloco-variavel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    transform: translateY(-100%);
+    padding: 1px 6px;
+    font-family: var(--fonte);
+    font-size: 9.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #fff;
+    background: var(--cor-primaria);
+    border-radius: 3px 3px 0 0;
+    pointer-events: none;
+  }
+
+  // justificado igual ao PDF (`contrato-imprimir.scss`) — achado comparando
+  // as duas lado a lado em 14/10/2026: o PDF sempre justificou, o editor não.
+  p { margin: 0 0 15.12px; text-align: justify; }
   ul, ol { margin: 0 0 15.12px; padding-left: 22.68px; }
 
   // Layout de colunas — sem equivalente em `execCommand`, então é só CSS
@@ -738,4 +923,70 @@ $largura-regua: 20px;
   }
   .colunas-2 { column-count: 2; }
   .colunas-3 { column-count: 3; }
+}
+
+// Texto próprio do cabeçalho/rodapé — DEPOIS do bloco acima de propósito: o
+// clone de cabeçalho/rodapé das outras folhas mora dentro da `.area-edicao`
+// e herdaria as margens de parágrafo do corpo. Margem zero aqui e no PDF
+// (`ContratoPdfController::ESTILO_ZERA_TEMPLATE`, classe `conteudo-proprio`)
+// — a caixa do cabeçalho tem a mesma altura nos dois lados.
+:host ::ng-deep .area-editavel-sincronizada {
+  p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol { margin: 0; }
+  p { text-align: start; } // o justificado do corpo não vale aqui (no PDF o cabeçalho não justifica)
+  ul, ol { padding-left: 6mm; }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    cursor: pointer;
+  }
+}
+
+// Moldura da imagem selecionada (14/10/2026) — por cima do texto; só as
+// alças e a etiqueta recebem clique.
+.moldura-imagem {
+  position: absolute;
+  z-index: 4;
+  outline: 2px solid var(--cor-primaria);
+  pointer-events: none;
+}
+
+.alca-imagem {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid var(--cor-primaria);
+  border-radius: 2px;
+  pointer-events: auto;
+  cursor: ew-resize;
+}
+
+.alca-esquerda { left: -6px; top: calc(50% - 5px); }
+.alca-direita { right: -6px; top: calc(50% - 5px); }
+.alca-canto { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+.rotulo-imagem {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--cor-primaria);
+  border-radius: 3px;
+  pointer-events: auto;
+
+  button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 11px;
+    cursor: pointer;
+  }
 }

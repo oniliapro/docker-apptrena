@@ -91,6 +91,12 @@ export const VARIAVEIS_CONTRATO_MODELO: Record<TipoContratoModelo, readonly stri
     'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
     'responsavel', 'responsavel_tecnico', 'crea', 'art',
     'cliente', 'data', 'tabela_eap',
+    'custo_material', 'bdi_material', 'bdi_pct_material', 'total_material',
+    'custo_mao_de_obra', 'bdi_mao_de_obra', 'bdi_pct_mao_de_obra', 'total_mao_de_obra',
+    'custo_equipamento', 'bdi_equipamento', 'bdi_pct_equipamento', 'total_equipamento',
+    'custo_outros', 'bdi_outros', 'bdi_pct_outros', 'total_outros',
+    'custo_administracao', 'bdi_administracao', 'bdi_pct_administracao', 'total_administracao',
+    'custo_total', 'bdi_total', 'bdi_pct_total', 'total_geral',
   ],
 };
 
@@ -114,7 +120,39 @@ export type ObjetoVariavelContrato = 'empresa' | 'obra' | 'cliente' | 'empreitei
 export interface VariavelContrato {
   chave: string;
   rotulo: string;
+  /** Agrupa a variável num menu (`<optgroup>`) em vez de um botão solto — usado pelas variáveis da EAP na proposta, que são muitas. */
+  grupo?: string;
+  /**
+   * Só existe no CORPO do documento (calculada pela tela de impressão no
+   * navegador): o cabeçalho/rodapé do PDF é montado no servidor
+   * (`ContratoPdfController`), que não tem esses valores — no cabeçalho/
+   * rodapé a variável sairia escrita como `{{chave}}`. O editor não oferece
+   * essas variáveis quando o foco está no cabeçalho/rodapé.
+   */
+  soCorpo?: boolean;
 }
+
+/** Totais/BDI por categoria da EAP (14/10/2026) — calculados por `variaveisPropostaEap` (`shared/proposta-eap.ts`). */
+const VARIAVEIS_EAP_PROPOSTA: readonly VariavelContrato[] = [
+  ...(
+    [
+      ['material', 'Material'],
+      ['mao_de_obra', 'Mão de obra'],
+      ['equipamento', 'Equipamento'],
+      ['outros', 'Outros'],
+      ['administracao', 'Administração'],
+    ] as const
+  ).flatMap(([sufixo, grupo]) => [
+    { chave: `custo_${sufixo}`, rotulo: 'Custo direto', grupo, soCorpo: true },
+    { chave: `bdi_${sufixo}`, rotulo: 'BDI (R$)', grupo, soCorpo: true },
+    { chave: `bdi_pct_${sufixo}`, rotulo: 'BDI (%)', grupo, soCorpo: true },
+    { chave: `total_${sufixo}`, rotulo: 'Total com BDI', grupo, soCorpo: true },
+  ]),
+  { chave: 'custo_total', rotulo: 'Custo direto total', grupo: 'Total da EAP', soCorpo: true },
+  { chave: 'bdi_total', rotulo: 'BDI total (R$)', grupo: 'Total da EAP', soCorpo: true },
+  { chave: 'bdi_pct_total', rotulo: 'BDI total (%)', grupo: 'Total da EAP', soCorpo: true },
+  { chave: 'total_geral', rotulo: 'Total geral com BDI', grupo: 'Total da EAP', soCorpo: true },
+];
 
 export const ROTULOS_OBJETO_VARIAVEL: Record<ObjetoVariavelContrato, string> = {
   empresa: 'Empresa',
@@ -152,10 +190,11 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
   empreita: [
     { chave: 'numero_empreita', rotulo: 'Número' },
     { chave: 'descricao_empreita', rotulo: 'Descrição' },
-    { chave: 'valor', rotulo: 'Valor do contrato' },
+    // Soma calculada no navegador (relatório de pagamentos) — ver `ContratoPdfController::variaveisComuns`.
+    { chave: 'valor', rotulo: 'Valor do contrato', soCorpo: true },
   ],
   /** `tabela_eap` é um BLOCO (a tabela da EAP inteira), não um texto — ver `shared/proposta-eap.ts`. */
-  proposta: [{ chave: 'tabela_eap', rotulo: 'Tabela da EAP' }],
+  proposta: [{ chave: 'tabela_eap', rotulo: 'Tabela da EAP', soCorpo: true }, ...VARIAVEIS_EAP_PROPOSTA],
   geral: [{ chave: 'data', rotulo: 'Data de emissão' }],
 };
 

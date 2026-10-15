@@ -41,12 +41,20 @@ class ContratoModeloController extends Controller
         ],
         // 14/10/2026 — proposta gerada a partir da EAP. `tabela_eap` é um
         // BLOCO (a tabela inteira), não um texto: só vale no corpo do
-        // documento, não em cabeçalho/rodapé.
+        // documento, não em cabeçalho/rodapé. Os totais/BDI por categoria
+        // (mesmo dia) são calculados pela tela de impressão a partir da EAP
+        // — também só no corpo, e também aceitos em fórmula `{{=...}}`.
         'proposta' => [
             'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
             'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
             'responsavel', 'responsavel_tecnico', 'crea', 'art',
             'cliente', 'data', 'tabela_eap',
+            'custo_material', 'bdi_material', 'bdi_pct_material', 'total_material',
+            'custo_mao_de_obra', 'bdi_mao_de_obra', 'bdi_pct_mao_de_obra', 'total_mao_de_obra',
+            'custo_equipamento', 'bdi_equipamento', 'bdi_pct_equipamento', 'total_equipamento',
+            'custo_outros', 'bdi_outros', 'bdi_pct_outros', 'total_outros',
+            'custo_administracao', 'bdi_administracao', 'bdi_pct_administracao', 'total_administracao',
+            'custo_total', 'bdi_total', 'bdi_pct_total', 'total_geral',
         ],
     ];
 

@@ -3368,3 +3368,60 @@ AppTrena/
   Testado com Playwright em tela de celular e API simulada: abrir sem
   internet, criar RDO com foto sem internet, reabrir o app, editar o
   rascunho, voltar a internet → 1 envio só, com a última versão.
+- 14/10/2026: Modelos de documentos (editor + PDF de contrato/proposta),
+  segunda rodada de pedidos do Lucas. Sem migration nem mudança de banco.
+  - **Cabeçalho do PDF** (`ContratoPdfController::construirCabecalhoPdf`):
+    mesmo padrão dos outros PDFs ("Gerado em" + logomarca do ComTrena à
+    direita). Logo da empresa e logomarca vão EMBUTIDAS em base64 — o
+    `headerTemplate` do Puppeteer não baixa nada por URL (era a "imagem do
+    cabeçalho com erro"); cópia da logomarca em
+    `controleobra-api/resources/marca/`. Por causa do base64, o Browsershot
+    usa `writeOptionsToFile()` (limite de 128KB por argumento no Linux).
+  - **Cabeçalho mínimo**: sem texto próprio, a folga abaixo da linha é
+    igual à de cima (`margem_cabecalho_mm`). Medido num PDF de teste: o
+    Chromium põe ~20px de `padding` no `#header`/`#footer` do template (o
+    cabeçalho começava 5,3mm abaixo da borda) — era isso que a antiga folga
+    de 4mm tentava cobrir. Agora o template zera esse padding
+    (`ESTILO_ZERA_TEMPLATE`) e a folga saiu: margem do PDF = altura medida,
+    exata. Geometria (fonte, entrelinha fixa 1,4, mm/pt) ESPELHADA no
+    editor (`contrato-modelo-editor.scss`: `.caixa-pagina`, `.previa-*`,
+    `.area-editavel-sincronizada`) — mexeu num, mexe no outro.
+  - **Editor**: cada folha é um bloco branco de tamanho fixo
+    (`.folha-bloco`), com linhas tracejadas no limite do cabeçalho/rodapé
+    e nas margens laterais; a faixa azul-clara acima do rodapé era o fundo
+    do espaçador entre folhas (saiu). O rodapé canônico mora na ÚLTIMA
+    folha; os outros são clones, e a barra de formatação age no clone
+    clicado. O papel timbrado aparece só na área do corpo — é onde o PDF
+    de verdade sempre pôs (`position: fixed` na impressão fica preso às
+    margens; testado, nem deslocamento negativo passa delas).
+  - **Editor = PDF** (conferido com o mesmo modelo nos dois, folha a
+    folha): o PDF passou a não partir parágrafo/título/item de lista no
+    meio (`break-inside: avoid`, o editor só quebra entre blocos) e o
+    editor zera a margem de cima do bloco que abre uma folha nova em quebra
+    automática (o Chromium faz isso). Parágrafo do editor passou a
+    justificado, como o PDF sempre foi.
+  - **Novidades na barra**: alinhar à direita, entrelinhas igual ao Word
+    (1,0 = `line-height` 1,2 × fonte; cada opção multiplica), linha de
+    assinatura (1, 2 lado a lado ou testemunhas), imagem (botão ou colar;
+    vai embutida no HTML do modelo, reduzida a 1600px; redimensiona pelas
+    alças, largura em % da coluna), fórmulas.
+  - **Fórmulas** `{{=...}}` (só no corpo — o cabeçalho/rodapé é montado no
+    servidor): mesmo parser das fórmulas dos campos numéricos
+    (`shared/numero/formula.ts`); resultado no formato das variáveis quando
+    todas têm o mesmo, senão número; `TEXTO()` = reais por extenso
+    (`shared/valor-por-extenso.ts`), `MOEDA()/NUMERO()/PERCENTUAL()`
+    forçam formato; erro sai em vermelho no PDF. Percentual entra na conta
+    como fração (0,25).
+  - **Proposta**: variáveis numéricas da EAP (custo direto, BDI R$, BDI %
+    efetivo e total com BDI, por categoria e no total —
+    `variaveisPropostaEap`). Tabela: uma coluna por categoria MARCADA na
+    EAP (lê o `ui` gravado da EAP) + Total, com Unit./Total empilhados e
+    linha TOTAL GERAL. As cores ficam só no modelo (painel "Tabela da EAP"
+    do editor, com prévia de dados de exemplo no lugar de
+    `{{tabela_eap}}`); o modal da EAP não mostra mais cores. Achado: a cor
+    do cabeçalho da tabela não aparecia porque o `th` global (`_base.scss`)
+    passava por cima — agora vai inline na célula.
+  - Testado com Playwright e API simulada (o Docker local estava fora:
+    disco C: cheio), cliques/teclado/arraste reais, e o PDF gerado pelo
+    mesmo `printToPDF` do Browsershot. O PHP não pôde ser rodado nem
+    passar pelo `php -l` nesta sessão — conferir no deploy.
