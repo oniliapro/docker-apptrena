@@ -54,6 +54,12 @@ export interface ContratoModelo {
   tag_anexo_id: string | null;
   /** Só `tipo === 'proposta'` (14/10/2026): padrão da tabela da EAP — ver `shared/proposta-eap.ts`. */
   config_proposta: ConfigProposta | null;
+  /**
+   * Estilos PRÓPRIOS deste modelo (15/10/2026, pedido do Lucas: "editar um
+   * estilo edita ele somente no contrato que foi editado"). `null` = modelo
+   * antigo, ainda sem cópia — usa os estilos da empresa até ser salvo de novo.
+   */
+  estilos: ContratoEstilo[] | null;
 }
 
 /** Resposta de `ApiService.gerarContratosEmLote` (30/09/2026) — ver `ContratoPdfController::gerarEAnexarEmLote`. */
@@ -79,6 +85,8 @@ export const VARIAVEIS_CONTRATO_MODELO: Record<TipoContratoModelo, readonly stri
     'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
     'responsavel_tecnico', 'crea', 'art',
     'cliente', 'empreiteiro', 'descricao_empreita', 'numero_empreita', 'valor', 'data',
+    'servicos_previstos', 'servicos_adicionais', 'servicos_todos',
+    'total_servicos_previstos', 'total_servicos_adicionais', 'total_servicos',
   ],
   obra: [
     'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
@@ -192,6 +200,15 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
     { chave: 'descricao_empreita', rotulo: 'Descrição' },
     // Soma calculada no navegador (relatório de pagamentos) — ver `ContratoPdfController::variaveisComuns`.
     { chave: 'valor', rotulo: 'Valor do contrato', soCorpo: true },
+    // 15/10/2026 — serviços da empreita filtrados por "adicional" da EAP. As
+    // listas saem uma linha por serviço ("Serviço 1 | descrição | R$ valor",
+    // "Aditivo 1 | …"); os totais são numéricos (entram em fórmula).
+    { chave: 'servicos_previstos', rotulo: 'Lista — serviços previstos', soCorpo: true },
+    { chave: 'servicos_adicionais', rotulo: 'Lista — serviços adicionais', soCorpo: true },
+    { chave: 'servicos_todos', rotulo: 'Lista — todos os serviços', soCorpo: true },
+    { chave: 'total_servicos_previstos', rotulo: 'Total dos previstos', soCorpo: true },
+    { chave: 'total_servicos_adicionais', rotulo: 'Total dos adicionais', soCorpo: true },
+    { chave: 'total_servicos', rotulo: 'Total de todos os serviços', soCorpo: true },
   ],
   /** `tabela_eap` é um BLOCO (a tabela da EAP inteira), não um texto — ver `shared/proposta-eap.ts`. */
   proposta: [{ chave: 'tabela_eap', rotulo: 'Tabela da EAP', soCorpo: true }, ...VARIAVEIS_EAP_PROPOSTA],

@@ -30,8 +30,17 @@ export interface VariavelNumerica {
   formato: FormatoVariavel;
 }
 
-/** Texto pronto (o caso de sempre) ou número com formato. */
-export type VariaveisModelo = Record<string, string | VariavelNumerica>;
+/**
+ * Trecho de HTML já pronto (lista de serviços da empreita, 15/10/2026) —
+ * entra no texto SEM escapar, então quem monta é responsável por escapar cada
+ * valor que colocar dentro dele. Não entra em fórmula.
+ */
+export interface VariavelHtml {
+  html: string;
+}
+
+/** Texto pronto (o caso de sempre), número com formato ou HTML pronto. */
+export type VariaveisModelo = Record<string, string | VariavelNumerica | VariavelHtml>;
 
 export function formatarValorVariavel(numero: number, formato: FormatoVariavel): string {
   switch (formato) {
@@ -109,20 +118,20 @@ export function calcularFormulaModelo(expressaoHtml: string, variaveis: Variavei
   const { funcao, corpo } = separarFuncaoDeFormato(textoDaFormula(expressaoHtml));
 
   // Nome de variável sem diferenciar maiúscula — `Total_Geral` acha `total_geral`.
-  const porNome = new Map<string, string | VariavelNumerica>();
+  const porNome = new Map<string, string | VariavelNumerica | VariavelHtml>();
   for (const [chave, valor] of Object.entries(variaveis)) porNome.set(chave.toLowerCase(), valor);
 
   const formatos = new Set<FormatoVariavel>();
   for (const nome of extrairNomes(corpo)) {
     const valor = porNome.get(nome.toLowerCase());
     if (valor === undefined) return { ok: false, erro: `variável desconhecida "${nome}"` };
-    if (typeof valor === 'string') return { ok: false, erro: `"${nome}" não é um número` };
+    if (typeof valor === 'string' || !('numero' in valor)) return { ok: false, erro: `"${nome}" não é um número` };
     formatos.add(valor.formato);
   }
 
   const resultado = avaliarFormula(corpo, undefined, (nome) => {
     const valor = porNome.get(nome.toLowerCase());
-    return valor !== undefined && typeof valor !== 'string' ? valor.numero : Number.NaN;
+    return valor !== undefined && typeof valor !== 'string' && 'numero' in valor ? valor.numero : Number.NaN;
   });
   if (!resultado.ok) return { ok: false, erro: resultado.erro ?? 'fórmula inválida' };
 
@@ -164,6 +173,8 @@ export function preencherModeloContrato(conteudo: string, variaveis: VariaveisMo
     .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (correspondencia, chave: string) => {
       if (!Object.prototype.hasOwnProperty.call(variaveis, chave)) return correspondencia;
       const valor = variaveis[chave];
-      return escaparHtml(typeof valor === 'string' ? valor : formatarValorVariavel(valor.numero, valor.formato));
+      if (typeof valor === 'string') return escaparHtml(valor);
+      if ('html' in valor) return valor.html;
+      return escaparHtml(formatarValorVariavel(valor.numero, valor.formato));
     });
 }

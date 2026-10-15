@@ -934,7 +934,14 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   });
 
   // ---- Estilos nomeados pelo usuário (30/09/2026: inclui os "padrão", semeados pelo backend) ----
-  protected readonly estilos = signal<ContratoEstilo[]>([]);
+  // Estilos PRÓPRIOS deste modelo (15/10/2026, pedido do Lucas: "editar um
+  // estilo edita ele somente no contrato que foi editado"). Antes eram da
+  // empresa (um conjunto só pra todos os modelos). A lista da empresa só
+  // serve de PONTO DE PARTIDA: modelo novo ou antigo (sem cópia) parte dela;
+  // a primeira mudança — e todo salvamento — grava a cópia no modelo.
+  private readonly estilosDaEmpresa = signal<ContratoEstilo[]>([]);
+  private readonly estilosProprios = signal<ContratoEstilo[] | null>(null);
+  protected readonly estilos = computed(() => this.estilosProprios() ?? this.estilosDaEmpresa());
   protected readonly estilosPadrao = computed(() => this.estilos().filter((e) => e.padrao));
   protected readonly estilosPersonalizados = computed(() => this.estilos().filter((e) => !e.padrao));
   protected readonly painelEstilosAberto = signal(false);
@@ -988,6 +995,8 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
         this.tipo.set(modelo.tipo);
         this.nome.set(modelo.nome);
         this.configProposta.set(normalizarConfigProposta(modelo.config_proposta));
+        // `null` = modelo antigo, ainda sem cópia: parte dos estilos da empresa.
+        this.estilosProprios.set(modelo.estilos?.length ? modelo.estilos : null);
         this.area.nativeElement.innerHTML = modelo.conteudo;
         if (modelo.tipo === 'proposta') this.converterMarcadoresEmPrevia(this.area.nativeElement);
 
@@ -1784,17 +1793,13 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
   // Painel "Gerenciar estilos".
   // ------------------------------------------------------------------
   private carregarEstilos(): void {
-    this.api.listarContratoEstilos().subscribe({
-      next: (lista) => {
-        this.estilos.set(lista);
-        this.atualizarFolhaEstilos();
-      },
-    });
+    this.api.listarContratoEstilos().subscribe({ next: (lista) => this.estilosDaEmpresa.set(lista) });
   }
 
-  private atualizarFolhaEstilos(): void {
+  /** O CSS dos estilos acompanha a lista do modelo — qualquer mudança nela regera a `<style>` da folha. */
+  private readonly efeitoFolhaEstilos = effect(() => {
     this.folhaEstilos.textContent = gerarCssEstilos(this.estilos());
-  }
+  });
 
   ngOnDestroy(): void {
     this.folhaEstilos.remove();
@@ -1848,8 +1853,14 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     }
 
     this.erroEstilo.set(null);
-    this.salvandoEstilo.set(true);
-    const dados = {
+
+    // Só na lista DESTE modelo (15/10/2026) — nada vai pra API aqui; grava
+    // junto com o modelo no "Salvar". O `id` entra na classe CSS do bloco
+    // (`estilo-<id>`), então uma edição mantém o id e o texto já formatado
+    // acompanha.
+    const existente = form.id ? this.estilos().find((e) => e.id === form.id) : undefined;
+    const estilo: ContratoEstilo = {
+      id: form.id ?? crypto.randomUUID(),
       nome,
       tag_html: form.tag_html,
       fonte: form.fonte.trim() || null,
@@ -1861,36 +1872,21 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       alinhamento: form.alinhamento,
       caixa_texto: form.caixa_texto,
       eh_lista: form.modo === 'lista',
-      // `undefined` (não `null`) de propósito quando não é lista — o
-      // backend PROÍBE esse campo pra estilos que não são lista avulsa
-      // (`Rule::prohibited`, que falha se o campo estiver PRESENTE, com
-      // qualquer valor); `JSON.stringify` remove chaves `undefined`, então
-      // o campo nem chega a ser enviado (bug real achado testando: mandar
-      // sempre `lista_formato` derrubava o salvamento de QUALQUER estilo
-      // não-lista com 422).
-      lista_formato: form.modo === 'lista' ? form.lista_formato : undefined,
+      lista_formato: form.lista_formato,
       nivel_titulo: form.modo === 'titulo' ? form.nivel_titulo : null,
       lista_prefixo: form.modo !== 'normal' ? form.lista_prefixo || null : null,
       lista_sufixo: form.modo !== 'normal' ? form.lista_sufixo || null : null,
+      padrao: existente?.padrao ?? false,
     };
-    const requisicao = form.id ? this.api.atualizarContratoEstilo(form.id, dados) : this.api.criarContratoEstilo(dados);
 
-    requisicao.subscribe({
-      next: () => {
-        this.salvandoEstilo.set(false);
-        this.estiloForm.set(estiloFormVazio());
-        this.carregarEstilos();
-      },
-      error: () => {
-        this.salvandoEstilo.set(false);
-        this.erroEstilo.set('Não foi possível salvar o estilo.');
-      },
-    });
+    const lista = this.estilos();
+    this.estilosProprios.set(form.id ? lista.map((e) => (e.id === form.id ? estilo : e)) : [...lista, estilo]);
+    this.estiloForm.set(estiloFormVazio());
   }
 
   protected excluirEstilo(estilo: ContratoEstilo): void {
-    if (!confirm(`Excluir o estilo "${estilo.nome}"? Textos já formatados com ele perdem a formatação.`)) return;
-    this.api.excluirContratoEstilo(estilo.id).subscribe({ next: () => this.carregarEstilos() });
+    if (!confirm(`Excluir o estilo "${estilo.nome}" deste modelo? Textos já formatados com ele perdem a formatação.`)) return;
+    this.estilosProprios.set(this.estilos().filter((e) => e.id !== estilo.id));
   }
 
   // ------------------------------------------------------------------
@@ -1941,6 +1937,9 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       timbrado_opacidade: this.timbradoOpacidade(),
       tag_anexo_id: this.tagAnexoId() || null,
       config_proposta: this.tipo() === 'proposta' ? this.configProposta() : null,
+      // Cópia dos estilos DESTE modelo (15/10/2026) — grava sempre, assim o modelo
+      // nunca mais depende dos estilos da empresa nem de outro modelo.
+      estilos: this.estilos().length ? this.estilos() : null,
     };
     const idAtual = this.contratoModeloId();
     const requisicao = idAtual ? this.api.atualizarContratoModelo(idAtual, dados) : this.api.criarContratoModelo(dados);

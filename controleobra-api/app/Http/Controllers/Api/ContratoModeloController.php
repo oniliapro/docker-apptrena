@@ -32,6 +32,10 @@ class ContratoModeloController extends Controller
             'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
             'responsavel_tecnico', 'crea', 'art',
             'cliente', 'empreiteiro', 'descricao_empreita', 'numero_empreita', 'valor', 'data',
+            // 15/10/2026 — listas e totais dos serviços da empreita (previstos
+            // x adicionais), calculados pela tela de impressão. Só no corpo.
+            'servicos_previstos', 'servicos_adicionais', 'servicos_todos',
+            'total_servicos_previstos', 'total_servicos_adicionais', 'total_servicos',
         ],
         'obra' => [
             'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
@@ -130,6 +134,28 @@ class ContratoModeloController extends Controller
     {
         return $request->validate([
             ...self::regrasConfigProposta('config_proposta'),
+            // Estilos PRÓPRIOS do modelo (15/10/2026) — mesmas regras do
+            // `ContratoEstiloController`, por item da lista. O `id` vira
+            // parte de uma classe CSS (`estilo-<id>`), por isso só
+            // letras/números/hífen.
+            'estilos' => 'nullable|array|max:200',
+            'estilos.*.id' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9-]+$/'],
+            'estilos.*.nome' => 'required|string|max:60',
+            'estilos.*.tag_html' => ['required', Rule::in(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'])],
+            'estilos.*.fonte' => 'nullable|string|max:60',
+            'estilos.*.tamanho_pt' => 'nullable|integer|min:1|max:200',
+            'estilos.*.cor' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'estilos.*.negrito' => 'nullable|boolean',
+            'estilos.*.italico' => 'nullable|boolean',
+            'estilos.*.sublinhado' => 'nullable|boolean',
+            'estilos.*.alinhamento' => ['required', Rule::in(['esquerda', 'centro', 'direita', 'justificado'])],
+            'estilos.*.caixa_texto' => ['nullable', Rule::in(['nenhuma', 'maiuscula', 'primeira_maiuscula', 'cada_palavra'])],
+            'estilos.*.eh_lista' => 'nullable|boolean',
+            'estilos.*.lista_formato' => ['nullable', Rule::in(['numero', 'romano_minusculo', 'romano_maiusculo', 'letra_minuscula', 'letra_maiuscula'])],
+            'estilos.*.nivel_titulo' => 'nullable|integer|min:1|max:7',
+            'estilos.*.lista_prefixo' => 'nullable|string|max:40',
+            'estilos.*.lista_sufixo' => 'nullable|string|max:10',
+            'estilos.*.padrao' => 'nullable|boolean',
             'tipo' => ['required', Rule::in(['empreita', 'obra', 'proposta'])],
             'nome' => 'required|string|max:150',
             'conteudo' => 'required|string',

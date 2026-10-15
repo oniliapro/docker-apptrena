@@ -3425,3 +3425,25 @@ AppTrena/
     disco C: cheio), cliques/teclado/arraste reais, e o PDF gerado pelo
     mesmo `printToPDF` do Browsershot. O PHP não pôde ser rodado nem
     passar pelo `php -l` nesta sessão — conferir no deploy.
+- 15/10/2026: Modelos de documentos — estilos por modelo e serviços da
+  empreita. **Tem migration** (`2026_10_15_000000_add_estilos_a_contrato_modelos`,
+  coluna JSON `estilos` em `contrato_modelos`).
+  - **Estilos são do MODELO, não da empresa**: antes `contrato_estilos`
+    valia pra todos os modelos (mudar o "Título 1" num contrato mudava em
+    todos). Agora cada modelo guarda a cópia dele em `estilos` (JSON), com
+    os mesmos ids (a classe `.estilo-<id>` do texto continua batendo).
+    Editar/criar/excluir estilo no editor é local ao modelo e grava no
+    "Salvar" do modelo; o PDF usa `modelo.estilos`. Modelo antigo
+    (`estilos = null`) ainda usa os da empresa até ser salvo uma vez; modelo
+    novo parte da lista da empresa como ponto de partida. As rotas de
+    `contrato-estilos` continuam existindo (semeiam/servem a lista inicial),
+    mas o editor não as altera mais.
+  - **Empreita — serviços filtrados** (só no corpo): `servicos_previstos`,
+    `servicos_adicionais`, `servicos_todos` (uma linha por serviço:
+    "Serviço N | descrição | R$ valor"; adicionais saem como "Aditivo N") e
+    `total_servicos_previstos`, `total_servicos_adicionais`,
+    `total_servicos` (numéricos, entram em `{{=...}}`/`TEXTO()`).
+    "Adicional" = marca da etapa da EAP; serviço sem etapa vinculada conta
+    como adicional (mesma convenção da mensagem de pagamento). Valor do
+    serviço = Empreiteiro + Reserva, igual à variável `valor` — os totais
+    fecham com ela. Serve também pra montar um modelo de aditivo.

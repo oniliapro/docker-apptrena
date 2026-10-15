@@ -3,12 +3,17 @@ import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { forkJoin } from 'rxjs';
 
-import { Empreita, Obra, PerfilEmpresa } from '../../core/models/api.models';
+import { EapPayload, Empreita, Obra, PerfilEmpresa } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { formatarData } from '../../core/utils/formato';
+import { formatarData, formatarMoeda } from '../../core/utils/formato';
 import { gerarCssEstilos } from '../../shared/contrato-estilo-css';
-import { VariaveisModelo, preencherModeloContrato } from '../../shared/contrato-modelo-render';
+import {
+  VariaveisModelo,
+  VariavelHtml,
+  VariavelNumerica,
+  preencherModeloContrato,
+} from '../../shared/contrato-modelo-render';
 import {
   CategoriaProposta,
   ConfigProposta,
@@ -280,6 +285,8 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         }
 
         this.modeloAtual.set(modelo);
+        // Estilos PRÓPRIOS do modelo (15/10/2026); modelo antigo ainda sem cópia usa os da empresa.
+        this.folhaEstilos.textContent = gerarCssEstilos(modelo.estilos?.length ? modelo.estilos : estilos);
         this.eap.carregar(this.obraId());
         this.contextoProposta.set({ modelo, variaveis, config: normalizarConfigProposta(bruto) });
       },
@@ -300,10 +307,12 @@ export class ContratoImprimir implements OnInit, OnDestroy {
       obra: this.api.obterObra(this.obraId()),
       empreita: this.api.obterEmpreita(this.empreitaId()),
       resumo: this.api.obterResumoContratoEmpreitas(this.obraId()),
+      // Precisa do "adicional" de cada etapa (15/10/2026) pras listas de serviços previstos x adicionais.
+      eap: this.api.obterEap(this.obraId()),
       modelos: this.api.listarContratoModelos('empreita'),
       estilos: this.api.listarContratoEstilos(),
     }).subscribe({
-      next: ({ perfil, obra, empreita, resumo, modelos, estilos }) => {
+      next: ({ perfil, obra, empreita, resumo, eap, modelos, estilos }) => {
         this.perfilEmpresa.set(perfil);
         this.folhaEstilos.textContent = gerarCssEstilos(estilos);
 
@@ -321,8 +330,11 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         variaveis['numero_empreita'] = String(empreita['numero_empreita'] ?? '');
         // Numérica (14/10/2026): aparece igual (R$ …) e entra em fórmula — `{{=TEXTO(valor)}}` é o valor por extenso.
         variaveis['valor'] = { numero: valor, formato: 'moeda' };
+        Object.assign(variaveis, this.variaveisServicosEmpreita(empreita, eap));
 
         this.modeloAtual.set(modelo);
+        // Estilos PRÓPRIOS do modelo (15/10/2026); modelo antigo ainda sem cópia usa os da empresa.
+        this.folhaEstilos.textContent = gerarCssEstilos(modelo.estilos?.length ? modelo.estilos : estilos);
         this.conteudoPreenchido.set(
           this.sanitizer.bypassSecurityTrustHtml(preencherModeloContrato(modelo.conteudo, variaveis)),
         );
@@ -358,6 +370,8 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         variaveis['local_obra'] = String(obra.local_obra ?? '');
 
         this.modeloAtual.set(modelo);
+        // Estilos PRÓPRIOS do modelo (15/10/2026); modelo antigo ainda sem cópia usa os da empresa.
+        this.folhaEstilos.textContent = gerarCssEstilos(modelo.estilos?.length ? modelo.estilos : estilos);
         this.conteudoPreenchido.set(
           this.sanitizer.bypassSecurityTrustHtml(preencherModeloContrato(modelo.conteudo, variaveis)),
         );
@@ -368,6 +382,54 @@ export class ContratoImprimir implements OnInit, OnDestroy {
         this.carregando.set(false);
       },
     });
+  }
+
+  /**
+   * Serviços da empreita separados em PREVISTOS x ADICIONAIS (15/10/2026,
+   * pedido do Lucas: "listar somente os itens que não são adicionais, ou
+   * somente os adicionais... e obter o total dos itens filtrados" — dá pra
+   * escrever o contrato do empreiteiro e também um aditivo). "Adicional" é a
+   * marca da etapa da EAP (`ItemEap.adicional`); serviço sem etapa vinculada
+   * conta como adicional, igual à mensagem de solicitação de pagamento
+   * ("Serviços não previstos"). Valor do serviço = Empreiteiro + Reserva, a
+   * mesma conta da variável `valor` — a soma dos três totais fecha com ela.
+   */
+  private variaveisServicosEmpreita(empreita: Empreita, eap: EapPayload): VariaveisModelo {
+    const adicionalPorEtapa = new Map<string, boolean>();
+    for (const item of (eap.eapItems ?? []) as Array<Record<string, unknown>>) {
+      adicionalPorEtapa.set(String(item['id']), item['adicional'] === true);
+    }
+
+    const itens = (Array.isArray(empreita['itens']) ? empreita['itens'] : []) as Array<Record<string, unknown>>;
+    const servicos = itens.map((item) => {
+      const etapa = item['eap_item_id'] ? String(item['eap_item_id']) : '';
+      return {
+        desc: String(item['descricao'] ?? '').trim(),
+        valor: (Number(item['contrato_emp']) || 0) + (Number(item['contrato_reserva']) || 0),
+        adicional: etapa ? (adicionalPorEtapa.get(etapa) ?? false) : true,
+      };
+    });
+
+    const escapar = (texto: string) => texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lista = (linhas: typeof servicos, rotulo: string): VariavelHtml => ({
+      html: linhas.map((s, i) => `${rotulo} ${i + 1} | ${escapar(s.desc || '—')} | ${formatarMoeda(s.valor)}`).join('<br>'),
+    });
+    const total = (linhas: typeof servicos): VariavelNumerica => ({
+      numero: linhas.reduce((soma, s) => soma + s.valor, 0),
+      formato: 'moeda',
+    });
+
+    const previstos = servicos.filter((s) => !s.adicional);
+    const adicionais = servicos.filter((s) => s.adicional);
+
+    return {
+      servicos_previstos: lista(previstos, 'Serviço'),
+      servicos_adicionais: lista(adicionais, 'Aditivo'),
+      servicos_todos: lista(servicos, 'Serviço'),
+      total_servicos_previstos: total(previstos),
+      total_servicos_adicionais: total(adicionais),
+      total_servicos: total(servicos),
+    };
   }
 
   /** Soma Empreiteiro + Reserva de todos os itens desta empreita, no mesmo `resumo` já usado pela aba/lista de Empreitas. */
