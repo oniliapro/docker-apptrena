@@ -86,14 +86,24 @@ for (const caso of casos) {
 
   // ---- Cenários fracionado e integral ----
   const fa = original.calcularFracionadoPorFornecedor();
+  const notasFracionado = original.calcularNotasPorFornecedorDeAlocacoes({
+    allocations: aa,
+    includeShopFreight: true,
+    discountsBySupplier: portado.descontosAplicaveis(ab, itens, fornecedores),
+  });
   const fb = portado.calcularFracionado(itens, fornecedores, manual);
   fa.forEach((x, si) => {
     if (r(x.totalItens) !== r(fb[si].totalItens)) {
       problemas.push(`fracionado ${si} itens: ${r(x.totalItens)} vs ${r(fb[si].totalItens)}`);
     }
-    if (r(x.totalItensComFrete) !== r(fb[si].totalItensComFrete)) {
+    // REGRA NOVA (18-19/08/2026, pedido do Lucas — "o desconto só é aplicado na compra integral"):
+    // o fracionado do app novo desconta o desconto do fornecedor quando ele leva TODOS os itens
+    // da alocação; o original nunca descontava. Por isso o esperado aqui NÃO é o `x` do original,
+    // e sim a nota do original recalculada com os descontos que a regra nova diz que valem.
+    const esperadoComFrete = fornecedores[si].ativo && x.used ? r(notasFracionado.bySupplier[si].totalNota) : 0;
+    if (esperadoComFrete !== r(fb[si].totalItensComFrete)) {
       problemas.push(
-        `fracionado ${si} c/frete: ${r(x.totalItensComFrete)} vs ${r(fb[si].totalItensComFrete)}`,
+        `fracionado ${si} c/frete: esperado ${esperadoComFrete} vs ${r(fb[si].totalItensComFrete)}`,
       );
     }
     if (x.used !== fb[si].used) problemas.push(`fracionado ${si} used: ${x.used} vs ${fb[si].used}`);

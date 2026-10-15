@@ -6,6 +6,7 @@ export {
   calcularIntegral,
   calcularNotasPorFornecedor,
   calcularTotalItem,
+  descontosAplicaveis,
   obterAlocacoes,
   obterAlocacoesAutomaticas,
   obterTaxaImposto,

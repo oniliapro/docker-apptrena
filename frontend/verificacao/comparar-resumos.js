@@ -72,27 +72,58 @@ for (const caso of casos.redistribuicoes) {
   );
 }
 
-// ---- 3) Frete particular entre fornecedores ----
-console.log('\n--- frete particular entre fornecedores ---');
-for (const caso of casos.freteParticular) {
-  const base = {};
-  for (const [k, v] of Object.entries(caso.base)) base[Number(k)] = Number(v);
+// ---- 3) Frete particular entre ETAPAS ----
+// O app antigo repartia o frete particular entre FORNECEDORES, com percentual editável. Desde 17/08/2026
+// (pedido do Lucas) o freteiro entra no rateio "como se fosse um fornecedor" e é sempre proporcional ao
+// que cada etapa representa no mapa — por isso não há mais o que comparar com o original: a asserção
+// é direta (cada etapa recebe frete × total da etapa / total geral, e a soma fecha com o frete).
+console.log('\n--- frete particular entre etapas (asserção direta) ---');
+const casosFrete = [
+  {
+    nome: 'duas etapas, sem imposto',
+    frete: 1000,
+    fornecedores: [{ nome: 'F1', ativo: true, imposto: 0, frete: 0, desconto: 0 }],
+    itens: [
+      { desc: 'A', qtde: 10, unit: [100], etapas: [{ eapId: 'E1', valor: 100 }] },
+      { desc: 'B', qtde: 5, unit: [200], etapas: [{ eapId: 'E2', valor: 100 }] },
+    ],
+    esperado: { E1: 500, E2: 500 },
+  },
+  {
+    nome: 'item dividido 60/40 entre etapas, com imposto de 10%',
+    frete: 330,
+    fornecedores: [{ nome: 'F1', ativo: true, imposto: 10, frete: 0, desconto: 0 }],
+    itens: [{ desc: 'A', qtde: 10, unit: [100], etapas: [{ eapId: 'E1', valor: 60 }, { eapId: 'E2', valor: 40 }] }],
+    esperado: { E1: 198, E2: 132 },
+  },
+  {
+    nome: 'item sem etapa cai em "Sem etapa"',
+    frete: 80,
+    fornecedores: [{ nome: 'F1', ativo: true, imposto: 0, frete: 0, desconto: 0 }],
+    itens: [{ desc: 'A', qtde: 1, unit: [50] }],
+    esperado: { 'Sem etapa': 80 },
+  },
+  {
+    nome: 'total zero: nada a ratear',
+    frete: 500,
+    fornecedores: [{ nome: 'F1', ativo: true, imposto: 0, frete: 0, desconto: 0 }],
+    itens: [{ desc: 'A', qtde: 0, unit: [100], etapas: [{ eapId: 'E1', valor: 100 }] }],
+    esperado: {},
+  },
+];
 
-  const estado = { privateFretePctBySupplier: {} };
-  original.redistribuirPercentuaisFreteParticular({
-    usados: caso.usados,
-    basePorFornecedor: base,
-    estado,
-  });
-
-  const a = rv(estado.privateFretePctBySupplier);
-  const b = rv(portado.redistribuirFreteParticular(caso.usados, base));
-
-  const ok = igual(a, b);
+for (const caso of casosFrete) {
+  const alocacoes = caso.itens.map((_, itemIndex) => ({ itemIndex, supplierIndex: 0 }));
+  const mapa = portado.ratearFreteiro(caso.itens, caso.fornecedores, alocacoes, caso.frete);
+  const b = rv(Object.fromEntries(mapa));
+  const a = rv(caso.esperado);
+  const soma = Object.values(b).reduce((x, y) => x + y, 0);
+  const somaOk = Object.keys(caso.esperado).length === 0 || r(soma) === r(caso.frete);
+  const ok = igual(a, b) && somaOk;
   if (!ok) falhas++;
   console.log(
-    `${ok ? 'OK  ' : 'FALHA'} | ${caso.nome}\n        ${JSON.stringify(a)}` +
-      (ok ? '' : `\n        portado: ${JSON.stringify(b)}`),
+    `${ok ? 'OK  ' : 'FALHA'} | ${caso.nome}\n        ${JSON.stringify(b)} (soma ${r(soma)})` +
+      (ok ? '' : `\n        esperado: ${JSON.stringify(a)}`),
   );
 }
 

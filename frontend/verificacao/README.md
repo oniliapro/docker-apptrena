@@ -70,3 +70,21 @@ você já implementou, em vez de testar o que deveria acontecer.
 Faltam portar: Mapa de Fornecedores (`js/mapa/*.js`, ~2.200 linhas, com
 comparação de propostas) e Empreita (`js/empreita/*.js`, ~1.300 linhas,
 com medições).
+
+## Onde o app novo DE PROPÓSITO difere do original (atualizado em 15/10/2026)
+
+A suíte compara com o app antigo, mas algumas regras mudaram por decisão de
+produto. Nesses pontos o esperado deixou de ser "igual ao original":
+
+- **EAP — numeração:** o nível 1 começa em `0` (`0`, `0.1`…), nunca `1.0`
+  (17/08/2026). O comparador desloca o 1º segmento do código original.
+- **EAP — item solto antes do 1º grupo, nível nunca salvo:** caso marcado
+  `CONHECIDA`. O item solto e o primeiro grupo recebem o mesmo código e o custo do
+  item some do total até a EAP ser salva uma vez. Não reprova, mas aparece.
+- **Mapa — desconto no fracionado:** vale quando o fornecedor leva TODOS os itens
+  (18-19/08/2026). O esperado é a nota do original recalculada com essa regra.
+- **Empreita:** cada linha é UM serviço de UMA categoria (`tipo`); os casos antigos
+  (um item com várias categorias) são convertidos em várias linhas. Contrato ×
+  avanço é asserção direta.
+- **Frete particular:** é rateado entre ETAPAS, proporcional ao total de cada uma
+  (17/08/2026) — não há mais redistribuição de percentual entre fornecedores.

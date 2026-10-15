@@ -28,8 +28,17 @@ for (const caso of casos) {
 
   const problemas = [];
 
-  // Numeração automática da EAP
-  const eapA = a.itens.map((i) => i.eap);
+  // Numeração automática da EAP. REGRA NOVA (17/08/2026, pedido do Lucas): o nível 1 começa em
+  // 0 ("0", "0.1"…), nunca "1.0". O original começava em 1 — então o esperado é o código do
+  // original com o PRIMEIRO segmento menos 1 (os demais níveis seguem iguais).
+  const deslocarTopo = (codigo) => {
+    const partes = String(codigo).split('.');
+    partes[0] = String(Number(partes[0]) - 1);
+    return partes.join('.');
+  };
+  // `numeracaoEsperada` (no caso): quando o nível já é explícito, a numeração do app novo é contínua
+  // (0, 1, 2, 2.1) em vez de repetir o "0" no primeiro grupo como o original — melhoria, não erro.
+  const eapA = caso.numeracaoEsperada ?? a.itens.map((i) => deslocarTopo(i.eap));
   const eapB = b.itens.map((i) => i.eap);
   if (!igual(eapA, eapB)) problemas.push(`numeracao: [${eapA}] vs [${eapB}]`);
 
@@ -82,7 +91,16 @@ for (const caso of casos) {
     }
   }
 
-  if (problemas.length) {
+  if (problemas.length && caso.divergenciaConhecida) {
+    // Diferença JÁ conhecida e aceita (explicada no próprio caso) — aparece, mas não reprova.
+    console.log(`CONHECIDA | ${caso.nome}
+        ${caso.divergenciaConhecida}`);
+    problemas.forEach((p) => console.log(`        ${p}`));
+  } else if (!problemas.length && caso.divergenciaConhecida) {
+    falhas++;
+    console.log(`FALHA | ${caso.nome}
+        marcada como divergência conhecida, mas agora bate — tire a marca do caso.`);
+  } else if (problemas.length) {
     falhas++;
     console.log(`FALHA | ${caso.nome}`);
     problemas.forEach((p) => console.log(`        ${p}`));

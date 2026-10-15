@@ -59,15 +59,41 @@ for (const caso of casos) {
   const cabecalhoEap = caso.cabecalhoEap || null;
 
   original.definirEstado(snapshot, itens, cabecalho, cabecalhoEap);
-  const b = portado.preparar(eapB, itens, cabecalho, cabecalhoEap);
+
+  // Os casos guardam o formato ANTIGO (um item com contrato/medição de várias categorias). O motor
+  // novo trabalha com UMA linha por categoria — converte: uma linha nova para cada categoria que
+  // aparece no item (contrato OU medição).
+  const linhasNovas = [];
+  itens.forEach((item, idx) => {
+    const emp = item.contratoEmpPorTipo || {};
+    const reserva = item.contratoReservaPorTipo || {};
+    const acum = item.medicaoAcumByType || {};
+    const atual = item.medicaoAtualByType || {};
+    const tipos = [...new Set([...Object.keys(emp), ...Object.keys(reserva), ...Object.keys(acum), ...Object.keys(atual)])];
+    for (const tipo of tipos) {
+      linhasNovas.push({
+        origem: idx,
+        tipo,
+        item: {
+          id: `${item.id}-${tipo}`,
+          descricao: item.desc,
+          eapId: item.eapId,
+          tipo,
+          contratoEmp: Number(emp[tipo]) || 0,
+          contratoReserva: Number(reserva[tipo]) || 0,
+          medicaoAcum: acum[tipo] === undefined ? 0 : acum[tipo],
+          // `null`/ausente = "em branco" (herda o acumulado), igual ao original.
+          medicaoAtual: atual[tipo] === undefined ? null : atual[tipo],
+        },
+      });
+    }
+  });
+
+  const b = portado.preparar(eapB, linhasNovas.map((l) => l.item), cabecalhoEap);
 
   const problemas = [];
 
-  // Categorias consideradas
-  const tiposA = original.obterTiposIncluidos();
-  if (!igual(tiposA, b.tipos)) problemas.push(`tipos: [${tiposA}] vs [${b.tipos}]`);
-
-  // Orçado por id — a base de toda a distribuição
+  // Orçado por id — a base de toda a distribuição (ainda comparado com o original).
   for (const item of snapshot) {
     const oa = original.obterOrcadoEapPorId(item.id);
     const ob = b.orcado.get(item.id);
@@ -84,93 +110,72 @@ for (const caso of casos) {
     }
   }
 
-  // Linha a linha — só o que a task #45 NÃO mudou é comparado com o original.
-  itens.forEach((item, idx) => {
-    const la = original.calcularLinhaEmpreita(item);
-    const lb = b.linhas[idx];
+  // Medição/avanço: o original calcula por item (várias categorias); aqui cada categoria vira uma linha.
+  // Orçado e avanço ainda são comparados com o original; contrato × avanço é asserção direta (o original
+  // nunca leu o contrato lançado por categoria).
+  let somaEmp = 0;
+  let somaReserva = 0;
+  let somaPagar = 0;
+  let somaReservar = 0;
+  let somaOrcado = 0;
 
-    // Orçado e medição/avanço: lógica intocada, ainda tem que bater com o original.
-    if (r(la.orcadoTotal) !== r(lb.orcadoTotal)) {
-      problemas.push(`linha ${idx} orcadoTotal: ${r(la.orcadoTotal)} vs ${r(lb.orcadoTotal)}`);
-    }
-    if (!igual(rv(la.orcadoPorTipo), rv(lb.orcadoPorTipo))) {
-      problemas.push(`linha ${idx} orcadoPorTipo diverge do original`);
-    }
-    if (la.temAvanco !== lb.temAvanco) {
-      problemas.push(`linha ${idx} temAvanco: ${la.temAvanco} vs ${lb.temAvanco}`);
-    }
-    if (la.reducaoInvalida !== lb.reducaoInvalida) {
-      problemas.push(`linha ${idx} reducaoInvalida: ${la.reducaoInvalida} vs ${lb.reducaoInvalida}`);
-    }
-    if (!igual(la.tiposInvalidos, lb.tiposInvalidos)) {
-      problemas.push(`linha ${idx} tiposInvalidos: [${la.tiposInvalidos}] vs [${lb.tiposInvalidos}]`);
-    }
-    const mapasMedicao = ['acumuladoPorTipo', 'atualPorTipo', 'avancoPorTipo'];
-    for (const k of mapasMedicao) {
-      if (!igual(rv(la[k]), rv(lb[k]))) {
-        problemas.push(`linha ${idx} ${k}: ${JSON.stringify(rv(la[k]))} vs ${JSON.stringify(rv(lb[k]))}`);
-      }
-    }
+  linhasNovas.forEach((nova, i) => {
+    const lb = b.linhas[i];
+    const la = original.calcularLinhaEmpreita(itens[nova.origem]);
+    const t = nova.tipo;
+    const rotulo = `linha ${nova.origem}/${t}`;
 
-    // Contrato por categoria (task #45): não compara com o original — o
-    // original nunca leu contratoEmpPorTipo/contratoReservaPorTipo, sempre
-    // distribuiu pelo orçado. Aqui a asserção é direta: pagar/reservar de
-    // cada categoria = contrato lançado naquela categoria × avanço%, sem
-    // qualquer participação do orçado.
-    const item45 = itens[idx];
-    const empPorTipo = item45.contratoEmpPorTipo || {};
-    const reservaPorTipo = item45.contratoReservaPorTipo || {};
-    let somaEmp = 0;
-    let somaReserva = 0;
-    let somaPagar = 0;
-    let somaReservar = 0;
-    for (const k of lb.tipos) {
-      const emp = Number(empPorTipo[k]) || 0;
-      const reserva = Number(reservaPorTipo[k]) || 0;
-      const avanco = Number(lb.avancoPorTipo[k]) || 0;
-      somaEmp += emp;
-      somaReserva += reserva;
-
-      const pagarEsperado = emp * (avanco / 100);
-      const reservarEsperado = reserva * (avanco / 100);
-      somaPagar += pagarEsperado;
-      somaReservar += reservarEsperado;
-
-      if (r(lb.contratoPorTipo[k]) !== r(emp + reserva)) {
-        problemas.push(`linha ${idx} contratoPorTipo[${k}]: esperado ${r(emp + reserva)}, veio ${r(lb.contratoPorTipo[k])}`);
-      }
-      if (r(lb.pagarPorTipo[k]) !== r(pagarEsperado)) {
-        problemas.push(`linha ${idx} pagarPorTipo[${k}]: esperado ${r(pagarEsperado)} (contrato ${emp} × avanço ${avanco}%), veio ${r(lb.pagarPorTipo[k])}`);
-      }
-      if (r(lb.reservarPorTipo[k]) !== r(reservarEsperado)) {
-        problemas.push(`linha ${idx} reservarPorTipo[${k}]: esperado ${r(reservarEsperado)}, veio ${r(lb.reservarPorTipo[k])}`);
-      }
+    if (r(la.orcadoPorTipo[t]) !== r(lb.orcado)) {
+      problemas.push(`${rotulo} orcado: ${r(la.orcadoPorTipo[t])} vs ${r(lb.orcado)}`);
+    }
+    if (r(la.acumuladoPorTipo[t]) !== r(lb.acumulado)) {
+      problemas.push(`${rotulo} acumulado: ${r(la.acumuladoPorTipo[t])} vs ${r(lb.acumulado)}`);
+    }
+    if (r(la.atualPorTipo[t]) !== r(lb.atual)) {
+      problemas.push(`${rotulo} atual: ${r(la.atualPorTipo[t])} vs ${r(lb.atual)}`);
+    }
+    if (r(la.avancoPorTipo[t]) !== r(lb.avanco)) {
+      problemas.push(`${rotulo} avanco: ${r(la.avancoPorTipo[t])} vs ${r(lb.avanco)}`);
     }
 
-    if (r(lb.valorEmp) !== r(somaEmp)) problemas.push(`linha ${idx} valorEmp: esperado soma ${r(somaEmp)}, veio ${r(lb.valorEmp)}`);
-    if (r(lb.valorReserva) !== r(somaReserva)) problemas.push(`linha ${idx} valorReserva: esperado soma ${r(somaReserva)}, veio ${r(lb.valorReserva)}`);
-    if (r(lb.valorTotal) !== r(somaEmp + somaReserva)) problemas.push(`linha ${idx} valorTotal: esperado ${r(somaEmp + somaReserva)}, veio ${r(lb.valorTotal)}`);
-    if (r(lb.pagarEmp) !== r(somaPagar)) problemas.push(`linha ${idx} pagarEmp: esperado ${r(somaPagar)}, veio ${r(lb.pagarEmp)}`);
-    if (r(lb.reservarPgto) !== r(somaReservar)) problemas.push(`linha ${idx} reservarPgto: esperado ${r(somaReservar)}, veio ${r(lb.reservarPgto)}`);
-    if (r(lb.totalPeriodo) !== r(somaPagar + somaReservar)) problemas.push(`linha ${idx} totalPeriodo: esperado ${r(somaPagar + somaReservar)}, veio ${r(lb.totalPeriodo)}`);
+    const emp = nova.item.contratoEmp;
+    const reserva = nova.item.contratoReserva;
+    const pagarEsperado = emp * (lb.avanco / 100);
+    const reservarEsperado = reserva * (lb.avanco / 100);
+    if (r(lb.contrato) !== r(emp + reserva)) problemas.push(`${rotulo} contrato: esperado ${r(emp + reserva)}, veio ${r(lb.contrato)}`);
+    if (r(lb.pagar) !== r(pagarEsperado)) problemas.push(`${rotulo} pagar: esperado ${r(pagarEsperado)} (contrato ${emp} × avanço ${r(lb.avanco)}%), veio ${r(lb.pagar)}`);
+    if (r(lb.reservar) !== r(reservarEsperado)) problemas.push(`${rotulo} reservar: esperado ${r(reservarEsperado)}, veio ${r(lb.reservar)}`);
+    if (r(lb.totalPeriodo) !== r(pagarEsperado + reservarEsperado)) problemas.push(`${rotulo} totalPeriodo: esperado ${r(pagarEsperado + reservarEsperado)}, veio ${r(lb.totalPeriodo)}`);
+
+    somaEmp += emp;
+    somaReserva += reserva;
+    somaPagar += pagarEsperado;
+    somaReservar += reservarEsperado;
+    somaOrcado += lb.orcado;
   });
 
-  // Totais consolidados: conferência de soma (não é mais comparação com o
-  // original, pelo mesmo motivo da task #45 acima).
-  const totaisEsperados = b.linhas.reduce(
-    (acc, l) => ({
-      orcadoTotal: acc.orcadoTotal + l.orcadoTotal,
-      valorEmp: acc.valorEmp + l.valorEmp,
-      valorReserva: acc.valorReserva + l.valorReserva,
-      valorTotal: acc.valorTotal + l.valorTotal,
-      pagarEmp: acc.pagarEmp + l.pagarEmp,
-      reservarPgto: acc.reservarPgto + l.reservarPgto,
-      totalPeriodo: acc.totalPeriodo + l.totalPeriodo,
-    }),
-    { orcadoTotal: 0, valorEmp: 0, valorReserva: 0, valorTotal: 0, pagarEmp: 0, reservarPgto: 0, totalPeriodo: 0 },
-  );
-  if (!igual(rv(totaisEsperados), rv(b.totais))) {
-    problemas.push(`totais: esperado soma das linhas ${JSON.stringify(rv(totaisEsperados))}, veio ${JSON.stringify(rv(b.totais))}`);
+  // Retrocesso (medição atual menor que a acumulada) continua marcado como inválido, por item do original.
+  itens.forEach((item, idx) => {
+    const la = original.calcularLinhaEmpreita(item);
+    const novas = linhasNovas.map((l, i) => ({ l, lb: b.linhas[i] })).filter(({ l }) => l.origem === idx);
+    const reducaoNova = novas.some(({ lb }) => lb.reducaoInvalida);
+    if (Boolean(la.reducaoInvalida) !== reducaoNova) {
+      problemas.push(`linha ${idx} reducaoInvalida: ${la.reducaoInvalida} vs ${reducaoNova}`);
+    }
+  });
+
+  // Totais consolidados: soma das linhas.
+  const esperado = {
+    orcadoTotal: r(somaOrcado),
+    valorEmp: r(somaEmp),
+    valorReserva: r(somaReserva),
+    valorTotal: r(somaEmp + somaReserva),
+    pagarEmp: r(somaPagar),
+    reservarPgto: r(somaReservar),
+    totalPeriodo: r(somaPagar + somaReservar),
+  };
+  if (!igual(esperado, rv(b.totais))) {
+    problemas.push(`totais: esperado soma das linhas ${JSON.stringify(esperado)}, veio ${JSON.stringify(rv(b.totais))}`);
   }
 
   if (problemas.length) {
