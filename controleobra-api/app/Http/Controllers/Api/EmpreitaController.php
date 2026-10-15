@@ -332,7 +332,7 @@ class EmpreitaController extends Controller
             return;
         }
 
-        $hoje = now()->startOfDay();
+        $hoje = \App\Support\Fuso::hoje();
         $evento = AgendaEvento::create([
             'empresa_id' => $usuario->empresa_id,
             'obra_id' => $empreita->obra_id,
@@ -378,7 +378,7 @@ class EmpreitaController extends Controller
             return;
         }
 
-        $hoje = now()->startOfDay();
+        $hoje = \App\Support\Fuso::hoje();
         AgendaEvento::create([
             'empresa_id' => $usuario->empresa_id,
             'obra_id' => $empreita->obra_id,

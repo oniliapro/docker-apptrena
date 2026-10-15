@@ -29,7 +29,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permissaoModulo' => \App\Http\Middleware\PermissaoModulo::class,
             'permissaoObra' => \App\Http\Middleware\PermissaoObra::class,
+            'plataforma' => \App\Http\Middleware\ApenasPlataforma::class,
         ]);
+
+        // O token do administrador da plataforma (painel de planos) não pode
+        // passar nas rotas normais do sistema — ver a classe.
+        $middleware->appendToGroup('api', \App\Http\Middleware\BloqueiaPlataformaForaDoPainel::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Mesmo motivo do `redirectGuestsTo` acima, camada diferente: o

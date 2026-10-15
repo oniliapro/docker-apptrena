@@ -127,126 +127,13 @@
 
   <!-- ============ Popup do compromisso ============ -->
   @if (rascunho(); as r) {
-    <div class="modal">
-      <div class="modal-fundo" (fecharModal)="fecharPopup()"></div>
-
-      <div class="modal-cartao">
-        <div class="modal-cabecalho">
-          <span class="modal-titulo">{{ !r.id ? 'Novo compromisso' : r.podeEditar ? 'Editar compromisso' : 'Compromisso' }}</span>
-          <button type="button" (click)="fecharPopup()" title="Fechar (Esc)" aria-label="Fechar">✖</button>
-        </div>
-
-        <div class="modal-corpo">
-          <label class="campo">
-            <span>Título</span>
-            <input type="text" maxlength="200" placeholder="Ex.: Visita técnica, reunião com o cliente…"
-                   [value]="r.titulo" [disabled]="!r.podeEditar" (input)="editarCampo('titulo', $event)" />
-          </label>
-
-          <label class="checagem-inline">
-            <input type="checkbox" [checked]="r.diaInteiro" [disabled]="!r.podeEditar" (change)="alternarDiaInteiro($event)" />
-            Dia inteiro
-          </label>
-
-          <div class="linha-datas">
-            <label class="campo">
-              <span>Início</span>
-              <input type="date" [value]="r.dataInicio" [disabled]="!r.podeEditar" (change)="editarCampo('dataInicio', $event)" />
-            </label>
-            @if (!r.diaInteiro) {
-              <label class="campo campo-hora">
-                <span>Hora</span>
-                <input type="time" [value]="r.horaInicio" [disabled]="!r.podeEditar" (change)="editarCampo('horaInicio', $event)" />
-              </label>
-            }
-            <label class="campo">
-              <span>Fim</span>
-              <input type="date" [value]="r.dataFim" [min]="r.dataInicio" [disabled]="!r.podeEditar" (change)="editarCampo('dataFim', $event)" />
-            </label>
-            @if (!r.diaInteiro) {
-              <label class="campo campo-hora">
-                <span>Hora</span>
-                <input type="time" [value]="r.horaFim" [disabled]="!r.podeEditar" (change)="editarCampo('horaFim', $event)" />
-              </label>
-            }
-          </div>
-
-          @if (!naObra()) {
-            <label class="campo">
-              <span>Obra</span>
-              <select [value]="r.obraId" [disabled]="!r.podeEditar" (change)="escolherObra($event)">
-                <option value="" [selected]="!r.obraId">Geral (sem obra)</option>
-                @for (obra of obras(); track obra.id) {
-                  <option [value]="obra.id" [selected]="obra.id === r.obraId">{{ obra.obra_nome || obra.map_number || '(obra sem nome)' }}</option>
-                }
-              </select>
-            </label>
-          }
-
-          <label class="campo">
-            <span>Local</span>
-            <input type="text" maxlength="200" placeholder="Endereço, sala, link da reunião…"
-                   [value]="r.local" [disabled]="!r.podeEditar" (input)="editarCampo('local', $event)" />
-          </label>
-
-          <label class="campo">
-            <span>Descrição</span>
-            <textarea rows="3" [value]="r.descricao" [disabled]="!r.podeEditar" (input)="editarCampo('descricao', $event)"></textarea>
-          </label>
-
-          <div class="campo">
-            <span>Participantes ({{ r.participantes.length }})</span>
-            @if (r.podeEditar) {
-              @if (usuarios().length > 6) {
-                <input type="text" class="busca-participante" placeholder="Buscar usuário…"
-                       [value]="buscaParticipante()" (input)="mudarBusca($event)" />
-              }
-              <div class="lista-participantes">
-                @for (u of usuariosFiltrados(); track u.id) {
-                  <label class="participante">
-                    <input type="checkbox" [checked]="participa(u.id)" (change)="alternarParticipante(u.id)" />
-                    {{ u.nome }}
-                  </label>
-                } @empty {
-                  <span class="atenuado">Nenhum usuário encontrado.</span>
-                }
-              </div>
-            } @else {
-              <div class="lista-participantes somente-leitura">
-                @for (u of usuarios(); track u.id) {
-                  @if (participa(u.id)) {
-                    <span class="participante-etiqueta">{{ u.nome }}</span>
-                  }
-                } @empty {
-                  <span class="atenuado">Ninguém marcado.</span>
-                }
-              </div>
-            }
-          </div>
-
-          @if (r.criadoPorNome) {
-            <p class="atenuado pequeno">Criado por {{ r.criadoPorNome }}.
-              @if (!r.podeEditar) { Só quem criou (ou o administrador) altera este compromisso. }
-            </p>
-          }
-
-          @if (erroPopup(); as mensagem) {
-            <div class="aviso-erro">{{ mensagem }}</div>
-          }
-        </div>
-
-        <div class="modal-rodape">
-          @if (r.id && r.podeEditar) {
-            <button type="button" class="perigo esquerda" (click)="excluirPopup()">Excluir</button>
-          }
-          <button type="button" (click)="fecharPopup()">{{ r.podeEditar ? 'Cancelar' : 'Fechar' }}</button>
-          @if (r.podeEditar) {
-            <button type="button" class="primario" [disabled]="salvando()" (click)="salvarPopup()">
-              {{ salvando() ? 'Salvando…' : 'Salvar' }}
-            </button>
-          }
-        </div>
-      </div>
-    </div>
+    <app-editar-evento-modal
+      [inicial]="r"
+      [obras]="obras()"
+      [usuarios]="usuarios()"
+      [obraFixa]="obraId()"
+      (salvo)="eventoSalvo($event)"
+      (excluido)="eventoExcluido($event)"
+      (fechar)="fecharPopup()" />
   }
 </div>

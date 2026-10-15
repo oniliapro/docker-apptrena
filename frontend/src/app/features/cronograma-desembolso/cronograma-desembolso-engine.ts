@@ -42,7 +42,11 @@ const NOMES_MES = [
 ];
 
 function paraIso(data: Date): string {
-  return data.toISOString().slice(0, 10);
+  // Getters locais (e não `toISOString()`): as datas daqui são meia-noite LOCAL, e em UTC
+  // elas podem cair no dia anterior conforme o fuso do navegador.
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${data.getFullYear()}-${mes}-${dia}`;
 }
 
 /** Meia-noite local, sem hora — evita problema de fuso ao comparar/formatar datas puras. */

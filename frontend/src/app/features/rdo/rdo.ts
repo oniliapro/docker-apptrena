@@ -319,6 +319,58 @@ export class Rdo implements OnInit {
     });
   }
 
+  /** Fichas cujo PDF está sendo gerado (o Chromium do servidor leva alguns segundos). */
+  protected readonly gerandoPdfFvs = signal<ReadonlySet<string>>(new Set());
+
+  /**
+   * Imprime a ficha como DOCUMENTO (15/10/2026) — usa o modelo do tipo "Ficha de
+   * verificação de serviço" de Modelos de documentos. Imprime o que está GRAVADO:
+   * se a ficha tem alteração ainda não salva, pede para salvar antes.
+   */
+  protected imprimirFicha(i: number): void {
+    const grupo = this.fichaGrupo(i);
+    const fichaId = grupo.get('id')?.value as string;
+
+    if (grupo.dirty) {
+      this.erroFvs.set('Salve a ficha antes de imprimir — o documento usa o que está gravado.');
+      return;
+    }
+
+    this.gerandoPdfFvs.update((s) => new Set(s).add(fichaId));
+    this.erroFvs.set(null);
+
+    const terminar = () =>
+      this.gerandoPdfFvs.update((s) => {
+        const novo = new Set(s);
+        novo.delete(fichaId);
+        return novo;
+      });
+
+    this.api.baixarFvsPdf(fichaId).subscribe({
+      next: (blob) => {
+        terminar();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.metaFicha(fichaId)?.codigo ?? 'ficha-de-verificacao'}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: async (falha) => {
+        terminar();
+        // Erro de PDF volta como Blob (`responseType: 'blob'`) — lê a mensagem do servidor, se houver.
+        let mensagem = 'Não foi possível gerar o documento da ficha. Tente novamente em alguns segundos.';
+        try {
+          const corpo = falha?.error instanceof Blob ? JSON.parse(await falha.error.text()) : falha?.error;
+          if (typeof corpo?.message === 'string') mensagem = corpo.message;
+        } catch {
+          // mantém a mensagem padrão
+        }
+        this.erroFvs.set(mensagem);
+      },
+    });
+  }
+
   protected enviarFotoFicha(itemId: string, arquivo: File | null): void {
     if (!arquivo) return;
     this.fvsApi.enviarFoto(itemId, arquivo).subscribe({

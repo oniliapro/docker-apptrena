@@ -71,7 +71,10 @@ export interface PontoFluxoCaixa {
 }
 
 function paraIso(data: Date): string {
-  return data.toISOString().slice(0, 10);
+  // Getters locais (e não `toISOString()`): ver `cronograma-desembolso-engine.ts`.
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${data.getFullYear()}-${mes}-${dia}`;
 }
 
 function adicionarUnidade(data: Date, unidade: UnidadePeriodoCaixa): Date {

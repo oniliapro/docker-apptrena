@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ContratoPdfController;
 use App\Http\Controllers\Api\FvsController;
 use App\Http\Controllers\Api\FvsModeloController;
 use App\Http\Controllers\Api\FvsVinculoController;
@@ -108,6 +109,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // "Banco de verificações da obra" (plano, D4) — todas as fichas de todos os RDOs.
     Route::get('obras/{obra}/fvs', [FvsController::class, 'porObra'])
+        ->middleware(['permissaoModulo:diario_obra,usar', 'permissaoObra:ver']);
+
+    // A ficha impressa como documento (15/10/2026) — modelo do tipo `fvs` em Modelos de documentos.
+    Route::get('fvs/{fvsPreenchimento}/pdf', [ContratoPdfController::class, 'fvs'])
         ->middleware(['permissaoModulo:diario_obra,usar', 'permissaoObra:ver']);
 
     Route::put('fvs/{fvsPreenchimento}', [FvsController::class, 'salvar'])

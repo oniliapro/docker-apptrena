@@ -5,6 +5,7 @@ import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { RespostaLogin, UsuarioAutenticado } from '../models/api.models';
+import { definirFuso } from '../utils/fuso';
 
 const CHAVE_TOKEN = 'trenaapp.token';
 const CHAVE_USUARIO = 'trenaapp.usuario';
@@ -38,10 +39,44 @@ export class AuthService {
       .pipe(tap((resposta) => this.guardarSessao(resposta)));
   }
 
-  registrar(dados: Record<string, unknown>): Observable<RespostaLogin> {
-    return this.http
-      .post<RespostaLogin>(`${this.base}/registrar`, dados)
-      .pipe(tap((resposta) => this.guardarSessao(resposta)));
+  /**
+   * "Esqueci minha senha" — o servidor manda um link de uso único por e-mail. A resposta é
+   * sempre a mesma exista a conta ou não (não revela quem usa o sistema).
+   */
+  solicitarRedefinicaoDeSenha(email: string): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(`${this.base}/esqueci-senha`, { email });
+  }
+
+  /** Conclui a troca de senha com o token que veio no link do e-mail. */
+  redefinirSenha(dados: {
+    email: string;
+    token: string;
+    senha: string;
+    confirmacao: string;
+  }): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(`${this.base}/redefinir-senha`, {
+      email: dados.email,
+      token: dados.token,
+      password: dados.senha,
+      password_confirmation: dados.confirmacao,
+    });
+  }
+
+  /**
+   * Guarda o fuso horário novo da empresa na sessão (depois de salvar em Dados da empresa) —
+   * sem isso, o próximo carregamento da página voltaria ao fuso antigo até um novo login.
+   */
+  atualizarFuso(fuso: string): void {
+    definirFuso(fuso);
+    const atual = this._usuario();
+    if (!atual) return;
+    const atualizado = { ...atual, fusoHorario: fuso };
+    this._usuario.set(atualizado);
+    try {
+      localStorage.setItem(CHAVE_USUARIO, JSON.stringify(atualizado));
+    } catch {
+      // vale só nesta sessão.
+    }
   }
 
   /**
@@ -103,6 +138,7 @@ export class AuthService {
   private guardarSessao(resposta: RespostaLogin): void {
     this._token.set(resposta.token);
     this._usuario.set(resposta.user);
+    if (resposta.user.fusoHorario) definirFuso(resposta.user.fusoHorario);
     try {
       localStorage.setItem(CHAVE_TOKEN, resposta.token);
       localStorage.setItem(CHAVE_USUARIO, JSON.stringify(resposta.user));

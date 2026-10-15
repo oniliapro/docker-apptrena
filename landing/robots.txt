@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Sitemap: https://comtrena.com.br/sitemap.xml

@@ -1,0 +1,41 @@
+<div class="tela">
+  <div class="cartao">
+    <img src="marca/comtrena-logomarca-para-fundo-claro.svg" alt="ComTrena" class="logo-marca-cartao" />
+
+    @if (linkIncompleto) {
+      <h1>Link incompleto</h1>
+      <p class="atenuado sub">
+        Este endereço não tem as informações para trocar a senha. Abra o link direto do e-mail, ou peça um novo.
+      </p>
+      <p class="rodape"><a routerLink="/esqueci-senha">Pedir um novo link</a></p>
+    } @else {
+      <form [formGroup]="formulario" (ngSubmit)="salvar()">
+        <h1>Criar nova senha</h1>
+        <p class="atenuado sub">Conta: <b>{{ email }}</b></p>
+
+        <div class="campo">
+          <span>Nova senha</span>
+          <app-campo-senha [controle]="formulario.controls.senha" autocomplete="new-password" />
+          <small class="dica">Mínimo de 8 caracteres.</small>
+        </div>
+
+        <div class="campo">
+          <span>Repita a nova senha</span>
+          <app-campo-senha [controle]="formulario.controls.confirmacao" autocomplete="new-password" />
+          @if (formulario.errors?.['senhasDiferentes'] && formulario.controls.confirmacao.touched) {
+            <small class="dica dica-erro">As senhas não são iguais.</small>
+          }
+        </div>
+
+        @if (erro(); as mensagem) {
+          <p class="erro" role="alert">{{ mensagem }}</p>
+          <p class="rodape"><a routerLink="/esqueci-senha" [queryParams]="{ email }">Pedir um novo link</a></p>
+        }
+
+        <button class="primario" type="submit" [disabled]="formulario.invalid || enviando()">
+          {{ enviando() ? 'Salvando…' : 'Salvar nova senha' }}
+        </button>
+      </form>
+    }
+  </div>
+</div>

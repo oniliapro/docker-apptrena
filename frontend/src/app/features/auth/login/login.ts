@@ -4,11 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
+import { CampoSenha } from '../../../shared/campo-senha/campo-senha';
 
 /** Tela de login — substitui html/login.html. */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CampoSenha],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -26,6 +27,19 @@ export class Login {
 
   protected readonly enviando = signal(false);
   protected readonly erro = signal<string | null>(null);
+
+  /** "Senha alterada" depois de concluir a redefinição (a tela de redefinição redireciona pra cá com `?senha=alterada`). */
+  protected readonly aviso = signal<string | null>(
+    this.rota.snapshot.queryParamMap.get('senha') === 'alterada'
+      ? 'Senha alterada com sucesso. Entre com a nova senha.'
+      : null,
+  );
+
+  /** Leva o e-mail já digitado para a tela de recuperação, pra a pessoa não ter que digitar de novo. */
+  protected emailParaRecuperacao(): Record<string, string> {
+    const email = this.formulario.controls.email.value.trim();
+    return email ? { email } : {};
+  }
 
   protected readonly formulario = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -50,12 +64,16 @@ export class Login {
         const destino = this.rota.snapshot.queryParamMap.get('redirect') ?? '/inicio';
         void this.router.navigateByUrl(destino);
       },
-      error: (e: { status?: number }) => {
+      error: (e: { status?: number; error?: { errors?: { email?: string[] } } }) => {
         this.enviando.set(false);
+        // O servidor responde 422 com a mensagem certa (senha errada x conta suspensa) — usa a dele
+        // quando existe, em vez de sempre dizer "senha incorreta".
+        const doServidor = e?.error?.errors?.email?.[0];
         this.erro.set(
-          e?.status === 422 || e?.status === 401
-            ? 'E-mail ou senha incorretos.'
-            : 'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+          doServidor ||
+            (e?.status === 422 || e?.status === 401
+              ? 'E-mail ou senha incorretos.'
+              : 'Não foi possível entrar. Verifique sua conexão e tente novamente.'),
         );
       },
     });

@@ -354,12 +354,13 @@ export interface UsuarioAutenticado {
   papel?: string;
   /** Só é relevante pra papel 'secundario' — ver PermissoesService. */
   podeGerenciarPermissoes?: boolean;
+  /** Fuso horário escolhido pela empresa (identificador IANA) — ver `core/utils/fuso.ts`. */
+  fusoHorario?: string;
 
   /**
    * Vem em dois formatos, dependendo do endpoint:
    *
-   *  - `POST /login` e `POST /registrar` devolvem só o **nome** da
-   *    empresa, como texto;
+   *  - `POST /login` devolve só o **nome** da empresa, como texto;
    *  - `GET /me` devolve o **objeto completo**, com os dados de
    *    assinatura.
    *
@@ -497,6 +498,8 @@ export interface PerfilEmpresa {
   corPrimaria: string;
   corSecundaria: string;
   fonte: string;
+  /** Fuso horário da empresa (identificador IANA, ex.: `America/Sao_Paulo`). */
+  fusoHorario: string;
   logoUrl: string | null;
   papelTimbradoUrl: string | null;
   representantes: RepresentanteLegal[];

@@ -1,5 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
+import { ApiService } from '../../../core/services/api.service';
+import { ContratoModelo } from '../contrato-modelos/contrato-modelo.models';
 import { FvsModelo } from '../../fvs/fvs.models';
 import { FvsService } from '../../fvs/fvs.service';
 
@@ -17,6 +19,7 @@ import { FvsService } from '../../fvs/fvs.service';
 })
 export class FvsModelosConfig implements OnInit {
   private readonly fvsApi = inject(FvsService);
+  private readonly api = inject(ApiService);
 
   protected readonly modelos = signal<FvsModelo[]>([]);
   protected readonly carregando = signal(true);
@@ -26,6 +29,9 @@ export class FvsModelosConfig implements OnInit {
   protected readonly editandoId = signal<string | null>(null);
   protected readonly fNome = signal('');
   protected readonly fItens = signal<string[]>(['']);
+  /** Modelo de documento (tipo `fvs`) que formata a ficha impressa; vazio = o primeiro modelo ativo. */
+  protected readonly fDocumentoId = signal('');
+  protected readonly documentos = signal<ContratoModelo[]>([]);
   protected readonly salvando = signal(false);
   protected readonly erroFormulario = signal<string | null>(null);
 
@@ -33,6 +39,11 @@ export class FvsModelosConfig implements OnInit {
 
   ngOnInit(): void {
     this.carregar();
+    // Só os modelos de documento do tipo "Ficha de verificação de serviço" (Modelos de documentos).
+    this.api.listarContratoModelos('fvs').subscribe({
+      next: (lista) => this.documentos.set(lista.filter((d) => d.ativo)),
+      error: () => this.documentos.set([]),
+    });
   }
 
   private carregar(): void {
@@ -53,6 +64,7 @@ export class FvsModelosConfig implements OnInit {
     this.editandoId.set(null);
     this.fNome.set('');
     this.fItens.set(['']);
+    this.fDocumentoId.set('');
     this.erroFormulario.set(null);
     this.formularioAberto.set(true);
   }
@@ -61,6 +73,7 @@ export class FvsModelosConfig implements OnInit {
     this.editandoId.set(modelo.id);
     this.fNome.set(modelo.nome);
     this.fItens.set(modelo.itens.length ? modelo.itens.map((i) => i.descricao) : ['']);
+    this.fDocumentoId.set(modelo.contrato_modelo_id ?? '');
     this.erroFormulario.set(null);
     this.formularioAberto.set(true);
   }
@@ -71,6 +84,10 @@ export class FvsModelosConfig implements OnInit {
 
   protected texto(evento: Event): string {
     return (evento.target as HTMLInputElement).value;
+  }
+
+  protected mudarDocumento(evento: Event): void {
+    this.fDocumentoId.set((evento.target as HTMLSelectElement).value);
   }
 
   protected mudarNome(evento: Event): void {
@@ -104,7 +121,11 @@ export class FvsModelosConfig implements OnInit {
 
     this.salvando.set(true);
     this.erroFormulario.set(null);
-    const dados = { nome, itens: itens.map((descricao) => ({ descricao })) };
+    const dados = {
+      nome,
+      itens: itens.map((descricao) => ({ descricao })),
+      contrato_modelo_id: this.fDocumentoId() || null,
+    };
     const id = this.editandoId();
     const requisicao = id ? this.fvsApi.atualizarModelo(id, dados) : this.fvsApi.criarModelo(dados);
 

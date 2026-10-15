@@ -266,6 +266,12 @@ tr.linha-clicavel:hover td { background: var(--cor-fundo-alt); }
     flex: 1;
   }
 
+  .link-aberto {
+    font-size: 0.72rem;
+    word-break: break-all;
+    flex: 1;
+  }
+
   &.revogado { opacity: 0.55; }
 }
 

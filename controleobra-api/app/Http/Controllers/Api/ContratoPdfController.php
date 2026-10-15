@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Arquivo;
 use App\Models\ContratoModelo;
 use App\Models\Empreita;
+use App\Models\FvsModelo;
+use App\Models\FvsPreenchimento;
 use App\Models\Obra;
 use App\Models\Pasta;
 use App\Models\Tag;
@@ -235,6 +237,83 @@ class ContratoPdfController extends Controller
     }
 
     /**
+     * Ficha de Verificação de Serviço como documento (15/10/2026). Mesmo
+     * mecanismo do contrato/proposta: a tela de impressão do Angular busca a
+     * ficha e o modelo e monta o corpo; aqui só se escolhe o modelo e se
+     * preparam as variáveis do cabeçalho/rodapé.
+     *
+     * Qual modelo de documento: o da URL (`modelo_id`), senão o que o
+     * checklist da ficha aponta (`fvs_modelos.contrato_modelo_id`), senão o
+     * primeiro modelo `fvs` ativo.
+     */
+    public function fvs(Request $request, FvsPreenchimento $fvsPreenchimento)
+    {
+        $modeloId = (string) $request->query('modelo_id', '');
+
+        if ($modeloId === '' || !ContratoModelo::where('id', $modeloId)->where('tipo', 'fvs')->exists()) {
+            $checklist = $fvsPreenchimento->fvs_modelo_id ? FvsModelo::find($fvsPreenchimento->fvs_modelo_id) : null;
+            $modeloId = (string) ($checklist?->contrato_modelo_id ?? '');
+
+            if ($modeloId === '' || !ContratoModelo::where('id', $modeloId)->where('tipo', 'fvs')->exists()) {
+                $modeloId = (string) ContratoModelo::where('tipo', 'fvs')->where('ativo', true)->orderBy('nome')->value('id');
+            }
+        }
+
+        if ($modeloId === '') {
+            return response()->json([
+                'message' => 'Nenhum modelo de documento do tipo "Ficha de verificação de serviço" foi criado. '
+                    . 'Crie um em Configurações → Modelos de documentos.',
+            ], 422);
+        }
+
+        $obra = Obra::findOrFail($fvsPreenchimento->obra_id);
+        $fvsPreenchimento->loadMissing(['itens', 'eapItem:id,codigo_eap,descricao', 'rdo:id,numero,data']);
+
+        $itens = $fvsPreenchimento->itens;
+        $resumo = collect([
+            'conforme' => 'conforme',
+            'nao_conforme' => 'não conforme',
+            'nao_se_aplica' => 'não se aplica',
+        ])->map(fn ($rotulo, $chave) => [$itens->where('resultado', $chave)->count(), $rotulo])
+            ->filter(fn ($par) => $par[0] > 0)
+            ->map(fn ($par) => "{$par[0]} {$par[1]}")
+            ->implode(' · ');
+
+        $servico = $fvsPreenchimento->eapItem
+            ? trim($fvsPreenchimento->eapItem->codigo_eap . ' - ' . $fvsPreenchimento->eapItem->descricao, ' -')
+            : '';
+
+        $rotulosStatus = ['pendente' => 'Pendente', 'aprovada' => 'Aprovada', 'reprovada' => 'Reprovada'];
+
+        $variaveis = array_merge($this->variaveisComuns($obra, $request->user()->empresa), [
+            'responsavel' => (string) $obra->responsavel,
+            'fvs_codigo' => $fvsPreenchimento->codigo,
+            'fvs_numero' => sprintf('%04d', $fvsPreenchimento->numero),
+            'fvs_revisao' => sprintf('%03d', $fvsPreenchimento->revisao),
+            'fvs_status' => $rotulosStatus[$fvsPreenchimento->status] ?? (string) $fvsPreenchimento->status,
+            'fvs_servico' => $servico,
+            'fvs_checklist' => (string) $fvsPreenchimento->modelo_nome_snapshot,
+            'fvs_rdo_numero' => $fvsPreenchimento->rdo ? (string) $fvsPreenchimento->rdo->numero : '',
+            'fvs_rdo_data' => $fvsPreenchimento->rdo?->data ? $fvsPreenchimento->rdo->data->format('d/m/Y') : '',
+            'fvs_preenchido_em' => $fvsPreenchimento->preenchido_em
+                ? $fvsPreenchimento->preenchido_em->copy()->setTimezone(\App\Support\Fuso::atual())->format('d/m/Y H:i')
+                : '',
+            'fvs_observacao_geral' => (string) $fvsPreenchimento->observacao_geral,
+            'fvs_resumo' => $resumo,
+        ]);
+
+        $caminho = "obras/{$obra->id}/contratos/fvs/{$fvsPreenchimento->id}";
+        $pdf = $this->gerar($request, $caminho, $modeloId, $variaveis);
+
+        $nomeArquivo = str($fvsPreenchimento->codigo)->slug() . '.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$nomeArquivo}\"",
+        ]);
+    }
+
+    /**
      * Dados usados nas variáveis do CABEÇALHO/RODAPÉ da folha (29/09/2026).
      * Duplica um subconjunto do que `ContratoImprimir` (frontend) já
      * substitui no CORPO do contrato — necessário porque cabeçalho/rodapé
@@ -265,7 +344,7 @@ class ContratoPdfController extends Controller
             'crea' => (string) $obra->crea,
             'art' => (string) $obra->art,
             'cliente' => (string) $obra->cliente,
-            'data' => now()->format('d/m/Y'),
+            'data' => \App\Support\Fuso::agora()->format('d/m/Y'),
         ];
     }
 
@@ -445,7 +524,7 @@ class ContratoPdfController extends Controller
     private function construirCabecalhoPdf(ContratoModelo $modelo, array $variaveis, \App\Models\Empresa $empresa, string $subtitulo): string
     {
         $nomeEmpresa = (string) ($empresa->nome ?: $empresa->razao_social ?: 'ComTrena');
-        $geradoEm = now()->format('d/m/Y H:i');
+        $geradoEm = \App\Support\Fuso::agora()->format('d/m/Y H:i');
 
         $logoEmpresa = $this->imagemDoStorageComoDataUri($empresa->logo_path);
         $logoEmpresaHtml = $logoEmpresa
@@ -601,6 +680,7 @@ class ContratoPdfController extends Controller
 
         $subtitulo = match (true) {
             str_contains($caminhoImpressao, '/contratos/proposta') => 'Proposta comercial',
+            str_contains($caminhoImpressao, '/contratos/fvs') => 'Ficha de verificação de serviço',
             str_contains($caminhoImpressao, '/contratos/obra') => 'Contrato de obra',
             default => 'Contrato de empreitada',
         };

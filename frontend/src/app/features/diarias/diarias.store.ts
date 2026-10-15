@@ -98,6 +98,15 @@ export class DiariasStore {
     });
   }
 
+  /** Recarrega só a lista de diárias (depois do popup gravar/excluir) — EAP/profissionais não mudaram. */
+  recarregarDiarias(): void {
+    if (!this.obraId) return;
+    this.api.listarDiarias(this.obraId).subscribe({
+      next: (lista) => this.diarias.set(lista.map((d) => normalizarDiaria(d))),
+      error: () => this.erro.set('Não foi possível carregar as diárias.'),
+    });
+  }
+
   obterProfissional(id: string): Empreiteiro | undefined {
     return this.profissionais().find((p) => p.id === id);
   }

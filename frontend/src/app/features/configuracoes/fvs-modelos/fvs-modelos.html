@@ -47,6 +47,22 @@
     <input type="text" [value]="fNome()" (input)="mudarNome($event)" placeholder="Ex.: Verificação de alvenaria">
   </label>
 
+  <label class="campo">
+    <span>Documento da ficha (Modelos de documentos)</span>
+    <select [value]="fDocumentoId()" (change)="mudarDocumento($event)">
+      <option value="" [selected]="!fDocumentoId()">Automático — primeiro modelo ativo</option>
+      @for (documento of documentos(); track documento.id) {
+        <option [value]="documento.id" [selected]="documento.id === fDocumentoId()">{{ documento.nome }}</option>
+      }
+    </select>
+    @if (!documentos().length) {
+      <small class="dica-campo">
+        Nenhum modelo de documento do tipo "Ficha de verificação de serviço" ainda — crie um em
+        Configurações → Modelos de documentos.
+      </small>
+    }
+  </label>
+
   <div class="itens-modelo">
     <span class="rotulo-itens">Itens a verificar</span>
     @for (item of fItens(); track $index; let i = $index) {

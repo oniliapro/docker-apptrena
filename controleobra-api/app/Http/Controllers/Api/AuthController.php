@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Empresa;
+use App\Mail\RedefinirSenha;
 use App\Models\User;
+use App\Support\Fuso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rules\Password as RegraSenha;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -18,50 +22,6 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
-    /**
-     * Cadastro público de uma nova empresa (cliente) + seu primeiro usuário
-     * (administrador da própria empresa). Começa em plano "trial" — a
-     * liberação/bloqueio por assinatura paga entra depois, quando o
-     * pagamento for integrado.
-     */
-    public function registrar(Request $request)
-    {
-        $data = $request->validate([
-            'empresa' => 'required|string|max:150',
-            'name' => 'required|string|max:150',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
-        ]);
-
-        $empresa = Empresa::create([
-            'nome' => $data['empresa'],
-            'plano' => 'trial',
-            'assinatura_status' => 'trial',
-            'assinatura_valida_ate' => now()->addDays(14),
-        ]);
-
-        $user = User::create([
-            'empresa_id' => $empresa->id,
-            'papel' => 'admin',
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => $data['password'],
-        ]);
-
-        $token = $user->createToken('controle-obra-frontend')->plainTextToken;
-
-        return response()->json([
-            'ok' => true,
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'empresa' => $empresa->nome,
-            ],
-        ], 201);
-    }
-
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -87,6 +47,17 @@ class AuthController extends Controller
             ]);
         }
 
+        // 15/10/2026, controle de planos — o dono da plataforma suspende/cancela a empresa
+        // inteira pelo painel. Mensagem própria (e não a genérica de senha errada): quem chega
+        // aqui já provou que a senha está certa, então não vaza nada, e precisa saber a quem
+        // recorrer.
+        $statusAssinatura = $user->empresa?->assinatura_status;
+        if (in_array($statusAssinatura, ['suspensa', 'cancelada'], true)) {
+            throw ValidationException::withMessages([
+                'email' => ['O acesso desta conta está suspenso. Entre em contato com o suporte do ComTrena.'],
+            ]);
+        }
+
         $token = $user->createToken('controle-obra-frontend')->plainTextToken;
 
         return response()->json([
@@ -99,8 +70,68 @@ class AuthController extends Controller
                 'empresa_id' => $user->empresa_id,
                 'papel' => $user->papel,
                 'podeGerenciarPermissoes' => (bool) $user->pode_gerenciar_permissoes,
+                'fusoHorario' => Fuso::valido($user->empresa?->fuso_horario) ? $user->empresa->fuso_horario : Fuso::PADRAO,
             ],
         ]);
+    }
+
+    /**
+     * POST /esqueci-senha (público) — manda por e-mail um link de uso único.
+     *
+     * A resposta é SEMPRE a mesma, exista a conta ou não: dizer "e-mail não
+     * cadastrado" deixaria qualquer pessoa descobrir quem usa o sistema. O link
+     * vale 60 minutos (config/auth.php) e só pode ser usado uma vez; pedir outro
+     * invalida o anterior. O intervalo mínimo entre pedidos é de 60s (broker).
+     */
+    public function esqueciSenha(Request $request)
+    {
+        $data = $request->validate(['email' => 'required|email|max:180']);
+
+        $usuario = User::where('email', $data['email'])->first();
+
+        if ($usuario && $usuario->ativo) {
+            Password::sendResetLink(['email' => $usuario->email], function (User $alvo, string $token) {
+                Mail::to($alvo->email)->send(new RedefinirSenha($alvo, $token));
+            });
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Se o e-mail estiver cadastrado, enviamos um link para criar uma nova senha. Ele vale por 60 minutos.',
+        ]);
+    }
+
+    /** POST /redefinir-senha (público) — troca a senha com o token recebido por e-mail. */
+    public function redefinirSenha(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email|max:180',
+            'token' => 'required|string',
+            'password' => ['required', 'string', 'confirmed', RegraSenha::min(8)->max(100)],
+        ]);
+
+        $status = Password::reset(
+            [
+                'email' => $data['email'],
+                'token' => $data['token'],
+                'password' => $data['password'],
+                'password_confirmation' => (string) $request->input('password_confirmation'),
+            ],
+            function (User $usuario, string $senha) {
+                // Cast `hashed` do model faz o hash. Revoga as sessões abertas: quem trocou
+                // a senha porque achou que ela vazou não pode continuar com o token antigo.
+                $usuario->forceFill(['password' => $senha])->save();
+                $usuario->tokens()->delete();
+            },
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => ['Este link é inválido ou já expirou. Peça um novo em "Esqueci minha senha".'],
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'Senha alterada. Entre com a nova senha.']);
     }
 
     public function logout(Request $request)

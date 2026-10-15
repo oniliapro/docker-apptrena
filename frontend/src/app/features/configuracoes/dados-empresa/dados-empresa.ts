@@ -9,12 +9,14 @@ import {
 
 import { PerfilEmpresa, RepresentanteLegal } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
+import { AuthService } from '../../../core/services/auth.service';
 import {
   apenasDigitos,
   formatarDocumento,
   formatarTelefone,
   validarDocumento,
 } from '../../../core/utils/documento';
+import { FUSO_PADRAO, FUSOS_DISPONIVEIS, agoraIsoLocal } from '../../../core/utils/fuso';
 
 /** Pilhas de fonte CSS já disponíveis no navegador — sem carregar fonte externa nova. */
 const FONTES = [
@@ -45,8 +47,10 @@ function documentoOpcionalValido(controle: AbstractControl): ValidationErrors | 
 export class DadosEmpresa implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
 
   protected readonly fontes = FONTES;
+  protected readonly fusos = FUSOS_DISPONIVEIS;
   protected readonly formatarDocumento = formatarDocumento;
   protected readonly formatarTelefone = formatarTelefone;
 
@@ -85,6 +89,7 @@ export class DadosEmpresa implements OnInit, OnDestroy {
     corPrimaria: ['#123c52'],
     corSecundaria: ['#c9a84c'],
     fonte: ['padrao'],
+    fusoHorario: [FUSO_PADRAO],
   });
 
   // ------------------------------------------------------------------
@@ -132,6 +137,7 @@ export class DadosEmpresa implements OnInit, OnDestroy {
           corPrimaria: perfil.corPrimaria || '#123c52',
           corSecundaria: perfil.corSecundaria || '#c9a84c',
           fonte: perfil.fonte || 'padrao',
+          fusoHorario: perfil.fusoHorario || FUSO_PADRAO,
         });
         this.carregando.set(false);
       },
@@ -173,6 +179,20 @@ export class DadosEmpresa implements OnInit, OnDestroy {
     this.formulario.controls.telefone.setValue(formatado);
   }
 
+  /** Hora que o relógio do fuso escolhido marca agora — confirma visualmente que a escolha está certa. */
+  protected horaNoFusoEscolhido(): string {
+    const fuso = this.formulario.controls.fusoHorario.value;
+    try {
+      return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: fuso,
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(new Date());
+    } catch {
+      return agoraIsoLocal().replace('T', ' ');
+    }
+  }
+
   protected temErro(campo: string): boolean {
     const controle = this.formulario.get(campo);
     return Boolean(controle?.invalid && (controle.dirty || controle.touched));
@@ -196,6 +216,7 @@ export class DadosEmpresa implements OnInit, OnDestroy {
     dados.append('cor_primaria', v.corPrimaria);
     dados.append('cor_secundaria', v.corSecundaria);
     dados.append('fonte', v.fonte);
+    dados.append('fuso_horario', v.fusoHorario);
     if (this.arquivoLogo()) dados.append('logo', this.arquivoLogo() as File);
     if (this.arquivoPapelTimbrado()) dados.append('papel_timbrado', this.arquivoPapelTimbrado() as File);
 
@@ -204,6 +225,8 @@ export class DadosEmpresa implements OnInit, OnDestroy {
       next: (perfil) => {
         this.perfil.set(perfil);
         this.representantes.set(perfil.representantes);
+        // Vale na hora, em todas as telas — sem precisar sair e entrar de novo.
+        this.auth.atualizarFuso(perfil.fusoHorario || v.fusoHorario);
         this.arquivoLogo.set(null);
         this.arquivoPapelTimbrado.set(null);
         this.revogarPreview(this.previewLogo());

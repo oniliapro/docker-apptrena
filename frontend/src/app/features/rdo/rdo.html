@@ -810,6 +810,11 @@
                       (click)="salvarFicha(fi)">
                 {{ salvandoFvs().has(ficha.get('id')?.value) ? 'Salvando…' : 'Salvar ficha' }}
               </button>
+              <button type="button" class="botao-secundario" [disabled]="gerandoPdfFvs().has(ficha.get('id')?.value)"
+                      title="Gera o documento da ficha (PDF) com o modelo de Modelos de documentos"
+                      (click)="imprimirFicha(fi)">
+                {{ gerandoPdfFvs().has(ficha.get('id')?.value) ? 'Gerando…' : 'Imprimir ficha (PDF)' }}
+              </button>
             </article>
           }
         }

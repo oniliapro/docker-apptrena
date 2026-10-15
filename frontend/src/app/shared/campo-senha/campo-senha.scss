@@ -1,0 +1,36 @@
+// `input, select` têm `height: 20px` global (pensado pras tabelas densas) — aqui o campo é de
+// formulário, então a altura é declarada explicitamente.
+.campo-senha {
+  position: relative;
+  display: block;
+
+  input {
+    width: 100%;
+    height: 34px;
+    font-size: 13px;
+    padding: 6px 40px 6px 10px;
+  }
+}
+
+.botao-olho {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cor-texto-suave);
+  border-radius: var(--raio-sm);
+  cursor: pointer;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { color: var(--cor-texto); background: var(--cor-fundo-alt); }
+  &:focus-visible { outline: 2px solid var(--cor-destaque); outline-offset: 1px; }
+}

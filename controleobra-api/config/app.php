@@ -56,6 +56,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend (Angular) URL
+    |--------------------------------------------------------------------------
+    |
+    | Base dos links que saem por e-mail (RDO disponível, redefinição de
+    | senha). Em produção o Angular é servido sob `/app/` (build com
+    | `--base-href /app/`), enquanto `APP_URL` aponta para a raiz do domínio —
+    | sem o `/app`, o link caía na raiz e não abria o sistema (15/10/2026).
+    | Em desenvolvimento, defina APP_FRONTEND_URL=http://localhost:4200.
+    |
+    */
+
+    'frontend_url' => env('APP_FRONTEND_URL', rtrim((string) env('APP_URL', 'http://localhost'), '/').'/app'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

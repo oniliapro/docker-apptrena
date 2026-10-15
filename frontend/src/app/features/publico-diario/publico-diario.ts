@@ -8,6 +8,7 @@ import {
 } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { formatarData, formatarDataHora } from '../../core/utils/formato';
+import { agoraDeParede } from '../../core/utils/fuso';
 
 type Vista = 'calendario' | 'dia' | 'detalhe';
 
@@ -176,6 +177,6 @@ export class PublicoDiario implements OnInit {
 }
 
 function mesDeHoje(): { ano: number; mes: number } {
-  const agora = new Date();
+  const agora = agoraDeParede();
   return { ano: agora.getFullYear(), mes: agora.getMonth() };
 }

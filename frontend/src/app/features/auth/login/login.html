@@ -30,10 +30,18 @@
       <input type="email" formControlName="email" autocomplete="username" />
     </label>
 
-    <label class="campo">
+    <div class="campo">
       <span>Senha</span>
-      <input type="password" formControlName="senha" autocomplete="current-password" />
-    </label>
+      <app-campo-senha [controle]="formulario.controls.senha" autocomplete="current-password" />
+    </div>
+
+    <p class="esqueci">
+      <a routerLink="/esqueci-senha" [queryParams]="emailParaRecuperacao()">Esqueci minha senha</a>
+    </p>
+
+    @if (aviso(); as mensagem) {
+      <p class="aviso-ok" role="status">{{ mensagem }}</p>
+    }
 
     @if (erro(); as mensagem) {
       <p class="erro" role="alert">{{ mensagem }}</p>
@@ -42,10 +50,6 @@
     <button class="primario" type="submit" [disabled]="formulario.invalid || enviando()">
       {{ enviando() ? 'Entrando…' : 'Entrar' }}
     </button>
-
-    <p class="rodape atenuado">
-      Não tem conta? <a routerLink="/cadastro">Criar conta</a>
-    </p>
 
     @if (permiteDemonstracao) {
       <div class="separador"><span>ou</span></div>

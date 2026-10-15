@@ -7,7 +7,7 @@ import { EapPayload, Empreita, Obra, PerfilEmpresa } from '../../core/models/api
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { formatarDocumento } from '../../core/utils/documento';
-import { formatarData, formatarMoeda } from '../../core/utils/formato';
+import { formatarData, formatarDataHora, formatarMoeda } from '../../core/utils/formato';
 import { gerarCssEstilos } from '../../shared/contrato-estilo-css';
 import {
   VariaveisModelo,
@@ -25,6 +25,8 @@ import {
 } from '../../shared/proposta-eap';
 import { CHAVE_EMPREITEIROS } from '../cadastros/empreiteiros/empreiteiros';
 import { ContratoModelo } from '../configuracoes/contrato-modelos/contrato-modelo.models';
+import { FvsPreenchimento, ResultadoFvs } from '../fvs/fvs.models';
+import { FvsService } from '../fvs/fvs.service';
 import { ResumoContratoEmpreita } from '../empreita/empreita.models';
 import { ChaveTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { EapStore } from '../eap/eap.store';
@@ -64,10 +66,13 @@ export class ContratoImprimir implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly fvsApi = inject(FvsService);
 
   readonly obraId = input.required<string>({ alias: 'id' });
   readonly empreitaId = input<string>('');
-  readonly tipo = input.required<'empreita' | 'obra' | 'proposta'>();
+  readonly tipo = input.required<'empreita' | 'obra' | 'proposta' | 'fvs'>();
+  /** Só `tipo === 'fvs'` (15/10/2026): qual ficha preenchida imprimir. */
+  readonly fvsId = input<string>('');
 
   private readonly eap = inject(EapStore);
 
@@ -248,9 +253,138 @@ export class ContratoImprimir implements OnInit, OnDestroy {
       this.carregarEmpreita(modeloId);
     } else if (this.tipo() === 'proposta') {
       this.carregarProposta(modeloId);
+    } else if (this.tipo() === 'fvs') {
+      this.carregarFvs(modeloId);
     } else {
       this.carregarObra(modeloId);
     }
+  }
+
+  /**
+   * Ficha de Verificação de Serviço (15/10/2026). A ficha vem da lista do banco de
+   * verificações da obra (`GET obras/{obra}/fvs` já traz itens, etapa e RDO) — não
+   * existe leitura de uma ficha avulsa.
+   */
+  private carregarFvs(modeloId: string): void {
+    forkJoin({
+      perfil: this.api.obterPerfilEmpresa(),
+      obra: this.api.obterObra(this.obraId()),
+      clientes: this.lerCadastro('controleObra.clientes.v1'),
+      modelos: this.api.listarContratoModelos('fvs'),
+      estilos: this.api.listarContratoEstilos(),
+      fichas: this.fvsApi.listarDaObra(this.obraId()),
+    }).subscribe({
+      next: ({ perfil, obra, clientes, modelos, estilos, fichas }) => {
+        this.perfilEmpresa.set(perfil);
+        this.folhaEstilos.textContent = gerarCssEstilos(estilos);
+
+        const modelo = modelos.find((m) => m.id === modeloId);
+        if (!modelo) {
+          this.erro.set('Modelo de ficha não encontrado.');
+          this.carregando.set(false);
+          return;
+        }
+
+        const ficha = fichas.find((f) => f.id === this.fvsId());
+        if (!ficha) {
+          this.erro.set('Ficha de verificação não encontrada.');
+          this.carregando.set(false);
+          return;
+        }
+
+        const variaveis = this.variaveisComuns(obra);
+        variaveis['responsavel'] = String(obra.responsavel ?? '');
+        Object.assign(variaveis, this.variaveisPessoa('cliente', obra.cliente, clientes), this.variaveisFicha(ficha));
+
+        // O editor grava o bloco como um parágrafo só com o marcador; tabela dentro de `<p>` não
+        // é HTML válido (o navegador fecharia o `<p>` e sobraria um parágrafo vazio a mais).
+        const conteudo = modelo.conteudo.replace(
+          /<p\b[^>]*>\s*\{\{\s*tabela_verificacao\s*\}\}\s*<\/p>/g,
+          '{{tabela_verificacao}}',
+        );
+        const corpo = preencherModeloContrato(conteudo, variaveis);
+        // Modelo sem `{{tabela_verificacao}}`: a tabela vai no fim, para a ficha nunca sair sem os itens.
+        const html = /\{\{\s*tabela_verificacao\s*\}\}/.test(conteudo)
+          ? corpo
+          : corpo + this.tabelaVerificacao(ficha);
+
+        this.modeloAtual.set(modelo);
+        // Estilos PRÓPRIOS do modelo; modelo antigo ainda sem cópia usa os da empresa.
+        this.folhaEstilos.textContent = gerarCssEstilos(modelo.estilos?.length ? modelo.estilos : estilos);
+        this.conteudoPreenchido.set(this.sanitizer.bypassSecurityTrustHtml(html));
+        this.carregando.set(false);
+      },
+      error: () => {
+        this.erro.set('Não foi possível carregar os dados da ficha.');
+        this.carregando.set(false);
+      },
+    });
+  }
+
+  /** Variáveis `fvs_*` — espelham `ContratoPdfController::fvs` (PHP monta as do cabeçalho/rodapé). */
+  private variaveisFicha(ficha: FvsPreenchimento): VariaveisModelo {
+    const rotulosStatus: Record<string, string> = { pendente: 'Pendente', aprovada: 'Aprovada', reprovada: 'Reprovada' };
+    const contagem = (resultado: ResultadoFvs) => ficha.itens.filter((i) => i.resultado === resultado).length;
+    const resumo = (
+      [
+        ['conforme', 'conforme'],
+        ['nao_conforme', 'não conforme'],
+        ['nao_se_aplica', 'não se aplica'],
+      ] as const
+    )
+      .map(([chave, rotulo]) => ({ n: contagem(chave), rotulo }))
+      .filter((r) => r.n > 0)
+      .map((r) => `${r.n} ${r.rotulo}`)
+      .join(' · ');
+
+    const etapa = ficha.eap_item;
+    const servico = etapa ? [etapa.codigo_eap, etapa.descricao].filter(Boolean).join(' - ') : '';
+
+    return {
+      fvs_codigo: ficha.codigo,
+      fvs_numero: String(ficha.numero).padStart(4, '0'),
+      fvs_revisao: String(ficha.revisao).padStart(3, '0'),
+      fvs_status: rotulosStatus[ficha.status] ?? ficha.status,
+      fvs_servico: servico,
+      fvs_checklist: ficha.modelo_nome_snapshot || '',
+      fvs_rdo_numero: ficha.rdo ? String(ficha.rdo.numero) : '',
+      fvs_rdo_data: ficha.rdo?.data ? formatarData(ficha.rdo.data) : '',
+      fvs_preenchido_em: ficha.preenchido_em ? formatarDataHora(ficha.preenchido_em) : '',
+      fvs_observacao_geral: ficha.observacao_geral || '',
+      fvs_resumo: resumo,
+      tabela_verificacao: { html: this.tabelaVerificacao(ficha) },
+    };
+  }
+
+  /** Tabela dos itens verificados: um ✔ na coluna do resultado, mais observação. Estilo inline (vale no PDF sem depender de CSS externo). */
+  private tabelaVerificacao(ficha: FvsPreenchimento): string {
+    const escapar = (texto: string) => texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const celula = 'border:1px solid #444; padding:4px 6px; vertical-align:top;';
+    const centro = `${celula} text-align:center; width:15%;`;
+    const marca = (item: FvsPreenchimento['itens'][number], resultado: ResultadoFvs) =>
+      item.resultado === resultado ? '&#10003;' : '';
+
+    const linhas = ficha.itens
+      .map(
+        (item, i) =>
+          `<tr><td style="${celula}">${i + 1}. ${escapar(item.descricao)}</td>` +
+          `<td style="${centro}">${marca(item, 'conforme')}</td>` +
+          `<td style="${centro}">${marca(item, 'nao_conforme')}</td>` +
+          `<td style="${centro}">${marca(item, 'nao_se_aplica')}</td>` +
+          `<td style="${celula}">${escapar(item.observacao ?? '')}</td></tr>`,
+      )
+      .join('');
+
+    const cab = 'border:1px solid #444; padding:4px 6px; background:#e8eef0; font-weight:700;';
+    return (
+      '<table style="width:100%; border-collapse:collapse; font-size:0.92em; margin:8px 0;">' +
+      `<thead><tr><th style="${cab} text-align:left;">Item verificado</th>` +
+      `<th style="${cab} text-align:center;">Conforme</th>` +
+      `<th style="${cab} text-align:center;">Não conforme</th>` +
+      `<th style="${cab} text-align:center;">Não se aplica</th>` +
+      `<th style="${cab} text-align:left;">Observação</th></tr></thead>` +
+      `<tbody>${linhas}</tbody></table>`
+    );
   }
 
   private carregarProposta(modeloId: string): void {

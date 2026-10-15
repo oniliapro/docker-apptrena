@@ -1,3 +1,5 @@
+import { agoraDeParede, hojeNoFuso, obterFuso } from './fuso';
+
 /**
  * Formatação pt-BR compartilhada. No app vanilla, estas funções estavam
  * duplicadas em quase todo arquivo (formatarMoeda, formatarData,
@@ -17,16 +19,14 @@ export function formatarMoeda(valor: unknown): string {
 
 /**
  * Fuso horário usado em toda exibição de data/hora do sistema (01/09/2026,
- * relatado pelo Lucas: "as datas não fazem sentido"). Fixo em Brasília por
- * enquanto — uma aba em Configurações pra escolher outro fuso por empresa
- * fica pra uma rodada futura (exige um serviço central de data injetável
- * em vez de funções puras; ver docs/CONTEXTO.md).
+ * relatado pelo Lucas: "as datas não fazem sentido"). Desde 15/10/2026 é
+ * escolha da empresa (Configurações → Dados da empresa) — ver `fuso.ts`;
+ * o padrão continua sendo Brasília/São Paulo.
  */
-const FUSO_PADRAO = 'America/Sao_Paulo';
 
 function formatarDataComFuso(data: Date): string {
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: FUSO_PADRAO,
+    timeZone: obterFuso(),
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -63,25 +63,19 @@ export function formatarData(iso: string | null | undefined): string {
   return formatarDataComFuso(data);
 }
 
-/** Data de hoje, no fuso de Brasília, no formato aceito por <input type="date">. */
+/** Data de hoje, no fuso escolhido pela empresa, no formato aceito por <input type="date">. */
 export function hojeIso(): string {
-  // Locale en-CA formata como AAAA-MM-DD — mesmo formato de <input type="date">.
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: FUSO_PADRAO,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  return hojeNoFuso();
 }
 
-/** Aceita um ISO completo (com hora) e devolve "25/07/2026 14:30", sempre no fuso de Brasília. */
+/** Aceita um ISO completo (com hora) e devolve "25/07/2026 14:30", sempre no fuso escolhido pela empresa. */
 export function formatarDataHora(iso: string | null | undefined): string {
   if (!iso) return '';
   const data = new Date(iso);
   if (Number.isNaN(data.getTime())) return '';
 
   const hora = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: FUSO_PADRAO,
+    timeZone: obterFuso(),
     hourCycle: 'h23',
     hour: '2-digit',
     minute: '2-digit',
@@ -93,10 +87,24 @@ export function formatarDataHora(iso: string | null | undefined): string {
 /**
  * Dias entre hoje e a data informada. Negativo se já passou;
  * null se não houver data.
+ *
+ * "Hoje" é o dia do fuso escolhido — uma data SÓ com dia (`2026-10-20`) é
+ * comparada dia de calendário contra dia de calendário, sem horas no meio.
  */
 export function diasRestantes(iso: string | null | undefined): number | null {
   if (!iso) return null;
-  const alvo = new Date(iso).getTime();
+  const texto = String(iso);
+
+  if (!texto.includes('T') && !texto.includes(' ')) {
+    const [ano, mes, dia] = texto.slice(0, 10).split('-').map(Number);
+    if (!ano || !mes || !dia) return null;
+    const hoje = agoraDeParede();
+    const alvoUtc = Date.UTC(ano, mes - 1, dia);
+    const hojeUtc = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    return Math.round((alvoUtc - hojeUtc) / 86_400_000);
+  }
+
+  const alvo = new Date(texto).getTime();
   if (Number.isNaN(alvo)) return null;
   return Math.ceil((alvo - Date.now()) / 86_400_000);
 }

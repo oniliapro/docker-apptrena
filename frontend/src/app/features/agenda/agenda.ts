@@ -3,6 +3,7 @@ import { Component, ElementRef, OnInit, computed, effect, inject, input, signal,
 import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { agoraDeParede, hojeNoFuso } from '../../core/utils/fuso';
 import {
   FatiaDoDia,
   corDoEvento,
@@ -14,7 +15,8 @@ import {
   moverReferencia,
   paraData,
 } from './agenda-calendario';
-import { EventoAgenda, ParticipanteAgenda, PayloadEventoAgenda, VisaoAgenda } from './agenda.models';
+import { EventoAgenda, ParticipanteAgenda, VisaoAgenda } from './agenda.models';
+import { EditarEventoModal, RascunhoEventoAgenda, rascunhoDoEvento } from './editar-evento-modal/editar-evento-modal';
 
 /** Altura de uma hora na grade da semana/dia, em px (`--hora` no scss usa o mesmo valor). */
 const PX_POR_HORA = 44;
@@ -26,23 +28,6 @@ const NOMES_MESES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ];
-
-/** Rascunho do popup — campos separados de data e hora (o que os `<input type="date|time">` entregam). */
-interface RascunhoEvento {
-  id: string | null;
-  titulo: string;
-  descricao: string;
-  local: string;
-  diaInteiro: boolean;
-  dataInicio: string;
-  horaInicio: string;
-  dataFim: string;
-  horaFim: string;
-  obraId: string;
-  participantes: number[];
-  podeEditar: boolean;
-  criadoPorNome: string | null;
-}
 
 /**
  * Agenda (26/09/2026, pedido do Lucas) — compromissos com horário, no estilo do
@@ -59,6 +44,7 @@ interface RascunhoEvento {
  */
 @Component({
   selector: 'app-agenda',
+  imports: [EditarEventoModal],
   templateUrl: './agenda.html',
   styleUrl: './agenda.scss',
 })
@@ -72,19 +58,16 @@ export class Agenda implements OnInit {
   protected readonly obras = signal<Obra[]>([]);
   protected readonly usuarios = signal<ParticipanteAgenda[]>([]);
   protected readonly visao = signal<VisaoAgenda>('mes');
-  protected readonly referencia = signal(dataIso(new Date()));
+  protected readonly referencia = signal(hojeNoFuso());
   protected readonly filtroObra = signal('');
   protected readonly somenteMeus = signal(false);
   protected readonly eventos = signal<EventoAgenda[]>([]);
   protected readonly carregando = signal(false);
   protected readonly erro = signal<string | null>(null);
-  protected readonly salvando = signal(false);
 
-  protected readonly rascunho = signal<RascunhoEvento | null>(null);
-  protected readonly buscaParticipante = signal('');
-  protected readonly erroPopup = signal<string | null>(null);
+  protected readonly rascunho = signal<RascunhoEventoAgenda | null>(null);
 
-  protected readonly hoje = dataIso(new Date());
+  protected readonly hoje = hojeNoFuso();
   protected readonly nomesDias = NOMES_DIAS;
   protected readonly horas = Array.from({ length: 24 }, (_, i) => i);
   protected readonly alturaDoDia = 24 * PX_POR_HORA;
@@ -129,12 +112,6 @@ export class Agenda implements OnInit {
     return mesmoMes
       ? `${primeiro.getDate()} – ${ultimo.getDate()} de ${NOMES_MESES[ultimo.getMonth()]} de ${ultimo.getFullYear()}`
       : `${primeiro.getDate()} de ${NOMES_MESES[primeiro.getMonth()].substring(0, 3)} – ${ultimo.getDate()} de ${NOMES_MESES[ultimo.getMonth()].substring(0, 3)} de ${ultimo.getFullYear()}`;
-  });
-
-  /** Participantes do popup que combinam com a busca. */
-  protected readonly usuariosFiltrados = computed(() => {
-    const termo = this.buscaParticipante().trim().toLowerCase();
-    return this.usuarios().filter((u) => !termo || u.nome.toLowerCase().includes(termo));
   });
 
   /** Recarrega sempre que a janela de datas, a visão ou a obra mudam. */
@@ -183,7 +160,7 @@ export class Agenda implements OnInit {
   // Navegação
   // ------------------------------------------------------------------
   protected irParaHoje(): void {
-    this.referencia.set(dataIso(new Date()));
+    this.referencia.set(hojeNoFuso());
   }
 
   protected mover(passo: number): void {
@@ -284,7 +261,7 @@ export class Agenda implements OnInit {
 
   protected linhaDoAgora(): number | null {
     if (!this.dias().includes(this.hoje)) return null;
-    const agora = new Date();
+    const agora = agoraDeParede();
     return ((agora.getHours() * 60 + agora.getMinutes()) / 60) * PX_POR_HORA;
   }
 
@@ -321,7 +298,7 @@ export class Agenda implements OnInit {
 
   protected novoAgora(): void {
     const referencia = this.dias().includes(this.hoje) ? this.hoje : this.referencia();
-    this.novoNoDia(referencia, referencia === this.hoje ? Math.min(23, new Date().getHours() + 1) : 9);
+    this.novoNoDia(referencia, referencia === this.hoje ? Math.min(23, agoraDeParede().getHours() + 1) : 9);
   }
 
   /** Clique numa faixa vazia da grade de horas: nasce ali, com 1 hora de duração. */
@@ -334,26 +311,10 @@ export class Agenda implements OnInit {
 
   protected abrirEvento(evento: EventoAgenda, clique?: Event): void {
     clique?.stopPropagation();
-    this.abrirRascunho({
-      id: evento.id,
-      titulo: evento.titulo,
-      descricao: evento.descricao,
-      local: evento.local,
-      diaInteiro: evento.diaInteiro,
-      dataInicio: evento.inicio.substring(0, 10),
-      horaInicio: horaTexto(evento.inicio),
-      dataFim: evento.fim.substring(0, 10),
-      horaFim: horaTexto(evento.fim),
-      obraId: evento.obraId ?? '',
-      participantes: evento.participantes.map((p) => p.id),
-      podeEditar: evento.podeEditar,
-      criadoPorNome: evento.criadoPorNome,
-    });
+    this.abrirRascunho(rascunhoDoEvento(evento));
   }
 
-  private abrirRascunho(rascunho: RascunhoEvento): void {
-    this.erroPopup.set(null);
-    this.buscaParticipante.set('');
+  private abrirRascunho(rascunho: RascunhoEventoAgenda): void {
     this.rascunho.set(rascunho);
   }
 
@@ -361,119 +322,21 @@ export class Agenda implements OnInit {
     this.rascunho.set(null);
   }
 
-  protected editarCampo(campo: 'titulo' | 'descricao' | 'local' | 'dataInicio' | 'horaInicio' | 'dataFim' | 'horaFim', evento: Event): void {
-    const valor = (evento.target as HTMLInputElement | HTMLTextAreaElement).value;
-    this.rascunho.update((r) => {
-      if (!r) return r;
-      const novo = { ...r, [campo]: valor };
-      // Mudar o dia de início arrasta o de fim junto se ficaria antes.
-      if (campo === 'dataInicio' && novo.dataFim < valor) novo.dataFim = valor;
-      return novo;
+  /** O popup já gravou pela API; aqui só reflete na grade e leva o calendário até o compromisso novo. */
+  protected eventoSalvo(salvo: EventoAgenda): void {
+    this.eventos.update((lista) => {
+      const semEste = lista.filter((e) => e.id !== salvo.id);
+      return [...semEste, salvo].sort((a, b) => a.inicio.localeCompare(b.inicio));
     });
+    this.fecharPopup();
+    // Compromisso marcado fora da janela aberta: leva o calendário até ele.
+    const dias = this.dias();
+    const dia = salvo.inicio.substring(0, 10);
+    if (dia < dias[0] || dia > dias[dias.length - 1]) this.referencia.set(dia);
   }
 
-  protected alternarDiaInteiro(evento: Event): void {
-    const marcado = (evento.target as HTMLInputElement).checked;
-    this.rascunho.update((r) => (r ? { ...r, diaInteiro: marcado } : r));
+  protected eventoExcluido(id: string): void {
+    this.eventos.update((lista) => lista.filter((e) => e.id !== id));
+    this.fecharPopup();
   }
-
-  protected escolherObra(evento: Event): void {
-    const valor = (evento.target as HTMLSelectElement).value;
-    this.rascunho.update((r) => (r ? { ...r, obraId: valor } : r));
-  }
-
-  protected participa(id: number): boolean {
-    return !!this.rascunho()?.participantes.includes(id);
-  }
-
-  protected alternarParticipante(id: number): void {
-    this.rascunho.update((r) => {
-      if (!r) return r;
-      const participantes = r.participantes.includes(id)
-        ? r.participantes.filter((p) => p !== id)
-        : [...r.participantes, id];
-      return { ...r, participantes };
-    });
-  }
-
-  protected mudarBusca(evento: Event): void {
-    this.buscaParticipante.set((evento.target as HTMLInputElement).value);
-  }
-
-  protected nomeDaObra(obraId: string): string {
-    const obra = this.obras().find((o) => o.id === obraId);
-    return obra?.obra_nome || obra?.map_number || '(obra sem nome)';
-  }
-
-  protected salvarPopup(): void {
-    const r = this.rascunho();
-    if (!r || !r.podeEditar || this.salvando()) return;
-
-    if (!r.titulo.trim()) {
-      this.erroPopup.set('Dê um título ao compromisso.');
-      return;
-    }
-    if (!r.dataInicio || !r.dataFim) {
-      this.erroPopup.set('Informe a data do compromisso.');
-      return;
-    }
-
-    const horaInicio = r.diaInteiro ? '00:00' : r.horaInicio || '00:00';
-    const horaFim = r.diaInteiro ? '23:59' : r.horaFim || horaInicio;
-    const inicio = `${r.dataInicio}T${horaInicio}`;
-    const fim = `${r.dataFim}T${horaFim}`;
-    if (fim < inicio) {
-      this.erroPopup.set('O fim do compromisso não pode ser antes do início.');
-      return;
-    }
-
-    const payload: PayloadEventoAgenda = {
-      titulo: r.titulo.trim(),
-      descricao: r.descricao.trim(),
-      local: r.local.trim(),
-      dia_inteiro: r.diaInteiro,
-      inicio,
-      fim,
-      obra_id: this.obraId() || r.obraId || null,
-      participantes: r.participantes,
-    };
-
-    this.salvando.set(true);
-    this.erroPopup.set(null);
-    const chamada = r.id ? this.api.atualizarEventoAgenda(r.id, payload) : this.api.criarEventoAgenda(payload);
-    chamada.subscribe({
-      next: (salvo) => {
-        this.salvando.set(false);
-        this.eventos.update((lista) => {
-          const semEste = lista.filter((e) => e.id !== salvo.id);
-          return [...semEste, salvo].sort((a, b) => a.inicio.localeCompare(b.inicio));
-        });
-        this.fecharPopup();
-        // Compromisso marcado fora da janela aberta: leva o calendário até ele.
-        const dias = this.dias();
-        const dia = salvo.inicio.substring(0, 10);
-        if (dia < dias[0] || dia > dias[dias.length - 1]) this.referencia.set(dia);
-      },
-      error: (falha) => {
-        this.salvando.set(false);
-        const mensagem = falha?.error?.message;
-        this.erroPopup.set(typeof mensagem === 'string' ? mensagem : 'Não foi possível salvar o compromisso.');
-      },
-    });
-  }
-
-  protected excluirPopup(): void {
-    const r = this.rascunho();
-    if (!r?.id || !r.podeEditar) return;
-    if (!window.confirm(`Excluir o compromisso "${r.titulo}"?`)) return;
-
-    this.api.excluirEventoAgenda(r.id).subscribe({
-      next: () => {
-        this.eventos.update((lista) => lista.filter((e) => e.id !== r.id));
-        this.fecharPopup();
-      },
-      error: () => this.erroPopup.set('Não foi possível excluir o compromisso.'),
-    });
-  }
-
 }

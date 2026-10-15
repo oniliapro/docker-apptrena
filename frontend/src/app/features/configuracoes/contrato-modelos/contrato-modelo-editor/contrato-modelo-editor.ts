@@ -904,6 +904,7 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
     switch (this.tipo()) {
       case 'empreita': return 'Contrato de empreitada';
       case 'proposta': return 'Proposta comercial';
+      case 'fvs': return 'Ficha de verificação de serviço';
       default: return 'Contrato de obra';
     }
   });
@@ -977,7 +978,8 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       this.contratoModeloId.set(id);
       this.carregar(id);
     } else {
-      const tipo: TipoContratoModelo = tipoDaQuery === 'obra' || tipoDaQuery === 'proposta' ? tipoDaQuery : 'empreita';
+      const tipo: TipoContratoModelo =
+        tipoDaQuery === 'obra' || tipoDaQuery === 'proposta' || tipoDaQuery === 'fvs' ? tipoDaQuery : 'empreita';
       this.tipo.set(tipo);
     }
   }
@@ -1189,6 +1191,12 @@ export class ContratoModeloEditor implements OnInit, OnDestroy {
       pessoas = [cliente, ['{{empreiteiro}}', 'CONTRATADO', '{{cpf_cnpj_empreiteiro}}']];
     } else if (tipo === 'proposta') {
       pessoas = [['{{cliente}}', 'DE ACORDO — CLIENTE', '{{cpf_cnpj_cliente}}'], empresa('PROPONENTE')];
+    } else if (tipo === 'fvs') {
+      // Ficha de verificação: quem verificou e o responsável técnico da obra.
+      pessoas = [
+        ['Responsável pela verificação', 'VERIFICADOR', 'CPF:'],
+        ['{{responsavel_tecnico}}', 'RESPONSÁVEL TÉCNICO', 'CREA: {{crea}}'],
+      ];
     } else {
       pessoas = [cliente, empresa('CONTRATADA')];
     }

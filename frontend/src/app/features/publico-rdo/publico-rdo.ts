@@ -4,6 +4,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { environment } from '../../../environments/environment';
+import { agoraDeParede } from '../../core/utils/fuso';
 import { CLIMAS, RdoFoto, RdoRegistro, TIPOS_OCORRENCIA } from '../rdo/rdo.models';
 import { DiaCalendario, construirSemanas, mesComPasso, mesDoMaisRecente } from '../rdo/rdo-calendario';
 
@@ -56,7 +57,7 @@ export class PublicoRdo implements OnInit {
   protected readonly erro = signal<string | null>(null);
 
   /** Mês exibido no calendário, sempre no dia 1. */
-  protected readonly mesAtual = signal<Date>(new Date());
+  protected readonly mesAtual = signal<Date>(agoraDeParede());
 
   protected readonly diasSemana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 

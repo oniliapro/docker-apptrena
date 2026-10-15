@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { ApiService } from '../../core/services/api.service';
 import { MedicaoPayload } from '../../core/models/api.models';
+import { hojeIso } from '../../core/utils/formato';
 import { ChaveTipo, ItemEap, PorTipo, TIPOS_CUSTO } from '../eap/eap.models';
 import { criarVazioPorTipo } from '../eap/eap-normalize';
 import { ehDescendente } from '../eap/eap-engine';
@@ -432,7 +433,7 @@ export class MedicaoStore {
           id: gerarId(),
           numeroRecebimento: numero,
           obraNumber: '',
-          dataSolicitacao: new Date().toISOString().slice(0, 10),
+          dataSolicitacao: hojeIso(),
           dataRecebimento: '',
           cliente: '',
           descricao: `Medição nº ${this.payload()?.sequencia ?? ''}`.trim(),

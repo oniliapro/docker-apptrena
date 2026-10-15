@@ -129,3 +129,13 @@ button {
   gap: 8px;
   margin-top: 16px;
 }
+
+// `select` global tem height:20px (tabelas densas) — o do formulário precisa de altura própria.
+.campo select { height: 30px; font-size: 13px; padding: 4px 8px; width: 100%; }
+
+.dica-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+}

@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\EmpresaRepresentante;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 /**
  * Aba "Dados da empresa" do popup de Configurações (26/08/2026, pedido do
@@ -44,6 +45,7 @@ class EmpresaPerfilController extends Controller
             'cor_primaria' => 'nullable|regex:/^#[0-9a-fA-F]{6}$/',
             'cor_secundaria' => 'nullable|regex:/^#[0-9a-fA-F]{6}$/',
             'fonte' => 'nullable|string|max:30',
+            'fuso_horario' => ['nullable', 'string', 'max:64', Rule::in(\DateTimeZone::listIdentifiers())],
             'logo' => 'nullable|image|max:2048',
             'papel_timbrado' => 'nullable|image|max:4096',
         ]);
@@ -131,6 +133,7 @@ class EmpresaPerfilController extends Controller
             'corPrimaria' => $empresa->cor_primaria ?? '',
             'corSecundaria' => $empresa->cor_secundaria ?? '',
             'fonte' => $empresa->fonte ?? 'padrao',
+            'fusoHorario' => \App\Support\Fuso::valido($empresa->fuso_horario) ? $empresa->fuso_horario : \App\Support\Fuso::PADRAO,
             'logoUrl' => $empresa->logo_url,
             'papelTimbradoUrl' => $empresa->papel_timbrado_url,
             'representantes' => $empresa->representantes->map(

@@ -7,6 +7,8 @@
  * grade, dois lugares.
  */
 
+import { hojeNoFuso } from '../../core/utils/fuso';
+
 /** Uma célula do calendário mensal — `item` é o tipo de registro de cada tela (RdoRegistro completo ou o resumo público). */
 export interface DiaCalendario<T> {
   data: string;
@@ -43,7 +45,7 @@ export function construirSemanas<T>(
   mesReferencia: Date,
   itens: readonly T[],
   dataDoItem: (item: T) => string,
-  hojeIso: string = paraIso(new Date()),
+  hojeIso: string = hojeNoFuso(),
 ): DiaCalendario<T>[][] {
   const ano = mesReferencia.getFullYear();
   const mes = mesReferencia.getMonth();

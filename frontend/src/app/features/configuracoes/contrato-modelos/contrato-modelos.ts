@@ -3,7 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ApiService } from '../../../core/services/api.service';
 import { ContratoModelo, ROTULOS_TIPO_CONTRATO_MODELO, TipoContratoModelo } from './contrato-modelo.models';
 
-const TIPOS: readonly TipoContratoModelo[] = ['empreita', 'obra', 'proposta'];
+const TIPOS: readonly TipoContratoModelo[] = ['empreita', 'obra', 'proposta', 'fvs'];
 
 /**
  * Aba "Modelos de documentos" do popup de Configurações (28/09/2026, itens

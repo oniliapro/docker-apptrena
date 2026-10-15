@@ -133,7 +133,11 @@
 
       @for (link of links(); track link.id) {
         <div class="linha link-item" [class.revogado]="!link.ativo">
-          <code>{{ urlPublica(link) }}</code>
+          @if (link.ativo) {
+            <a class="link-aberto" [href]="urlPublica(link)" target="_blank" rel="noopener">{{ urlPublica(link) }}</a>
+          } @else {
+            <code>{{ urlPublica(link) }}</code>
+          }
           @if (link.email) { <span class="link-email">{{ link.email }}</span> }
           @if (link.ativo) {
             <button type="button" class="botao-secundario" (click)="copiarLink(link)">Copiar</button>

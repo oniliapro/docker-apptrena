@@ -1,6 +1,6 @@
 import type { ConfigProposta } from '../../../shared/proposta-eap';
 
-export type TipoContratoModelo = 'empreita' | 'obra' | 'proposta';
+export type TipoContratoModelo = 'empreita' | 'obra' | 'proposta' | 'fvs';
 export type TamanhoPapelContrato = 'a4' | 'carta' | 'oficio';
 export type OrientacaoContrato = 'retrato' | 'paisagem';
 
@@ -111,6 +111,16 @@ export const VARIAVEIS_CONTRATO_MODELO: Record<TipoContratoModelo, readonly stri
     'custo_administracao', 'bdi_administracao', 'bdi_pct_administracao', 'total_administracao',
     'custo_total', 'bdi_total', 'bdi_pct_total', 'total_geral',
   ],
+  // Ficha de Verificação de Serviço como documento (15/10/2026).
+  fvs: [
+    'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
+    'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
+    'responsavel', 'responsavel_tecnico', 'crea', 'art',
+    'cliente', 'data',
+    'fvs_codigo', 'fvs_numero', 'fvs_revisao', 'fvs_status', 'fvs_servico', 'fvs_checklist',
+    'fvs_rdo_numero', 'fvs_rdo_data', 'fvs_preenchido_em', 'fvs_observacao_geral', 'fvs_resumo',
+    'tabela_verificacao',
+  ],
 };
 
 /**
@@ -128,7 +138,15 @@ export const VARIAVEIS_PAGINA_CONTRATO_MODELO: readonly string[] = ['pagina', 't
  * como botões"). Usada só pela UI do editor — `VARIAVEIS_CONTRATO_MODELO`
  * continua sendo a lista "achatada" que o backend valida/documenta.
  */
-export type ObjetoVariavelContrato = 'empresa' | 'obra' | 'cliente' | 'empreiteiro' | 'empreita' | 'proposta' | 'geral';
+export type ObjetoVariavelContrato =
+  | 'empresa'
+  | 'obra'
+  | 'cliente'
+  | 'empreiteiro'
+  | 'empreita'
+  | 'proposta'
+  | 'ficha'
+  | 'geral';
 
 export interface VariavelContrato {
   chave: string;
@@ -174,6 +192,7 @@ export const ROTULOS_OBJETO_VARIAVEL: Record<ObjetoVariavelContrato, string> = {
   empreiteiro: 'Empreiteiro',
   empreita: 'Empreita',
   proposta: 'Proposta',
+  ficha: 'Ficha de verificação',
   geral: 'Geral',
 };
 
@@ -229,6 +248,24 @@ export const VARIAVEIS_POR_OBJETO: Record<ObjetoVariavelContrato, readonly Varia
   ],
   /** `tabela_eap` é um BLOCO (a tabela da EAP inteira), não um texto — ver `shared/proposta-eap.ts`. */
   proposta: [{ chave: 'tabela_eap', rotulo: 'Tabela da EAP', soCorpo: true }, ...VARIAVEIS_EAP_PROPOSTA],
+  /**
+   * Ficha de Verificação de Serviço (15/10/2026). Os `fvs_*` existem também no cabeçalho/rodapé
+   * (o servidor os monta); `tabela_verificacao` é um BLOCO e só vale no corpo.
+   */
+  ficha: [
+    { chave: 'fvs_codigo', rotulo: 'Código (FVS-0001-REV000)' },
+    { chave: 'fvs_numero', rotulo: 'Número' },
+    { chave: 'fvs_revisao', rotulo: 'Revisão' },
+    { chave: 'fvs_status', rotulo: 'Situação (aprovada/reprovada/pendente)' },
+    { chave: 'fvs_servico', rotulo: 'Serviço (etapa da EAP)' },
+    { chave: 'fvs_checklist', rotulo: 'Nome do checklist' },
+    { chave: 'fvs_rdo_numero', rotulo: 'Nº do RDO' },
+    { chave: 'fvs_rdo_data', rotulo: 'Data do RDO' },
+    { chave: 'fvs_preenchido_em', rotulo: 'Preenchida em' },
+    { chave: 'fvs_resumo', rotulo: 'Resumo dos resultados' },
+    { chave: 'fvs_observacao_geral', rotulo: 'Observação geral', soCorpo: true },
+    { chave: 'tabela_verificacao', rotulo: 'Tabela de verificação (itens)', soCorpo: true },
+  ],
   geral: [{ chave: 'data', rotulo: 'Data de emissão' }],
 };
 
@@ -237,12 +274,14 @@ export const OBJETOS_POR_TIPO: Record<TipoContratoModelo, readonly ObjetoVariave
   empreita: ['empresa', 'obra', 'cliente', 'empreiteiro', 'empreita', 'geral'],
   obra: ['empresa', 'obra', 'cliente', 'geral'],
   proposta: ['empresa', 'obra', 'cliente', 'proposta', 'geral'],
+  fvs: ['empresa', 'obra', 'cliente', 'ficha', 'geral'],
 };
 
 export const ROTULOS_TIPO_CONTRATO_MODELO: Record<TipoContratoModelo, string> = {
   empreita: 'Empreita',
   obra: 'Contrato de obra',
   proposta: 'Proposta',
+  fvs: 'Ficha de verificação de serviço',
 };
 
 export const ROTULOS_TAMANHO_PAPEL: Record<TamanhoPapelContrato, string> = {

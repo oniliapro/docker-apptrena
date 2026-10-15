@@ -16,6 +16,8 @@ export interface FvsModelo {
   id: string;
   nome: string;
   itens: FvsItemModelo[];
+  /** Modelo de documento (Modelos de documentos, tipo `fvs`) que formata a ficha impressa — opcional (15/10/2026). */
+  contrato_modelo_id: string | null;
   ativo: boolean;
 }
 

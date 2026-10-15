@@ -509,6 +509,18 @@ export class ApiService {
   }
 
   /**
+   * GET /fvs/{ficha}/pdf (15/10/2026) — a Ficha de Verificação de Serviço impressa como documento.
+   * Sem `modeloId`, o servidor escolhe (o do checklist da ficha ou o primeiro modelo `fvs` ativo).
+   */
+  baixarFvsPdf(fichaId: string, modeloId?: string): Observable<Blob> {
+    return this.http.get(`${this.base}/fvs/${fichaId}/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+      params: modeloId ? { modelo_id: modeloId } : {},
+    });
+  }
+
+  /**
    * GET /obras/{obra}/proposta/pdf (14/10/2026) — proposta gerada da EAP.
    * `config` ajusta, só nesta geração, o padrão da tabela salvo no modelo.
    */

@@ -31,7 +31,10 @@ const LIMITE_MS_LONGO = 10 * 60_000;
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  const token = auth.token;
+  // O painel da plataforma manda o próprio `Authorization` (sessão separada da do usuário) — o
+  // token de usuário não pode sobrescrevê-lo, nem o 401 dele deve mandar pro login do sistema.
+  const ehPlataforma = req.url.includes('/admin-plataforma');
+  const token = req.headers.has('Authorization') ? null : auth.token;
 
   const requisicao = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
@@ -42,7 +45,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(requisicao).pipe(
     timeout(limite),
     catchError((erro: HttpErrorResponse) => {
-      if (erro.status === 401 && !req.url.includes('/login')) {
+      if (erro.status === 401 && !req.url.includes('/login') && !ehPlataforma) {
         void router.navigate(['/login']);
       }
       return throwError(() => erro);

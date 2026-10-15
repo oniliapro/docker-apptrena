@@ -46,6 +46,13 @@
   input, select { height: 30px; font-size: 13px; padding: 4px 8px; }
 }
 
+.dica-campo {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cor-texto-suave);
+}
+
 .erro-campo {
   display: block;
   margin-top: 4px;

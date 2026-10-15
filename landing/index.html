@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ComTrena · Controle de obra, orçamento e pagamento em um só lugar</title>
+<meta name="description" content="ComTrena: EAP com BDI, mapa de fornecedores, empreitas, medições, pagamentos com leitura de nota fiscal, diário de obra e contratos em PDF — tudo numa obra só.">
+<meta name="theme-color" content="#1B3A4B">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://comtrena.com.br/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ComTrena">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://comtrena.com.br/">
+<meta property="og:title" content="ComTrena — cada real da obra, no lugar certo do canteiro.">
+<meta property="og:description" content="Orçamento, empreitas, pagamentos, medições e diário de obra num só sistema.">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --primaria: #1B3A4B;
+    --primaria-escura: #12262F;
+    --destaque: #E8A33D;
+    --aco: #4A7A94;
+    --fundo: #DDE7EA;
+    --fundo-claro: #EEF3F4;
+    --superficie: #FFFFFF;
+    --borda: #BACED5;
+    --texto: #1B3A4B;
+    --texto-suave: #4A7A94;
+    --sucesso: #4C7A54;
+    --perigo: #C4462F;
+    --fonte: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    --raio: 6px;
+    --largura: 1120px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--fonte);
+    color: var(--texto);
+    background: var(--superficie);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+
+  .contorno { max-width: var(--largura); margin: 0 auto; padding: 0 24px; }
+
+  .botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 22px;
+    border-radius: var(--raio);
+    border: 2px solid transparent;
+    font: 600 15px/1 var(--fonte);
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
+  }
+  .botao:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
+  .botao-principal { background: var(--destaque); color: var(--primaria-escura); }
+  .botao-principal:hover { background: #f0b455; transform: translateY(-1px); }
+  .botao-contorno { border-color: rgba(255, 255, 255, .45); color: #fff; }
+  .botao-contorno:hover { border-color: #fff; background: rgba(255, 255, 255, .08); }
+  .botao-escuro { background: var(--primaria); color: #fff; }
+  .botao-escuro:hover { background: var(--primaria-escura); }
+
+  /* ------------------------------------------------------------ cabeçalho */
+  .topo {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--primaria);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+  }
+  .topo .contorno { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  .topo .marca img { height: 26px; width: auto; }
+  .topo nav { display: flex; align-items: center; gap: 26px; }
+  .topo nav a.link { color: #cfe0e6; text-decoration: none; font-size: 14px; font-weight: 500; }
+  .topo nav a.link:hover { color: #fff; }
+  .topo .botao { min-height: 40px; padding: 0 18px; font-size: 14px; }
+  @media (max-width: 760px) { .topo nav a.link { display: none; } }
+
+  /* ------------------------------------------------------------ herói */
+  .heroi {
+    color: #fff;
+    background:
+      linear-gradient(180deg, rgba(18, 38, 47, .15), rgba(18, 38, 47, .7)),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255, 255, 255, .045) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255, 255, 255, .045) 40px),
+      var(--primaria);
+    padding: 84px 0 96px;
+  }
+  .heroi .contorno {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+    gap: 56px;
+    align-items: center;
+  }
+  @media (max-width: 900px) { .heroi .contorno { grid-template-columns: 1fr; gap: 40px; } .heroi { padding: 56px 0 64px; } }
+
+  .etiqueta {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--destaque);
+    margin-bottom: 18px;
+  }
+  .heroi h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    font-weight: 800;
+    margin: 0 0 20px;
+  }
+  .heroi p.lide { font-size: 18px; color: #c4d4da; max-width: 560px; margin: 0 0 32px; }
+  .heroi .acoes { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  /* cartão de exemplo (dados ilustrativos) */
+  .exemplo {
+    background: var(--superficie);
+    color: var(--texto);
+    border-radius: 8px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+    padding: 20px;
+  }
+  .exemplo header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .exemplo h3 { margin: 0; font-size: 14px; }
+  .exemplo .nota { font-size: 11px; color: var(--texto-suave); }
+  .linha-barra { margin-top: 14px; }
+  .linha-barra .rotulos { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+  .linha-barra .rotulos b { font-weight: 600; }
+  .linha-barra .rotulos span { color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+  .trilho { height: 10px; border-radius: 99px; background: var(--fundo); overflow: hidden; position: relative; }
+  .trilho .medido { position: absolute; inset: 0 auto 0 0; background: var(--aco); opacity: .35; }
+  .trilho .realizado { position: absolute; inset: 0 auto 0 0; background: var(--primaria); }
+  .legenda { display: flex; gap: 16px; margin-top: 16px; font-size: 11px; color: var(--texto-suave); }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  /* ------------------------------------------------------------ seções */
+  section { padding: 84px 0; }
+  .titulo-secao { max-width: 640px; margin: 0 0 44px; }
+  .titulo-secao .etiqueta { color: var(--aco); }
+  .titulo-secao h2 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; letter-spacing: -.015em; margin: 0 0 12px; }
+  .titulo-secao p { margin: 0; color: var(--texto-suave); font-size: 17px; }
+
+  .recursos { background: var(--fundo-claro); }
+  .grade-recursos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 1020px) { .grade-recursos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .grade-recursos { grid-template-columns: 1fr; } }
+
+  .recurso {
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 22px 20px;
+  }
+  .recurso .icone {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: var(--fundo);
+    color: var(--primaria);
+    margin-bottom: 16px;
+  }
+  .recurso .icone svg { width: 22px; height: 22px; }
+  .recurso h3 { margin: 0 0 6px; font-size: 16px; }
+  .recurso p { margin: 0; font-size: 14px; color: var(--texto-suave); }
+
+  .passos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: passo; }
+  @media (max-width: 860px) { .passos { grid-template-columns: 1fr; } }
+  .passo { position: relative; padding-top: 52px; }
+  .passo::before {
+    counter-increment: passo;
+    content: counter(passo);
+    position: absolute;
+    top: 0; left: 0;
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: var(--primaria);
+    color: #fff;
+    font-weight: 700;
+  }
+  .passo h3 { margin: 0 0 6px; font-size: 18px; }
+  .passo p { margin: 0; color: var(--texto-suave); }
+
+  .destaques { background: var(--primaria); color: #fff; }
+  .destaques .titulo-secao .etiqueta { color: var(--destaque); }
+  .destaques .titulo-secao p { color: #c4d4da; }
+  .grade-destaques { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 860px) { .grade-destaques { grid-template-columns: 1fr; } }
+  .destaque {
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 8px;
+    padding: 24px;
+    background: rgba(255, 255, 255, .04);
+  }
+  .destaque h3 { margin: 0 0 8px; font-size: 17px; }
+  .destaque p { margin: 0; color: #c4d4da; font-size: 15px; }
+
+  .chamada { text-align: center; background: var(--fundo); }
+  .chamada h2 { font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 12px; letter-spacing: -.015em; }
+  .chamada p { margin: 0 auto 28px; max-width: 520px; color: var(--texto-suave); font-size: 17px; }
+  .chamada .acoes { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .botao-borda { border-color: var(--primaria); color: var(--primaria); }
+  .botao-borda:hover { background: rgba(27, 58, 75, .06); }
+
+  footer { background: var(--primaria-escura); color: #9fb6bf; padding: 36px 0; font-size: 14px; }
+  footer .contorno { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; }
+  footer img { height: 22px; width: auto; }
+  footer a { color: #cfe0e6; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .botao { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="contorno">
+    <a class="marca" href="/" aria-label="ComTrena — início">
+      <img src="marca/comtrena-logomarca-para-fundo-primaria-1B3A4B.svg" alt="ComTrena" width="150" height="26">
+    </a>
+    <nav aria-label="Principal">
+      <a class="link" href="#recursos">Recursos</a>
+      <a class="link" href="#como-funciona">Como funciona</a>
+      <a class="link" href="#contato">Contato</a>
+      <!-- O sistema fica em /app/ (login do ComTrena). -->
+      <a class="botao botao-principal" href="/app/">Entrar</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ============================================================ HERÓI -->
+  <div class="heroi">
+    <div class="contorno">
+      <div>
+        <span class="etiqueta">Controle de obra · multi-obra · multi-usuário</span>
+        <h1>Cada real da obra, no lugar certo do canteiro.</h1>
+        <p class="lide">
+          Orçamento com BDI, mapa de fornecedores, empreitas, medições, pagamentos e diário de obra
+          num só sistema — com o que foi orçado, medido e pago sempre lado a lado.
+        </p>
+        <div class="acoes">
+          <a class="botao botao-principal" href="/app/">Entrar no sistema →</a>
+          <a class="botao botao-contorno" href="#recursos">Conhecer os recursos</a>
+        </div>
+      </div>
+
+      <aside class="exemplo" aria-label="Exemplo de relatório Orçado x Realizado">
+        <header>
+          <h3>Orçado × Realizado × Medido</h3>
+          <span class="nota">dados de exemplo</span>
+        </header>
+
+        <div class="linha-barra">
+          <div class="rotulos"><b>Material</b><span>78% realizado</span></div>
+          <div class="trilho"><span class="medido" style="width:84%"></span><span class="realizado" style="width:78%"></span></div>
+        </div>
+        <div class="linha-barra">
+          <div class="rotulos"><b>Mão de obra</b><span>52% realizado</span></div>
+          <div class="trilho"><span class="medido" style="width:60%"></span><span class="realizado" style="width:52%"></span></div>
+        </div>
+        <div class="linha-barra">
+          <div class="rotulos"><b>Equipamento</b><span>31% realizado</span></div>
+          <div class="trilho"><span class="medido" style="width:35%"></span><span class="realizado" style="width:31%"></span></div>
+        </div>
+        <div class="linha-barra">
+          <div class="rotulos"><b>Administração</b><span>64% realizado</span></div>
+          <div class="trilho"><span class="medido" style="width:66%"></span><span class="realizado" style="width:64%"></span></div>
+        </div>
+
+        <div class="legenda">
+          <span><i style="background:var(--primaria)"></i>Realizado (pago)</span>
+          <span><i style="background:var(--aco);opacity:.45"></i>Medido</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ============================================================ RECURSOS -->
+  <section class="recursos" id="recursos">
+    <div class="contorno">
+      <div class="titulo-secao">
+        <span class="etiqueta">Recursos</span>
+        <h2>Do orçamento ao último pagamento, na mesma obra.</h2>
+        <p>Cada módulo conversa com os outros: o que você lança em um aparece, já somado, onde importa.</p>
+      </div>
+
+      <div class="grade-recursos">
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h6"/><path d="M18 14l2 2 3-4"/></svg></div>
+          <h3>EAP e orçamento com BDI</h3>
+          <p>Estrutura analítica em até 5 níveis, custos por categoria, BDI e proposta comercial gerada da própria EAP.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></div>
+          <h3>Mapa de fornecedores</h3>
+          <p>Compare preços item a item, escolha o vencedor de cada item e gere os pagamentos já ligados à etapa.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11l5-5M3 21l7.5-7.5M13 5l6 6-3 3-6-6 3-3z"/></svg></div>
+          <h3>Empreitas e medições</h3>
+          <p>Contrato por empreiteiro, medição física, saldo a pagar e a mensagem de solicitação pronta para o WhatsApp.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5c0-1.5 1.3-2 3-2s3 .8 3 2-1 1.7-3 2-3 .7-3 2 1.3 2 3 2 3-.5 3-2"/></svg></div>
+          <h3>Pagamentos e recebimentos</h3>
+          <p>Lançamentos com anexos organizados por tag e leitura de nota fiscal por foto, com preenchimento automático.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="1"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></div>
+          <h3>Cronograma e fluxo de caixa</h3>
+          <p>Cronograma de obra com caminho crítico, cronograma de desembolso por etapa e o saldo acumulado da obra.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div>
+          <h3>Diário de obra e fichas</h3>
+          <p>RDO com fotos, mão de obra e ocorrências, fichas de verificação de serviço e o link de acompanhamento do cliente.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+          <h3>Contratos e propostas</h3>
+          <p>Modelos de documento no editor visual, com cabeçalho, papel timbrado e variáveis da obra — PDF fiel ao que você vê.</p>
+        </article>
+
+        <article class="recurso">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M11 19V4M18 19v-6"/></svg></div>
+          <h3>Relatórios por obra</h3>
+          <p>Orçado, realizado, saldo e medido por categoria, com os adicionais separados do escopo original.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ COMO FUNCIONA -->
+  <section id="como-funciona">
+    <div class="contorno">
+      <div class="titulo-secao">
+        <span class="etiqueta">Como funciona</span>
+        <h2>Três passos para ter a obra sob controle.</h2>
+      </div>
+
+      <div class="passos">
+        <div class="passo">
+          <h3>Cadastre a obra e a EAP</h3>
+          <p>Monte o orçamento por etapas, com BDI e categorias de custo. É a base de todos os outros números.</p>
+        </div>
+        <div class="passo">
+          <h3>Lance o que acontece</h3>
+          <p>Mapas de fornecedores, empreitas, pagamentos e o diário de obra — pelo computador ou pelo celular.</p>
+        </div>
+        <div class="passo">
+          <h3>Acompanhe orçado × realizado</h3>
+          <p>Veja onde o dinheiro está indo, o quanto já foi medido e o que ainda falta, por obra e por categoria.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ DESTAQUES -->
+  <section class="destaques">
+    <div class="contorno">
+      <div class="titulo-secao">
+        <span class="etiqueta">Feito para a rotina da obra</span>
+        <h2>Equipe, cliente e canteiro no mesmo fluxo.</h2>
+        <p>Cada pessoa vê e faz só o que precisa.</p>
+      </div>
+
+      <div class="grade-destaques">
+        <div class="destaque">
+          <h3>Permissões por usuário e por obra</h3>
+          <p>Defina quem vê, quem lança e quem edita cada módulo — e em quais obras. Cada empresa enxerga só os seus dados.</p>
+        </div>
+        <div class="destaque">
+          <h3>Acompanhamento do cliente</h3>
+          <p>O contratante abre um link e acompanha os relatórios diários finalizados, sem precisar de senha nem de cadastro.</p>
+        </div>
+        <div class="destaque">
+          <h3>Também no celular</h3>
+          <p>Use pelo navegador do celular. O aplicativo Android, em breve, registra o RDO no canteiro sem internet e envia sozinho quando o sinal voltar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ CONTATO -->
+  <section class="chamada" id="contato">
+    <div class="contorno">
+      <h2>Pronto para acompanhar sua obra de perto?</h2>
+      <p>Quem já tem conta entra direto. Para conhecer o ComTrena ou pedir acesso, fale com a gente.</p>
+      <div class="acoes">
+        <a class="botao botao-escuro" href="/app/">Entrar no sistema</a>
+        <a class="botao botao-borda" id="link-contato" href="mailto:contato@comtrena.com.br?subject=Quero%20conhecer%20o%20ComTrena">Falar com a gente</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="contorno">
+    <img src="marca/comtrena-logomarca-para-fundo-escuro-12262F.svg" alt="ComTrena" width="130" height="22">
+    <span>© <span id="ano">2026</span> ComTrena. Todos os direitos reservados.</span>
+    <a href="/app/">Entrar</a>
+  </div>
+</footer>
+
+<script>
+  // Ano do rodapé sempre o corrente — sem manter a página atualizada à mão.
+  document.getElementById('ano').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

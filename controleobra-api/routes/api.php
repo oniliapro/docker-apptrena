@@ -29,6 +29,8 @@ use App\Http\Controllers\Api\PagamentoController;
 use App\Http\Controllers\Api\PublicoDiarioController;
 use App\Http\Controllers\Api\RecebimentoController;
 use App\Http\Controllers\Api\PastaController;
+use App\Http\Controllers\Api\PlataformaAuthController;
+use App\Http\Controllers\Api\PlataformaEmpresaController;
 use App\Http\Controllers\Api\RelatorioPdfController;
 use App\Http\Controllers\Api\MaterialEquipamentoController;
 use App\Http\Controllers\Api\StorageController;
@@ -52,9 +54,26 @@ use Illuminate\Support\Facades\Route;
 // ataque de força bruta na senha.
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
-// Cadastro público de uma nova empresa/cliente. Throttle mais generoso, mas
-// ainda limitado, pra dificultar cadastro em massa automatizado.
-Route::post('registrar', [AuthController::class, 'registrar'])->middleware('throttle:10,1');
+// Recuperação de senha por e-mail (15/10/2026). O cadastro público de empresas
+// (`POST registrar`) saiu: conta principal só nasce pelo painel da plataforma
+// (`admin-plataforma/empresas`, depois do login em duas etapas do dono).
+Route::post('esqueci-senha', [AuthController::class, 'esqueciSenha'])->middleware('throttle:5,1');
+Route::post('redefinir-senha', [AuthController::class, 'redefinirSenha'])->middleware('throttle:10,1');
+
+// Painel de planos — só o dono do ComTrena (tabela `admins_plataforma`, login +
+// código de 6 dígitos). O token dele só vale aqui dentro (BloqueiaPlataformaForaDoPainel).
+Route::prefix('admin-plataforma')->group(function () {
+    Route::post('login', [PlataformaAuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('2fa', [PlataformaAuthController::class, 'verificarCodigo'])->middleware('throttle:10,1');
+
+    Route::middleware(['auth:sanctum', 'plataforma'])->group(function () {
+        Route::post('logout', [PlataformaAuthController::class, 'logout']);
+        Route::get('me', [PlataformaAuthController::class, 'me']);
+        Route::get('empresas', [PlataformaEmpresaController::class, 'index']);
+        Route::post('empresas', [PlataformaEmpresaController::class, 'store']);
+        Route::put('empresas/{empresa}', [PlataformaEmpresaController::class, 'update']);
+    });
+});
 
 // Streaming de arquivos/miniaturas via URL assinada (não autenticada por
 // Sanctum, porque tags <img>/<video>/<audio>/<iframe> não mandam header

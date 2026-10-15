@@ -24,7 +24,7 @@ class FvsModelo extends Model
 
     protected $table = 'fvs_modelos';
 
-    protected $fillable = ['id', 'empresa_id', 'nome', 'itens', 'ativo'];
+    protected $fillable = ['id', 'empresa_id', 'nome', 'itens', 'contrato_modelo_id', 'ativo'];
 
     protected $casts = [
         'itens' => 'array',

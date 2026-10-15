@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { Obra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
+import { agoraDeParede } from '../../core/utils/fuso';
+import { urlDoApp } from '../../core/utils/url-app';
 import { DiaCalendario, construirSemanas, mesComPasso, mesDoMaisRecente } from './rdo-calendario';
 import { RdoFilaService } from './rdo-fila.service';
 import { RdoContratanteLink, RdoRegistro } from './rdo.models';
@@ -59,7 +61,7 @@ export class RdoLista implements OnInit {
   /** Só no modo por obra — link de acompanhamento do contratante (é da OBRA, não de um RDO). */
   protected readonly links = signal<RdoContratanteLink[]>([]);
 
-  protected readonly mesAtual = signal<Date>(new Date());
+  protected readonly mesAtual = signal<Date>(agoraDeParede());
   protected readonly diasSemana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   /** Dia clicado no calendário — filtra a lista abaixo; null = mostra tudo. */
   protected readonly dataFiltro = signal<string | null>(null);
@@ -149,7 +151,7 @@ export class RdoLista implements OnInit {
       next: (registros) => {
         this.registros.set(registros);
         const mes = mesDoMaisRecente(registros, (r) => r.data);
-        this.mesAtual.set(mes ?? new Date());
+        this.mesAtual.set(mes ?? agoraDeParede());
         this.carregando.set(false);
       },
       error: () => {
@@ -225,12 +227,20 @@ export class RdoLista implements OnInit {
     });
   }
 
+  /** Endereço que o contratante abre — respeita o `/app/` de produção (ver `urlDoApp`). */
   protected urlPublica(link: RdoContratanteLink): string {
-    return `${window.location.origin}/publico/rdo/${link.token}`;
+    return urlDoApp(`publico/rdo/${link.token}`);
   }
 
-  protected copiarLink(link: RdoContratanteLink): void {
-    navigator.clipboard?.writeText(this.urlPublica(link));
-    this.aviso.set('Link copiado.');
+  protected async copiarLink(link: RdoContratanteLink): Promise<void> {
+    const url = this.urlPublica(link);
+    try {
+      await navigator.clipboard.writeText(url);
+      this.aviso.set('Link copiado.');
+    } catch {
+      // Sem permissão de área de transferência (http, navegador antigo): mostra o
+      // endereço pra copiar à mão em vez de dizer que copiou sem ter copiado.
+      window.prompt('Copie o link abaixo:', url);
+    }
   }
 }

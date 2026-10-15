@@ -88,6 +88,48 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (15/10/2026): lote de 11 pedidos — fuso horário, Relatórios, popups do
+  dashboard, senha/recuperação, plano da plataforma, FVS como documento e
+  landing.** Sem Docker/PHP nesta sessão: o backend foi escrito mas **não foi
+  executado** (nenhum `php artisan`, nenhuma migration rodada); o frontend foi
+  verificado com `ng build` e Playwright contra API simulada.
+  1. **Fuso horário** (`core/utils/fuso.ts`): escolha da EMPRESA em
+     Configurações → Dados da empresa (padrão São Paulo, GMT-3). `hojeIso()`,
+     `formatarData*` e o calendário leem o fuso a cada chamada. Regra nova:
+     nunca `new Date()` para "agora"/"hoje" nem `toISOString().slice(0,10)`;
+     usar `hojeIso()`/`agoraDeParede()`. Backend: `empresas.fuso_horario` e
+     `App\Support\Fuso` (data impressa em contrato, "vence hoje" de contrato de
+     equipamento, lembretes da empreita). O banco continua em UTC de propósito.
+  2. **Página Relatórios** (`/relatorios`, `RelatoriosGeral`): a lista do card
+     virou o componente `ListaRelatorios` (`features/relatorios/lista-relatorios`),
+     usado pelo card (primeiras obras em aberto) e pela página (TODAS as obras).
+     "Ver todos" do card e o item do menu levam a ela.
+  3. **Popups no dashboard**: Diárias (`EditarDiariaModal`, extraído da aba),
+     Contratos de equipamentos (modal já existente) e Agenda
+     (`EditarEventoModal`, extraído) abrem no próprio dashboard. Diária JÁ
+     FECHADA em pagamento não edita (regra da aba): leva à lista da obra.
+  4. **Login**: botão mostrar senha (`app-campo-senha`), "Esqueci minha senha"
+     e `/redefinir-senha` (token de uso único, 60 min, e-mail). **O e-mail só
+     sai com SMTP configurado** (`MAIL_MAILER=log` em produção hoje) — ver
+     `docs/DEPLOY-LANDING-COMTRENA.md`. Cadastro público (`/cadastro`,
+     `POST /registrar`) REMOVIDO.
+  5. **Link do RDO não abria**: causa raiz = o link era montado com
+     `window.location.origin + /publico/rdo/...`, sem o `/app/` onde o Angular
+     vive em produção (`urlDoApp()`); o e-mail usa `config('app.frontend_url')`
+     (padrão `APP_URL/app`). Na lista do RDO o link agora é clicável.
+  6. **Painel de planos** (`/app/plataforma`, só o dono): tabela própria
+     `admins_plataforma`, login + TOTP (6 dígitos), token só vale em
+     `admin-plataforma/*`. Cria a conta principal, define plano/status/validade;
+     `suspensa`/`cancelada` bloqueiam o login da empresa. Criação do admin:
+     `php artisan plataforma:criar-admin`. A validade NÃO bloqueia sozinha.
+  7. **FVS como documento**: novo tipo `fvs` em Modelos de documentos
+     (variáveis `fvs_*` + `{{tabela_verificacao}}`); o checklist escolhe o
+     documento (`fvs_modelos.contrato_modelo_id`); botão "Imprimir ficha (PDF)"
+     no RDO (`GET fvs/{id}/pdf`). Na edição do modelo a tabela aparece como o
+     marcador `{{tabela_verificacao}}`, não como tabela (diferente da proposta).
+  8. **Landing** em `landing/` (HTML estático) + nginx/`/app/` em
+     `docs/DEPLOY-LANDING-COMTRENA.md`. O e-mail de contato da landing
+     (`contato@comtrena.com.br`) é PROVISÓRIO — confirmar.
 - **REGRA (09/10/2026, decisão do Lucas): o app ComTrena NÃO PODE ser
   publicado na Play Store (nem na App Store) antes da migração do domínio
   para comtrena.com.br** — ou seja, enquanto o `apiUrl` de

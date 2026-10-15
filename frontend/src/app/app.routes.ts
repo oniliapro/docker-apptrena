@@ -193,8 +193,24 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
   },
   {
-    path: 'cadastro',
-    loadComponent: () => import('./features/auth/cadastro/cadastro').then((m) => m.Cadastro),
+    // Recuperação de senha (15/10/2026) — o cadastro público de contas saiu: conta principal
+    // só nasce pelo painel da plataforma (`plataforma`, abaixo).
+    path: 'esqueci-senha',
+    loadComponent: () =>
+      import('./features/auth/esqueci-senha/esqueci-senha').then((m) => m.EsqueciSenha),
+  },
+  {
+    // Destino do link do e-mail: `/redefinir-senha?token=...&email=...`.
+    path: 'redefinir-senha',
+    loadComponent: () =>
+      import('./features/auth/redefinir-senha/redefinir-senha').then((m) => m.RedefinirSenha),
+  },
+  {
+    // Painel de planos — só o dono do ComTrena, com login próprio e verificação em duas
+    // etapas (15/10/2026). Fora do AppShell e sem link em nenhum menu de propósito.
+    path: 'plataforma',
+    loadComponent: () =>
+      import('./features/plataforma/plataforma').then((m) => m.Plataforma),
   },
   {
     // Versão "para imprimir" do relatório Orçado x Realizado — SEM o
@@ -276,6 +292,13 @@ export const routes: Routes = [
     // itens 8/9) — mesma ideia acima. Ver ContratoPdfController.
     path: 'imprimir/obras/:id/contratos/obra',
     data: { tipo: 'obra' },
+    loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
+  },
+  {
+    // Ficha de Verificação de Serviço como documento (15/10/2026) — mesma tela do contrato,
+    // com o modelo de tipo `fvs` e a tabela de verificação em `{{tabela_verificacao}}`.
+    path: 'imprimir/obras/:id/contratos/fvs/:fvsId',
+    data: { tipo: 'fvs' },
     loadComponent: () => import('./features/contrato-imprimir/contrato-imprimir').then((m) => m.ContratoImprimir),
   },
   {
@@ -459,6 +482,18 @@ export const routes: Routes = [
       // obra, então nunca fez sentido como página "geral" — essa rota
       // sem :id lia uma chave global que ficou órfã e sempre mostrava
       // vazio. Removida.
+      {
+        // Relatórios — todas as obras (15/10/2026, pedido do Lucas). Não é o antigo "relatório
+        // geral" de chave global (esse sim foi removido, ver acima): é uma lista com UMA linha
+        // por obra, cada uma levando para o relatório completo daquela obra
+        // (/obras/:id/relatorios). Antes disso o item do menu e o "Ver todos" do card caíam
+        // em rotas que não existiam.
+        path: 'relatorios',
+        data: { titulo: 'Relatórios' },
+        canActivate: [permissaoModuloGuard('relatorios')],
+        loadComponent: () =>
+          import('./features/relatorios/relatorios-geral').then((m) => m.RelatoriosGeral),
+      },
 
       // Mapa e Empreita mudaram para dentro das abas da obra (mesma
       // task, 28/07/2026) e depois viraram "vários por obra" em vez de

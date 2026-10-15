@@ -67,6 +67,19 @@ class ContratoModeloController extends Controller
             'custo_administracao', 'bdi_administracao', 'bdi_pct_administracao', 'total_administracao',
             'custo_total', 'bdi_total', 'bdi_pct_total', 'total_geral',
         ],
+        // 15/10/2026 — Ficha de Verificação de Serviço como DOCUMENTO. As
+        // `fvs_*` vêm da ficha preenchida; `tabela_verificacao` é um BLOCO (a
+        // tabela de itens com Conforme/Não conforme/Não se aplica) e só vale
+        // no corpo do documento, não em cabeçalho/rodapé.
+        'fvs' => [
+            'empresa_nome', 'empresa_cnpj', 'empresa_endereco', 'empresa_telefone', 'empresa_email', 'empresa_inscricao_estadual',
+            'obra_nome', 'numero_contrato', 'local_obra', 'periodo', 'prazo_meses', 'data_base',
+            'responsavel', 'responsavel_tecnico', 'crea', 'art',
+            'cliente', 'data',
+            'fvs_codigo', 'fvs_numero', 'fvs_revisao', 'fvs_status', 'fvs_servico', 'fvs_checklist',
+            'fvs_rdo_numero', 'fvs_rdo_data', 'fvs_preenchido_em', 'fvs_observacao_geral', 'fvs_resumo',
+            'tabela_verificacao',
+        ],
     ];
 
     /** Padrão da tabela da EAP na proposta — `config_proposta` só aceita estas chaves. */
@@ -163,7 +176,7 @@ class ContratoModeloController extends Controller
             'estilos.*.lista_prefixo' => 'nullable|string|max:40',
             'estilos.*.lista_sufixo' => 'nullable|string|max:10',
             'estilos.*.padrao' => 'nullable|boolean',
-            'tipo' => ['required', Rule::in(['empreita', 'obra', 'proposta'])],
+            'tipo' => ['required', Rule::in(['empreita', 'obra', 'proposta', 'fvs'])],
             'nome' => 'required|string|max:150',
             'conteudo' => 'required|string',
             'ativo' => 'nullable|boolean',

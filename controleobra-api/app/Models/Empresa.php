@@ -36,6 +36,8 @@ class Empresa extends Model
         'plano',
         'assinatura_status',
         'assinatura_valida_ate',
+        'fuso_horario',
+        'observacoes_plataforma',
     ];
 
     protected $appends = ['logo_url', 'papel_timbrado_url'];

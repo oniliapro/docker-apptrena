@@ -1,0 +1,275 @@
+// Painel da plataforma — fora do AppShell, então traz o próprio fundo e o próprio modal.
+:host { display: block; min-height: 100vh; background: var(--cor-fundo); }
+
+.etiqueta {
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+}
+
+.pequeno { font-size: 11px; }
+
+// ---------------------------------------------------------------- Acesso
+.tela-acesso {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--cor-primaria-escura);
+}
+
+.cartao-acesso {
+  width: 100%;
+  max-width: 400px;
+  background: var(--cor-superficie);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+  padding: 28px 26px;
+
+  .logo { height: 22px; width: auto; display: block; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 10px 0 4px; }
+  .sub { font-size: 12px; line-height: 1.5; margin: 0 0 4px; }
+}
+
+.campo {
+  display: block;
+  margin-top: 14px;
+
+  > span {
+    display: block;
+    font-family: var(--fonte-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cor-texto-suave);
+    margin-bottom: 5px;
+  }
+
+  // `input, select` têm `height: 20px` global (tabelas densas) — formulário precisa de altura própria.
+  input, select { height: 34px; font-size: 13px; padding: 6px 10px; }
+
+  .obrigatorio::after { content: ' *'; color: var(--cor-perigo); }
+}
+
+.codigo {
+  font-family: var(--fonte-mono);
+  font-size: 20px !important;
+  letter-spacing: 0.3em;
+  text-align: center;
+  height: 44px !important;
+}
+
+.passos {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.chave {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+
+  code {
+    flex: 1;
+    padding: 8px 10px;
+    background: var(--cor-fundo-alt);
+    border-radius: var(--raio-sm);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    word-break: break-all;
+  }
+
+  button { height: 34px; }
+}
+
+.erro {
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo);
+  font-size: 12px;
+}
+
+.cartao-acesso button[type='submit'] {
+  width: 100%;
+  margin-top: 18px;
+  height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+.rodape { margin: 14px 0 0; text-align: center; font-size: 12px; }
+
+.link {
+  border: 0;
+  background: transparent;
+  color: var(--cor-primaria);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+// ---------------------------------------------------------------- Painel
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--cor-superficie);
+  border-bottom: 1px solid var(--cor-borda);
+
+  > div:first-child { display: flex; align-items: center; gap: 12px; }
+  .logo-topo { height: 20px; width: auto; display: block; }
+}
+
+.topo-direita { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+
+.conteudo { padding: 18px 20px 40px; max-width: 1300px; margin: 0 auto; }
+
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+
+  @media (max-width: 640px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  div {
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  span { font-size: 11px; color: var(--cor-texto-suave); }
+  b { font-size: 20px; }
+  .alerta b { color: var(--cor-perigo); }
+}
+
+.barra {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+
+  .busca { flex: 1; min-width: 220px; height: 34px; font-size: 13px; padding: 6px 10px; }
+  button { height: 34px; }
+}
+
+.aviso {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+  font-size: 12px;
+}
+
+.tabela-rolagem {
+  overflow-x: auto;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th, td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+
+  th {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cor-texto-suave);
+    background: var(--cor-zebra);
+    white-space: nowrap;
+  }
+
+  .num { text-align: right; }
+
+  select, input { height: 30px; font-size: 12.5px; padding: 3px 6px; }
+  .anotacao { min-width: 160px; }
+  button { height: 30px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  tr.bloqueada td { background: var(--cor-perigo-bg); }
+  .status-bloqueio { border-color: var(--cor-perigo); color: var(--cor-perigo); font-weight: 600; }
+  .vencida { color: var(--cor-alerta); font-weight: 600; }
+  .vazio { text-align: center; padding: 22px; color: var(--cor-texto-suave); }
+}
+
+.nota { margin-top: 12px; font-size: 11.5px; line-height: 1.5; }
+
+// ---------------------------------------------------------------- Modal
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-fundo { position: absolute; inset: 0; background: rgba(18, 38, 47, 0.55); }
+
+.modal-cartao {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cor-superficie);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+
+  form { display: flex; flex-direction: column; min-height: 0; }
+}
+
+.modal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cor-borda);
+
+  .modal-titulo { font-weight: 600; }
+  button { border: 0; background: transparent; cursor: pointer; }
+}
+
+.modal-corpo { padding: 4px 16px 16px; overflow-y: auto; }
+
+.modal-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.duas-colunas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}

@@ -1,0 +1,275 @@
+@if (etapa() !== 'painel') {
+  <div class="tela-acesso">
+    <div class="cartao-acesso">
+      <img src="marca/comtrena-logomarca-para-fundo-claro.svg" alt="ComTrena" class="logo" />
+      <p class="etiqueta">Painel da plataforma</p>
+
+      @switch (etapa()) {
+        @case ('senha') {
+          <form [formGroup]="formSenha" (ngSubmit)="entrar()">
+            <h1>Acesso restrito</h1>
+            <p class="atenuado sub">Entre com o e-mail e a senha do administrador. Em seguida pediremos o código de 6 dígitos.</p>
+
+            <label class="campo">
+              <span>E-mail</span>
+              <input type="email" formControlName="email" autocomplete="username" />
+            </label>
+
+            <div class="campo">
+              <span>Senha</span>
+              <app-campo-senha [controle]="formSenha.controls.senha" autocomplete="current-password" />
+            </div>
+
+            @if (erro(); as mensagem) {
+              <p class="erro" role="alert">{{ mensagem }}</p>
+            }
+
+            <button class="primario" type="submit" [disabled]="formSenha.invalid || enviando()">
+              {{ enviando() ? 'Verificando…' : 'Continuar' }}
+            </button>
+          </form>
+        }
+
+        @case ('configurar') {
+          <form [formGroup]="formCodigo" (ngSubmit)="confirmarCodigo()">
+            <h1>Ative a verificação em duas etapas</h1>
+            <p class="atenuado sub">
+              Primeiro acesso: cadastre esta conta num aplicativo autenticador (Google Authenticator,
+              Microsoft Authenticator, Authy…). Só depois do primeiro código o painel é liberado.
+            </p>
+
+            <ol class="passos">
+              <li>No aplicativo, escolha <b>Adicionar conta</b> → <b>Inserir chave de configuração</b>.</li>
+              <li>Digite a chave abaixo (tipo de chave: <b>baseada em tempo</b>).</li>
+              <li>Digite aqui o código de 6 dígitos que o aplicativo mostrar.</li>
+            </ol>
+
+            <div class="chave">
+              <code>{{ segredo() }}</code>
+              <button type="button" class="botao-secundario" (click)="copiar(segredo())">Copiar</button>
+            </div>
+
+            <label class="campo">
+              <span>Código de 6 dígitos</span>
+              <input type="text" formControlName="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" class="codigo" />
+            </label>
+
+            @if (erro(); as mensagem) {
+              <p class="erro" role="alert">{{ mensagem }}</p>
+            }
+
+            <button class="primario" type="submit" [disabled]="formCodigo.invalid || enviando()">
+              {{ enviando() ? 'Verificando…' : 'Ativar e entrar' }}
+            </button>
+            <p class="rodape"><button type="button" class="link" (click)="voltarAoInicio()">← Voltar</button></p>
+          </form>
+        }
+
+        @case ('codigo') {
+          <form [formGroup]="formCodigo" (ngSubmit)="confirmarCodigo()">
+            <h1>Verificação em duas etapas</h1>
+            <p class="atenuado sub">Digite o código de 6 dígitos que aparece no seu aplicativo autenticador.</p>
+
+            <label class="campo">
+              <span>Código</span>
+              <input type="text" formControlName="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" class="codigo" />
+            </label>
+
+            @if (erro(); as mensagem) {
+              <p class="erro" role="alert">{{ mensagem }}</p>
+            }
+
+            <button class="primario" type="submit" [disabled]="formCodigo.invalid || enviando()">
+              {{ enviando() ? 'Verificando…' : 'Entrar' }}
+            </button>
+            <p class="rodape"><button type="button" class="link" (click)="voltarAoInicio()">← Voltar</button></p>
+          </form>
+        }
+      }
+    </div>
+  </div>
+} @else {
+  <div class="painel-pagina">
+    <header class="topo">
+      <div>
+        <img src="marca/comtrena-logomarca-para-fundo-claro.svg" alt="ComTrena" class="logo-topo" />
+        <span class="etiqueta">Painel da plataforma</span>
+      </div>
+      <div class="topo-direita">
+        @if (servico.admin(); as admin) {
+          <span class="atenuado">{{ admin.name }}</span>
+        }
+        <button type="button" (click)="sair()">Sair</button>
+      </div>
+    </header>
+
+    <main class="conteudo">
+      <section class="resumo">
+        <div><span>Contas</span><b>{{ resumo().total }}</b></div>
+        <div><span>Ativas</span><b>{{ resumo().ativas }}</b></div>
+        <div><span>Em teste</span><b>{{ resumo().emTeste }}</b></div>
+        <div [class.alerta]="resumo().bloqueadas > 0"><span>Bloqueadas</span><b>{{ resumo().bloqueadas }}</b></div>
+      </section>
+
+      <div class="barra">
+        <input type="search" class="busca" placeholder="Buscar conta, responsável ou e-mail…"
+               [value]="busca()" (input)="busca.set($any($event.target).value)" />
+        <button type="button" (click)="carregarEmpresas()" [disabled]="carregando()">Atualizar</button>
+        <button type="button" class="primario" (click)="abrirNovaConta()">+ Nova conta principal</button>
+      </div>
+
+      @if (avisoPainel(); as aviso) {
+        <p class="aviso" role="status">{{ aviso }}</p>
+      }
+
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Responsável</th>
+              <th>Plano</th>
+              <th>Status</th>
+              <th>Validade</th>
+              <th class="num">Usuários</th>
+              <th>Anotação</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of filtradas(); track e.id) {
+              <tr [class.bloqueada]="bloqueia(e.assinaturaStatus)">
+                <td>
+                  <b>{{ e.nome }}</b>
+                  <div class="atenuado pequeno">Criada em {{ formatarData(e.criadaEm) }}</div>
+                </td>
+                <td>
+                  @if (e.principal; as p) {
+                    {{ p.nome }}
+                    <div class="atenuado pequeno">{{ p.email }}</div>
+                  } @else {
+                    <span class="atenuado">—</span>
+                  }
+                </td>
+                <td>
+                  <select [value]="rascunho(e).plano" (change)="alterar(e, 'plano', $any($event.target).value)">
+                    @for (p of planos; track p.valor) {
+                      <option [value]="p.valor" [selected]="p.valor === rascunho(e).plano">{{ p.rotulo }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <select [value]="rascunho(e).status" (change)="alterar(e, 'status', $any($event.target).value)"
+                          [class.status-bloqueio]="bloqueia(rascunho(e).status)">
+                    @for (s of statusOpcoes; track s.valor) {
+                      <option [value]="s.valor" [selected]="s.valor === rascunho(e).status" [title]="s.dica">{{ s.rotulo }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <input type="date" [value]="rascunho(e).validade" (change)="alterar(e, 'validade', $any($event.target).value)" />
+                  @if (e.vencida) {
+                    <div class="vencida pequeno">vencida</div>
+                  }
+                </td>
+                <td class="num">{{ e.usuarios }}</td>
+                <td>
+                  <input type="text" class="anotacao" maxlength="2000" placeholder="Só você vê"
+                         [value]="rascunho(e).observacoes" (input)="alterar(e, 'observacoes', $any($event.target).value)" />
+                </td>
+                <td>
+                  <button type="button" class="primario" [disabled]="!temAlteracao(e) || salvandoId() !== null" (click)="salvar(e)">
+                    {{ salvandoId() === e.id ? 'Salvando…' : 'Salvar' }}
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="vazio">
+                  {{ carregando() ? 'Carregando…' : 'Nenhuma conta encontrada.' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <p class="nota atenuado">
+        <b>Suspensa</b> e <b>Cancelada</b> bloqueiam o login de todos os usuários da empresa. A validade é só
+        informativa (aparece como "vencida"): nada é bloqueado automaticamente por data.
+      </p>
+    </main>
+  </div>
+}
+
+@if (novaContaAberta()) {
+  <div class="modal">
+    <div class="modal-fundo" (fecharModal)="fecharNovaConta()"></div>
+    <div class="modal-cartao">
+      <div class="modal-cabecalho">
+        <span class="modal-titulo">Nova conta principal</span>
+        <button type="button" (click)="fecharNovaConta()" title="Fechar" aria-label="Fechar">✖</button>
+      </div>
+
+      <form [formGroup]="formNovaConta" (ngSubmit)="criarConta()">
+        <div class="modal-corpo">
+          <label class="campo">
+            <span class="obrigatorio">Empresa</span>
+            <input type="text" formControlName="empresa" />
+          </label>
+          <label class="campo">
+            <span class="obrigatorio">Nome do responsável</span>
+            <input type="text" formControlName="name" />
+          </label>
+          <label class="campo">
+            <span class="obrigatorio">E-mail de acesso</span>
+            <input type="email" formControlName="email" autocomplete="off" />
+          </label>
+          <div class="campo">
+            <span class="obrigatorio">Senha inicial (mínimo 8)</span>
+            <app-campo-senha [controle]="formNovaConta.controls.password" autocomplete="new-password" />
+          </div>
+
+          <div class="duas-colunas">
+            <label class="campo">
+              <span>Plano</span>
+              <select formControlName="plano">
+                @for (p of planos; track p.valor) {
+                  <option [value]="p.valor">{{ p.rotulo }}</option>
+                }
+              </select>
+            </label>
+            <label class="campo">
+              <span>Status</span>
+              <select formControlName="status">
+                @for (s of statusOpcoes; track s.valor) {
+                  <option [value]="s.valor">{{ s.rotulo }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <label class="campo">
+            <span>Válida até (vazio = 14 dias de teste)</span>
+            <input type="date" formControlName="validade" />
+          </label>
+          <label class="campo">
+            <span>Anotação (só você vê)</span>
+            <input type="text" formControlName="observacoes" maxlength="2000" />
+          </label>
+
+          @if (erroNovaConta(); as mensagem) {
+            <p class="erro" role="alert">{{ mensagem }}</p>
+          }
+        </div>
+
+        <div class="modal-rodape">
+          <button type="button" (click)="fecharNovaConta()">Cancelar</button>
+          <button type="submit" class="primario" [disabled]="enviando()">
+            {{ enviando() ? 'Criando…' : 'Criar conta' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

@@ -81,6 +81,19 @@
           }
         </select>
       </label>
+
+      <label class="campo campo-largo">
+        <span>Fuso horário</span>
+        <select formControlName="fusoHorario">
+          @for (f of fusos; track f.valor) {
+            <option [value]="f.valor">{{ f.rotulo }}</option>
+          }
+        </select>
+        <small class="dica-campo">
+          Datas e horários do sistema (hoje, lançamentos, agenda, documentos) seguem este fuso.
+          Agora nele: <b>{{ horaNoFusoEscolhido() }}</b>
+        </small>
+      </label>
     </div>
 
     <div class="grade">

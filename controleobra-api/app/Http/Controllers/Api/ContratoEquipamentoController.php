@@ -418,7 +418,7 @@ class ContratoEquipamentoController extends Controller
     private function comStatus(ContratoEquipamento $contrato): ContratoEquipamento
     {
         $itensAtivos = $contrato->itens->whereNull('devolvido_em');
-        $hoje = now()->startOfDay();
+        $hoje = \App\Support\Fuso::hoje();
 
         $contrato->setAttribute('itens_ativos_qtd', $itensAtivos->count());
         $contrato->setAttribute('valor_atual', $itensAtivos->sum(fn (ContratoEquipamentoItem $i) => $i->quantidade * $i->valor_unitario));

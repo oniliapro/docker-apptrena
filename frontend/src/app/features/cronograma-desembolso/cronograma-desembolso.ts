@@ -14,6 +14,7 @@ import { PagamentosStore } from '../pagamentos/pagamentos.store';
 import { RedimensionarColunas } from '../../shared/redimensionar-colunas/redimensionar-colunas';
 import { FormulaCampo, FormulasContexto } from '../../shared/numero/formulas-guardadas';
 import { nomeArquivoPdf } from '../../shared/pdf-nome-arquivo';
+import { agoraDeParede } from '../../core/utils/fuso';
 import {
   EstadoOrdenacao,
   alternarOrdenacao,
@@ -582,7 +583,7 @@ export class CronogramaDesembolso implements OnInit {
   protected readonly aplicandoValoresReais = signal(false);
 
   protected usarValoresReaisNoPlanejamento(): void {
-    const hoje = new Date();
+    const hoje = agoraDeParede();
     hoje.setHours(0, 0, 0, 0);
     const periodosPassados = this.periodos().filter((p) => p.inicio <= hoje);
     if (!periodosPassados.length) {

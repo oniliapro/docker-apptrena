@@ -1,0 +1,84 @@
+<div class="cartao-lista cartao-relatorios">
+  <div class="cartao-cabecalho">
+    <h3>Relatórios</h3>
+    <div class="opcoes-relatorio">
+      <label class="opcao-detalhar">
+        <input type="checkbox" [checked]="detalharRelatorios()" (change)="detalharRelatorios.set(!detalharRelatorios())" />
+        Detalhar
+      </label>
+      <label class="opcao-detalhar">
+        <input type="checkbox" [checked]="segmentarAdicionais()" (change)="segmentarAdicionais.set(!segmentarAdicionais())" />
+        Segmentar adicionais
+      </label>
+    </div>
+    @if (linkVerTodos(); as destino) {
+      <a [routerLink]="destino" title="Relatórios de todas as obras">Ver todos →</a>
+    }
+  </div>
+
+  @if (carregando()) {
+    <div class="vazio atenuado">Carregando…</div>
+  } @else if (relatorios().length) {
+    <div class="envoltoria-relatorios">
+      <!-- Cabeçalho — mesma árvore da linha de dados abaixo, só com os rótulos das colunas em vez de valores. -->
+      <div class="linha linha-relatorio cabecalho-relatorio">
+        <span class="coluna coluna-identidade-completa"></span>
+        <span class="coluna-bandas">
+          <span class="banda">
+            <span class="rotulo-banda"></span>
+            <span class="coluna-rotulos-metricas"></span>
+            @for (col of colunasParaExibir(); track col.chave) {
+              <span class="coluna coluna-categoria cabecalho-categoria" [class.coluna-total]="col.chave === 'total'">
+                {{ col.rotulo }}
+              </span>
+            }
+          </span>
+        </span>
+      </div>
+
+      @for (linha of relatorios(); track linha.obraId) {
+        <!-- Identidade: N° obra/Nome da obra/Nome do cliente/Data de início/Status da obra/Status da EAP, todos empilhados. -->
+        <a class="linha linha-relatorio" [routerLink]="['/obras', linha.obraId, 'relatorios']">
+          <span class="coluna coluna-identidade-completa">
+            <span class="col-l1">{{ linha.obraNumber || '—' }}</span>
+            <span class="col-l1 forte">{{ linha.obraNome }}</span>
+            <span class="col-l1">{{ linha.cliente }}</span>
+            <span class="col-l1">{{ linha.dataBase }}</span>
+            <span class="col-l1"><span class="etiqueta andamento">{{ linha.statusObra }}</span></span>
+            <span class="col-l1"><span class="etiqueta eap">EAP {{ linha.statusEap }}</span></span>
+          </span>
+
+          <span class="coluna-bandas">
+            @for (banda of bandasDetalhe(linha); track banda.rotulo) {
+              <span class="banda" [class.destaque]="banda.destaque">
+                <span class="rotulo-banda">{{ banda.rotulo }}</span>
+                <span class="coluna-rotulos-metricas">
+                  @for (m of ordemMetricas; track m.campo) {
+                    <span class="rotulo-metrica">{{ m.rotulo }}</span>
+                  }
+                </span>
+
+                @for (col of colunasParaExibir(); track col.chave) {
+                  <span class="coluna coluna-categoria" [class.coluna-total]="col.chave === 'total'">
+                    @for (m of ordemMetricas; track m.campo) {
+                      <span
+                        class="categoria-valor"
+                        [class.saldo-positivo]="m.campo === 'saldo' && banda.dados[col.chave][m.campo] >= 0"
+                        [class.saldo-negativo]="m.campo === 'saldo' && banda.dados[col.chave][m.campo] < 0"
+                      >
+                        {{ formatarMoeda(banda.dados[col.chave][m.campo]) }}
+                        <span class="categoria-pct">({{ formatarPercentual(pct(banda.dados[col.chave], m.campo)) }})</span>
+                      </span>
+                    }
+                  </span>
+                }
+              </span>
+            }
+          </span>
+        </a>
+      }
+    </div>
+  } @else {
+    <div class="vazio atenuado">{{ tituloVazio() }}</div>
+  }
+</div>
