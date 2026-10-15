@@ -15,69 +15,47 @@ valendo para o resto) e a migração de domínio descrita em `docs/CONTEXTO.md`
 
 O botão **Entrar** da landing aponta para `/app/`.
 
-## 1. Antes de tudo
+## 1. O que já está pronto no servidor (conferido em 15/10/2026)
 
-1. **Backup** (primeiro comando de qualquer publicação — ver passo 4).
-2. DNS na Hostinger: `comtrena.com.br` e `www` → `187.77.59.52`.
-3. Certificado: `sudo certbot --nginx -d comtrena.com.br -d www.comtrena.com.br`
-   (depois do bloco `server` do passo 2 existir, com a porta 80).
+- DNS: `comtrena.com.br` e `www` já apontam para `187.77.59.52`.
+- Certificado Let's Encrypt de `comtrena.com.br` já emitido (certbot).
+- `/etc/nginx/sites-available/comtrena.conf` já existe e serve `/api/`,
+  `/storage/` e `/app/` (esta com `alias /var/www/apptrena-angular/`).
+- A raiz `/` ainda vai para o app antigo (`proxy_pass http://127.0.0.1:8080`).
 
-## 2. nginx do sistema (`/etc/nginx/sites-available/comtrena.com.br`)
+Só falta a raiz mostrar a landing.
 
-```nginx
-server {
-    listen 80;
-    server_name comtrena.com.br www.comtrena.com.br;
-    return 301 https://comtrena.com.br$request_uri;
-}
+## 2. Ajuste do nginx — landing na raiz (só o que muda)
 
-server {
-    listen 443 ssl http2;
-    server_name comtrena.com.br www.comtrena.com.br;
-
-    ssl_certificate     /etc/letsencrypt/live/comtrena.com.br/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/comtrena.com.br/privkey.pem;
-
-    client_max_body_size 40M;
-
-    # API
-    location /api/ {
-        proxy_pass http://127.0.0.1:8088;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Fotos, logos e arquivos
-    location /storage/ {
-        proxy_pass http://127.0.0.1:8088;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Sistema (Angular) — a mesma pasta que o trenadigital.com.br já usa
-    location /app/ {
-        alias /var/www/apptrena-angular/;
-        try_files $uri $uri/ /app/index.html;
-    }
-
-    # Landing page
-    root /var/www/comtrena-landing;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ =404;
-    }
-}
-```
+Faça DEPOIS de copiar a landing para `/var/www/comtrena-landing` (passo 4 da
+publicação abaixo). O app antigo continua respondendo tudo que não é a landing
+(`/html/login.html` etc.): nada que já funciona deixa de funcionar.
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/comtrena.com.br /etc/nginx/sites-enabled/
+sudo cp /etc/nginx/sites-available/comtrena.conf ~/comtrena.conf.bak
+sudo python3 - <<'EOF'
+p = '/etc/nginx/sites-available/comtrena.conf'
+s = open(p).read()
+marca = "    location / {\n        proxy_pass http://127.0.0.1:8080;"
+assert s.count(marca) == 1, "bloco 'location /' nao encontrado exatamente uma vez"
+novo = """    # Landing page (raiz do dominio) — arquivos em /var/www/comtrena-landing
+    location = / {
+        root /var/www/comtrena-landing;
+        try_files /index.html =404;
+    }
+    location ~ ^/(marca/|favicon\.svg$|favicon\.ico$|apple-touch-icon\.png$|robots\.txt$|sitemap\.xml$) {
+        root /var/www/comtrena-landing;
+        try_files $uri =404;
+    }
+
+"""
+open(p, 'w').write(s.replace(marca, novo + marca))
+EOF
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+Se o `nginx -t` reclamar, volte o backup:
+`sudo cp ~/comtrena.conf.bak /etc/nginx/sites-available/comtrena.conf && sudo systemctl reload nginx`.
 
 ## 3. `.env` de produção (`controleobra-api/.env`)
 
@@ -103,7 +81,7 @@ MAIL_FROM_NAME="ComTrena"
 
 Teste: `docker exec controleobra-phpfpm php artisan tinker --execute="Mail::raw('teste', fn(\$m) => \$m->to('seu@email.com')->subject('Teste'));"`
 
-## 4. Publicação (bloco único)
+## 4. Publicação (bloco único — termina com a landing; depois faça o passo 2 acima)
 
 ```bash
 # 0) backup do banco — SEMPRE o primeiro comando
