@@ -86,7 +86,11 @@ export class Recebimentos implements OnInit {
 
   protected readonly editando = computed(() => this.idEditando() !== null);
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaRecebimento> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de solicitação, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaRecebimento> | null>({
+    coluna: 'dataSolicitacao',
+    direcao: 'desc',
+  });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
   protected readonly filtroStatus = signal<'todos' | 'pendente' | 'confirmado'>('todos');
@@ -123,7 +127,14 @@ export class Recebimentos implements OnInit {
   }
 
   protected obraDoRecebimento(recebimento: Recebimento): string {
-    return recebimento.obraNumber || this.store.cabecalho().obraNumber || this.store.obraNome() || '—';
+    // Nome da obra (15/10/2026, pedido do Lucas — a coluna mostrava o número); o número fica de reserva.
+    return (
+      recebimento.obraNome ||
+      this.store.obraNome() ||
+      recebimento.obraNumber ||
+      this.store.cabecalho().obraNumber ||
+      '—'
+    );
   }
 
   protected readonly listaExibida = computed(() => {

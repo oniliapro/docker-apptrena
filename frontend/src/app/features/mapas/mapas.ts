@@ -122,7 +122,8 @@ export class Mapas implements OnInit {
   /** Mapa cujo popup de pagamentos está aberto — null quando fechado. */
   protected readonly popupMapa = signal<Mapa | null>(null);
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapa> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de início, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapa> | null>({ coluna: 'inicio', direcao: 'desc' });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
 

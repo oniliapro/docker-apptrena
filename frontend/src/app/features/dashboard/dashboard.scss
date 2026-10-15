@@ -63,26 +63,89 @@
   margin-top: 4px;
 }
 
-// ---- Relatórios — sozinho numa linha cheia (14/09/2026) ----
-.grade-relatorios { margin-bottom: 16px; }
-
-// ---- Cards de lista — 3 linhas x 2 colunas (14/09/2026) ----
+// ---- Cards de lista — grade 3 colunas x 3 linhas (15/10/2026, pedido do Lucas; antes 2 colunas) ----
+// Os 9 blocos têm o MESMO tamanho (cabeçalho + filtros + corpo de 5 linhas + pé);
+// "Ver mais" não cresce o bloco — o corpo rola por dentro.
 .grade-listas {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  margin-bottom: 16px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 1250px) {
+  .grade-listas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
   .grade-listas { grid-template-columns: 1fr; }
 }
 
+// ---- Relatórios — por último, largura toda, abaixo da grade (15/10/2026) ----
+.grade-relatorios { margin-bottom: 16px; }
+
 .cartao-lista {
+  display: flex;
+  flex-direction: column;
   background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-md);
   overflow: hidden;
+  min-width: 0;
 }
+
+// Filtros do bloco (status + obra) — `select` global fixa height:20px/width:100% (_base.scss).
+.filtros-bloco {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cor-fundo-alt);
+
+  select {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    height: 26px;
+    padding: 2px 6px;
+    font-size: 11.5px;
+  }
+}
+
+// Corpo de altura fixa = 5 linhas. Sem "Ver mais" cabe tudo sem barra; depois do
+// "Ver mais" passa de 5 e a barra de rolagem aparece aqui dentro, sem esticar o bloco.
+.corpo-lista {
+  flex: 0 0 auto;
+  // 5 linhas de ~53px (padding 10 + duas linhas de texto + divisória) — medido no navegador em 15/10/2026.
+  height: 268px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  &.rolavel { box-shadow: inset 0 -8px 8px -8px rgba(0, 0, 0, 0.18); }
+}
+
+.rodape-bloco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: auto;
+  border-top: 1px solid var(--cor-fundo-alt);
+}
+
+.botao-ver-mais {
+  border: none;
+  background: none;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cor-aco);
+  cursor: pointer;
+
+  &:hover { color: var(--cor-primaria); text-decoration: underline; }
+}
+
+.contagem-restante { font-weight: 400; color: var(--cor-texto-suave); }
+.fim-lista { font-size: 11px; color: var(--cor-texto-suave); }
 
 .cartao-cabecalho {
   display: flex;
@@ -226,7 +289,7 @@ a.linha:hover { background: var(--cor-fundo); }
  * risca, mesmo quando isso junta campos meio heterogêneos na mesma
  * coluna (ex.: "N° obra" empilhado sobre "Orçado" no card Relatórios).
  */
-.linha-colunas { justify-content: flex-start; gap: 14px; }
+.linha-colunas { justify-content: flex-start; gap: 10px; padding-left: 12px; padding-right: 12px; }
 
 .coluna {
   display: flex;
@@ -235,7 +298,7 @@ a.linha:hover { background: var(--cor-fundo); }
   min-width: 0;
 }
 
-.coluna-estreita { flex: 0 0 auto; width: 84px; }
+.coluna-estreita { flex: 0 0 auto; width: 76px; }
 
 .coluna-descricao { flex: 1 1 auto; }
 
@@ -270,7 +333,8 @@ a.linha:hover { background: var(--cor-fundo); }
   align-self: center;
   font-family: var(--fonte-mono);
   font-weight: 700;
-  font-size: 13.5px;
+  // 12px (era 13,5): com 3 blocos por linha o valor disputa espaço com a descrição.
+  font-size: 12px;
   white-space: nowrap;
 }
 

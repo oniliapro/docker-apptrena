@@ -126,7 +126,8 @@ export class MapasObra implements OnInit {
   );
   protected readonly pagamentoEmEdicao = this.acoesPagamento.emEdicao;
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapaObra> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de início, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaMapaObra> | null>({ coluna: 'inicio', direcao: 'desc' });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
 

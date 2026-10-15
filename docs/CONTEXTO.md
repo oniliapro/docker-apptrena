@@ -3481,3 +3481,27 @@ AppTrena/
     O cadastro de Empreiteiros ganhou o campo **Endereço**.
   - Assinatura: o CONTRATANTE é o cliente da obra (era a empresa, no contrato
     de empreita); CPF/CNPJ abaixo de cada nome.
+- 15/10/2026 (3): Dashboard, listas e códigos dos mapas. **Tem migration de
+  dados** (`..._000400_codigo_do_mapa_por_obra`, fazer backup antes).
+  - **Mapas**: código `MAPA-OBR-0011-02` → `MAPA-0002` e `numero_mapa` com 4
+    dígitos (`02` → `0002`); cada obra tem a sua numeração, então `MAPA-0001`
+    existe em mais de uma obra — a unicidade de `mapas.codigo` virou
+    `(obra_id, codigo)`. Mantém o número que o mapa já tinha na obra; repetido
+    ou ilegível recebe o próximo livre. Testada num MySQL descartável.
+  - **Colunas "Obra" de Pagamentos/Recebimentos** (aba e geral) mostram o
+    NOME da obra (antes o número); busca e filtro por obra usam o nome.
+  - **Ordenação padrão** (a coluna fica marcada com ▼): Mapas (página e aba)
+    por data de início (`created_at`) decrescente; Pagamentos e Recebimentos
+    (página e aba) por data de solicitação decrescente.
+  - **Dashboard**: grade 3x3 com 9 blocos — Mapas, Empreitas, Pagamentos,
+    Recebimentos, Medição, Diário de obra (RDO), Diárias, Equipamentos
+    (contratos) e Agenda; Relatórios por último, abaixo da grade, largura toda.
+    Cada bloco: no máximo 2 filtros (status e obra), "Ver mais" que acrescenta
+    5 lançamentos com o corpo rolando por dentro (o bloco não cresce — corpo
+    de altura fixa, 5 linhas de ~53px). Estado em `dashboard-bloco.ts`
+    (`BlocoLista`). Agenda abre em "Próximos" (compromissos de -30 a +90 dias;
+    próximos primeiro, passados depois). Diárias ganhou `GET /api/diarias`
+    (lista geral, 200 mais recentes, respeita obra vetada). Medição junta até
+    20 obras em aberto (não existe lista geral de medições); Relatórios segue
+    nas 5 primeiras. Os contadores "Mapas"/"Empreitas" do topo passaram a
+    contar tudo (antes só os 5 do bloco).

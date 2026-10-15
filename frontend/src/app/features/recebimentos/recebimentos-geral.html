@@ -65,7 +65,7 @@
               <input type="checkbox" [checked]="selecao.todosSelecionados(listaOrdenada())"
                      (change)="selecao.alternarTodos(listaOrdenada())" title="Selecionar todos" />
             </th>
-            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numero')">Nº{{ setaOrdenacao(ordenacao(), 'numero') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('cliente')">Cliente{{ setaOrdenacao(ordenacao(), 'cliente') }}</th>
@@ -82,7 +82,7 @@
               <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
               </td>
-              <td class="centro">{{ obraNumber(recebimento) }}</td>
+              <td>{{ obraNome(recebimento) }}</td>
               <td class="centro">{{ numero(recebimento) }}</td>
               <td class="centro">{{ dataSolicitacao(recebimento) }}</td>
               <td>{{ cliente(recebimento) }}</td>

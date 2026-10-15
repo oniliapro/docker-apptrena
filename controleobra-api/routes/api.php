@@ -204,6 +204,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('obras/{obra}/diarias/{diaria}', [DiariaController::class, 'destroy'])
         ->middleware(['permissaoModulo:diarias,excluir', 'permissaoObra:lancar']);
 
+    // Lista geral (15/10/2026) — bloco "Diárias" do dashboard, cruza todas as obras. Sem
+    // `permissaoObra` na rota: o filtro de obra vetada roda dentro do controller (mesmo
+    // motivo de Mapas/Contratos de equipamentos/Agenda gerais).
+    Route::get('diarias', [DiariaController::class, 'indexGeral'])
+        ->middleware('permissaoModulo:diarias,usar');
+
     // Configurações — "Categorias de custo padrão" das diárias (vale pra empresa toda).
     Route::get('diarias/categorias', [DiariaController::class, 'categorias'])
         ->middleware('permissaoModulo:diarias,usar');

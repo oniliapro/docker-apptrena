@@ -67,7 +67,7 @@
               <input type="checkbox" [checked]="selecao.todosSelecionados(listaExibida())"
                      (change)="selecao.alternarTodos(listaExibida())" title="Selecionar todos" />
             </th>
-            <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
+            <th class="ordenavel" (click)="alternarOrdenacaoColuna('obra')">Obra{{ setaOrdenacao(ordenacao(), 'obra') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('numeroPagamento')">Nº{{ setaOrdenacao(ordenacao(), 'numeroPagamento') }}</th>
             <th class="centro ordenavel" (click)="alternarOrdenacaoColuna('dataSolicitacao')">Solicitação{{ setaOrdenacao(ordenacao(), 'dataSolicitacao') }}</th>
             <th class="ordenavel" (click)="alternarOrdenacaoColuna('descricao')">Descrição{{ setaOrdenacao(ordenacao(), 'descricao') }}</th>
@@ -87,7 +87,7 @@
               <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(pagamento)" (change)="selecao.alternar(pagamento)" />
               </td>
-              <td class="centro">{{ obraDoPagamento(pagamento) }}</td>
+              <td>{{ obraDoPagamento(pagamento) }}</td>
               <td class="centro">{{ pagamento.numeroPagamento || '—' }}</td>
               <td class="centro">{{ formatarDataPtBr(pagamento.dataSolicitacao) }}</td>
               <td>{{ pagamento.descricao || '—' }}</td>

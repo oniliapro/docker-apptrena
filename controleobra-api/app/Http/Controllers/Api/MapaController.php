@@ -114,11 +114,16 @@ class MapaController extends Controller
      */
     private function gerarCodigo(?string $obraId, string $numeroMapa): string
     {
-        $codigoObra = $obraId ? Obra::find($obraId)?->map_number : null;
-        $codigoObra = $codigoObra ?: 'SEMOBRA';
-        $numero = $numeroMapa !== '' ? $numeroMapa : '00';
+        // 15/10/2026, pedido do Lucas: o código não leva mais a identificação
+        // da obra — é só "MAPA-0001", e cada obra tem a SUA numeração (o
+        // mesmo código pode existir em obras diferentes; a unicidade da
+        // coluna agora é por obra, ver a migration `codigo_do_mapa_por_obra`).
+        $numero = $numeroMapa !== '' ? $numeroMapa : '0';
+        if (ctype_digit($numero)) {
+            $numero = str_pad($numero, 4, '0', STR_PAD_LEFT);
+        }
 
-        return "MAPA-{$codigoObra}-{$numero}";
+        return "MAPA-{$numero}";
     }
 
     private function syncCompleto(Request $request, Mapa $mapa)

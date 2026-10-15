@@ -19,12 +19,12 @@
 
   <div class="cartao-indicador">
     <div class="rotulo">Mapas</div>
-    <div class="numero">{{ carregandoMapas() ? '—' : mapas().length }}</div>
+    <div class="numero">{{ blocoMapas.carregando() ? '—' : blocoMapas.itens().length }}</div>
   </div>
 
   <div class="cartao-indicador">
     <div class="rotulo">Empreitas</div>
-    <div class="numero">{{ carregandoEmpreitas() ? '—' : empreitas().length }}</div>
+    <div class="numero">{{ blocoEmpreitas.carregando() ? '—' : blocoEmpreitas.itens().length }}</div>
   </div>
 
   <div class="cartao-indicador">
@@ -36,17 +36,423 @@
   </div>
 </div>
 
-<!-- Relatórios — sozinho numa linha cheia (14/09/2026, mockup do Lucas;
-     redesenhado em 14/09/2026 depois do Lucas mandar os 4 mockups
-     definitivos). "Detalhar" não muda mais a ESTRUTURA da linha — só
-     TROCA quais colunas aparecem depois do rótulo das métricas: sem
-     Detalhar é só a coluna "Total"; com Detalhar entra uma coluna por
-     categoria antes do Total. Por isso o cabeçalho e as linhas de
-     dado usam exatamente a mesma árvore de elementos/classes (só
-     trocando o conteúdo) — é assim que ficam alinhados de verdade,
-     em vez de só "parecerem" alinhados com larguras copiadas à mão. -->
-<div class="grade-relatorios">
+<!-- Filtros do bloco (15/10/2026, pedido do Lucas): no máximo dois — status e obra. -->
+<ng-template #filtrosBloco let-bloco="bloco">
+  <div class="filtros-bloco">
+    @if (bloco.opcoesStatus.length) {
+      <select aria-label="Filtrar por status" (change)="bloco.mudarStatus($any($event.target).value)">
+        <option value="" [selected]="!bloco.filtroStatus()">Todos os status</option>
+        @for (opcao of bloco.opcoesStatus; track opcao.valor) {
+          <option [value]="opcao.valor" [selected]="opcao.valor === bloco.filtroStatus()">{{ opcao.rotulo }}</option>
+        }
+      </select>
+    }
+    <select aria-label="Filtrar por obra" (change)="bloco.mudarObra($any($event.target).value)">
+      <option value="" [selected]="!bloco.filtroObra()">Todas as obras</option>
+      @for (obra of bloco.obras(); track obra) {
+        <option [value]="obra" [selected]="obra === bloco.filtroObra()">{{ obra }}</option>
+      }
+    </select>
+  </div>
+</ng-template>
+
+<!-- "Ver mais" no pé do bloco: acrescenta 5 lançamentos e o corpo passa a rolar por dentro — o bloco não cresce. -->
+<ng-template #rodapeBloco let-bloco="bloco">
+  <div class="rodape-bloco">
+    @if (bloco.restantes() > 0) {
+      <button type="button" class="botao-ver-mais" (click)="bloco.verMais()">
+        Ver mais <span class="contagem-restante">({{ bloco.restantes() }})</span>
+      </button>
+    } @else if (bloco.filtrados().length > 0) {
+      <span class="fim-lista">{{ bloco.filtrados().length }} lançamento{{ bloco.filtrados().length === 1 ? '' : 's' }}</span>
+    }
+  </div>
+</ng-template>
+
+<!-- Blocos de lista — grade 3 colunas x 3 linhas (15/10/2026, pedido do Lucas).
+     Cada linha segue o esqueleto dos mockups: colunas lado a lado, cada coluna
+     empilha 1-2 campos (`.col-l1`/`.col-l2`). -->
+<div class="grade-listas">
+  <!-- Mapas: Data de início/N° mapa · Descrição/Nome da obra · Total Mapa · Status do mapa/n° pagamentos -->
   <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Mapas</h3>
+      <a routerLink="/mapas">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoMapas }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoMapas.expandido()">
+      @if (blocoMapas.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (mapa of blocoMapas.exibidos(); track mapa.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirMapa(mapa)" title="Clique para abrir o mapa">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ dataDe(mapa, 'created_at') }}</span>
+              <span class="col-l2">Nº {{ campo(mapa, 'numero_mapa') }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ campo(mapa, 'descricao') }}</span>
+              <span class="col-l2">{{ campo(mapa, 'obra_nome') }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(numero(mapa, 'total_mapa')) }}</span>
+            <span class="coluna coluna-direita">
+              <span class="col-l1"><span class="etiqueta andamento">{{ statusMapa(mapa) }}</span></span>
+              <span class="col-l2">
+                @if (numero(mapa, 'pagamentos_count')) {
+                  <button
+                    type="button"
+                    class="link-contagem"
+                    (click)="$event.stopPropagation(); abrirPagamentosVinculados('mapa', campo(mapa, 'id'), 'Pagamentos — ' + campo(mapa, 'descricao'))"
+                  >
+                    {{ numero(mapa, 'pagamentos_count') }} pagamento{{ numero(mapa, 'pagamentos_count') === 1 ? '' : 's' }}
+                  </button>
+                } @else {
+                  <span class="atenuado pequeno">0 pagamentos</span>
+                }
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoMapas.temFiltroAtivo() ? 'Nenhum mapa com esses filtros.' : 'Nenhum mapa criado.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoMapas }" />
+  </div>
+
+  <!-- Empreitas: Empreiteiro/N° Empreita · Descrição empreita/Nome da obra · Total · Já pago/Saldo -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Empreitas</h3>
+      <a routerLink="/empreitas">Ver todas →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoEmpreitas }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoEmpreitas.expandido()">
+      @if (blocoEmpreitas.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (empreita of blocoEmpreitas.exibidos(); track empreita['id']) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirEmpreita(empreita)" title="Clique para abrir a empreita">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1 forte">{{ campo(empreita, 'empreiteiro') }}</span>
+              <span class="col-l2">Nº {{ campo(empreita, 'numero_empreita') }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1">{{ campo(empreita, 'descricao_empreita') }}</span>
+              <span class="col-l2">{{ campo(empreita, 'obra_nome') }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.total ?? 0) }}</span>
+            <span class="coluna coluna-direita">
+              <span class="col-l1">
+                <button
+                  type="button"
+                  class="link-contagem"
+                  (click)="$event.stopPropagation(); abrirPagamentosVinculados('empreita', campo(empreita, 'id'), 'Pagamentos — ' + campo(empreita, 'empreiteiro'))"
+                >
+                  Já pago: {{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.pago ?? 0) }}
+                </button>
+              </span>
+              <span class="col-l2 atenuado">
+                Saldo: {{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.saldo ?? 0) }}
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoEmpreitas.temFiltroAtivo() ? 'Nenhuma empreita com esses filtros.' : 'Nenhuma empreita criada.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoEmpreitas }" />
+  </div>
+
+  <!-- Pagamentos: Data solicitação/N° pagamento · Beneficiado/Nome da obra · Valor · Status do pagamento/n° anexos -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Pagamentos</h3>
+      <a routerLink="/pagamentos">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoPagamentos }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoPagamentos.expandido()">
+      @if (blocoPagamentos.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (pagamento of blocoPagamentos.exibidos(); track pagamento.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ formatarData(pagamento.dataSolicitacao) }}</span>
+              <span class="col-l2">{{ pagamento.numeroPagamento }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ pagamento.fornecedor || '—' }}</span>
+              <span class="col-l2">{{ pagamento.obraNome || '—' }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(pagamento.valorTotal) }}</span>
+            <span class="coluna coluna-direita">
+              <span class="col-l1">
+                <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
+                  {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </span>
+              <span class="col-l2">
+                @if (pagamento.anexosCount) {
+                  <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('pagamento', pagamento.id)">
+                    {{ pagamento.anexosCount }} anexo{{ pagamento.anexosCount === 1 ? '' : 's' }}
+                  </button>
+                } @else {
+                  <span class="atenuado pequeno">0 anexos</span>
+                }
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoPagamentos.temFiltroAtivo() ? 'Nenhum pagamento com esses filtros.' : 'Nenhum pagamento lançado.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoPagamentos }" />
+  </div>
+
+  <!-- Recebimentos: Data solicitação/N° recebimento · Descrição/Nome da obra · Valor · Status do recebimento/n° anexos -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Recebimentos</h3>
+      <a routerLink="/recebimentos">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoRecebimentos }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoRecebimentos.expandido()">
+      @if (blocoRecebimentos.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (recebimento of blocoRecebimentos.exibidos(); track recebimento.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirRecebimento(recebimento)" title="Clique para abrir o recebimento">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ formatarData(recebimento.dataSolicitacao) }}</span>
+              <span class="col-l2">{{ recebimento.numeroRecebimento }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ recebimento.descricao || '—' }}</span>
+              <span class="col-l2">{{ recebimento.obraNome || '—' }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(recebimento.valorTotal) }}</span>
+            <span class="coluna coluna-direita">
+              <span class="col-l1">
+                <span class="etiqueta-status" [class.pendente]="recebimento.status === 'pendente'">
+                  {{ recebimento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
+                </span>
+              </span>
+              <span class="col-l2">
+                @if (recebimento.anexosCount) {
+                  <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('recebimento', recebimento.id)">
+                    {{ recebimento.anexosCount }} anexo{{ recebimento.anexosCount === 1 ? '' : 's' }}
+                  </button>
+                } @else {
+                  <span class="atenuado pequeno">0 anexos</span>
+                }
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoRecebimentos.temFiltroAtivo() ? 'Nenhum recebimento com esses filtros.' : 'Nenhum recebimento lançado.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoRecebimentos }" />
+  </div>
+
+  <!-- Medição: Data da medição/N° medição · Nome da obra · Status da medição -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Medição</h3>
+      <a routerLink="/obras" title="Medições ficam dentro de cada obra">Ver todas →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoMedicoes }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoMedicoes.expandido()">
+      @if (blocoMedicoes.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (medicao of blocoMedicoes.exibidos(); track medicao.id) {
+          <a class="linha linha-colunas" [routerLink]="['/obras', medicao.obraId, 'medicoes', medicao.id]">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ medicao.dataMedicao ? formatarData(medicao.dataMedicao) : '—' }}</span>
+              <span class="col-l2">Nº {{ medicao.sequencia }}</span>
+            </span>
+            <span class="coluna coluna-descricao coluna-linha-unica">
+              <span class="col-l1 forte">{{ medicao.obraNome }}</span>
+            </span>
+            <span class="coluna coluna-direita coluna-linha-unica">
+              <span class="etiqueta-status" [class.pendente]="medicao.status === 'rascunho'">
+                {{ medicao.status === 'aprovada' ? 'Aprovada' : 'Rascunho' }}
+              </span>
+            </span>
+          </a>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoMedicoes.temFiltroAtivo() ? 'Nenhuma medição com esses filtros.' : 'Nenhuma medição lançada.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoMedicoes }" />
+  </div>
+
+  <!-- Diário de obra (RDO): Data/N° do RDO · Nome da obra/tarefas e fotos · Status -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Diário de obra</h3>
+      <a routerLink="/obras" title="O diário (RDO) fica dentro de cada obra">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoRdos }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoRdos.expandido()">
+      @if (blocoRdos.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (rdo of blocoRdos.exibidos(); track rdo.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirRdo(rdo)" title="Clique para abrir o RDO">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ rdo.data ? formatarData(rdo.data) : '—' }}</span>
+              <span class="col-l2">Nº {{ rdo.numero ?? '—' }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ rdo.obraNome }}</span>
+              <span class="col-l2">
+                {{ rdo.tarefas }} tarefa{{ rdo.tarefas === 1 ? '' : 's' }} · {{ rdo.fotos }} foto{{ rdo.fotos === 1 ? '' : 's' }}
+              </span>
+            </span>
+            <span class="coluna coluna-direita coluna-linha-unica">
+              <span class="etiqueta-status" [class.pendente]="rdo.status === 'rascunho'">
+                {{ rdo.status === 'finalizado' ? 'Finalizado' : 'Rascunho' }}
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoRdos.temFiltroAtivo() ? 'Nenhum RDO com esses filtros.' : 'Nenhum RDO lançado.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoRdos }" />
+  </div>
+
+  <!-- Diárias: Data/meia diária · Profissional/Nome da obra · Valor · Status -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Diárias</h3>
+      <a routerLink="/obras" title="As diárias ficam dentro de cada obra">Ver todas →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoDiarias }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoDiarias.expandido()">
+      @if (blocoDiarias.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (diaria of blocoDiarias.exibidos(); track diaria.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirDiarias(diaria)" title="Clique para abrir as diárias da obra">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ diaria.data ? formatarData(diaria.data) : '—' }}</span>
+              <span class="col-l2">{{ diaria.meia ? 'Meia diária' : 'Diária' }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ diaria.profissional }}{{ diaria.funcao ? ' · ' + diaria.funcao : '' }}</span>
+              <span class="col-l2">{{ diaria.obraNome }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(diaria.valor) }}</span>
+            <span class="coluna coluna-direita coluna-linha-unica">
+              <span class="etiqueta-status" [class.pendente]="diaria.status === 'rascunho'">
+                {{ diaria.status === 'fechada' ? 'Fechada' : 'Em aberto' }}
+              </span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoDiarias.temFiltroAtivo() ? 'Nenhuma diária com esses filtros.' : 'Nenhuma diária lançada.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoDiarias }" />
+  </div>
+
+  <!-- Equipamentos (contratos): Entrega/N° · Contrato/Fornecedor · Valor atual · Status/vencimento -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Equipamentos</h3>
+      <a routerLink="/contratos-equipamentos">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoEquipamentos }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoEquipamentos.expandido()">
+      @if (blocoEquipamentos.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (contrato of blocoEquipamentos.exibidos(); track contrato.id) {
+          <div class="linha linha-colunas linha-clicavel" (click)="abrirEquipamento(contrato)" title="Clique para abrir os contratos de equipamentos da obra">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ contrato.data_entrega ? formatarData(contrato.data_entrega) : '—' }}</span>
+              <span class="col-l2">Nº {{ contrato.numero }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ contrato.nome_contrato }}</span>
+              <span class="col-l2">{{ contrato.fornecedor }} · {{ contrato.obra_nome || '—' }}</span>
+            </span>
+            <span class="coluna-valor">{{ formatarMoeda(contrato.valor_atual) }}</span>
+            <span class="coluna coluna-direita">
+              <span class="col-l1">
+                <span class="etiqueta-status" [class.pendente]="contrato.status !== 'ativo'">
+                  {{ rotulosStatusContrato[contrato.status] }}
+                </span>
+              </span>
+              <span class="col-l2">vence {{ contrato.data_vencimento ? formatarData(contrato.data_vencimento) : '—' }}</span>
+            </span>
+          </div>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoEquipamentos.temFiltroAtivo() ? 'Nenhum contrato com esses filtros.' : 'Nenhum contrato de equipamento.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoEquipamentos }" />
+  </div>
+
+  <!-- Agenda: Data/hora · Título/Obra e local · — -->
+  <div class="cartao-lista">
+    <div class="cartao-cabecalho">
+      <h3>Agenda</h3>
+      <a routerLink="/agenda">Ver todos →</a>
+    </div>
+    <ng-container *ngTemplateOutlet="filtrosBloco; context: { bloco: blocoAgenda }" />
+
+    <div class="corpo-lista" [class.rolavel]="blocoAgenda.expandido()">
+      @if (blocoAgenda.carregando()) {
+        <div class="vazio atenuado">Carregando…</div>
+      } @else {
+        @for (evento of blocoAgenda.exibidos(); track evento.id) {
+          <a class="linha linha-colunas" routerLink="/agenda" title="Abrir a agenda">
+            <span class="coluna coluna-estreita">
+              <span class="col-l1">{{ formatarData(evento.inicio.slice(0, 10)) }}</span>
+              <span class="col-l2">{{ evento.diaInteiro ? 'Dia inteiro' : horaDe(evento.inicio) }}</span>
+            </span>
+            <span class="coluna coluna-descricao">
+              <span class="col-l1 forte">{{ evento.titulo }}</span>
+              <span class="col-l2">{{ evento.obraNome || 'Geral' }}{{ evento.local ? ' · ' + evento.local : '' }}</span>
+            </span>
+          </a>
+        } @empty {
+          <div class="vazio atenuado">{{ blocoAgenda.temFiltroAtivo() ? 'Nenhum compromisso com esses filtros.' : 'Nenhum compromisso.' }}</div>
+        }
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="rodapeBloco; context: { bloco: blocoAgenda }" />
+  </div>
+</div>
+
+<!-- Relatórios — por último, ocupando a largura toda, abaixo da grade (15/10/2026, pedido do Lucas).
+     Antes ficava no topo; "Detalhar" não muda a ESTRUTURA da linha — só TROCA quais colunas
+     aparecem depois do rótulo das métricas: sem Detalhar é só a coluna "Total"; com Detalhar
+     entra uma coluna por categoria antes do Total. Por isso o cabeçalho e as linhas de dado
+     usam exatamente a mesma árvore de elementos/classes (só trocando o conteúdo) — é assim que
+     ficam alinhados de verdade, em vez de só "parecerem" alinhados com larguras copiadas à mão. -->
+<div class="grade-relatorios">
+  <div class="cartao-lista cartao-relatorios">
     <div class="cartao-cabecalho">
       <h3>Relatórios</h3>
       <div class="opcoes-relatorio">
@@ -128,220 +534,6 @@
       <div class="vazio atenuado">Nenhuma obra em aberto.</div>
     }
   </div>
-</div>
-
-<!-- Demais cards — 3 linhas x 2 colunas (14/09/2026, mockup do Lucas) -->
-<div class="grade-listas">
-  <!-- Mapas: Data de início/N° mapa · Descrição/Nome da obra · Total Mapa · Status do mapa/n° pagamentos -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Mapas</h3>
-      <a routerLink="/mapas">Ver todos →</a>
-    </div>
-
-    @if (carregandoMapas()) {
-      <div class="vazio atenuado">Carregando…</div>
-    } @else {
-      @for (mapa of mapas(); track mapa.id) {
-        <div class="linha linha-colunas linha-clicavel" (click)="abrirMapa(mapa)" title="Clique para abrir o mapa">
-          <span class="coluna coluna-estreita">
-            <span class="col-l1">{{ dataDe(mapa, 'created_at') }}</span>
-            <span class="col-l2">Nº {{ campo(mapa, 'numero_mapa') }}</span>
-          </span>
-          <span class="coluna coluna-descricao">
-            <span class="col-l1 forte">{{ campo(mapa, 'descricao') }}</span>
-            <span class="col-l2">{{ campo(mapa, 'obra_nome') }}</span>
-          </span>
-          <span class="coluna-valor">{{ formatarMoeda(numero(mapa, 'total_mapa')) }}</span>
-          <span class="coluna coluna-direita">
-            <span class="col-l1"><span class="etiqueta andamento">{{ statusMapa(mapa) }}</span></span>
-            <span class="col-l2">
-              @if (numero(mapa, 'pagamentos_count')) {
-                <button
-                  type="button"
-                  class="link-contagem"
-                  (click)="$event.stopPropagation(); abrirPagamentosVinculados('mapa', campo(mapa, 'id'), 'Pagamentos — ' + campo(mapa, 'descricao'))"
-                >
-                  {{ numero(mapa, 'pagamentos_count') }} pagamento{{ numero(mapa, 'pagamentos_count') === 1 ? '' : 's' }}
-                </button>
-              } @else {
-                <span class="atenuado pequeno">0 pagamentos</span>
-              }
-            </span>
-          </span>
-        </div>
-      } @empty {
-        <div class="vazio atenuado">Nenhum mapa criado.</div>
-      }
-    }
-  </div>
-
-  <!-- Empreitas: Empreiteiro/N° Empreita · Descrição empreita/Nome da obra · Total · Já pago/Saldo -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Empreitas</h3>
-      <a routerLink="/empreitas">Ver todas →</a>
-    </div>
-
-    @if (carregandoEmpreitas()) {
-      <div class="vazio atenuado">Carregando…</div>
-    } @else {
-      @for (empreita of empreitas(); track empreita['id']) {
-        <div class="linha linha-colunas linha-clicavel" (click)="abrirEmpreita(empreita)" title="Clique para abrir a empreita">
-          <span class="coluna coluna-estreita">
-            <span class="col-l1 forte">{{ campo(empreita, 'empreiteiro') }}</span>
-            <span class="col-l2">Nº {{ campo(empreita, 'numero_empreita') }}</span>
-          </span>
-          <span class="coluna coluna-descricao">
-            <span class="col-l1">{{ campo(empreita, 'descricao_empreita') }}</span>
-            <span class="col-l2">{{ campo(empreita, 'obra_nome') }}</span>
-          </span>
-          <span class="coluna-valor">{{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.total ?? 0) }}</span>
-          <span class="coluna coluna-direita">
-            <span class="col-l1">
-              <button
-                type="button"
-                class="link-contagem"
-                (click)="$event.stopPropagation(); abrirPagamentosVinculados('empreita', campo(empreita, 'id'), 'Pagamentos — ' + campo(empreita, 'empreiteiro'))"
-              >
-                Já pago: {{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.pago ?? 0) }}
-              </button>
-            </span>
-            <span class="col-l2 atenuado">
-              Saldo: {{ formatarMoeda(totaisPorEmpreita().get(campo(empreita, 'id'))?.saldo ?? 0) }}
-            </span>
-          </span>
-        </div>
-      } @empty {
-        <div class="vazio atenuado">Nenhuma empreita criada.</div>
-      }
-    }
-  </div>
-
-  <!-- Pagamentos: Data solicitação/N° pagamento · Beneficiado/Nome da obra · Valor · Status do pagamento/n° anexos -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Pagamentos</h3>
-      <a routerLink="/pagamentos">Ver todos →</a>
-    </div>
-
-    @if (carregandoPagamentos()) {
-      <div class="vazio atenuado">Carregando…</div>
-    } @else {
-      @for (pagamento of pagamentos(); track pagamento.id) {
-        <div class="linha linha-colunas linha-clicavel" (click)="abrirPagamento(pagamento)" title="Clique para abrir o pagamento">
-          <span class="coluna coluna-estreita">
-            <span class="col-l1">{{ formatarData(pagamento.dataSolicitacao) }}</span>
-            <span class="col-l2">{{ pagamento.numeroPagamento }}</span>
-          </span>
-          <span class="coluna coluna-descricao">
-            <span class="col-l1 forte">{{ pagamento.fornecedor || '—' }}</span>
-            <span class="col-l2">{{ pagamento.obraNome || '—' }}</span>
-          </span>
-          <span class="coluna-valor">{{ formatarMoeda(pagamento.valorTotal) }}</span>
-          <span class="coluna coluna-direita">
-            <span class="col-l1">
-              <span class="etiqueta-status" [class.pendente]="pagamento.status === 'pendente'">
-                {{ pagamento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
-              </span>
-            </span>
-            <span class="col-l2">
-              @if (pagamento.anexosCount) {
-                <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('pagamento', pagamento.id)">
-                  {{ pagamento.anexosCount }} anexo{{ pagamento.anexosCount === 1 ? '' : 's' }}
-                </button>
-              } @else {
-                <span class="atenuado pequeno">0 anexos</span>
-              }
-            </span>
-          </span>
-        </div>
-      } @empty {
-        <div class="vazio atenuado">Nenhum pagamento lançado.</div>
-      }
-    }
-  </div>
-
-  <!-- Recebimentos: Data solicitação/N° recebimento · Descrição/Nome da obra · Valor · Status do recebimento/n° anexos -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Recebimentos</h3>
-      <a routerLink="/recebimentos">Ver todos →</a>
-    </div>
-
-    @if (carregandoRecebimentos()) {
-      <div class="vazio atenuado">Carregando…</div>
-    } @else {
-      @for (recebimento of recebimentos(); track recebimento.id) {
-        <div class="linha linha-colunas linha-clicavel" (click)="abrirRecebimento(recebimento)" title="Clique para abrir o recebimento">
-          <span class="coluna coluna-estreita">
-            <span class="col-l1">{{ formatarData(recebimento.dataSolicitacao) }}</span>
-            <span class="col-l2">{{ recebimento.numeroRecebimento }}</span>
-          </span>
-          <span class="coluna coluna-descricao">
-            <span class="col-l1 forte">{{ recebimento.descricao || '—' }}</span>
-            <span class="col-l2">{{ recebimento.obraNome || '—' }}</span>
-          </span>
-          <span class="coluna-valor">{{ formatarMoeda(recebimento.valorTotal) }}</span>
-          <span class="coluna coluna-direita">
-            <span class="col-l1">
-              <span class="etiqueta-status" [class.pendente]="recebimento.status === 'pendente'">
-                {{ recebimento.status === 'pendente' ? 'Pendente' : 'Confirmado' }}
-              </span>
-            </span>
-            <span class="col-l2">
-              @if (recebimento.anexosCount) {
-                <button type="button" class="link-contagem" (click)="$event.stopPropagation(); abrirAnexos('recebimento', recebimento.id)">
-                  {{ recebimento.anexosCount }} anexo{{ recebimento.anexosCount === 1 ? '' : 's' }}
-                </button>
-              } @else {
-                <span class="atenuado pequeno">0 anexos</span>
-              }
-            </span>
-          </span>
-        </div>
-      } @empty {
-        <div class="vazio atenuado">Nenhum recebimento lançado.</div>
-      }
-    }
-  </div>
-
-  <!-- Medição: Data da medição/N° medição · Nome da obra · Status da medição -->
-  <div class="cartao-lista">
-    <div class="cartao-cabecalho">
-      <h3>Medição</h3>
-      <a routerLink="/obras" title="Medições ficam dentro de cada obra">Ver todas →</a>
-    </div>
-
-    @if (carregandoMedicoes()) {
-      <div class="vazio atenuado">Carregando…</div>
-    } @else {
-      @for (medicao of medicoes(); track medicao.id) {
-        <a class="linha linha-colunas" [routerLink]="['/obras', medicao.obraId, 'medicoes', medicao.id]">
-          <span class="coluna coluna-estreita">
-            <span class="col-l1">{{ medicao.dataMedicao ? formatarData(medicao.dataMedicao) : '—' }}</span>
-            <span class="col-l2">Nº {{ medicao.sequencia }}</span>
-          </span>
-          <span class="coluna coluna-descricao coluna-linha-unica">
-            <span class="col-l1 forte">{{ medicao.obraNome }}</span>
-          </span>
-          <span class="coluna coluna-direita coluna-linha-unica">
-            <span class="etiqueta-status" [class.pendente]="medicao.status === 'rascunho'">
-              {{ medicao.status === 'aprovada' ? 'Aprovada' : 'Rascunho' }}
-            </span>
-          </span>
-        </a>
-      } @empty {
-        <div class="vazio atenuado">Nenhuma medição lançada.</div>
-      }
-    }
-  </div>
-
-  <!-- O card "Diários de obra" (14/09/2026) nunca teve dado real — era só o
-       layout posicionado, esperando o modelo de dados ser refeito. Removido
-       em 22/09/2026 (F8): o Diário antigo, pra onde ele apontava, foi
-       aposentado (virou RDO); um card de verdade com dados do RDO fica pra
-       quando fizer sentido, não é o mesmo componente. -->
 </div>
 
 <!-- Editor de pagamento/recebimento aberto ao clicar num item dos cards (21/09/2026) -->

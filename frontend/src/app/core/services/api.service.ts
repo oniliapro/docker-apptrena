@@ -833,6 +833,11 @@ export class ApiService {
   }
 
   // ---------------- Diárias (22/09/2026, F7) ----------------
+  /** Lista geral (15/10/2026) — bloco "Diárias" do dashboard: todas as obras, com `obraNome`. */
+  listarDiariasGeral(): Observable<Array<Record<string, unknown>>> {
+    return this.http.get<Array<Record<string, unknown>>>(`${this.base}/diarias`);
+  }
+
   listarDiarias(obraId: string): Observable<Record<string, unknown>[]> {
     return this.http.get<Record<string, unknown>[]>(`${this.base}/obras/${obraId}/diarias`);
   }

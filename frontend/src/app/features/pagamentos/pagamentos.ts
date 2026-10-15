@@ -82,7 +82,11 @@ export class Pagamentos implements OnInit {
 
   protected readonly editando = computed(() => this.idEditando() !== null);
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamento> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de solicitação, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamento> | null>({
+    coluna: 'dataSolicitacao',
+    direcao: 'desc',
+  });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
   protected readonly filtroStatus = signal<'todos' | 'pendente' | 'confirmado'>('todos');
@@ -119,7 +123,10 @@ export class Pagamentos implements OnInit {
   }
 
   protected obraDoPagamento(pagamento: Pagamento): string {
-    return pagamento.obraNumber || this.store.cabecalho().obraNumber || this.store.obraNome() || '—';
+    // Nome da obra (15/10/2026, pedido do Lucas — a coluna mostrava o número); o número fica de reserva.
+    return (
+      pagamento.obraNome || this.store.obraNome() || pagamento.obraNumber || this.store.cabecalho().obraNumber || '—'
+    );
   }
 
   /**

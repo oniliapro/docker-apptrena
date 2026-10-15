@@ -71,7 +71,11 @@ export class RecebimentosGeral implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaRecebimentoGeral> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de solicitação, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaRecebimentoGeral> | null>({
+    coluna: 'dataSolicitacao',
+    direcao: 'desc',
+  });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
   protected readonly filtroStatus = signal<'todos' | 'pendente' | 'confirmado'>('todos');
@@ -81,7 +85,7 @@ export class RecebimentosGeral implements OnInit {
   protected readonly filtroDataAte = signal('');
 
   protected readonly obrasDisponiveis = computed(() =>
-    valoresDistintos(this.recebimentos(), (r) => this.obraNumber(r)).filter((v) => v !== '—'),
+    valoresDistintos(this.recebimentos(), (r) => this.obraNome(r)).filter((v) => v !== '—'),
   );
 
   protected alternarOrdenacaoColuna(coluna: ColunaRecebimentoGeral): void {
@@ -122,11 +126,11 @@ export class RecebimentosGeral implements OnInit {
 
     return this.recebimentos().filter((r) => {
       if (status !== 'todos' && (r['status'] as string) !== status) return false;
-      if (obra && this.obraNumber(r) !== obra) return false;
+      if (obra && this.obraNome(r) !== obra) return false;
       if (origem !== 'todos' && this.origemRotulo(r).toLowerCase() !== origem) return false;
       if (!dataDentroDoIntervalo(r['dataSolicitacao'] as string | null, de, ate)) return false;
       if (!termo) return true;
-      return [this.obraNumber(r), this.numero(r), this.cliente(r), this.descricao(r)]
+      return [this.obraNome(r), this.obraNumber(r), this.numero(r), this.cliente(r), this.descricao(r)]
         .join(' ')
         .toLowerCase()
         .includes(termo);
@@ -136,7 +140,7 @@ export class RecebimentosGeral implements OnInit {
   protected readonly listaOrdenada = computed(() =>
     ordenarPor(this.listaFiltrada(), this.ordenacao(), (r, coluna) => {
       switch (coluna) {
-        case 'obra': return this.obraNumber(r);
+        case 'obra': return this.obraNome(r);
         case 'numero': return this.numero(r);
         case 'dataSolicitacao': return r['dataSolicitacao'] as string | null;
         case 'cliente': return this.cliente(r);
@@ -265,6 +269,11 @@ export class RecebimentosGeral implements OnInit {
     });
   }
 
+  /** Nome da obra (15/10/2026, pedido do Lucas — a coluna "Obra" mostrava só o número). Sem nome, cai no número. */
+  protected obraNome(r: Recebimento): string {
+    return String(r['obraNome'] ?? '').trim() || this.obraNumber(r);
+  }
+
   protected obraNumber(r: Recebimento): string {
     return String(r['obraNumber'] ?? '—') || '—';
   }
@@ -326,7 +335,7 @@ export class RecebimentosGeral implements OnInit {
           { header: 'Status', key: 'status', width: 12 },
         ],
         this.listaOrdenada().map((r) => ({
-          obra: this.obraNumber(r),
+          obra: this.obraNome(r),
           numero: this.numero(r),
           dataSolicitacao: this.dataSolicitacao(r),
           cliente: this.cliente(r),
@@ -490,7 +499,7 @@ export class RecebimentosGeral implements OnInit {
 
     const linhas = selecionados.map(
       (r) =>
-        `• Obra ${this.obraNumber(r)} — Nº ${this.numero(r)} — ${this.cliente(r)} — ${this.formatarMoeda(this.valorTotal(r))} — ${this.pendente(r) ? 'Pendente' : 'Confirmado'}`,
+        `• Obra ${this.obraNome(r)} — Nº ${this.numero(r)} — ${this.cliente(r)} — ${this.formatarMoeda(this.valorTotal(r))} — ${this.pendente(r) ? 'Pendente' : 'Confirmado'}`,
     );
     const totalGeral = selecionados.reduce((soma, r) => soma + this.valorTotal(r), 0);
     const mensagem = [

@@ -86,7 +86,7 @@
               <td class="centro" (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selecao.estaSelecionado(recebimento)" (change)="selecao.alternar(recebimento)" />
               </td>
-              <td class="centro">{{ obraDoRecebimento(recebimento) }}</td>
+              <td>{{ obraDoRecebimento(recebimento) }}</td>
               <td class="centro">{{ recebimento.numeroRecebimento || '—' }}</td>
               <td class="centro">{{ formatarDataPtBr(recebimento.dataSolicitacao) }}</td>
               <td>{{ recebimento.descricao || '—' }}</td>

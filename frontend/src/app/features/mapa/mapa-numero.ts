@@ -12,5 +12,7 @@ export function proximoNumeroMapa(mapasDaObra: readonly Mapa[]): string {
     const numero = parseInt(String(mapa['numero_mapa'] ?? '').trim(), 10);
     return Number.isFinite(numero) && numero > max ? numero : max;
   }, 0);
-  return String(maior + 1).padStart(2, '0');
+  // 4 dígitos desde 15/10/2026 (código "MAPA-0001", pedido do Lucas); os antigos ("01") são
+  // convertidos pela migration `codigo_do_mapa_por_obra`.
+  return String(maior + 1).padStart(4, '0');
 }

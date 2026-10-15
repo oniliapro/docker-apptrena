@@ -81,7 +81,11 @@ export class PagamentosGeral implements OnInit {
   protected readonly formatarMoeda = formatarMoeda;
   protected readonly formatarData = formatarData;
 
-  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamentoGeral> | null>(null);
+  // Padrão (15/10/2026, pedido do Lucas): os últimos lançamentos primeiro — data de solicitação, decrescente.
+  protected readonly ordenacao = signal<EstadoOrdenacao<ColunaPagamentoGeral> | null>({
+    coluna: 'dataSolicitacao',
+    direcao: 'desc',
+  });
   protected readonly setaOrdenacao = setaOrdenacao;
   protected readonly busca = signal('');
   protected readonly filtroStatus = signal<'todos' | 'pendente' | 'confirmado'>('todos');
@@ -91,7 +95,7 @@ export class PagamentosGeral implements OnInit {
   protected readonly filtroDataAte = signal('');
 
   protected readonly obrasDisponiveis = computed(() =>
-    valoresDistintos(this.pagamentos(), (p) => this.obraNumber(p)).filter((v) => v !== '—'),
+    valoresDistintos(this.pagamentos(), (p) => this.obraNome(p)).filter((v) => v !== '—'),
   );
 
   protected alternarOrdenacaoColuna(coluna: ColunaPagamentoGeral): void {
@@ -132,11 +136,11 @@ export class PagamentosGeral implements OnInit {
 
     return this.pagamentos().filter((p) => {
       if (status !== 'todos' && (p['status'] as string) !== status) return false;
-      if (obra && this.obraNumber(p) !== obra) return false;
+      if (obra && this.obraNome(p) !== obra) return false;
       if (origem !== 'todos' && this.origemRotulo(p).toLowerCase() !== origem) return false;
       if (!dataDentroDoIntervalo(p['dataSolicitacao'] as string | null, de, ate)) return false;
       if (!termo) return true;
-      return [this.obraNumber(p), this.numero(p), this.fornecedor(p), this.descricao(p)]
+      return [this.obraNome(p), this.obraNumber(p), this.numero(p), this.fornecedor(p), this.descricao(p)]
         .join(' ')
         .toLowerCase()
         .includes(termo);
@@ -146,7 +150,7 @@ export class PagamentosGeral implements OnInit {
   protected readonly listaOrdenada = computed(() =>
     ordenarPor(this.listaFiltrada(), this.ordenacao(), (p, coluna) => {
       switch (coluna) {
-        case 'obra': return this.obraNumber(p);
+        case 'obra': return this.obraNome(p);
         case 'numero': return this.numero(p);
         case 'dataSolicitacao': return p['dataSolicitacao'] as string | null;
         case 'fornecedor': return this.fornecedor(p);
@@ -291,6 +295,11 @@ export class PagamentosGeral implements OnInit {
     });
   }
 
+  /** Nome da obra (15/10/2026, pedido do Lucas — a coluna "Obra" mostrava só o número). Sem nome, cai no número. */
+  protected obraNome(p: Pagamento): string {
+    return String(p['obraNome'] ?? '').trim() || this.obraNumber(p);
+  }
+
   protected obraNumber(p: Pagamento): string {
     return String(p['obraNumber'] ?? '—') || '—';
   }
@@ -359,7 +368,7 @@ export class PagamentosGeral implements OnInit {
           { header: 'Status', key: 'status', width: 12 },
         ],
         this.listaOrdenada().map((p) => ({
-          obra: this.obraNumber(p),
+          obra: this.obraNome(p),
           numero: this.numero(p),
           dataSolicitacao: this.dataSolicitacao(p),
           fornecedor: this.fornecedor(p),

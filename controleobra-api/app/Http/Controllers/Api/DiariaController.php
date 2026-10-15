@@ -38,6 +38,31 @@ class DiariaController extends Controller
             ->map(fn (Diaria $diaria) => $this->paraFrontend($diaria));
     }
 
+    /**
+     * GET /api/diarias (15/10/2026) — lista geral pro bloco "Diárias" do
+     * dashboard, cruzando as obras da empresa, com `obraNome`. Mesmo critério
+     * de acesso das outras listas gerais: usuário secundário não vê obra com
+     * `pode_ver` negado explicitamente; admin vê tudo. Limitada (as 200 mais
+     * recentes) — o dashboard só mostra as últimas.
+     */
+    public function indexGeral(Request $request)
+    {
+        $query = Diaria::with([...self::RELACOES, 'obra:id,obra_nome'])
+            ->orderByDesc('data')
+            ->limit(200);
+
+        $usuario = $request->user();
+        if ($usuario && !$usuario->ehAdmin()) {
+            $obraIdsNegados = $usuario->obraAcessos()->where('pode_ver', false)->pluck('obra_id');
+            $query->whereNotIn('obra_id', $obraIdsNegados);
+        }
+
+        return $query->get()->map(fn (Diaria $diaria) => [
+            ...$this->paraFrontend($diaria),
+            'obraNome' => $diaria->obra?->obra_nome ?? '',
+        ]);
+    }
+
     public function store(Request $request, Obra $obra)
     {
         $data = $this->validarDiaria($request);
