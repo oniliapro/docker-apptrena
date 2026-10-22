@@ -17,6 +17,16 @@
     <option value="confirmada">EAP confirmada</option>
   </select>
 
+  <select (change)="mudarResponsavel($event)" title="Filtrar pelo responsável da obra">
+    <option value="">Responsável: todos</option>
+    @for (nome of responsaveisDasObras(); track nome) {
+      <option [value]="nome">{{ nome }}</option>
+    }
+    @if (existeObraSemResponsavel()) {
+      <option [value]="SEM_RESPONSAVEL">(sem responsável)</option>
+    }
+  </select>
+
   <app-barra-selecao [contagem]="selecionadas().length" [acoes]="acoesLista" rotuloEditar="Abrir"
                      (editar)="abrirSelecionada()" (acao)="aoAcaoLista($event)" (limpar)="selecao.limpar()" />
 

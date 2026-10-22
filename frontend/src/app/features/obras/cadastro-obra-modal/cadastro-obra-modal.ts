@@ -50,8 +50,13 @@ export class CadastroObraModal {
 
   readonly salvar = output<EventoSalvarObra>();
   readonly fechar = output<void>();
-  /** Só emitido no modo edição — o pai decide como persistir (mesma lógica que já existia em `ObraDetalhe.alternarConfirmacao`). */
-  readonly alternarConfirmacao = output<void>();
+  /**
+   * Só emitido no modo edição — o pai decide como persistir (`ObraDetalhe.alternarConfirmacao`).
+   * Ao CONFIRMAR leva o que está digitado no formulário (21/10/2026: a obra precisa ser salva com
+   * essas edições ANTES de travar, senão elas se perdiam); ao REABRIR leva `null` (formulário travado,
+   * nada a salvar).
+   */
+  readonly alternarConfirmacao = output<Partial<ObraPayload> | null>();
 
   protected readonly statusOpcoes = STATUS_OBRA;
   protected readonly modoNovo = computed(() => this.obra() === null);
@@ -112,12 +117,31 @@ export class CadastroObraModal {
     this.fechar.emit();
   }
 
+  /** "Confirmar obra" salva o que está no formulário e trava; "Reabrir obra" só destrava. */
+  protected confirmarClick(): void {
+    if (this.confirmada()) {
+      this.alternarConfirmacao.emit(null);
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      return;
+    }
+
+    this.alternarConfirmacao.emit(this.montarPayload());
+  }
+
   protected salvarClick(): void {
     if (this.formulario.invalid) {
       this.formulario.markAllAsTouched();
       return;
     }
 
+    this.salvar.emit({ payload: this.montarPayload(), acessosPendentes: this.obra() ? null : this.acessosPendentes });
+  }
+
+  private montarPayload(): Partial<ObraPayload> {
     const v = this.formulario.getRawValue();
     const obraAtual = this.obra();
 
@@ -146,7 +170,7 @@ export class CadastroObraModal {
       confirmed_at: obraAtual?.confirmed_at ?? null,
     };
 
-    this.salvar.emit({ payload, acessosPendentes: obraAtual ? null : this.acessosPendentes });
+    return payload;
   }
 
   // ------------------------------------------------------------------

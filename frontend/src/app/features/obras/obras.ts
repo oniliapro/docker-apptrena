@@ -49,6 +49,28 @@ export class Obras implements OnInit {
   protected readonly filtro = signal<FiltroStatus>('todos');
   protected readonly busca = signal('');
 
+  /** Filtro por responsável (21/10/2026): '' = todos; `SEM_RESPONSAVEL` = obras sem responsável preenchido. */
+  protected readonly SEM_RESPONSAVEL = '__sem_responsavel__';
+  protected readonly filtroResponsavel = signal('');
+
+  /** Responsáveis que aparecem nas obras (sem repetir, em ordem alfabética), mais a opção de "sem responsável". */
+  protected readonly responsaveisDasObras = computed(() => {
+    const nomes = new Set<string>();
+    for (const obra of this.obras()) {
+      const nome = (obra.responsavel ?? '').trim();
+      if (nome) nomes.add(nome);
+    }
+    return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  });
+
+  protected readonly existeObraSemResponsavel = computed(() =>
+    this.obras().some((obra) => !(obra.responsavel ?? '').trim()),
+  );
+
+  protected mudarResponsavel(evento: Event): void {
+    this.filtroResponsavel.set((evento.target as HTMLSelectElement).value);
+  }
+
   /**
    * Filtro por status da obra com caixas de seleção (21/10/2026, pedido do Lucas): só aparecem as
    * obras cujo status está marcado. Padrão: "Em andamento" e "A iniciar" — as demais começam
@@ -123,9 +145,14 @@ export class Obras implements OnInit {
     const filtro = this.filtro();
     const termo = this.busca().trim().toLowerCase();
     const marcados = this.statusMarcados();
+    const responsavel = this.filtroResponsavel();
 
     const filtrada = this.obras().filter((obra) => {
       if (!marcados.has(this.statusDaObra(obra))) return false;
+      if (responsavel) {
+        const dono = (obra.responsavel ?? '').trim();
+        if (responsavel === this.SEM_RESPONSAVEL ? dono !== '' : dono !== responsavel) return false;
+      }
       if (filtro === 'confirmada' && !obra.is_confirmed) return false;
       if (filtro === 'aberta' && obra.is_confirmed) return false;
       if (!termo) return true;

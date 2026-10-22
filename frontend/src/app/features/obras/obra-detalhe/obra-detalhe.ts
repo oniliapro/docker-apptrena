@@ -225,7 +225,7 @@ export class ObraDetalhe implements OnInit {
    * ele (o usuário pode continuar revendo/editando; o popup recebe a
    * obra atualizada de volta via `[obra]` e se re-sincroniza sozinho).
    */
-  protected alternarConfirmacao(): void {
+  protected alternarConfirmacao(editado: Partial<ObraPayload> | null = null): void {
     const obraAtual = this.obra();
     if (!obraAtual) return;
 
@@ -234,8 +234,11 @@ export class ObraDetalhe implements OnInit {
       return;
     }
 
+    // Confirmar SALVA junto o que está digitado no popup (`editado`) — a obra grava com essas edições e só
+    // então trava; sem isso o que não tinha sido salvo se perdia. Reabrir não traz edição (formulário travado).
     const payload: Partial<ObraPayload> = {
       ...obraAtual,
+      ...(vaiConfirmar ? editado ?? {} : {}),
       is_confirmed: vaiConfirmar,
       confirmed_at: vaiConfirmar ? new Date().toISOString() : null,
     };

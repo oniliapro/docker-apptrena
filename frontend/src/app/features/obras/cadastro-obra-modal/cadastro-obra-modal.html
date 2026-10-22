@@ -18,7 +18,7 @@
           </button>
         }
         @if (!modoNovo()) {
-          <button type="button" class="primario" (click)="alternarConfirmacao.emit()">
+          <button type="button" class="primario" (click)="confirmarClick()">
             {{ confirmada() ? 'Reabrir obra' : 'Confirmar obra' }}
           </button>
         }
