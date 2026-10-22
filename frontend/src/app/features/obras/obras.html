@@ -29,6 +29,20 @@
     (input)="mudarBusca($event)" />
 </div>
 
+<div class="painel filtro-status" role="group" aria-label="Filtrar obras por status">
+  <span class="filtro-status-titulo">Status da obra</span>
+  @for (status of statusOpcoes; track status.chave) {
+    <label class="opcao-status" [class.marcada]="statusMarcado(status.chave)">
+      <input type="checkbox" [checked]="statusMarcado(status.chave)" (change)="alternarStatus(status.chave)" />
+      {{ status.rotulo }}
+      <span class="contagem-status">{{ contagemPorStatus().get(status.chave) ?? 0 }}</span>
+    </label>
+  }
+  <span class="espacador"></span>
+  <button type="button" class="link-filtro" (click)="marcarTodosStatus()">Todos</button>
+  <button type="button" class="link-filtro" (click)="restaurarPadraoStatus()" title="Só Em andamento e A iniciar">Padrão</button>
+</div>
+
 <div class="painel">
   @if (carregando()) {
     <div class="atenuado">Carregando…</div>
@@ -78,7 +92,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="9" class="centro atenuado">Nenhuma obra encontrada.</td>
+              <td colspan="9" class="centro atenuado">Nenhuma obra encontrada com os status marcados.</td>
             </tr>
           }
         </tbody>

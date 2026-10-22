@@ -27,7 +27,7 @@ import {
   validarPagamento,
 } from '../pagamentos-calc';
 import { ItemEapSnapshot, ItemPagamento, Pagamento, TIPOS_CUSTO_PAGAMENTO } from '../pagamentos.models';
-import { Autocomplete } from '../../../shared/autocomplete/autocomplete';
+import { Autocomplete, OpcaoAutocomplete } from '../../../shared/autocomplete/autocomplete';
 import { FornecedoresCadastro } from '../../cadastros/fornecedores/fornecedores.fonte';
 import { AnexosLancamento } from '../../../shared/anexos-lancamento/anexos-lancamento';
 import { Tag } from '../../configuracoes/tags/tags.models';
@@ -254,10 +254,16 @@ export class EditarPagamentoModal implements OnInit {
     return eap || desc || '—';
   }
 
-  /** Indentação do select pelo nível da EAP (1.2.3 → dois níveis). */
-  protected recuoEap(item: ItemEapSnapshot): string {
-    const nivel = item.eap.split('.').filter(Boolean).length - 1;
-    return ' '.repeat(Math.max(0, nivel) * 3);
+  /** Etapas da EAP como opções do campo de busca — "1.2 - Alvenaria"; a busca acha o texto em qualquer parte. */
+  protected readonly opcoesEap = computed<OpcaoAutocomplete[]>(() =>
+    this.snapshotEap().map((eap) => ({ id: eap.id, rotulo: this.rotuloEapItem(eap) })),
+  );
+
+  protected escolherEap(itemId: string, opcao: OpcaoAutocomplete | null): void {
+    this.rascunho.update((p) => ({
+      ...p,
+      itens: p.itens.map((i) => (i.id === itemId ? { ...i, eapId: opcao?.id ?? '' } : i)),
+    }));
   }
 
   /**

@@ -18,6 +18,12 @@ import { formatarDataHora } from '../../core/utils/formato';
  * app (`--cor-primaria`). Fonte do corpo do documento também não muda
  * aqui — trocar a fonte de 6 layouts de impressão já ajustados é um
  * risco de regressão visual maior do que o valor desta rodada.
+ *
+ * Papel timbrado (21/10/2026, pedido do Lucas): NÃO entra aqui. Só os documentos
+ * feitos a partir de um modelo editável (Configurações → Modelos de documentos:
+ * contrato, proposta, ficha de verificação) levam o papel timbrado — ver
+ * `ContratoImprimir`. Os PDFs do sistema (EAP, Mapa, Empreita, Medição, RDO,
+ * Cronograma, Relatórios) saem sem ele.
  */
 @Component({
   selector: 'app-cabecalho-impressao',
@@ -33,14 +39,9 @@ export class CabecalhoImpressao {
 
   protected readonly formatarDataHora = formatarDataHora;
 
-  /** `logoUrl`/`papelTimbradoUrl` vêm relativos (`/storage/...`) — ver `Empresa::getLogoUrlAttribute()`. */
+  /** `logoUrl` vem relativo (`/storage/...`) — ver `Empresa::getLogoUrlAttribute()`. */
   protected readonly logoUrl = computed(() => {
     const caminho = this.perfil()?.logoUrl;
-    return caminho ? this.api.baseStorage() + caminho : null;
-  });
-
-  protected readonly papelTimbradoUrl = computed(() => {
-    const caminho = this.perfil()?.papelTimbradoUrl;
     return caminho ? this.api.baseStorage() + caminho : null;
   });
 }

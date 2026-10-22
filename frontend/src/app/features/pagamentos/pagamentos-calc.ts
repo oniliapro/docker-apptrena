@@ -141,6 +141,19 @@ export function expandirItensPagamento(pagamento: Pagamento): ItemPagamentoCalcu
   }));
 }
 
+/**
+ * Arredonda para centavos (2 casas). O banco guarda o valor de cada item e o total do pagamento
+ * com 2 casas, cada um arredondado SOZINHO — um pagamento gerado com valores quebrados
+ * (ex.: contrato × % medido) voltava com a soma dos itens diferente do total em alguns centavos
+ * e não podia ser confirmado (21/10/2026). Quem monta um pagamento a partir de cálculos deve
+ * arredondar cada item e somar os já arredondados.
+ */
+export function arredondarCentavos(valor: unknown): number {
+  const n = Number(valor) || 0;
+  // `Number.EPSILON` corrige casos como 1.005 → 1.01 (a representação binária fica em 1.00499…).
+  return Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100;
+}
+
 export function calcularSomaItens(pagamento: Pagamento): number {
   return expandirItensPagamento(pagamento).reduce(
     (soma, item) => soma + numeroSeguro(item.valorCalculado),

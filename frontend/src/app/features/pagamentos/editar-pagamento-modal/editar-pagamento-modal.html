@@ -94,12 +94,12 @@
                 </td>
                 <td>
                   @if (snapshotEap().length) {
-                    <select [value]="item.eapId" (change)="atualizarItem(item.id, 'eapId', $event)">
-                      <option value=""></option>
-                      @for (eap of snapshotEap(); track eap.id) {
-                        <option [value]="eap.id" [selected]="eap.id === item.eapId">{{ recuoEap(eap) }}{{ rotuloEapItem(eap) }}</option>
-                      }
-                    </select>
+                    <!-- Filtro por texto (21/10/2026): digitar parte do código OU da descrição lista todas as
+                         etapas que contêm o texto — igual ao Mapa e à Empreita. -->
+                    <app-autocomplete modo="restrito" [quebraLinha]="true" placeholder="Buscar etapa da EAP…"
+                                      mensagemVazia="Nenhuma etapa da EAP com esse texto"
+                                      [opcoes]="opcoesEap()" [valor]="item.eapId"
+                                      (confirmou)="escolherEap(item.id, $event)" />
                   } @else {
                     <select disabled>
                       <option>(Cadastre a EAP primeiro)</option>

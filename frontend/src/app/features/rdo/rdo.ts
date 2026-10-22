@@ -7,6 +7,7 @@ import { TimeoutError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
+import { entregarArquivo } from '../../core/utils/entregar-arquivo';
 import { hojeIso } from '../../core/utils/formato';
 import { Autocomplete, OpcaoAutocomplete } from '../../shared/autocomplete/autocomplete';
 import { ItemEapResumo, extrairItensEapResumo } from '../../shared/eap-snapshot';
@@ -349,12 +350,9 @@ export class Rdo implements OnInit {
     this.api.baixarFvsPdf(fichaId).subscribe({
       next: (blob) => {
         terminar();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${this.metaFicha(fichaId)?.codigo ?? 'ficha-de-verificacao'}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
+        void entregarArquivo(blob, `${this.metaFicha(fichaId)?.codigo ?? 'ficha-de-verificacao'}.pdf`).catch(() =>
+          this.erroFvs.set('Não foi possível salvar o documento da ficha neste aparelho.'),
+        );
       },
       error: async (falha) => {
         terminar();
@@ -1428,17 +1426,18 @@ export class Rdo implements OnInit {
 
     this.rdoApi.baixarPdf(registro.id).subscribe({
       next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const ancora = document.createElement('a');
-        ancora.href = url;
-        ancora.download = `RDO-${String(registro.numero ?? 0).padStart(3, '0')}.pdf`;
-        ancora.click();
-        URL.revokeObjectURL(url);
         this.aviso.set(null);
+        void entregarArquivo(blob, `RDO-${String(registro.numero ?? 0).padStart(3, '0')}.pdf`).catch(() =>
+          this.erro.set('Não foi possível salvar o PDF neste aparelho.'),
+        );
       },
       error: () => {
         this.aviso.set(null);
-        this.erro.set('Não foi possível gerar o PDF.');
+        this.erro.set(
+          this.ehApp && !navigator.onLine
+            ? 'Sem internet — o PDF é gerado no servidor. Tente de novo quando a conexão voltar.'
+            : 'Não foi possível gerar o PDF.',
+        );
       },
     });
   }

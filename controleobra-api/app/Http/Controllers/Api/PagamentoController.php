@@ -91,6 +91,8 @@ class PagamentoController extends Controller
             'itens' => 'required|array|min:1',
         ]);
 
+        $data = $this->arredondarCentavos($data);
+
         // regra de negócio já existente no frontend (validarPagamento em js/pagamentos/03-app.js):
         // soma dos itens precisa bater com o valor total (tolerância de 1 centavo)
         $somaItens = collect($data['itens'])->sum(fn ($it) => (float) ($it['valor'] ?? 0));
@@ -159,6 +161,48 @@ class PagamentoController extends Controller
         }
 
         return $this->paraFrontend($pagamento->load('itens.tipoCusto')->loadCount('anexos'));
+    }
+
+    /**
+     * Centavos (21/10/2026). `pagamento_itens.valor` e `pagamentos.valor_total` são `decimal(14,2)`
+     * e o banco arredonda cada um SOZINHO — um pagamento gerado por cálculo (ex.: empreita, contrato
+     * × % medido) chegava com valores quebrados, a soma dos itens e o total arredondavam diferente e
+     * a diferença passava de 1 centavo, bloqueando a confirmação.
+     *
+     * Aqui cada item em reais é arredondado e, se todos os itens são em reais e o total só difere da
+     * soma por ruído de arredondamento (no máximo meio centavo por item), o total passa a ser
+     * exatamente a soma dos itens. Diferença maior que isso NÃO é mexida — continua barrada pela
+     * validação logo abaixo.
+     */
+    private function arredondarCentavos(array $data): array
+    {
+        $itens = $data['itens'] ?? [];
+        $todosEmReais = true;
+        $soma = 0.0;
+
+        foreach ($itens as $i => $item) {
+            if (($item['modoValor'] ?? 'valor') === 'valor') {
+                $itens[$i]['valor'] = round((float) ($item['valor'] ?? 0), 2);
+                $soma += $itens[$i]['valor'];
+            } else {
+                $todosEmReais = false;
+            }
+        }
+
+        $total = round((float) ($data['valor_total'] ?? 0), 2);
+
+        if ($todosEmReais && count($itens) > 0) {
+            $soma = round($soma, 2);
+            $limite = 0.005 * (count($itens) + 1) + 0.001;
+            if (abs($soma - $total) <= $limite) {
+                $total = $soma;
+            }
+        }
+
+        $data['itens'] = $itens;
+        $data['valor_total'] = $total;
+
+        return $data;
     }
 
     /**

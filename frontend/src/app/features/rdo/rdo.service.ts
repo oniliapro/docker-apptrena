@@ -139,7 +139,11 @@ export class RdoService {
    * Sanctum no cabeçalho — um <a href> não carregaria a autenticação.
    */
   baixarPdf(id: string): Observable<Blob> {
-    return this.http.get(`${this.base}/rdo/${id}/pdf`, { responseType: 'blob' });
+    // O PDF é montado no servidor (Chromium) — no 4G passa fácil do limite curto de 15 s.
+    return this.http.get(`${this.base}/rdo/${id}/pdf`, {
+      responseType: 'blob',
+      context: new HttpContext().set(SEM_TIMEOUT_LONGO, true),
+    });
   }
 
   /** Somente leitura desde 26/09/2026 — o cabeçalho vem da obra, não é mais editável no RDO. */

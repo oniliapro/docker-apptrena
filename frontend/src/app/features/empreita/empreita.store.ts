@@ -7,6 +7,7 @@ import { hojeIso } from '../../core/utils/formato';
 import { ChaveTipo, ItemEap } from '../eap/eap.models';
 import { gerarId, normalizarItemEap } from '../eap/eap-normalize';
 import {
+  arredondarCentavos,
   gerarNumeroPagamento,
   normalizarPagamento,
   paraPayloadApi,
@@ -799,8 +800,10 @@ export class EmpreitaStore {
       const item = itens[i];
       const linha = linhas[i];
 
-      const emp = Number(linha.pagamentoEmpDraft) || 0;
-      const reserva = Number(linha.pagamentoReservaDraft) || 0;
+      // Centavos (21/10/2026): cada item é arredondado ANTES de entrar na soma — o banco guarda cada
+      // valor com 2 casas, e somar valores quebrados deixava o total diferente da soma dos itens.
+      const emp = arredondarCentavos(linha.pagamentoEmpDraft);
+      const reserva = arredondarCentavos(linha.pagamentoReservaDraft);
 
       if (emp > 0) {
         itensPagamento.push({
@@ -833,6 +836,19 @@ export class EmpreitaStore {
     }
 
     if (!itensPagamento.length) return null;
+
+    // O total deve ser o valor REAL a pagar (soma dos valores originais, arredondada uma vez) e a soma dos
+    // itens arredondados precisa fechar com ele: a sobra de centavos vai para o maior item. Sem isso, três
+    // itens de 333,3333 virariam 999,99 em vez de 1.000,00.
+    const totalReal = arredondarCentavos(
+      itensPagamento.reduce((soma, i) => soma + (Number(i.valorReferencia) || 0), 0),
+    );
+    const sobra = arredondarCentavos(totalReal - itensPagamento.reduce((soma, i) => soma + i.valor, 0));
+    if (sobra !== 0) {
+      const maior = itensPagamento.reduce((a, b) => (b.valor > a.valor ? b : a));
+      maior.valor = arredondarCentavos(maior.valor + sobra);
+    }
+    valorTotal = totalReal;
 
     const descricaoBase = [cabecalho.numeroEmpreita, cabecalho.descricaoEmpreita]
       .filter(Boolean)

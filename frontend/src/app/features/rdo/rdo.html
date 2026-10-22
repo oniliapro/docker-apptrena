@@ -35,10 +35,8 @@
           @if (registro.assinante_crea) { — CREA {{ registro.assinante_crea }} }
         </span>
       }
-      <!-- App: o WebView do Android não baixa arquivo gerado na hora — o PDF fica para o site por enquanto. -->
-      @if (!ehApp) {
-        <button type="button" class="botao-secundario" (click)="baixarPdf()">PDF</button>
-      }
+      <!-- App (17/10/2026): o WebView não baixa arquivo gerado na hora; `entregarArquivo` abre a folha de compartilhar do Android (salvar/abrir/enviar). Precisa de internet. -->
+      <button type="button" class="botao-secundario" (click)="baixarPdf()">PDF</button>
       <button type="button" class="botao-remover" (click)="excluir()">Excluir</button>
     }
     <button type="button" class="botao-secundario" (click)="mostrarCabecalho.set(!mostrarCabecalho())">

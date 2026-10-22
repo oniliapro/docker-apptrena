@@ -88,6 +88,24 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **Feito (21-22/10/2026): filtro de status nas Obras, papel timbrado só nos modelos,
+  centavos nos pagamentos de empreita e busca de etapa no pagamento.**
+  1. **Lista de Obras**: caixas de seleção por status (padrão: só "Em andamento" e
+     "A iniciar"; "Todos"/"Padrão" ao lado). Nenhuma marcada = lista vazia.
+  2. **Papel timbrado** saiu de todos os PDFs fixos do sistema (`CabecalhoImpressao`:
+     EAP, Mapa, Empreita, Medição, RDO, Cronograma, Relatórios). Só os documentos de
+     Modelos de documentos (contrato, proposta, ficha) o usam (`ContratoImprimir`).
+  3. **Centavos**: o banco guarda cada item e o total com 2 casas, arredondando cada um
+     SOZINHO; pagamento de empreita (contrato × %) chegava com valores quebrados e a soma
+     dos itens fechava diferente do total por mais de 1 centavo, bloqueando a confirmação.
+     Corrigido na origem (`EmpreitaStore.montarPagamentoDoAvanco`: itens arredondados, sobra
+     de centavos no maior item, total = valor real) e na gravação
+     (`PagamentoController::arredondarCentavos`, vale para qualquer origem). Migration
+     `corrige_centavos_de_pagamentos_pendentes` ajusta os PENDENTES antigos (confirmados
+     não são tocados). Mapa e outras origens ganham a proteção do backend, mas o arredondamento
+     na origem só foi feito na empreita.
+  4. **Pagamento → etapa da EAP**: o `<select>` virou `app-autocomplete` (filtra por qualquer
+     parte do código ou da descrição). O de **Recebimentos** ainda é o `<select>` antigo.
 - **Feito (15/10/2026): lote de 11 pedidos — fuso horário, Relatórios, popups do
   dashboard, senha/recuperação, plano da plataforma, FVS como documento e
   landing.** Sem Docker/PHP nesta sessão: o backend foi escrito mas **não foi

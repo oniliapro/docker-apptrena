@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { Obra, ObraPayload, rotuloStatusObra } from '../../core/models/api.models';
+import { ChaveStatusObra, Obra, ObraPayload, STATUS_OBRA, rotuloStatusObra } from '../../core/models/api.models';
 import { ApiService } from '../../core/services/api.service';
 import { ArmazenamentoService } from '../../core/services/armazenamento.service';
 import { formatarData } from '../../core/utils/formato';
@@ -49,6 +49,52 @@ export class Obras implements OnInit {
   protected readonly filtro = signal<FiltroStatus>('todos');
   protected readonly busca = signal('');
 
+  /**
+   * Filtro por status da obra com caixas de seleção (21/10/2026, pedido do Lucas): só aparecem as
+   * obras cujo status está marcado. Padrão: "Em andamento" e "A iniciar" — as demais começam
+   * desmarcadas. Nenhuma marcada = lista vazia (é o que a seleção diz); "Todos" marca tudo.
+   */
+  protected readonly statusOpcoes = STATUS_OBRA;
+  protected readonly statusMarcados = signal<ReadonlySet<ChaveStatusObra>>(
+    new Set<ChaveStatusObra>(['em_andamento', 'a_iniciar']),
+  );
+
+  protected statusMarcado(chave: ChaveStatusObra): boolean {
+    return this.statusMarcados().has(chave);
+  }
+
+  protected alternarStatus(chave: ChaveStatusObra): void {
+    this.statusMarcados.update((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.add(chave);
+      return novo;
+    });
+  }
+
+  protected marcarTodosStatus(): void {
+    this.statusMarcados.set(new Set(STATUS_OBRA.map((s) => s.chave)));
+  }
+
+  protected restaurarPadraoStatus(): void {
+    this.statusMarcados.set(new Set<ChaveStatusObra>(['em_andamento', 'a_iniciar']));
+  }
+
+  /** Quantas obras de cada status existem (mostrado ao lado da caixa, ignora o filtro). */
+  protected readonly contagemPorStatus = computed(() => {
+    const contagem = new Map<ChaveStatusObra, number>();
+    for (const obra of this.obras()) {
+      const chave = this.statusDaObra(obra);
+      contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+    }
+    return contagem;
+  });
+
+  /** Obra sem status gravado conta como "Orçamento" (o padrão da coluna). */
+  private statusDaObra(obra: Obra): ChaveStatusObra {
+    return obra.status ?? 'orcamento';
+  }
+
   protected readonly formatarData = formatarData;
   protected readonly rotuloStatusObra = rotuloStatusObra;
 
@@ -76,8 +122,10 @@ export class Obras implements OnInit {
   protected readonly listaFiltrada = computed(() => {
     const filtro = this.filtro();
     const termo = this.busca().trim().toLowerCase();
+    const marcados = this.statusMarcados();
 
     const filtrada = this.obras().filter((obra) => {
+      if (!marcados.has(this.statusDaObra(obra))) return false;
       if (filtro === 'confirmada' && !obra.is_confirmed) return false;
       if (filtro === 'aberta' && obra.is_confirmed) return false;
       if (!termo) return true;
