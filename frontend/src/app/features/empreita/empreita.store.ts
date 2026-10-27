@@ -511,7 +511,7 @@ export class EmpreitaStore {
     });
   }
 
-  /** Acrescenta um serviço ao final ou, com `posicao`, no meio da lista (botão "+" da linha e Shift + `+`). */
+  /** Acrescenta um serviço ao final ou, com `posicao`, no meio da lista (botão "+" da linha e Ctrl + Enter). */
   adicionarItem(posicao?: number): void {
     if (this.travada()) return;
     this.itens.update((lista) => {

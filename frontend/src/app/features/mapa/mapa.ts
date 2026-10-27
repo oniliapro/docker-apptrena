@@ -635,7 +635,7 @@ export class Mapa implements OnInit {
   }
 
   /**
-   * Botão "+" na coluna de Ações, e Shift + `+` na tabela: insere item
+   * Botão "+" na coluna de Ações, e Ctrl + Enter na tabela: insere item
    * logo abaixo da linha indicada (17/08/2026, pedido do Lucas — antes o
    * atalho sempre acrescentava ao final). `-1` (nenhuma linha focada,
    * como o atalho de teclado manda quando disparado fora de uma célula)
@@ -701,7 +701,7 @@ export class Mapa implements OnInit {
     }
   }
 
-  /** Shift + `-`: remove a linha atual, sem confirmar. */
+  /** Ctrl + Delete: remove a linha atual (a diretiva `trenaNavegacaoTabela` já pediu confirmação). */
   protected removerPorIndice(indiceLinha: number): void {
     const item = this.store.itens()[indiceLinha];
     if (item) this.store.removerItem(item.id);

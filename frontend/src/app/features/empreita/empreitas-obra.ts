@@ -43,6 +43,7 @@ import {
   OrcadoEap,
   ResumoContratoEmpreita,
 } from './empreita.models';
+import { agruparResumoPorEmpreiteiro } from './empreitas-resumo';
 
 interface LinhaComItem {
   item: ItemEmpreita;
@@ -75,6 +76,8 @@ interface GrupoServicosEtapa {
 interface DadosEmpreitaMensagem {
   descricaoEmpreita: string;
   beneficiado: string;
+  /** Identifica o empreiteiro no resumo agrupado (nome sem acento/maiúscula; sem nome = a própria empreita). */
+  chaveEmpreiteiro: string;
   pix: string;
   gruposEtapa: GrupoServicosEtapa[];
   somaOrcado: number;
@@ -1006,7 +1009,24 @@ export class EmpreitasObra implements OnInit {
   protected readonly copiadoResumo = signal(false);
 
   protected readonly empreiteirosCadastro = signal<EmpreiteiroCadastro[]>([]);
-  protected readonly pixEscolhidoPorEmpreita = signal<Record<string, string>>({});
+  /**
+   * Chave PIX escolhida por EMPREITEIRO (26/10/2026, pedido do Lucas): o resumo junta as empreitas de um
+   * mesmo empreiteiro numa entrada só, então a chave é uma só por pessoa — escolhida uma vez, vale para
+   * todas as empreitas dela (no resumo e nos blocos de solicitação).
+   */
+  protected readonly pixEscolhidoPorEmpreiteiro = signal<Record<string, string>>({});
+
+  /** Nome do empreiteiro normalizado (sem acento, maiúscula ou espaço sobrando) — chave do agrupamento. */
+  protected chaveDoEmpreiteiro(empreita: Empreita): string {
+    const nome = this.empreiteiro(empreita)
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    // Sem nome não dá pra saber se é a mesma pessoa: cada empreita fica sozinha.
+    return nome && nome !== '—' ? nome : `empreita:${empreita.id}`;
+  }
 
   /** Cadastro de Empreiteiro (pra Chave PIX) de cada empreita SELECIONADA agora, por nome do empreiteiro. */
   protected readonly cadastroPorEmpreitaSelecionada = computed(() => {
@@ -1018,26 +1038,39 @@ export class EmpreitasObra implements OnInit {
     return mapa;
   });
 
-  /** Empreitas selecionadas cujo empreiteiro tem MAIS DE UMA Chave PIX cadastrada — precisam de escolha manual. */
-  protected readonly empreitasComPixParaEscolher = computed(() =>
-    this.selecao
-      .selecionados(this.listaOrdenada())
-      .filter((e) => (this.cadastroPorEmpreitaSelecionada().get(e.id)?.dadosRecebimento.length ?? 0) > 1),
-  );
+  /**
+   * Empreiteiros (um por pessoa, mesmo com várias empreitas selecionadas) que têm MAIS DE UMA Chave PIX
+   * cadastrada — precisam de escolha manual. Cada entrada leva uma empreita dele, de onde saem nome e opções.
+   */
+  protected readonly empreitasComPixParaEscolher = computed(() => {
+    const vistos = new Set<string>();
+    return this.selecao.selecionados(this.listaOrdenada()).filter((e) => {
+      if ((this.cadastroPorEmpreitaSelecionada().get(e.id)?.dadosRecebimento.length ?? 0) <= 1) return false;
+      const chave = this.chaveDoEmpreiteiro(e);
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  });
 
   protected opcoesPix(empreita: Empreita): DadosRecebimento[] {
     return this.cadastroPorEmpreitaSelecionada().get(empreita.id)?.dadosRecebimento ?? [];
   }
 
-  protected mudarPixEscolhida(empreitaId: string, evento: Event): void {
+  protected pixEscolhido(empreita: Empreita): string {
+    return this.pixEscolhidoPorEmpreiteiro()[this.chaveDoEmpreiteiro(empreita)] ?? '';
+  }
+
+  protected mudarPixEscolhida(empreita: Empreita, evento: Event): void {
     const valor = (evento.target as HTMLSelectElement).value;
-    this.pixEscolhidoPorEmpreita.update((m) => ({ ...m, [empreitaId]: valor }));
+    const chave = this.chaveDoEmpreiteiro(empreita);
+    this.pixEscolhidoPorEmpreiteiro.update((m) => ({ ...m, [chave]: valor }));
   }
 
   private chavePixDaEmpreita(empreita: Empreita): string {
     const opcoes = this.cadastroPorEmpreitaSelecionada().get(empreita.id)?.dadosRecebimento ?? [];
     if (!opcoes.length) return '';
-    const escolhida = opcoes.find((o) => o.id === this.pixEscolhidoPorEmpreita()[empreita.id]);
+    const escolhida = opcoes.find((o) => o.id === this.pixEscolhido(empreita));
     return (escolhida ?? opcoes[0]).chavePix || '';
   }
 
@@ -1204,6 +1237,7 @@ export class EmpreitasObra implements OnInit {
     return {
       descricaoEmpreita: this.descricao(empreita),
       beneficiado: this.empreiteiro(empreita).trim().toUpperCase() || '—',
+      chaveEmpreiteiro: this.chaveDoEmpreiteiro(empreita),
       pix: this.chavePixDaEmpreita(empreita),
       gruposEtapa,
       somaOrcado,
@@ -1285,13 +1319,17 @@ export class EmpreitasObra implements OnInit {
 
   /**
    * "Segunda mensagem": cabeçalho + um resumo (beneficiado + valor + PIX)
-   * por empreita, separados por travessão curto — cabeçalho e o 1º
+   * por EMPREITEIRO, separados por travessão curto — cabeçalho e o 1º
    * pagamento ficam separados por uma linha em branco (03/09/2026, pedido
    * do Lucas: o cabeçalho tinha ficado de fora quando o recurso mudou
    * pra lista, e faltava essa linha em branco).
+   *
+   * 26/10/2026, pedido do Lucas: empreitas de um MESMO empreiteiro viram uma
+   * entrada só — nome e PIX uma vez, com o valor somado (ex.: 1.000 + 1.500 →
+   * 2.500). A ordem é a da primeira empreita de cada um na seleção.
    */
   private textoResumo(lista: DadosEmpreitaMensagem[]): string {
-    const entradas = lista
+    const entradas = agruparResumoPorEmpreiteiro(lista)
       .map((d) =>
         [`\`${d.beneficiado}\``, `*${this.formatarMoeda(d.somaAPagar)}*`, `\`Chave PIX: ${d.pix || '—'}\``].join('\n'),
       )
@@ -1322,7 +1360,7 @@ export class EmpreitasObra implements OnInit {
 
     for (const empreita of selecionados) {
       const opcoes = this.cadastroPorEmpreitaSelecionada().get(empreita.id)?.dadosRecebimento ?? [];
-      if (opcoes.length > 1 && !this.pixEscolhidoPorEmpreita()[empreita.id]) {
+      if (opcoes.length > 1 && !this.pixEscolhido(empreita)) {
         window.alert(`Escolha a chave PIX de ${this.empreiteiro(empreita)} antes de copiar.`);
         return;
       }

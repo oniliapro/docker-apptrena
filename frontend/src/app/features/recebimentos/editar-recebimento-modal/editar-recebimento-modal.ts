@@ -133,7 +133,7 @@ export class EditarRecebimentoModal implements OnInit {
     );
   }
 
-  /** Shift + `-` na tabela de itens: remove a linha atual. */
+  /** Ctrl + Delete na tabela de itens: remove a linha atual (com confirmação, na diretiva). */
   protected removerItemPorIndice(indiceLinha: number): void {
     const item = this.rascunho()?.itens[indiceLinha];
     if (item) this.removerItem(item.id);

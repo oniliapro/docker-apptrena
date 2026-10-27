@@ -558,14 +558,37 @@ export class Eap implements OnInit {
     this.store.removerItem(item.id);
   }
 
-  /** Shift + `+` na tabela: insere item logo abaixo da linha atual. */
+  /**
+   * Linhas que estão NA TELA, na ordem da tela — a navegação por teclado (`trenaNavegacaoTabela`) conta
+   * as linhas visíveis, então é aqui que o número da linha vira item. Usar direto como posição em
+   * `store.itens()` estava errado com grupo recolhido: os itens escondidos não aparecem na tela, mas
+   * contam na lista — e a linha removida era outra, lá de cima (bug de 26/10/2026).
+   */
+  private readonly itensVisiveis = computed(() => {
+    const ocultos = this.itensOcultos();
+    return this.store.itens().filter((item) => !ocultos.has(item.id));
+  });
+
+  /** Ctrl + Enter na tabela: insere item logo abaixo da linha atual. */
   protected inserirAbaixo(indiceLinha: number): void {
-    this.store.adicionarItem(indiceLinha < 0 ? undefined : indiceLinha + 1);
+    if (indiceLinha < 0) {
+      this.store.adicionarItem();
+      return;
+    }
+    const item = this.itensVisiveis()[indiceLinha];
+    if (!item) return;
+
+    const posicao = this.store.itens().findIndex((i) => i.id === item.id);
+    if (posicao < 0) return;
+    // Na linha de um grupo a linha nova entra logo abaixo dele, como primeiro item do grupo; se o grupo
+    // estiver recolhido, ele abre — senão a linha nova nasceria escondida.
+    if (this.estaColapsado(item)) this.alternarColapso(item);
+    this.store.adicionarItem(posicao + 1);
   }
 
-  /** Shift + `-` na tabela: remove a linha atual, sem confirmar. */
+  /** Ctrl + Delete na tabela: remove a linha atual (a diretiva já pediu confirmação). */
   protected removerPorIndice(indiceLinha: number): void {
-    const item = this.store.itens()[indiceLinha];
+    const item = this.itensVisiveis()[indiceLinha];
     if (item) this.store.removerItem(item.id);
   }
 

@@ -324,7 +324,7 @@ export class EapStore {
   // ------------------------------------------------------------------
   /**
    * Insere um item. `posicao` permite inserir no meio da lista (usado
-   * pelo atalho Shift + `+`, que insere logo abaixo da linha atual);
+   * pelo atalho Ctrl + Enter, que insere logo abaixo da linha atual);
    * omitida, acrescenta ao final. Sempre entra como item comum — `isGroup`
    * é recalculado por `aplicarNumeracaoAutomatica` logo abaixo, então vira
    * "grupo" sozinho assim que algo for aninhado embaixo dele.

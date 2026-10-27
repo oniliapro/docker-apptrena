@@ -129,6 +129,13 @@
     </div>
   </div>
 
+  @if (!store.travada()) {
+    <span class="dica atenuado" title="Atalhos disponíveis nas células da tabela">
+      ⌨ Tab e setas navegam · Enter desce · Ctrl + <kbd>Enter</kbd> insere linha · Ctrl + <kbd>Delete</kbd> remove linha (pede confirmação) ·
+      célula de valor aceita fórmula: <kbd>=</kbd>10+5
+    </span>
+  }
+
   <!-- ============ Tabela ============ -->
   <div class="envoltoria painel sem-preenchimento">
     <table class="tabela-eap"
@@ -204,7 +211,8 @@
       <tbody>
         @for (item of store.itens(); track item.id; let i = $index) {
           @if (!itensOcultos().has(item.id)) {
-          <tr [class.zebra]="!item.isGroup && i % 2 === 1"
+          <tr [attr.data-rotulo-linha]="(item.eap ? item.eap + ' — ' : '') + (item.desc || 'sem descrição')"
+              [class.zebra]="!item.isGroup && i % 2 === 1"
               [class.linha-grupo]="item.isGroup"
               [class.linha-grupo-fundo-escuro]="item.isGroup && item.nivel <= 3"
               [class.linha-grupo-fundo-claro]="item.isGroup && item.nivel > 3"

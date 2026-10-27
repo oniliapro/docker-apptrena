@@ -12,8 +12,17 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
  *  - **Enter / Shift+Enter** — desce e sobe, mantendo a coluna;
  *  - **Setas** — o mesmo, mas desativadas em `<select>`, onde as setas
  *    precisam trocar a opção escolhida;
- *  - **Shift + `+`** — insere linha abaixo da atual;
- *  - **Shift + `-`** — remove a linha atual.
+ *  - **Ctrl + Enter** — insere linha abaixo da atual;
+ *  - **Ctrl + Delete** — remove a linha atual, SEMPRE pedindo confirmação.
+ *
+ *  Até 26/10/2026 estes dois atalhos eram Shift + `+` e Shift + `-`, o que
+ *  apagava dados sem ninguém perceber: no teclado brasileiro o `+` É
+ *  Shift + `=`, e o Shift ainda apertado ao digitar o `-` vira `_` — então
+ *  digitar uma fórmula (`=10+5`, `=(2*3)-1`) ou uma descrição com `+`
+ *  inseria/removia linhas, engolia o caractere (a fórmula `=10+5` era gravada
+ *  como 105) e removia sem confirmar. Na EAP com grupos recolhidos, a
+ *  linha removida nem era a que estava sendo editada. Agora nenhum caractere
+ *  digitável é atalho: `+`, `-`, `=` e `_` sempre entram no campo.
  *  - **Colar texto com quebra de linha** (31/08/2026, pedido do Lucas,
  *    Mapa de Cotação) — em vez de colar tudo dentro da célula focada,
  *    emite `colarMultiplasLinhas` com a posição atual e as linhas do
@@ -39,6 +48,13 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
  *        (inserirLinha)="store.adicionarItem($event)"
  *        (removerLinha)="removerPorIndice($event)">
  * ```
+ *
+ * O índice emitido é a posição da linha entre as linhas VISÍVEIS da tabela —
+ * quem esconde linhas (ex.: grupos recolhidos da EAP) precisa converter para
+ * o item certo, não usar direto como posição na lista completa.
+ *
+ * A confirmação de exclusão mostra `data-rotulo-linha` do `<tr>` quando
+ * existir (ex.: "15.1 — Pintura"); senão, o primeiro texto preenchido da linha.
  */
 @Directive({
   selector: '[trenaNavegacaoTabela]',
@@ -103,24 +119,51 @@ export class NavegacaoTabela {
   }
 
   // ------------------------------------------------------------------
+  /**
+   * Ctrl + Enter insere, Ctrl + Delete remove (com confirmação). Nenhuma das duas teclas escreve
+   * caractere, então digitar `+`, `-`, `=` ou `_` num campo nunca dispara atalho — ver o comentário
+   * da classe sobre o que acontecia com Shift + `+`/`-`.
+   */
   private tratarAtalhos(evento: KeyboardEvent): boolean {
-    if (!evento.shiftKey) return false;
+    const comCtrl = (evento.ctrlKey || evento.metaKey) && !evento.altKey;
+    if (!comCtrl) return false;
 
-    const inserir = evento.key === '+' || evento.key === '=';
-    const remover = evento.key === '-' || evento.key === '_';
+    const inserir = evento.key === 'Enter' && !evento.shiftKey;
+    const remover = evento.key === 'Delete' && !evento.shiftKey;
     if (!inserir && !remover) return false;
 
     evento.preventDefault();
 
-    const posicao = this.posicaoAtual(evento.target as HTMLElement);
+    const alvo = evento.target as HTMLElement;
+    const posicao = this.posicaoAtual(alvo);
 
     if (inserir) {
       this.inserirLinha.emit(posicao ? posicao.linha : -1);
-    } else if (posicao) {
-      this.removerLinha.emit(posicao.linha);
+      return true;
     }
 
+    if (!posicao) return true;
+    const rotulo = this.rotuloDaLinha(alvo);
+    const pergunta = rotulo ? `Excluir a linha "${rotulo}"?` : 'Excluir esta linha?';
+    if (!window.confirm(pergunta)) return true;
+
+    this.removerLinha.emit(posicao.linha);
     return true;
+  }
+
+  /** Texto que identifica a linha na confirmação de exclusão — ver comentário da classe. */
+  private rotuloDaLinha(alvo: HTMLElement): string {
+    const tr = alvo.closest('tr');
+    if (!tr) return '';
+
+    const declarado = tr.getAttribute('data-rotulo-linha')?.trim();
+    if (declarado) return declarado;
+
+    const campos = Array.from(
+      tr.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input[type=text], input:not([type])'),
+    );
+    const texto = campos.map((c) => c.value.trim()).find((v) => v.length > 0) ?? '';
+    return texto.length > 80 ? texto.slice(0, 77) + '…' : texto;
   }
 
   private tratarNavegacao(evento: KeyboardEvent): void {

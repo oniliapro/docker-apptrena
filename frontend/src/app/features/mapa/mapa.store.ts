@@ -1718,7 +1718,7 @@ export class MapaStore {
   // ------------------------------------------------------------------
   /**
    * Insere um item. `posicao` permite inserir no meio da lista (usado
-   * pelo botão "+" da coluna de Ações, e por Shift + `+` — mesmo padrão
+   * pelo botão "+" da coluna de Ações, e por Ctrl + Enter — mesmo padrão
    * de `EapStore.adicionarItem`, 17/08/2026, pedido do Lucas); omitida,
    * acrescenta ao final.
    */

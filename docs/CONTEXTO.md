@@ -88,6 +88,26 @@ AppTrena/
 
 ## Pontos vivos / decisões pendentes
 
+- **BUG GRAVE corrigido (26/10/2026): itens da EAP sumindo ao digitar fórmula.** Relato do
+  Lucas: digitando fórmula no 15.1, a fórmula "dava erro" e, a cada tentativa, um item lá de cima
+  (2, 2.1, 2.2, 2.3) era apagado e gravado. **Causa (reproduzida no navegador):** a diretiva
+  `trenaNavegacaoTabela` tinha atalhos Shift + `+` (inserir linha) e Shift + `-`/`_` (remover linha,
+  sem confirmar). No teclado ABNT2 o `+` É Shift + `=`, e o Shift ainda preso ao digitar o `-` vira
+  `_` — então digitar a fórmula disparava o atalho: o caractere era engolido (a fórmula ficava
+  inválida, daí o aviso) e uma linha era removida. Na EAP com grupos recolhidos, o número da linha
+  contado NA TELA era usado como posição na lista completa, então a linha removida era outra (os
+  itens escondidos contam na lista, mas não na tela). O `+` também inseria linha em branco e
+  engolia o sinal: `=10+5` era gravado como 105 SEM aviso, e descrição com "+" perdia o sinal — em
+  todas as tabelas com a diretiva (EAP, Mapa, Empreita, itens de Pagamento/Recebimento, RDO).
+  **Correção:** atalhos agora são Ctrl + Enter (inserir) e Ctrl + Delete (remover, SEMPRE com
+  confirmação mostrando a linha); `+ - = _` são sempre digitados. EAP converte a linha da tela no
+  item certo (`itensVisiveis`); inserir num grupo recolhido abre o grupo. **Dados já afetados:**
+  fórmula com `+` digitado pelo teclado principal pode ter sido gravada sem o sinal (ex.: 105 no
+  lugar de 15) e podem existir linhas em branco inseridas — vale revisar as EAPs/Mapas em uso.
+- **Feito (26/10/2026): "Copiar resumo" das Empreitas agrupado por empreiteiro** — empreitas do
+  mesmo empreiteiro (nome comparado sem acento/maiúscula) viram uma entrada com o valor somado
+  (`empreitas-resumo.ts`). A chave PIX passou a ser escolhida uma vez por empreiteiro (não por
+  empreita). Os blocos de "Copiar solicitação" continuam um por empreita.
 - **Feito (21-22/10/2026): filtro de status nas Obras, papel timbrado só nos modelos,
   centavos nos pagamentos de empreita e busca de etapa no pagamento.**
   1. **Lista de Obras**: caixas de seleção por status (padrão: só "Em andamento" e

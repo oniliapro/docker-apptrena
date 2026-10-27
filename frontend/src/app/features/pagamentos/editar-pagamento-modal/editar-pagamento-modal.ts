@@ -298,7 +298,7 @@ export class EditarPagamentoModal implements OnInit {
     }));
   }
 
-  /** Shift + `-` na tabela de itens do modal: remove a linha atual. */
+  /** Ctrl + Delete na tabela de itens do modal: remove a linha atual (com confirmação, na diretiva). */
   protected removerItemPorIndice(indiceLinha: number): void {
     const item = this.rascunho().itens[indiceLinha];
     if (item) this.removerItem(item.id);

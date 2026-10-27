@@ -249,12 +249,12 @@ export class Empreita implements OnInit {
     this.store.atualizarContrato(item.id, campo, bruto === '' ? null : parsearBR(bruto));
   }
 
-  /** Botão "+" da linha e Shift + `+`: novo serviço logo abaixo da linha atual (sem linha, ao final). */
+  /** Botão "+" da linha e Ctrl + Enter: novo serviço logo abaixo da linha atual (sem linha, ao final). */
   protected inserirAbaixo(indiceLinha: number): void {
     this.store.adicionarItem(indiceLinha < 0 ? undefined : indiceLinha + 1);
   }
 
-  /** Shift + `-`: remove a linha atual, sem confirmar. */
+  /** Ctrl + Delete: remove a linha atual (a diretiva `trenaNavegacaoTabela` já pediu confirmação). */
   protected removerPorIndice(indiceLinha: number): void {
     const item = this.store.itens()[indiceLinha];
     if (item) this.store.removerItem(item.id);

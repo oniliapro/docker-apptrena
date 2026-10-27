@@ -8,15 +8,15 @@
 @if (empreitasComPixParaEscolher().length) {
   <div class="painel aviso-info">
     <div class="atenuado pequeno" style="margin-bottom: 8px;">
-      Mais de uma Chave PIX cadastrada — escolha qual usar em cada uma:
+      Mais de uma Chave PIX cadastrada — escolha qual usar para cada profissional:
     </div>
     @for (empreita of empreitasComPixParaEscolher(); track empreita.id) {
       <label class="campo" style="display: inline-flex; align-items: center; gap: 8px; margin-right: 16px;">
         <span>{{ empreiteiro(empreita) }}</span>
-        <select (change)="mudarPixEscolhida(empreita.id, $event)">
-          <option value="">Escolha a chave PIX…</option>
+        <select (change)="mudarPixEscolhida(empreita, $event)">
+          <option value="" [selected]="!pixEscolhido(empreita)">Escolha a chave PIX…</option>
           @for (opcao of opcoesPix(empreita); track opcao.id) {
-            <option [value]="opcao.id">{{ opcao.chavePix || opcao.banco || 'PIX sem descrição' }}</option>
+            <option [value]="opcao.id" [selected]="opcao.id === pixEscolhido(empreita)">{{ opcao.chavePix || opcao.banco || 'PIX sem descrição' }}</option>
           }
         </select>
       </label>
