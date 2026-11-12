@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Leitura de documentos por IA com visão (Anthropic Claude).
@@ -27,6 +29,15 @@ use Illuminate\Support\Facades\Http;
  */
 class NotaFiscalController extends Controller
 {
+    /**
+     * Tamanho máximo da foto, em KB. A API da Anthropic aceita até 10 MB
+     * por imagem já em base64 (que cresce ~33%), ou seja ~7,5 MB do
+     * arquivo original — 7000 KB deixa folga. Na prática o frontend já
+     * reduz a foto antes de enviar (`prepararImagemParaLeitura`); isto só
+     * pega o caso em que o navegador não conseguiu reduzir.
+     */
+    private const TAMANHO_MAXIMO_KB = 7000;
+
     public function ler(Request $request)
     {
         $prompt = <<<PROMPT
@@ -91,8 +102,16 @@ PROMPT;
      */
     private function processar(Request $request, string $prompt, array $campos)
     {
+        // Mensagens fixas em português: o frontend mostra o texto da
+        // validação direto pro usuário, e o APP_LOCALE pode estar em inglês.
         $request->validate([
-            'imagem' => 'required|file|mimes:jpg,jpeg,png,webp|max:8192',
+            'imagem' => 'required|file|mimes:jpg,jpeg,png,webp|max:' . self::TAMANHO_MAXIMO_KB,
+        ], [
+            'imagem.required' => 'Selecione a foto da nota fiscal.',
+            'imagem.uploaded' => 'A foto não chegou ao servidor. Tente de novo.',
+            'imagem.file' => 'A foto não chegou ao servidor. Tente de novo.',
+            'imagem.mimes' => 'Formato de foto não suportado. Use JPG, PNG ou WEBP.',
+            'imagem.max' => 'A foto passa de 7 MB. Use uma foto menor.',
         ]);
 
         $apiKey = config('services.anthropic.key');
@@ -136,9 +155,20 @@ PROMPT;
             ]);
 
             if ($resposta->failed()) {
+                // O corpo traz o motivo de verdade (sem crédito, modelo
+                // inválido, imagem recusada...) — só vai pro log.
+                Log::warning('Leitura de nota: a IA respondeu com erro', [
+                    'status' => $resposta->status(),
+                    'corpo' => mb_substr($resposta->body(), 0, 1000),
+                ]);
+
+                $sobrecarregada = in_array($resposta->status(), [429, 529], true);
+
                 return response()->json([
                     'ok' => false,
-                    'message' => 'Falha ao consultar a IA (HTTP ' . $resposta->status() . ').',
+                    'message' => $sobrecarregada
+                        ? 'A IA está sobrecarregada no momento. Tente de novo em instantes.'
+                        : 'Falha ao consultar a IA (HTTP ' . $resposta->status() . ').',
                 ], 502);
             }
 
@@ -162,6 +192,14 @@ PROMPT;
             }
 
             return response()->json(['ok' => true, 'dados' => $saida]);
+        } catch (ConnectionException $e) {
+            // Estourou os 45 s do `timeout()` acima, ou a rede caiu.
+            Log::warning('Leitura de nota: sem resposta da IA', ['erro' => $e->getMessage()]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'A IA não respondeu a tempo. Tente de novo em instantes.',
+            ], 504);
         } catch (\Throwable $e) {
             return response()->json([
                 'ok' => false,

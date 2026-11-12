@@ -1,6 +1,6 @@
 import { HttpClient, HttpContext, HttpEvent, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, from, switchMap } from 'rxjs';
 
 import { Arquivo, ConteudoPasta, Pasta, RaizesPastas } from '../../features/arquivos/arquivos.models';
 import { ContratoEstilo, ContratoModelo, ResultadoGeracaoEmLote, TipoContratoModelo } from '../../features/configuracoes/contrato-modelos/contrato-modelo.models';
@@ -13,7 +13,8 @@ import {
 import { EventoAgenda, ParticipanteAgenda, PayloadEventoAgenda } from '../../features/agenda/agenda.models';
 import { PayloadDiaria } from '../../features/diarias/diarias-normalize';
 import { environment } from '../../../environments/environment';
-import { SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
+import { LIMITE_MS_REQUISICAO, SEM_TIMEOUT_LONGO } from '../interceptors/auth.interceptor';
+import { prepararImagemParaLeitura } from '../utils/leitura-nota';
 import {
   AcessoObraUsuario,
   EapPayload,
@@ -298,9 +299,7 @@ export class ApiService {
    * fiscal ou recibo. Recebe FormData porque envia a imagem.
    */
   lerNotaFiscal(imagem: File): Observable<RespostaLeituraNota> {
-    const dados = new FormData();
-    dados.append('imagem', imagem);
-    return this.http.post<RespostaLeituraNota>(`${this.base}/pagamentos/ler-nota`, dados);
+    return this.enviarParaLeitura<RespostaLeituraNota>('pagamentos/ler-nota', imagem);
   }
 
   /**
@@ -309,9 +308,24 @@ export class ApiService {
    * especialidade). 04/08/2026, pedido do Lucas.
    */
   lerNotaFornecedor(imagem: File): Observable<RespostaLeituraFornecedor> {
-    const dados = new FormData();
-    dados.append('imagem', imagem);
-    return this.http.post<RespostaLeituraFornecedor>(`${this.base}/fornecedores/ler-nota`, dados);
+    return this.enviarParaLeitura<RespostaLeituraFornecedor>('fornecedores/ler-nota', imagem);
+  }
+
+  /**
+   * Comum às duas leituras acima: reduz a foto antes de subir
+   * (`prepararImagemParaLeitura`) e espera até 90s — o backend aguarda a
+   * IA por até 45s, bem mais que os 15s padrão do `authInterceptor`.
+   */
+  private enviarParaLeitura<T>(rota: string, imagem: File): Observable<T> {
+    return from(prepararImagemParaLeitura(imagem)).pipe(
+      switchMap((foto) => {
+        const dados = new FormData();
+        dados.append('imagem', foto);
+        return this.http.post<T>(`${this.base}/${rota}`, dados, {
+          context: new HttpContext().set(LIMITE_MS_REQUISICAO, 90_000),
+        });
+      }),
+    );
   }
 
   // ---------------- Diário de obra ----------------

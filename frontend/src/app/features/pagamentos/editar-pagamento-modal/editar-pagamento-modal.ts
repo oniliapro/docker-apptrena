@@ -13,6 +13,7 @@ import {
 import { ApiService } from '../../../core/services/api.service';
 import { RespostaLeituraNota } from '../../../core/models/api.models';
 import { formatarMoeda } from '../../../core/utils/formato';
+import { mensagemErroLeituraNota } from '../../../core/utils/leitura-nota';
 import { NavegacaoTabela } from '../../../shared/navegacao-tabela/navegacao-tabela';
 import { mensagemExclusaoPagamento } from '../../../shared/pagamentos-vinculados-popup/acoes-pagamento';
 import { FormulaCampo, FormulasContexto } from '../../../shared/numero/formulas-guardadas';
@@ -211,10 +212,10 @@ export class EditarPagamentoModal implements OnInit {
           },
         });
       },
-      error: () => {
+      error: (erro) => {
         this.lendoNota.set(false);
         this.statusNota.set('');
-        window.alert('Não foi possível falar com o servidor para ler a nota.');
+        window.alert(mensagemErroLeituraNota(erro));
       },
     });
   }

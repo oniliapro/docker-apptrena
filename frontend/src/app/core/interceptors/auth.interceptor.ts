@@ -24,6 +24,13 @@ export const SEM_TIMEOUT_LONGO = new HttpContextToken<boolean>(() => false);
 const LIMITE_MS_LONGO = 10 * 60_000;
 
 /**
+ * Limite próprio de uma requisição, em ms — vale no lugar dos dois acima.
+ * Ver `ApiService.lerNotaFiscal`: a leitura de nota por IA passa fácil dos
+ * 15s, mas não deve ficar pendurada os 10 min de um upload.
+ */
+export const LIMITE_MS_REQUISICAO = new HttpContextToken<number | null>(() => null);
+
+/**
  * Anexa o token Sanctum, impõe tempo limite e trata 401 de forma
  * central: se o token expirou, manda o usuário de volta para o login em
  * vez de deixar cada tela lidar com isso.
@@ -40,7 +47,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
     : req.clone({ setHeaders: { Accept: 'application/json' } });
 
-  const limite = req.context.get(SEM_TIMEOUT_LONGO) ? LIMITE_MS_LONGO : LIMITE_MS;
+  const limite =
+    req.context.get(LIMITE_MS_REQUISICAO) ?? (req.context.get(SEM_TIMEOUT_LONGO) ? LIMITE_MS_LONGO : LIMITE_MS);
 
   return next(requisicao).pipe(
     timeout(limite),

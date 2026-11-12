@@ -14,6 +14,7 @@ import {
   formatarTelefone,
   validarDocumento,
 } from '../../../core/utils/documento';
+import { mensagemErroLeituraNota } from '../../../core/utils/leitura-nota';
 import { RespostaLeituraFornecedor } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
 import { gerarId } from '../../eap/eap-normalize';
@@ -345,10 +346,10 @@ export class Fornecedores implements OnInit {
         this.aplicarDadosDaNota(resposta.dados ?? {});
         this.statusNota.set('Dados preenchidos — confira antes de salvar.');
       },
-      error: () => {
+      error: (erro) => {
         this.lendoNota.set(false);
         this.statusNota.set('');
-        window.alert('Não foi possível falar com o servidor para ler a nota.');
+        window.alert(mensagemErroLeituraNota(erro));
       },
     });
   }
