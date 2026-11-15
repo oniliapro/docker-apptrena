@@ -287,7 +287,7 @@ nav{
 .flow-scroll svg{display:block;min-width:860px;width:100%;height:auto}
 .hero-zone .flow-note,.flow-note{margin:0;padding:6px 16px 16px;text-align:center;font-family:"Inter Tight",system-ui,sans-serif;font-size:.84rem;letter-spacing:0;line-height:1.7;color:#1E3A55;font-weight:600}
 .flow-hint{display:none;margin:0;font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.08em;color:var(--gold-text);text-align:center;padding:10px 0 0}
-.node-box{fill:var(--ink-2);stroke:rgba(204,117,51,.4);transition:stroke .45s ease,stroke-width .45s ease,filter .45s ease}
+.node-box{fill:var(--ink-3);stroke:transparent;transition:stroke .45s ease,stroke-width .45s ease,filter .45s ease}
 .node-t{font-family:"Inter Tight",sans-serif;font-size:13.5px;font-weight:600;fill:var(--bone)}
 .node-s{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--mute);letter-spacing:.06em}
 .edge{stroke:rgba(204,117,51,.6);stroke-width:1.4;fill:none}
@@ -454,20 +454,22 @@ details p{margin-top:14px;font-size:.97rem;max-width:78ch}
 
 .dev-card{display:flex;align-items:center;gap:30px;border:1px solid var(--l-border);
   border-radius:16px;padding:34px 40px;background:var(--l-card);box-shadow:var(--l-shadow)}
-.dev-photo{width:104px;height:104px;border-radius:50%;object-fit:cover;
+.dev-photo{width:220px;height:220px;border-radius:50%;object-fit:cover;
   border:2px solid var(--gold);flex:none;background:var(--l-card)}
 .dev-info{display:flex;flex-direction:column;gap:7px}
-.dev-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.18em;
+.dev-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.84rem;letter-spacing:.18em;
   text-transform:uppercase;color:var(--gold-text)}
-.dev-name{font-size:1.34rem;color:var(--gold-text);font-weight:600;letter-spacing:-.01em}
-.dev-title{font-family:"Inter Tight",system-ui,sans-serif;font-size:.92rem;color:var(--l-mute);letter-spacing:0}
+.dev-name{font-size:1.7rem;color:var(--gold-text);font-weight:600;letter-spacing:-.01em}
+.dev-title{font-family:"Inter Tight",system-ui,sans-serif;font-size:1.12rem;color:var(--l-mute);letter-spacing:0}
+.dev-crea{font-family:"IBM Plex Mono",monospace;font-size:.96rem;letter-spacing:.08em;color:var(--l-mute)}
+.dev-bio{margin:8px 0 0;font-size:1.06rem;line-height:1.6;color:var(--l-text,var(--l-mute));max-width:60ch;text-wrap:pretty}
 .dev-card{flex-wrap:wrap}
 .dev-info{flex:1 1 260px;min-width:0}
 .dev-stats{flex:1 1 100%;display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:0;padding-top:24px;border-top:1px solid var(--l-border-soft)}
 .dev-stats div{display:flex;flex-direction:column;gap:4px;min-width:0}
-.dev-stats dt{font-family:"Inter Tight",sans-serif;font-size:1.7rem;font-weight:600;line-height:1.1;color:var(--gold-text);letter-spacing:-.01em;white-space:nowrap}
-.dev-stats dd{margin:0;font-size:.88rem;color:var(--l-mute);line-height:1.35}
-@media(max-width:640px){.dev-stats{grid-template-columns:repeat(2,1fr);gap:20px 14px}.dev-stats dt{font-size:1.45rem}}
+.dev-stats dt{font-family:"Inter Tight",sans-serif;font-size:2.1rem;font-weight:600;line-height:1.1;color:var(--gold-text);letter-spacing:-.01em;white-space:nowrap}
+.dev-stats dd{margin:0;font-size:1.06rem;color:var(--l-mute);line-height:1.35}
+@media(max-width:640px){.dev-stats{grid-template-columns:repeat(2,1fr);gap:20px 14px}.dev-stats dt{font-size:1.75rem}}
 @media(max-width:520px){.dev-card{flex-direction:column;flex-wrap:nowrap;text-align:center;padding:30px 22px}.dev-info{flex:0 0 auto}.dev-stats{flex:0 0 auto;width:100%}.dev-stats div{align-items:center}}
 
 /* CTAs intermediários de baixo compromisso */
@@ -789,7 +791,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <img class="logo-img" src="assets/logo.png" alt="COMTRENA — Controle de Obras" width="925" height="224">
     </a>
     <a class="lang-switch" href="/es/">PT · <b>ES</b></a>
-    <span class="nav-claim">A obra sob controle, não na memória</span>
+    <span class="nav-claim">Quem controla a obra, controla o lucro.</span>
     <div class="nav-links">
       <a href="#paraquem">Para quem é</a>
       <a href="#controle">Como funciona</a>
@@ -868,8 +870,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
           <text class="node-t" x="616" y="108">Paga</text>
           <text class="node-s" x="616" y="128">RATEIO · NOTA IA</text></g>
 
-        <g class="node"><rect class="node-box" x="786" y="62" width="180" height="86" rx="3"
-             stroke="rgba(204,117,51,.75)"/>
+        <g class="node"><rect class="node-box" x="786" y="62" width="180" height="86" rx="3"/>
           <text class="step-n" x="802" y="86">05</text>
           <text class="node-t" x="802" y="108">Atualiza o realizado</text>
           <text class="node-s" x="802" y="128">RELATÓRIOS</text></g>
@@ -904,7 +905,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       </div>
       <div>
         <div class="eyebrow">Enquanto isso, no canteiro</div>
-        <h2>O que hoje é <span class="gold">memória e caderninho.</span></h2>
+        <h2>Quem controla a obra, <span class="gold">controla o lucro.</span></h2>
         <p style="font-size:1.05rem;margin-top:6px">Planilha desatualizada. Nota fiscal perdida no grupo do WhatsApp. Numa reforma de apartamento ou numa obra de 40 unidades, o problema é o mesmo: ninguém sabe o número real. O mestre de obra calcula de cabeça quanto já gastou. O engenheiro decide com base no que o WhatsApp contou. O financeiro só descobre o rombo quando o boleto vence, e aí já não dá mais para corrigir.</p>
       </div>
     </div>
@@ -916,7 +917,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
 <section id="paraquem">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="eyebrow">Para quem é</div>
+      <div class="eyebrow">Diagnóstico da gestão da sua obra - Para quem é</div>
       <h2>Marque o que trava o controle <span class="gold">da sua obra esta semana.</span></h2>
       <p>Não é sobre o tamanho da construtora. É sobre onde o controle está vazando.</p>
     </div>
@@ -928,10 +929,13 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <button class="pq reveal" aria-pressed="false"><b>Medição no papel</b>O empreiteiro mede o serviço e ninguém confere antes de pagar.</button>
       <button class="pq reveal" aria-pressed="false"><b>BDI incerto</b>Ninguém sabe se o BDI aplicado ainda cobre o custo real da etapa.</button>
       <button class="pq reveal" aria-pressed="false"><b>Pagamento sem rastro</b>O dinheiro sai do caixa sem registrar de qual obra ou etapa é.</button>
+      <button class="pq reveal" aria-pressed="false"><b>Imprevisibilidade</b>Prazo, custo e caixa mudam sem aviso, e o desvio só aparece quando já virou prejuízo.</button>
+      <button class="pq reveal" aria-pressed="false"><b>Falta de segurança</b>Dados da obra espalhados em planilhas e celulares, sem saber quem acessa ou altera.</button>
+      <button class="pq reveal" aria-pressed="false"><b>Sem inovação</b>A obra segue no caderno e na planilha de sempre, enquanto outros já decidem com dados.</button>
     </div>
 
     <div class="pq-bar reveal">
-      <span class="pq-count" id="pqCount" aria-live="polite">0 de 6 marcados</span>
+      <span class="pq-count" id="pqCount" aria-live="polite">0 de 9 marcados</span>
       <span class="pq-msg" id="pqMsg" aria-live="polite">Clique nos quadros acima para ver o que o COMTRENA resolveria primeiro.</span>
       <button type="button" class="btn btn-gold js-pq-open" id="pqCta" data-origin="paraquem" aria-haspopup="dialog">Quero ver o COMTRENA em funcionamento</button>
     </div>
@@ -1168,31 +1172,6 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
   </div>
 </section>
 
-<!-- PROCESSO -->
-<section id="processo">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="eyebrow">Implantação</div>
-      <h2>Da planilha <span class="gold">ao sistema no ar.</span></h2>
-      <p>Sem projeto de seis meses. A primeira obra entra no sistema enquanto o resto é migrado aos poucos.</p>
-    </div>
-
-    <div class="steps">
-      <div class="step reveal"><div class="n">ETAPA 01</div><h3>Cadastro da empresa</h3><p>Cadastra sua construtora, clientes, responsáveis e fornecedores. Poucos minutos, sem TI.</p></div>
-      <div class="step reveal"><div class="n">ETAPA 02</div><h3>Primeira obra</h3><p>Lança a EAP com o orçamento e o BDI da obra que está em andamento agora.</p></div>
-      <div class="step reveal"><div class="n">ETAPA 03</div><h3>Equipe com acesso</h3><p>Cada usuário — financeiro, engenheiro, mestre de obra — entra só com o que precisa ver.</p></div>
-      <div class="step reveal"><div class="n">ETAPA 04</div><h3>No ar, obra por obra</h3><p>Mapa, Empreita, Pagamentos e Diário rodando desde a primeira medição.</p></div>
-    </div>
-
-    <div class="stack reveal">
-      <span>Multiempresa</span><span>Multiobra</span><span>Leitura de nota por IA</span>
-      <span>BDI por etapa</span><span>Relatórios em tempo real</span><span>Hospedagem própria</span>
-      <span>Identidade visual da sua empresa</span>
-      <span>Personalização do sistema</span><span>Contratos (clientes, empreiteiros e fornecedores)</span>
-    </div>
-  </div>
-</section>
-
 <!-- SEGURANÇA -->
 <section id="dados">
   <div class="wrap">
@@ -1230,6 +1209,8 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
     <div class="reveal" style="margin-top:40px">
       <details><summary>Preciso trocar minha planilha de uma vez?</summary>
         <p>Não. Dá para migrar obra por obra, começando pela que está em andamento agora. O que já foi orçado na planilha vira o ponto de partida da EAP no sistema.</p></details>
+      <details><summary>Como é feita a implantação?</summary>
+        <p>Sem projeto de seis meses: a primeira obra entra no sistema enquanto o resto é migrado aos poucos. Em quatro etapas:</p><p><b>1. Cadastro da empresa.</b> Cadastra sua construtora, clientes, responsáveis e fornecedores. Poucos minutos, sem TI.</p><p><b>2. Primeira obra.</b> Lança a EAP com o orçamento e o BDI da obra que está em andamento agora.</p><p><b>3. Equipe com acesso.</b> Cada usuário — financeiro, engenheiro, mestre de obra — entra só com o que precisa ver.</p><p><b>4. No ar, obra por obra.</b> Mapa, Empreita, Pagamentos e Diário rodando desde a primeira medição.</p></details>
       <details><summary>Funciona para reforma pequena e para obra grande?</summary>
         <p>O cadastro é o mesmo em ambos os casos; o que muda é quantas etapas, itens e fornecedores você lança. Funciona dos dois tamanhos, de um apartamento a um condomínio inteiro.</p></details>
       <details><summary>O BDI é fixo ou eu escolho?</summary>
@@ -1243,7 +1224,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <details><summary>Tem fidelidade? E se eu quiser encerrar?</summary>
         <p>O que foi lançado é seu: as obras, os orçamentos e o histórico de pagamento continuam disponíveis para exportação. A mensalidade paga o acompanhamento — se você encerrar, entregamos os relatórios do que está no sistema.</p></details>
       <details><summary>E depois que a obra entra no sistema, quem cuida?</summary>
-        <p>Nós. Obra muda: entra um fornecedor novo, muda o BDI de uma etapa, aparece um cadastro que faltava. O acompanhamento ajusta o sistema conforme a obra evolui.</p></details>
+        <p>Nós fazemos a implantação, a capacitação da equipe e os testes. Assim que estiver implementado, a gestão da obra passa a ser da própria empresa contratante.</p></details>
       <details><summary>Dá para exportar relatório?</summary>
         <p>Sim. O mapa de fornecedores e os relatórios de orçado x realizado saem em PDF, prontos para mostrar ao cliente ou anexar na prestação de contas.</p></details>
     </div>
@@ -1275,7 +1256,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
           <span class="testi-avatar" aria-hidden="true">W</span>
           <div>
             <div class="testi-name">Wilian</div>
-            <div class="testi-profile">WS Construções</div>
+            <div class="testi-profile">WL Construtora</div>
           </div>
         </figcaption>
       </figure>
@@ -1318,6 +1299,8 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
         <span class="dev-eyebrow">Desenvolvido por</span>
         <span class="dev-name">Lucas Almeida</span>
         <span class="dev-title">Engenheiro Civil · Gestor Financeiro de Obra · Desenvolvedor Full Stack</span>
+        <span class="dev-crea">CREA 28975/D-DF</span>
+        <p class="dev-bio">Engenheiro Civil com atuação em cálculo estrutural, gestão financeira de obras e desenvolvimento de software Full Stack. Conhece a obra da estrutura ao orçamento e do orçamento ao último pagamento, e transformou essa experiência no COMTRENA, um sistema (SaaS) criado por quem controla obra de verdade.</p>
       </div>
       <dl class="dev-stats">
         <div><dt>50+</dt><dd>Gestão de obras</dd></div>
@@ -1663,11 +1646,14 @@ const PQ_MSG=[
   'Três gargalos: o sistema <em>se paga na primeira medição evitada.</em>',
   'Quatro gargalos. <em>Sua planilha está segurando a obra.</em>',
   'Cinco gargalos. <em>Isso já está custando dinheiro todo mês.</em>',
-  'Seis de seis. <em>Cada real da obra merece um lugar certo.</em>'
+  'Seis gargalos. <em>O controle está vazando por vários lados.</em>',
+  'Sete gargalos. <em>Obra sem sistema vira aposta.</em>',
+  'Oito gargalos. <em>Falta pouco para marcar tudo.</em>',
+  'Nove de nove. <em>Cada real da obra merece um lugar certo.</em>'
 ];
 function pqUpdate(){
   const n=pqBtns.filter(b=>b.getAttribute('aria-pressed')==='true').length;
-  pqCount.textContent=n+' de 6 marcados';
+  pqCount.textContent=n+' de 9 marcados';
   pqMsg.innerHTML=PQ_MSG[n];
 }
 pqBtns.forEach(b=>b.addEventListener('click',()=>{
