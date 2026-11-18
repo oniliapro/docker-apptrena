@@ -202,7 +202,7 @@ nav{
   background:rgba(4,15,26,.94);border-bottom:1px solid rgba(204,117,51,.18);
   padding-top:env(safe-area-inset-top, 0px);
 }
-.nav-in{max-width:1300px;margin:0 auto;padding:14px max(24px, env(safe-area-inset-left, 0px)) 14px max(24px, env(safe-area-inset-right, 0px));display:flex;align-items:center;gap:18px}
+.nav-in{max-width:1420px;margin:0 auto;padding:14px max(24px, env(safe-area-inset-left, 0px)) 14px max(24px, env(safe-area-inset-right, 0px));display:flex;align-items:center;gap:18px}
 .nav-claim{font-family:"Instrument Sans",system-ui,sans-serif;font-style:italic;font-weight:500;font-size:1.02rem;
   color:var(--gold-lit);white-space:nowrap;padding-left:14px;flex:none;
   border-left:1px solid rgba(204,117,51,.35)}
@@ -212,7 +212,7 @@ nav{
 .nav-links{display:flex;gap:16px;margin-left:auto;font-size:.86rem}
 .nav-links a{color:var(--mute);text-decoration:none;transition:color .2s;white-space:nowrap;flex:none}
 .nav-links a:hover,.nav-links a:focus-visible{color:var(--bone)}
-@media(max-width:1260px){.nav-claim{display:none}}
+@media(max-width:1420px){.nav-claim{display:none}}
 .lang-switch{font-family:"IBM Plex Mono",monospace;font-size:.74rem;letter-spacing:.04em;
   color:var(--mute);text-decoration:none;border:1px solid rgba(199,217,232,.22);border-radius:999px;
   padding:5px 12px;transition:border-color .2s,color .2s;flex:none}
@@ -260,6 +260,28 @@ nav{
 .btn-ghost:hover,.btn-ghost:focus-visible{background:rgba(204,117,51,.09);transform:translateY(-2px)}
 .btn-ghost::before{background:linear-gradient(115deg, transparent 0%, rgba(226,170,120,.4) 50%, transparent 100%)}
 .btn-sm{padding:10px 20px;font-size:.86rem}
+
+/* ---------- CTAs de intenções diferentes ---------- */
+.btn-line{border-color:var(--l-text);color:var(--l-text);background:transparent}
+.btn-line:hover,.btn-line:focus-visible{background:var(--l-text);color:#fff;transform:translateY(-2px)}
+.nav-cta{margin-left:8px;flex:none}
+@media(max-width:1080px){.nav-cta{display:none}}
+.hero-zone.has-video header.hero .hero-note{font-family:"Inter Tight",system-ui,sans-serif;font-size:.95rem;line-height:1.5;letter-spacing:0;max-width:58ch;color:#0F2A43}
+.preco{background:var(--l-card);border:1px solid var(--l-border);border-radius:16px;box-shadow:var(--l-shadow);padding:34px 36px;display:flex;flex-direction:column;gap:22px}
+.preco-title{font-family:"Inter Tight",system-ui,sans-serif;font-weight:600;font-size:clamp(1.25rem,2.2vw,1.65rem);line-height:1.3;max-width:36ch;color:var(--l-text);margin:0;letter-spacing:-.01em}
+.preco-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.preco-col{border:1px solid var(--l-border-soft);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.preco-col b{font-family:"Inter Tight",sans-serif;font-weight:600;color:var(--l-text)}
+.preco-val{font-family:"Inter Tight",sans-serif;font-size:1.5rem;font-weight:600;color:var(--gold-text);letter-spacing:-.01em}
+.preco-col span:last-child{color:var(--l-mute);font-size:.95rem;line-height:1.55}
+.preco-foot{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;justify-content:space-between}
+.preco-foot p{margin:0;color:var(--l-mute);font-size:.98rem;max-width:52ch;flex:1 1 280px}
+@media(max-width:720px){.preco{padding:26px 22px}.preco-cols{grid-template-columns:1fr}.preco-foot .btn{width:100%;justify-content:center}}
+.prova-cta{display:flex;justify-content:center;margin-top:30px}
+.final .final-alt{margin:22px auto 0;font-size:.95rem;color:var(--body-c)}
+.final .final-alt a{color:var(--gold-lit);text-decoration:underline;text-underline-offset:3px}
+.pq-modal-alt{display:block;text-align:center;margin-top:14px;font-size:.9rem;color:var(--l-mute);text-decoration:underline;text-underline-offset:3px}
+.pq-modal-alt:hover,.pq-modal-alt:focus-visible{color:var(--l-text)}
 .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.55);transform:scale(0);
   animation:rippleOut .6s var(--ease) forwards;pointer-events:none;z-index:2}
 .pq .ripple{background:rgba(204,117,51,.35)}
@@ -465,11 +487,11 @@ details p{margin-top:14px;font-size:.97rem;max-width:78ch}
 .dev-bio{margin:8px 0 0;font-size:1.06rem;line-height:1.6;color:var(--l-text,var(--l-mute));max-width:60ch;text-wrap:pretty}
 .dev-card{flex-wrap:wrap}
 .dev-info{flex:1 1 260px;min-width:0}
-.dev-stats{flex:1 1 100%;display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:0;padding-top:24px;border-top:1px solid var(--l-border-soft)}
+.dev-stats{flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:0;padding-top:24px;border-top:1px solid var(--l-border-soft)}
 .dev-stats div{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dev-stats dt{font-family:"Inter Tight",sans-serif;font-size:2.1rem;font-weight:600;line-height:1.1;color:var(--gold-text);letter-spacing:-.01em;white-space:nowrap}
 .dev-stats dd{margin:0;font-size:1.06rem;color:var(--l-mute);line-height:1.35}
-@media(max-width:640px){.dev-stats{grid-template-columns:repeat(2,1fr);gap:20px 14px}.dev-stats dt{font-size:1.75rem}}
+@media(max-width:640px){.dev-stats{grid-template-columns:repeat(3,1fr);gap:16px 10px}.dev-stats dt{font-size:1.45rem}.dev-stats dd{font-size:.95rem}}
 @media(max-width:520px){.dev-card{flex-direction:column;flex-wrap:nowrap;text-align:center;padding:30px 22px}.dev-info{flex:0 0 auto}.dev-stats{flex:0 0 auto;width:100%}.dev-stats div{align-items:center}}
 
 /* CTAs intermediários de baixo compromisso */
@@ -797,22 +819,24 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <a href="#controle">Como funciona</a>
       <a href="#modulos">Módulos</a>
       <a href="#demo">Na prática</a>
-      <a href="#processo">Implantação</a>
-      <a href="#dados">Segurança</a>
+      <a href="#duvidas">Implantação</a>
+      <a href="#duvidas">Segurança</a>
       <a href="#duvidas">Dúvidas</a>
     </div>
+    <a class="btn btn-gold btn-sm nav-cta" data-origin="nav" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA.%20%2AQuero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena%2A" target="_blank" rel="noopener">Teste grátis</a>
     <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Abrir menu de navegação">
       <svg id="navToggleIcon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
   </div>
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-in">
+      <a class="btn btn-gold" data-origin="nav_mobile" style="justify-content:center;margin-bottom:8px;border-bottom:0" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA.%20%2AQuero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena%2A" target="_blank" rel="noopener">Quero 15 dias de teste grátis</a>
       <a href="#paraquem">Para quem é</a>
       <a href="#controle">Como funciona</a>
       <a href="#modulos">Módulos</a>
       <a href="#demo">Na prática</a>
-      <a href="#processo">Implantação</a>
-      <a href="#dados">Segurança</a>
+      <a href="#duvidas">Implantação</a>
+      <a href="#duvidas">Segurança</a>
       <a href="#duvidas">Dúvidas</a>
     </div>
   </div>
@@ -830,9 +854,10 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
     <h1>Cada real da obra,<br><span class="gold">no lugar certo do canteiro.</span></h1>
     <p class="hero-sub">Orçamento com BDI, mapa de fornecedores, empreitas, medições, pagamentos e diário de obra num só sistema — com o que foi orçado, medido e pago sempre lado a lado.</p>
     <div class="hero-cta">
-      <a class="btn btn-gold js-pq-open" data-origin="hero" href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">Quero 15 dias de teste grátis</a>
-      <a class="btn btn-ghost" href="#modulos">Ver todos os módulos</a>
+      <a class="btn btn-gold js-pq-open" data-origin="hero" href="https://wa.me/5561998862884?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">Quero 15 dias de teste grátis</a>
+      <a class="btn btn-ghost" href="#demo">Ver o sistema rodando</a>
     </div>
+    <p class="hero-note">15 dias grátis · implantação feita por nós · valor fechado por escrito antes de qualquer compromisso</p>
   </header>
 
   <!-- ASSINATURA: canvas de fluxo animado -->
@@ -1123,7 +1148,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
   <div class="wrap">
     <div class="inline-cta reveal">
       <p>Ficou alguma dúvida sobre os módulos?</p>
-      <a class="btn btn-gold" href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA%20e%20tenho%20uma%20d%C3%BAvida%20sobre%20os%20m%C3%B3dulos." target="_blank" rel="noopener">Tirar dúvida no WhatsApp</a>
+      <a class="btn btn-line" data-origin="modulos" href="https://wa.me/5561998862884?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA%20e%20tenho%20uma%20d%C3%BAvida%20sobre%20os%20m%C3%B3dulos." target="_blank" rel="noopener">Perguntar sobre um módulo</a>
     </div>
   </div>
 </section>
@@ -1177,7 +1202,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
   <div class="wrap">
     <div class="inline-cta reveal">
       <p>Quer ver como o sistema funcionaria para sua obra?</p>
-      <a class="btn btn-gold" href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA%20e%20quero%20ver%20como%20o%20sistema%20funcionaria%20pra%20minha%20obra." target="_blank" rel="noopener">Falar no WhatsApp</a>
+      <a class="btn btn-gold" data-origin="demo" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA%20e%20quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o.%20Minha%20opera%C3%A7%C3%A3o%20%28tipo%20de%20obra%20e%20n%C2%BA%20de%20obras%20ao%20mesmo%20tempo%29%3A%20" target="_blank" rel="noopener">Pedir uma demonstração</a>
     </div>
   </div>
 </section>
@@ -1205,7 +1230,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <details><summary>Preciso de internet no canteiro?</summary>
         <p>Sim, é um sistema web. Funciona pelo celular do mestre de obra para registrar o diário, e pelo computador do escritório para orçamento e pagamento.</p></details>
       <details><summary>Investimento</summary>
-        <p>Cada obra tem um tamanho, então o investimento acompanha o seu. Você paga pelo que usa: o número de obras e de usuários define o pacote.</p><p><b>Construtora pequena:</b> R$ 997 de implantação (pagos uma vez) + 12 parcelas de R$ 497 por mês, menos de R$ 17 por dia para ter orçado, medido e pago de todas as obras no mesmo lugar.</p><p><b>Empresa média:</b> sob consulta, montado de acordo com o número de obras simultâneas, de filiais e de usuários com acesso.</p><p>Em qualquer caso, você recebe o valor fechado, por escrito, antes de qualquer compromisso. E ainda começa com 15 dias de teste grátis.</p></details>
+        <p>Cada obra tem um tamanho, então o investimento acompanha o seu. O número de obras e de usuários define o pacote.</p><p><b>Construtora pequena:</b> R$ 997 de implantação (pagos uma vez) + 12 parcelas de R$ 497 por mês, cerca de R$ 17 por dia só na mensalidade, para ter orçado, medido e pago de todas as obras no mesmo lugar.</p><p><b>Empresa média:</b> sob consulta, montado de acordo com o número de obras simultâneas, de filiais e de usuários com acesso.</p><p>Em qualquer caso, você recebe o valor fechado, por escrito, antes de qualquer compromisso. E ainda começa com 15 dias de teste grátis.</p></details>
       <details><summary>Tem fidelidade? E se eu quiser encerrar?</summary>
         <p>O que foi lançado é seu: as obras, os orçamentos e o histórico de pagamento continuam disponíveis para exportação. A mensalidade paga o acompanhamento — se você encerrar, entregamos os relatórios do que está no sistema.</p></details>
       <details><summary>E depois que a obra entra no sistema, quem cuida?</summary>
@@ -1257,6 +1282,7 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       </figure>
       <p class="testi-close">A tecnologia deixou de ser o futuro e se tornou a base de uma engenharia lucrativa e previsível.</p>
     </div>
+    <div class="prova-cta reveal"><a class="btn btn-gold js-pq-open" data-origin="prova" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA.%20%2AQuero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena%2A" target="_blank" rel="noopener">Quero esse controle na minha obra</a></div>
   </div>
 </section>
 
@@ -1267,7 +1293,8 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
       <div class="eyebrow">15 dias de teste grátis</div>
       <h2>Cada real da obra, <span class="gold">no lugar certo.</span></h2>
       <p>Quem controla a obra na planilha provavelmente já perdeu uma nota ou pagou uma medição errada este mês. Mande uma mensagem contando o tamanho da sua operação — a gente libera seus 15 dias de teste grátis com os módulos que fazem sentido para sua obra.</p>
-      <a class="btn btn-gold js-pq-open" data-origin="final" href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">Quero 15 dias de teste grátis</a>
+      <a class="btn btn-gold js-pq-open" data-origin="final" href="https://wa.me/5561998862884?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">Quero 15 dias de teste grátis</a>
+      <p class="final-alt">Ainda não está pronto? <a data-origin="final_demo" target="_blank" rel="noopener" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA%20e%20quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o.%20Minha%20opera%C3%A7%C3%A3o%20%28tipo%20de%20obra%20e%20n%C2%BA%20de%20obras%20ao%20mesmo%20tempo%29%3A%20">Peça uma demonstração</a> · <a data-origin="final_preco" target="_blank" rel="noopener" href="https://wa.me/5561998862884?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20COMTRENA%20e%20quero%20saber%20o%20valor%20para%20o%20meu%20porte.%20Hoje%20tenho%20%28n%C2%BA%20de%20obras%20e%20de%20usu%C3%A1rios%29%3A%20">Pergunte o valor</a></p>
     </div>
   </div>
 </section>
@@ -1291,7 +1318,6 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
         <div><dt>50+</dt><dd>Gestão de obras</dd></div>
         <div><dt>7</dt><dd>Anos de experiência</dd></div>
         <div><dt>8 mil m²</dt><dd>Executados</dd></div>
-        <div><dt>100%</dt><dd>Clientes satisfeitos</dd></div>
       </dl>
     </div>
   </div>
@@ -1309,12 +1335,12 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
     <div class="foot-grid">
       <div class="foot-col">
         <span class="foot-label">WhatsApp Brasil</span>
-        <a href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">+55 61 99671 3169</a>
+        <a data-origin="rodape_br" href="https://wa.me/5561998862884?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">+55 61 99886 2884</a>
         <span class="foot-person">Onilia Almeida · Comercial</span>
       </div>
       <div class="foot-col">
         <span class="foot-label">WhatsApp Paraguay</span>
-        <a href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">+595 995 631 900</a>
+        <a data-origin="rodape_py" href="https://wa.me/595995631900?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*" target="_blank" rel="noopener">+595 995 631 900</a>
       </div>
       <div class="foot-col">
         <span class="foot-label">E-mail</span>
@@ -1353,10 +1379,11 @@ footer{border-top:1px solid var(--line-soft);padding:48px 0 calc(40px + env(safe
     <p class="pq-modal-note">Ao enviar, você vai para o WhatsApp com esse resumo pronto. Em seguida a gente te manda o <strong>link de uma conversa rápida</strong> para entender o cenário da sua empresa e já indicar os módulos certos.</p>
 
     <a class="btn btn-gold pq-modal-send" id="pqModalSend" href="#" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+    <a class="pq-modal-alt" id="pqModalDiag" href="#">Ainda não quero testar — só quero o diagnóstico</a>
   </div>
 </div>
 
-<a class="wa js-pq-open" id="waBtn" data-origin="flutuante" href="https://wa.me/5561996713169?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*"
+<a class="wa js-pq-open" id="waBtn" data-origin="flutuante" href="https://wa.me/5561998862884?text=Ol%C3%A1!%20Vim%20pelo%20site%20do%20COMTRENA.%20*Quero%20maiores%20informa%C3%A7%C3%B5es%20sobre%20o%20SAAS%20Comtrena*"
    target="_blank" rel="noopener" aria-label="Falar no WhatsApp — 15 dias de teste grátis">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.74.46 3.43 1.32 4.92L2 22l5.29-1.39c1.43.78 3.04 1.2 4.69 1.2h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.86 9.86 0 0012.05 2h-.01zm5.84 14.1c-.25.7-1.45 1.33-2 1.42-.54.08-1.21.12-1.95-.12-.45-.14-1.03-.33-1.77-.65-3.12-1.35-5.16-4.5-5.32-4.71-.16-.21-1.27-1.69-1.27-3.22 0-1.53.8-2.28 1.08-2.59.28-.31.62-.39.82-.39.21 0 .41 0 .59.01.19.01.44-.07.69.53.25.6.86 2.07.94 2.22.08.15.13.32.03.52-.1.2-.15.32-.3.5-.15.18-.31.4-.45.54-.15.14-.3.3-.13.6.17.3.77 1.27 1.65 2.06 1.13 1.01 2.08 1.33 2.38 1.48.3.15.48.13.65-.08.18-.21.75-.87.95-1.17.2-.3.41-.25.68-.15.28.1 1.77.84 2.07.99.3.15.5.22.57.35.07.13.07.74-.18 1.44z"/></svg>
 </a>
@@ -1615,10 +1642,35 @@ if(!reduceMotion){
   },{passive:true});
 }
 
+/* ---------- atribuição (UTM, gclid, fbclid) e eventos de conversão ---------- */
+const CT={attr:{}};
+(function(){
+  const K=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid','wbraid','gbraid'];
+  let a={}; try{a=JSON.parse(sessionStorage.getItem('ct_attr')||'{}')}catch(e){}
+  const q=new URLSearchParams(location.search);
+  K.forEach(k=>{const v=q.get(k); if(v) a[k]=v.slice(0,80);});
+  try{sessionStorage.setItem('ct_attr',JSON.stringify(a))}catch(e){}
+  CT.attr=a;
+  CT.tag=function(origin){
+    const r=[]; if(a.utm_campaign)r.push('c:'+a.utm_campaign); if(a.utm_term)r.push('t:'+a.utm_term);
+    if(a.gclid)r.push('g:'+a.gclid.slice(0,12)); if(a.fbclid)r.push('f:'+a.fbclid.slice(0,12));
+    return '\n\n[origem: '+origin+(r.length?' | '+r.join(' | '):'')+']';
+  };
+  CT.track=function(name,origin,extra){
+    if(window.gtag) gtag('event',name,Object.assign({origin:origin},a,extra||{}));
+    if(window.fbq){
+      if(name==='generate_lead') fbq('track','Lead',{content_name:origin});
+      else if(name==='click_whatsapp') fbq('track','Contact',{content_name:origin});
+    }
+  };
+})();
+
 document.querySelectorAll('a[href*="wa.me"]:not(.js-pq-open)').forEach(a=>{
   a.addEventListener('click',()=>{
-    if(window.gtag) gtag('event','contato_whatsapp',{origem:a.closest('section')?.id||'topo'});
-    if(window.fbq)  fbq('track','Contact');
+    const origin=a.dataset.origin||a.closest('section')?.id||'topo';
+    a.dataset.base=a.dataset.base||a.href;
+    a.href=a.dataset.base+encodeURIComponent(CT.tag(origin));
+    CT.track('click_whatsapp',origin,{pais:/wa\.me\/595/.test(a.dataset.base)?'PY':'BR'});
   });
 });
 
@@ -1700,18 +1752,22 @@ pqBtns.forEach(b=>b.addEventListener('click',()=>{
   openBtns.forEach(btn=>btn.addEventListener('click',(e)=>{
     if(btn.tagName==='A') e.preventDefault();
     modalOrigin=btn.dataset.origin||'desconhecido';
+    CT.track('view_cta_modal',modalOrigin,{dores_marcadas:pqBtns.filter(b=>b.getAttribute('aria-pressed')==='true').length});
     openModal();
   }));
   closeBtn.addEventListener('click',closeModal);
   backdrop.addEventListener('click',closeModal);
 
-  sendBtn.addEventListener('click',(e)=>{
-    e.preventDefault();
+  function sendWa(kind){
     const marked=pqBtns.filter(b=>b.getAttribute('aria-pressed')==='true')
       .map(b=>b.querySelector('b').textContent);
     const name=nameInput.value.trim();
     let msg;
-    if(marked.length){
+    if(kind==='diag'){
+      msg='Olá! Vim pelo site do COMTRENA. Ainda não quero testar, mas gostaria do diagnóstico de onde o controle da minha obra está vazando, sem compromisso.';
+      if(marked.length) msg+='\n\nMarquei:\n'+marked.map(t=>'- '+t).join('\n');
+      if(name) msg+='\n\nMeu nome é '+name+'.';
+    } else if(marked.length){
       msg='Olá! Vim pelo site do COMTRENA e quero testar grátis por 15 dias.';
       msg+='\n\nHoje minha obra sofre com:\n'+marked.map(t=>'- '+t).join('\n');
       if(name) msg+='\n\nMeu nome é '+name+'.';
@@ -1720,11 +1776,15 @@ pqBtns.forEach(b=>b.addEventListener('click',()=>{
       msg='*Quero maiores informações sobre o SAAS Comtrena*';
       if(name) msg+='\n\nMeu nome é '+name+'.';
     }
-    if(window.gtag) gtag('event','contato_whatsapp',{origem:'modal_'+modalOrigin});
-    if(window.fbq)  fbq('track','Contact');
-    window.open('https://wa.me/5561996713169?text='+encodeURIComponent(msg),'_blank','noopener');
+    const origin=(kind==='diag')?'modal_diagnostico':'modal_'+modalOrigin;
+    msg+=CT.tag(origin);
+    CT.track('generate_lead',origin,{dores_marcadas:marked.length,tem_nome:!!name});
+    window.open('https://wa.me/5561998862884?text='+encodeURIComponent(msg),'_blank','noopener');
     closeModal();
-  });
+  }
+  sendBtn.addEventListener('click',(e)=>{ e.preventDefault(); sendWa('teste'); });
+  const diagBtn=document.getElementById('pqModalDiag');
+  if(diagBtn) diagBtn.addEventListener('click',(e)=>{ e.preventDefault(); sendWa('diag'); });
 })();
 
 /* ---------- destaque automático, um item por vez, em listas de tags ---------- */
